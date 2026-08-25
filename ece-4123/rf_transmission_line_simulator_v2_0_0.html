@@ -1,0 +1,2411 @@
+<!--
+  RF Transmission Line Simulator (RFTLS)
+  Version: v2.0.0
+  Released: 2026-06-19
+  Owner Claude: Builder Claude
+  Version surfaces (keep in sync): this comment stamp, the <title> tag, and the
+    on-screen .app-version span. The span and document.title are set at runtime
+    from the single APP_VERSION constant (see NAMED CONSTANTS / INIT); this
+    stamp and the literal <title> are the hand-maintained fallbacks.
+  Changelog:
+    - v2.0.0 — Added the third tab, "Guide" (in-tool documentation, §0–§11 from
+      rftls_guide_content_final.md) and enabled it in the tab bar via the
+      existing showTab('guide') pattern. MAJOR bump per Security Standards §9
+      (two tabs added across this release: Traveling Waves + Guide). Version
+      reconciliation (INC-RFTL-010 recurrence): all three version surfaces set
+      to 2.0.0 and single-sourced through APP_VERSION so they cannot drift
+      again. Guide is static documentation only — no engine interaction, no
+      compute, no new dependency; rendered as escaped static HTML/text (no
+      eval/new Function/injection surface). Explorer, Traveling Waves, and the
+      engine are unchanged except for the shared version surface and the added
+      Guide tab button.
+    - --- prior history below (unchanged) ---
+  Changelog (pre-2.0.0):
+    - v1.2.0 — FR-TW: added "Traveling Waves" tab + tab chrome (Explorer /
+      Traveling Waves / Guide-reserved) per design spec v0.3. The tab is a
+      READ-ONLY consumer of the existing engine: no engine function, no
+      existing ID, and no hook was changed. The only Explorer-markup touch is
+      the additive tab-explorer wrap div (FLAG-04) plus one appended
+      initWavesTab() call at the end of DOMContentLoaded (spec §11). New
+      animated stage is native HTML5 Canvas 2D + requestAnimationFrame, zero
+      new dependencies (FLAG-02); dark theme reusing the existing :root tokens
+      (DR-TW-01/02/03). Ships LOSSLESS AND LOSSY.
+      DR-TW-05 (PI 2026-06-18): Increment 2 active — the animated incident and
+      reflected traces are rendered from the engine's own forward/reflected
+      complex decomposition, F(z)=V⁺·e^{γ(z−ℓ)} and R(z)=V⁺·Γ_L·e^{−γ(z+ℓ)},
+      animated as v⁺=Re{F·e^{jωt}}, v⁻=Re{R·e^{jωt}}, so the traces carry true
+      position-dependent amplitude (real spatial attenuation). Construction
+      invariant F(z)+R(z) ≡ V(z) verified to machine precision against
+      standingWave() at lossless, complex-load, and lossy scenes. Read-only
+      composition from existing helpers (computeVplus/computeGammaL/getAlphaEff
+      →γ, cExp/cMul/cAdd) — engine unmodified. This RESOLVES ESC-RFTL-TW-01:
+      the engine split yields the load-origin directions intrinsically
+      (incident → load, decaying; reflected → source, decaying), so the earlier
+      §2 βz cos-sign switch and the constant-amplitude A⁺/A⁻ stubs are removed.
+    - --- prior history below (unchanged) ---
+    - v1.1.9 — reconciled displayed version label to header (INC-RFTL-010); no
+      functional change from v1.1.8. (Also corrected one stale comment line-ref,
+      ANOM-RFTL-001.)
+    - DEFECT-RFTL-005 fix (Critical, pre-existing): the Derived "P_load" readout
+      (out_Pload) displayed INPUT power — it was sourced from a dead local
+      `Pload = ½·|I_in|²·Re(Z_in)` (input-power formula) under a load-power
+      label. out_Pload now displays PL_avg, the true load power already computed
+      (avgPower(IL_mag, Re(Z_L))) and shown in the banner P_L. out_Pload now
+      uses the identical expression as out_PL_bar — fmt4(PL_avg · W_TO_MW) — so
+      the two are guaranteed equal in every mode (including the ∞ open-load
+      guard). The dead `Pload` computation and its mislabeled comment were
+      removed; the live ZspZin / I_in (used by Ps, Is, Vin) were left intact.
+      No other readout, physics, or rendering changed.
+    - SEC-01 fix (Major, Security Standards §4.2): buildSchematic() no longer
+      assigns an HTML string to svg.innerHTML. The schematic is now built via
+      the SVG DOM (createElementNS / setAttribute / textContent); all computed
+      values (Z0, alpha_eff, beta, l, modeStr, ZLstr) reach text nodes only,
+      never an HTML-parsing sink. Rendered schematic is pixel-identical to
+      v1.1.6 — no functional or visual change.
+    - SEC-02 fix (Major, Security Standards §4.4): added the cdnjs-published
+      Subresource Integrity hash to the Plotly 2.27.0 script tag
+      (integrity="sha512-…", crossorigin="anonymous" already present). The
+      hash is the published cdnjs value for plotly.min.js 2.27.0, supplied by
+      the faculty investigator and inserted verbatim — not computed. (cdnjs
+      publishes this file as sha512; SRI accepts it and the browser verifies
+      against it.) No functional or visual change.
+    - DEFECT-RFTL-004 fix (Critical, PI ruling 2026-05-27): Ps_avg formula
+      in compute() corrected from avgPower(Is_peak, STATE.Rs) — which computed
+      only Rs dissipation — to avgPower(Is_peak, ZspZin.re), which is the
+      total power delivered by the source Vs into the series combination
+      (Zs + Zin). The prior v1.1.5 formula violated conservation of energy
+      (Ps < Pin < PL is impossible for a passive load) and was visible to
+      students. New formula: Ps = ½·|I_in|²·Re(Zs + Zin). Power balance now
+      reads correctly as Ps − Pin = ½·|I_in|²·Rs (power dissipated in Rs),
+      and Pin − PL = power dissipated in the lossy line.
+    - CQ-RFTLS-OBS-01 fix (Minor): standingWave() now takes l as an explicit
+      parameter; the v1.1.5 Math.max(...dArr) derivation has been removed.
+      Single call site in compute() updated. No behavioral change — l_local
+      equalled Math.max(dArrRev) = l by construction.
+    - DOC-RFTLS-OBS-01 fix (Minor): standingWave() section header block and
+      JSDoc now document the v1.1.5 envelope formulas (previously they still
+      showed the pre-v1.1.5 formulas without the e^(α(d−l)) factor). The
+      JSDoc also documents the new l parameter.
+    - DEFECT-RFTL-001 (already fixed in v1.1.5): envelope factor on standing
+      wave reconstruction, unchanged in v1.1.6.
+    - DEFECT-RFTL-002 (already fixed in v1.1.4): explicit open-circuit guard
+      in compute()'s SWR branch, unchanged in v1.1.6.
+    - DEFECT-RFTL-003: no code change. PI ruled toFixed() is correct and
+      intentional (decimal places, not significant figures).
+  Owner Claude: Builder Claude
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- version surface: literal fallback kept in sync with APP_VERSION; also set at runtime from APP_VERSION (applyVersionSurfaces) -->
+<title>RF Transmission Line Simulator — v2.0.0</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"
+        integrity="sha512-2yjH2FQFIKp1XQ8nSWes+7/zWAPc9qfDolxFGJV1BUO7/+YIAPh1jICUN6TaA+VVlfabERCqo1Hji0yYTFtDew=="
+        crossorigin="anonymous"></script>
+<style>
+  /* ── Design tokens ── */
+  :root {
+    --bg-base:      #0a0c0f;
+    --bg-panel:     #0f1318;
+    --bg-input:     #141920;
+    --bg-highlight: #1a2030;
+    --border:       #1e2a3a;
+    --border-bright:#2a3f55;
+
+    /* Typography — upgraded for readability */
+    --text-primary: #daeaf8;   /* was #c8d8e8 — brighter */
+    --text-dim:     #9ab8cc;   /* was #6a8aaa — significantly brighter */
+    --text-label:   #b0cce0;   /* was #8aaccc — brighter */
+    --text-value:   #e8f4ff;   /* was #d0e8ff — slightly brighter */
+
+    /* Signal colors — plot lines */
+    --color-v:      #00e5b0;
+    --color-i:      #f0a030;
+    --color-zin:    #7080ff;
+    --color-gamma:  #ff5060;
+    --color-source: #4499dd;
+    --color-line:   #22ccaa;
+    --color-load:   #ffaa22;
+
+    --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
+    --font-sans:    'IBM Plex Sans', 'Segoe UI', sans-serif;
+
+    --radius:       4px;
+    --panel-pad:    12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 15px;          /* was 13px */
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 12px 16px 32px;
+  }
+
+  /* ── Header ── */
+  .app-header {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+  }
+  .app-title {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    color: var(--color-v);
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  .app-version {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Schematic ── */
+  #schematic-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+  }
+  #schematic-svg {
+    display: block;
+    margin: 0 auto;
+    min-width: 580px;
+    max-width: 900px;
+    width: 100%;
+    height: 90px;
+  }
+
+  /* ── Signal readout bar ── */
+  #readout-bar {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .readout-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .readout-group-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--border);
+  }
+  .readout-group-title.src  { color: var(--color-source); border-color: var(--color-source); }
+  .readout-group-title.line { color: var(--color-line);   border-color: var(--color-line); }
+  .readout-group-title.load { color: var(--color-load);   border-color: var(--color-load); }
+  .sig-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: baseline;
+    gap: 8px;
+    padding: 1px 0;
+  }
+  .sig-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-label);
+  }
+  .sig-val {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-value);
+  }
+
+  /* ── Three-column main layout: left sidebar | plots | right sidebar ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    gap: 10px;
+    align-items: start;
+  }
+
+  /* ── Sidebars ── */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* ── Panel card ── */
+  .panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--panel-pad);
+  }
+  .panel-title {
+    font-family: var(--font-mono);
+    font-size: 12px;            /* was 10px */
+    letter-spacing: 0.10em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Form rows ── */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 90px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 7px;
+  }
+  .form-row.has-slider {
+    grid-template-columns: 1fr;
+    gap: 3px;
+    margin-bottom: 9px;
+  }
+  .form-row.has-slider .input-line {
+    display: grid;
+    grid-template-columns: 1fr 90px;
+    align-items: center;
+    gap: 6px;
+  }
+  label {
+    color: var(--text-label);
+    font-size: 14px;            /* was 12px */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  label .sym {
+    font-family: var(--font-mono);
+    color: var(--text-value);
+    font-size: 14px;
+  }
+  label .unit {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  input[type="number"] {
+    background: var(--bg-input);
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius);
+    color: var(--text-value);
+    font-family: var(--font-mono);
+    font-size: 13px;            /* was 12px */
+    padding: 4px 6px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="number"]:focus { border-color: var(--color-v); }
+  input[type="range"] {
+    width: 100%;
+    height: 3px;
+    accent-color: var(--color-v);
+    cursor: pointer;
+    margin-top: 2px;
+  }
+
+  /* ── Toggle switches ── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 5px 0;
+  }
+  .toggle-label {
+    color: var(--text-label);
+    font-size: 14px;
+  }
+  .toggle-label .mode-indicator {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin-left: 6px;
+  }
+  .toggle-switch {
+    position: relative;
+    width: 42px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .toggle-switch input { display: none; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-input);
+    border: 1px solid var(--border-bright);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-track {
+    background: #0e3028;
+    border-color: var(--color-v);
+  }
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-track::after {
+    transform: translateX(20px);
+    background: var(--color-v);
+  }
+
+  /* ── Load mode toggle bar ── */
+  .mode-bar {
+    display: flex;
+    background: var(--bg-input);
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .mode-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 0;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mode-btn.active {
+    background: var(--bg-highlight);
+    color: var(--color-v);
+  }
+
+  /* ── Coupled length row ── */
+  .coupled-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 7px;
+    align-items: end;
+  }
+  .coupled-row .field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .coupled-row .field label { font-size: 12px; }
+
+  /* ── Reflection readout panel ── */
+  .readout-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .readout-item {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+  }
+  .readout-item.gamma-item { border-left: 2px solid var(--color-gamma); }
+  .readout-name {
+    font-family: var(--font-mono);
+    font-size: 12px;            /* was 10px */
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  .readout-mag {
+    font-family: var(--font-mono);
+    font-size: 17px;
+    color: var(--color-gamma);
+    font-weight: 600;
+  }
+  .readout-phase {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-label);
+    margin-top: 1px;
+  }
+
+  /* ── Derived outputs ── */
+  .derived-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .derived-row:last-child { border-bottom: none; }
+  .derived-name {
+    font-family: var(--font-mono);
+    font-size: 13px;            /* was 11px */
+    color: var(--text-dim);
+  }
+  .derived-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-value);
+  }
+
+  /* ── Plot area ── */
+  .plot-area {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .plot-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px 6px;
+  }
+  .plot-card-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .plot-div {
+    width: 100%;
+    height: 190px;
+  }
+
+  /* ── Status bar ── */
+  .status-bar {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    padding-top: 4px;
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+  }
+  .status-bar .ok   { color: var(--color-v); }
+  .status-bar .warn { color: var(--color-i); }
+  .status-bar .err  { color: var(--color-gamma); }
+
+  /* ── Responsive ── */
+  @media (max-width: 1000px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ══ FR-TW v1.2.0 — Tab chrome + Traveling-Waves tab (dark, reuses :root) ══ */
+  .tw-tablist {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .tw-tab-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tw-tab-btn:hover:not([disabled]) { color: var(--text-label); }
+  .tw-tab-btn[aria-selected="true"] {
+    background: var(--bg-panel);
+    color: var(--color-v);
+    border-color: var(--border-bright);
+  }
+  .tw-tab-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+  .tw-grid {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+  .tw-rail { display: flex; flex-direction: column; gap: 10px; }
+  .tw-note {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+  .tw-stage { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+  .tw-stage-top { display: flex; align-items: center; gap: 14px; }
+  .tw-anim-btn {
+    background: var(--bg-input);
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius);
+    color: var(--text-value);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .tw-anim-btn:hover { border-color: var(--color-v); }
+  .tw-speed-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .tw-speed-label { font-family: var(--font-mono); font-size: 14px; color: var(--text-label); }
+  #tw_sl_speed { width: 140px; }
+  .tw-canvas-wrap {
+    width: 100%;
+    min-height: 420px;
+    flex: 1;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  #tw_stage_canvas { width: 100%; height: 100%; min-height: 420px; display: block; }
+  .tw-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-family: var(--font-mono);
+    font-size: 16px;
+    color: var(--text-label);
+  }
+  .tw-leg { display: flex; align-items: center; gap: 7px; }
+  .tw-swatch { width: 22px; height: 0; border-top-style: solid; border-top-width: 3px; display: inline-block; }
+  .sw-res { border-top-color: var(--text-value);  border-top-width: 3.5px; }
+  .sw-inc { border-top-color: var(--color-v);      border-top-width: 2px; }
+  .sw-ref { border-top-color: var(--color-gamma);  border-top-style: dashed; border-top-width: 2px; }
+  .sw-env { border-top-color: #8aa0b8;             border-top-style: dotted; border-top-width: 2px; }
+  @media (max-width: 1000px) { .tw-grid { grid-template-columns: 1fr; } }
+
+  /* ══ Guide tab (v2.0.0) — static documentation, dark / IBM Plex ══ */
+  .guide-panel { padding: 20px 24px; }
+  .guide-doc {
+    max-width: 80ch;
+    margin: 0 auto;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--text-label);
+  }
+  .guide-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-value);
+    letter-spacing: 0.02em;
+    margin: 0 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-bright);
+  }
+  .guide-h {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-v);
+    letter-spacing: 0.04em;
+    margin: 26px 0 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .guide-doc p { margin: 8px 0; }
+  .guide-doc strong { color: var(--text-value); font-weight: 600; }
+  .guide-doc em { color: var(--text-label); font-style: italic; }
+  .guide-ol, .guide-ul { margin: 8px 0 8px 0; padding-left: 24px; }
+  .guide-ol li, .guide-ul li { margin: 5px 0; }
+  .guide-eq {
+    background: var(--bg-input);
+    border-left: 3px solid var(--color-v);
+    border-radius: var(--radius);
+    color: var(--text-value);
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 10px 14px;
+    margin: 10px 0;
+    white-space: normal;
+    overflow-x: auto;
+  }
+  .guide-table-wrap { overflow-x: auto; margin: 12px 0; }
+  .guide-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+  }
+  .guide-table th, .guide-table td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .guide-table th {
+    background: var(--bg-input);
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 12px;
+  }
+  .guide-table td { color: var(--text-label); }
+  .guide-table td strong { color: var(--text-value); }
+  .guide-hr { border: none; border-top: 1px solid var(--border); margin: 20px 0 10px; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <span class="app-title">RF TRANSMISSION LINE SIMULATOR</span>
+  <span class="app-version" id="app-version">v2.0.0 — University of Tulsa ECE</span>
+</header>
+
+<!-- ── Tab chrome (FR-TW v1.2.0). Additive: existing content is wrapped, not modified. ── -->
+<div class="tw-tablist" id="tablist-main" role="tablist" aria-label="RFTLS views">
+  <button class="tw-tab-btn" id="tab-btn-explorer" role="tab" aria-selected="true"  aria-controls="tab-explorer" tabindex="0"  onclick="showTab('explorer')">Explorer</button>
+  <button class="tw-tab-btn" id="tab-btn-waves"    role="tab" aria-selected="false" aria-controls="tab-waves"    tabindex="-1" onclick="showTab('waves')">Traveling Waves</button>
+  <button class="tw-tab-btn" id="tab-btn-guide"    role="tab" aria-selected="false" aria-controls="tab-guide"    tabindex="-1" onclick="showTab('guide')">Guide</button>
+</div>
+
+<!-- tab-explorer wraps the existing Explorer content (FLAG-04 — additive wrap only) -->
+<div id="tab-explorer" role="tabpanel" aria-labelledby="tab-btn-explorer">
+
+<!-- Circuit schematic -->
+<div id="schematic-panel">
+  <svg id="schematic-svg" viewBox="0 0 800 80" xmlns="http://www.w3.org/2000/svg">
+    <!-- populated by buildSchematic() -->
+  </svg>
+</div>
+
+<!-- Signal readout bar -->
+<div id="readout-bar">
+  <!-- Source -->
+  <div class="readout-group">
+    <div class="readout-group-title src">Source (d = l)</div>
+    <div class="sig-row">
+      <span class="sig-name">V<sub>s</sub> (V)</span>
+      <span class="sig-val" id="out_Vs_bar">—</span>
+    </div>
+    <div class="sig-row">
+      <span class="sig-name">I<sub>s</sub> (A)</span>
+      <span class="sig-val" id="out_Is_bar">—</span>
+    </div>
+    <div class="sig-row">
+      <span class="sig-name">P<sub>s</sub> (mW)</span>
+      <span class="sig-val" id="out_Ps_bar">—</span>
+    </div>
+  </div>
+  <!-- Input of TL -->
+  <div class="readout-group">
+    <div class="readout-group-title line">TL Input (d = l)</div>
+    <div class="sig-row">
+      <span class="sig-name">V<sub>in</sub> (V)</span>
+      <span class="sig-val" id="out_Vin_bar">—</span>
+    </div>
+    <div class="sig-row">
+      <span class="sig-name">I<sub>in</sub> (A)</span>
+      <span class="sig-val" id="out_Iin_bar">—</span>
+    </div>
+    <div class="sig-row">
+      <span class="sig-name">P<sub>in</sub> (mW)</span>
+      <span class="sig-val" id="out_Pin_bar">—</span>
+    </div>
+  </div>
+  <!-- Load -->
+  <div class="readout-group">
+    <div class="readout-group-title load">Load (d = 0)</div>
+    <div class="sig-row">
+      <span class="sig-name">V<sub>L</sub> (V)</span>
+      <span class="sig-val" id="out_VL_bar">—</span>
+    </div>
+    <div class="sig-row">
+      <span class="sig-name">I<sub>L</sub> (A)</span>
+      <span class="sig-val" id="out_IL_bar">—</span>
+    </div>
+    <div class="sig-row">
+      <span class="sig-name">P<sub>L</sub> (mW)</span>
+      <span class="sig-val" id="out_PL_bar">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- Three-column main grid: left controls | plots | right controls -->
+<div class="main-grid">
+
+  <!-- ── LEFT SIDEBAR: Source + Transmission Line ── -->
+  <div class="sidebar">
+
+    <!-- Source Parameters -->
+    <div class="panel">
+      <div class="panel-title">Source Parameters</div>
+
+      <div class="form-row has-slider">
+        <div class="input-line">
+          <label><span class="sym">V<sub>s</sub></span> peak <span class="unit">V</span></label>
+          <input type="number" id="in_Vs" value="1" min="0.001" step="0.1">
+        </div>
+        <input type="range" id="sl_Vs" min="0.001" max="10" step="0.001" value="1">
+      </div>
+
+      <div class="form-row">
+        <label><span class="sym">R<sub>s</sub></span> <span class="unit">Ω</span></label>
+        <input type="number" id="in_Rs" value="50" min="0" step="1">
+      </div>
+
+      <div class="form-row">
+        <label><span class="sym">X<sub>s</sub></span> <span class="unit">Ω</span></label>
+        <input type="number" id="in_Xs" value="0" step="1">
+      </div>
+
+      <div class="form-row">
+        <label><span class="sym">f</span> <span class="unit">GHz</span></label>
+        <input type="number" id="in_f" value="1" min="0.001" step="0.1">
+      </div>
+      <div style="font-size:0.80rem;color:var(--text-dim);margin-top:-4px;margin-bottom:4px;">Reference only — no effect on plots in v1.x</div>
+    </div>
+
+    <!-- Transmission Line Parameters -->
+    <div class="panel">
+      <div class="panel-title">Transmission Line</div>
+
+      <div class="toggle-row">
+        <span class="toggle-label">
+          Lossless
+          <span class="mode-indicator" id="lossless-indicator">OFF</span>
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="tog_lossless">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label><span class="sym">Z<sub>0</sub></span> <span class="unit">Ω</span></label>
+        <input type="number" id="in_Z0" value="50" min="0.001" step="1">
+      </div>
+
+      <div class="form-row">
+        <label><span class="sym">α</span> atten. <span class="unit">Np/m</span></label>
+        <input type="number" id="in_alpha" value="0.1" min="0" step="0.01">
+      </div>
+
+      <div class="form-row">
+        <label><span class="sym">β</span> phase <span class="unit">rad/m</span></label>
+        <input type="number" id="in_beta" value="20.944" min="0" step="0.001">
+      </div>
+
+      <!-- Bidirectional coupled length inputs -->
+      <div class="coupled-row">
+        <div class="field">
+          <label><span class="sym">l</span> physical <span class="unit">m</span></label>
+          <input type="number" id="in_l" value="0.15" min="0.001" step="0.001">
+        </div>
+        <div class="field">
+          <label><span class="sym">θ</span> elec. <span class="unit">°</span></label>
+          <input type="number" id="in_theta" value="0" step="0.1">
+        </div>
+      </div>
+      <input type="range" id="sl_l" min="0.001" max="2" step="0.001" value="0.15"
+             style="width:100%;height:3px;accent-color:var(--color-v);cursor:pointer;margin-bottom:6px;">
+    </div>
+
+    <!-- Status -->
+    <div class="status-bar">
+      <span id="status-text" class="ok">⯯ READY</span>
+    </div>
+
+  </div><!-- /left sidebar -->
+
+  <!-- ── CENTER: Plot area ── -->
+  <div class="plot-area">
+    <div class="plot-card">
+      <div class="plot-card-title" style="color:var(--color-v)">▸ Standing Wave Voltage Magnitude  |V(d)|</div>
+      <div class="plot-div" id="plot-V"></div>
+    </div>
+    <div class="plot-card">
+      <div class="plot-card-title" style="color:var(--color-i)">▸ Standing Wave Current Magnitude  |I(d)|</div>
+      <div class="plot-div" id="plot-I"></div>
+    </div>
+    <div class="plot-card">
+      <div class="plot-card-title" style="color:var(--color-zin)">▸ Input Impedance Magnitude  |Z<sub>in</sub>(d)|</div>
+      <div class="plot-div" id="plot-Zin"></div>
+    </div>
+  </div><!-- /plot area -->
+
+  <!-- ── RIGHT SIDEBAR: Load + Readouts ── -->
+  <div class="sidebar">
+
+    <!-- Load Parameters -->
+    <div class="panel">
+      <div class="panel-title">Load</div>
+
+      <div class="mode-bar">
+        <button class="mode-btn active" id="btn_series" onclick="setLoadMode('series')">SERIES Z</button>
+        <button class="mode-btn" id="btn_parallel" onclick="setLoadMode('parallel')">PARALLEL Y</button>
+      </div>
+
+      <!-- Series Z fields -->
+      <div id="series-fields">
+        <div class="form-row">
+          <label><span class="sym">R<sub>L</sub></span> <span class="unit">Ω</span></label>
+          <input type="number" id="in_RL" value="100" step="1">
+        </div>
+        <div class="form-row">
+          <label><span class="sym">X<sub>L</sub></span> <span class="unit">Ω</span></label>
+          <input type="number" id="in_XL" value="50" step="1">
+        </div>
+      </div>
+
+      <!-- Parallel Y fields -->
+      <div id="parallel-fields" style="display:none">
+        <div class="form-row">
+          <label><span class="sym">G<sub>L</sub></span> <span class="unit">S</span></label>
+          <input type="number" id="in_GL" value="0.02" step="0.001">
+        </div>
+        <div class="form-row">
+          <label><span class="sym">B<sub>L</sub></span> <span class="unit">S</span></label>
+          <input type="number" id="in_BL" value="0" step="0.001">
+        </div>
+      </div>
+    </div>
+
+    <!-- Reflection Coefficient Readout -->
+    <div class="panel">
+      <div class="panel-title">Reflection Coefficients</div>
+      <div class="readout-grid">
+        <div class="readout-item gamma-item">
+          <div class="readout-name">|Γ<sub>L</sub>|</div>
+          <div class="readout-mag" id="out_gammaL_mag">—</div>
+          <div class="readout-phase" id="out_gammaL_phase">— °</div>
+        </div>
+        <div class="readout-item gamma-item">
+          <div class="readout-name">|Γ<sub>in</sub>|</div>
+          <div class="readout-mag" id="out_gammaIn_mag">—</div>
+          <div class="readout-phase" id="out_gammaIn_phase">— °</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Derived Outputs -->
+    <div class="panel">
+      <div class="panel-title">Derived — At Input (d = l)</div>
+      <div class="derived-row">
+        <span class="derived-name">Z<sub>in</sub> (Ω)</span>
+        <span class="derived-val" id="out_Zin_str">—</span>
+      </div>
+      <div class="derived-row">
+        <span class="derived-name">|Z<sub>in</sub>| (Ω)</span>
+        <span class="derived-val" id="out_Zin_mag">—</span>
+      </div>
+      <div class="derived-row">
+        <span class="derived-name">SWR</span>
+        <span class="derived-val" id="out_SWR">—</span>
+      </div>
+      <div class="derived-row">
+        <span class="derived-name">|V<sup>+</sup>| (V)</span>
+        <span class="derived-val" id="out_Vplus">—</span>
+      </div>
+      <div class="derived-row">
+        <span class="derived-name">P<sub>load</sub> (mW)</span>
+        <span class="derived-val" id="out_Pload">—</span>
+      </div>
+    </div>
+
+  </div><!-- /right sidebar -->
+
+</div><!-- /main-grid -->
+
+</div><!-- /tab-explorer -->
+
+<!-- ── Traveling Waves tab (FR-TW v1.2.0) ── -->
+<div id="tab-waves" role="tabpanel" aria-labelledby="tab-btn-waves" style="display:none">
+  <div class="tw-grid">
+
+    <!-- CONTROL RAIL -->
+    <div class="tw-rail">
+      <div class="panel">
+        <div class="panel-title">Scene</div>
+
+        <div class="form-row">
+          <label><span class="sym">Z<sub>0</sub></span> <span class="unit">Ω</span></label>
+          <input type="number" id="tw_Z0" value="50" min="0.001" step="1">
+        </div>
+        <div class="form-row">
+          <label><span class="sym">R<sub>L</sub></span> <span class="unit">Ω</span></label>
+          <input type="number" id="tw_RL" value="100" step="1">
+        </div>
+        <div class="form-row">
+          <label><span class="sym">X<sub>L</sub></span> <span class="unit">Ω</span></label>
+          <input type="number" id="tw_XL" value="50" step="1">
+        </div>
+
+        <div class="form-row has-slider">
+          <div class="input-line">
+            <label><span class="sym">&#8467;</span> length <span class="unit">m</span></label>
+            <input type="number" id="tw_l" value="0.15" min="0.001" step="0.001">
+          </div>
+          <input type="range" id="sl_tw_l" min="0.001" max="2" step="0.001" value="0.15">
+        </div>
+
+        <div class="form-row">
+          <label><span class="sym">f</span> ref. <span class="unit">GHz</span></label>
+          <input type="number" id="tw_f" value="1.0" min="0.001" step="0.1">
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Lossless <span class="mode-indicator" id="tw_lossless_ind">OFF</span></span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="tw_lossless">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label><span class="sym">α</span> atten. <span class="unit">Np/m</span></label>
+          <input type="number" id="tw_alpha" value="0.1" min="0" step="0.01">
+        </div>
+
+        <div class="tw-note">Series R+jX load (parallel-Y entry stays on the Explorer tab).</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Derived (read-only)</div>
+        <div class="derived-row"><span class="derived-name">|Γ|</span><span class="derived-val" id="tw_out_gammaMag">—</span></div>
+        <div class="derived-row"><span class="derived-name">∠Γ</span><span class="derived-val" id="tw_out_gammaPhase">—</span></div>
+        <div class="derived-row"><span class="derived-name">VSWR</span><span class="derived-val" id="tw_out_SWR">—</span></div>
+        <div class="derived-row"><span class="derived-name">λ</span><span class="derived-val" id="tw_out_lambda">—</span></div>
+      </div>
+    </div>
+
+    <!-- STAGE -->
+    <div class="tw-stage panel">
+      <div class="tw-stage-top">
+        <button class="tw-anim-btn" id="tw_btn_play">▶ Play</button>
+        <button class="tw-anim-btn" id="tw_btn_resetphase" title="Reset phase (t←0)">⟲ Reset phase</button>
+        <span class="tw-speed-wrap">
+          <label class="tw-speed-label" for="tw_sl_speed">Speed</label>
+          <input type="range" id="tw_sl_speed" min="0.25" max="2" step="0.05" value="1">
+        </span>
+      </div>
+
+      <div class="tw-canvas-wrap">
+        <canvas id="tw_stage_canvas"></canvas>
+      </div>
+
+      <div class="tw-legend">
+        <span class="tw-leg"><span class="tw-swatch sw-res"></span>resultant v(z,t)</span>
+        <span class="tw-leg"><span class="tw-swatch sw-inc"></span>incident v⁺</span>
+        <span class="tw-leg"><span class="tw-swatch sw-ref"></span>reflected v⁻</span>
+        <span class="tw-leg"><span class="tw-swatch sw-env"></span>|V| envelope</span>
+      </div>
+    </div>
+
+  </div><!-- /tw-grid -->
+</div><!-- /tab-waves -->
+
+<!-- ── Guide tab (reserved; built empty/disabled so it drops in later with no chrome rework) ── -->
+<div id="tab-guide" role="tabpanel" aria-labelledby="tab-btn-guide" style="display:none">
+  <div class="panel guide-panel">
+    <div class="guide-doc">
+<h2 class="guide-title">RF Transmission Line Simulator — In-Tool Guide</h2>
+<h3 class="guide-h">0. Quick start</h3>
+<ol class="guide-ol"><li>On the <strong>Explorer</strong> tab, set the characteristic impedance Z₀, the load, the line length ℓ, and the frequency f.</li><li>Read off the reflection coefficient Γ, the VSWR, and the input impedance Z_in, and watch the standing-wave plot update as you change them.</li><li>Switch to <strong>Traveling Waves</strong> and press <strong>Play</strong>. Watch the incident and reflected waves combine into the standing-wave pattern, then toggle loss on to see them attenuate.</li></ol>
+<h3 class="guide-h">1. What this tool does</h3>
+<p>This simulator analyzes a single uniform transmission line driven at one frequency. You set up a line and a load, and the tool shows you two things: the steady-state result — input impedance, reflection, VSWR, and the standing-wave envelope — and the time-domain picture of the incident and reflected waves that build that envelope. Every number on the screen traces back to a relation explained in §4.</p>
+<h3 class="guide-h">2. The two views</h3>
+<p><strong>Explorer (steady state).</strong> Enter the source, the characteristic impedance Z₀, the load (as either series <strong>R + jX</strong> or parallel <strong>G + jB</strong> — switch with the load-mode control), the line length ℓ, the frequency f, and the loss (use the lossless toggle, or set an attenuation α). The tab reports Γ, VSWR, and Z_in along with the full set of derived quantities, plots the standing-wave profiles along the line, and draws the line schematic.</p>
+<p><strong>Traveling Waves (time domain).</strong> The same scene, shown as motion. Three waves animate: the incident v⁺ traveling toward the load, the reflected v⁻ traveling back toward the source, and their sum, the resultant — together with the stationary |V| envelope they trace out. The controls are Play / Pause, Speed, Reset phase, and the loss toggle.</p>
+<h3 class="guide-h">3. How to read the display</h3>
+<ul class="guide-ul"><li><strong>Four curves, told apart by line weight and pattern</strong> so they stay legible in grayscale and on a projector: the <strong>resultant</strong> is the heaviest line, near-white and solid; the <strong>incident</strong> wave is teal and solid; the <strong>reflected</strong> wave is red and dashed; the <strong>envelope</strong> is steel-grey and dotted.</li><li><strong>The axis runs load-to-source.</strong> Position is the distance z from the load: <strong>z = 0 is at the load (right side); the source is at z = ℓ (left side).</strong> Every distance quoted below is measured from the load. One caution if you are cross-referencing a textbook: many texts let z run <em>negative</em> back toward the source, whereas here z is always the positive distance from the load.</li><li><strong>The envelope does not move.</strong> It marks the largest value the resultant reaches at each point over a full cycle. The incident and reflected curves travel; the pattern they sum to stands still — which is exactly what "standing wave" means.</li></ul>
+<h3 class="guide-h">4. The equations, explained</h3>
+<p>Each relation is stated, explained, and tied to where it appears on screen.</p>
+<p><strong>4.1 Reflection coefficient</strong></p>
+<div class="guide-eq">Γ = (Z_L − Z₀) / (Z_L + Z₀)</div>
+<p>Γ measures how badly the load is mismatched to the line. If the load matches the line (Z_L = Z₀), there is nothing to reflect, so Γ = 0. A passive load always gives |Γ| ≤ 1. Γ is complex: its magnitude sets how large the reflected wave is, and its angle ∠Γ sets where the standing-wave pattern sits relative to the load. On screen, |Γ| shows up as the height of the reflected (red) wave against the incident (teal) one.</p>
+<p><strong>4.2 Standing-wave ratio</strong></p>
+<div class="guide-eq">VSWR = (1 + |Γ|) / (1 − |Γ|)</div>
+<p>As the incident and reflected waves add and subtract along the line, the resultant amplitude swings between a maximum of |V⁺|(1 + |Γ|) and a minimum of |V⁺|(1 − |Γ|). VSWR is the ratio of those two — the tallest point of the envelope over the shortest. VSWR = 1 is a flat envelope (matched); VSWR → ∞ means the minimum falls to zero (total reflection). You read it straight off the envelope.</p>
+<p><strong>4.3 Wavelength and the half-wavelength ruler</strong></p>
+<div class="guide-eq">β = 2π / λ = ω / v_p</div>
+<p>β is the phase constant — the radians of phase the wave gains per meter. The standing-wave pattern repeats every <strong>half</strong> wavelength: adjacent maxima (and adjacent minima) are spaced λ/2 apart, not λ. Raising the frequency f shrinks λ, so more ripples fit on a line of fixed length.</p>
+<p><strong>4.4 The standing-wave envelope</strong></p>
+<div class="guide-eq">|V(z)| = |V⁺| · |1 + Γ·e^(−2jβz)|,  ranging over |V⁺|(1 ± |Γ|)</div>
+<p>This is the curve the dotted envelope draws. At each distance z from the load, the incident and reflected phasors add with a relative phase of 2βz; as z increases they rotate in and out of alignment, producing the maxima and minima. That factor of −2βz is why the pattern repeats every λ/2.</p>
+<p><strong>4.5 Input impedance</strong></p>
+<div class="guide-eq">Z_in = Z₀ · (Z_L + Z₀·tanh γℓ) / (Z₀ + Z_L·tanh γℓ)   — lossless: tanh γℓ → j·tan βℓ</div>
+<p>This is what the source actually sees looking into the line — generally <strong>not</strong> Z_L, because the line transforms the load impedance with distance. Z_in is periodic in ℓ with period λ/2, the same ruler as the standing wave. It tells you whether the <em>source</em> is matched, which is a different question from whether the <em>load</em> is matched.</p>
+<p><strong>4.6 Loss and the round trip</strong></p>
+<div class="guide-eq">γ = α + jβ      and      |Γ_in| = |Γ_L| · e^(−2αℓ)</div>
+<p>With loss, the propagation constant gains a real part α, and each wave decays as it travels: the incident wave is largest at the source and smallest at the load, while the reflected wave is largest at the load and smallest by the time it returns to the source. A reflection makes a round trip of 2ℓ and comes back reduced by e^(−2αℓ). On a long or lossy line this drives the returning wave toward zero — the input looks matched even though the load is not, and the envelope flattens toward the source. An infinite line is the limiting case: nothing returns, and Z_in = Z₀.</p>
+<p><strong>Symbols and units</strong></p>
+<div class="guide-table-wrap"><table class="guide-table"><thead><tr><th>Symbol</th><th>Meaning</th><th>Unit</th></tr></thead><tbody><tr><td>Z₀</td><td>characteristic impedance</td><td>Ω</td></tr><tr><td>Z_L</td><td>load impedance</td><td>Ω</td></tr><tr><td>Z_in</td><td>input impedance (what the source sees)</td><td>Ω</td></tr><tr><td>Γ, |Γ|, ∠Γ</td><td>reflection coefficient, magnitude, angle</td><td>—, —, deg</td></tr><tr><td>VSWR</td><td>voltage standing-wave ratio</td><td>—</td></tr><tr><td>β</td><td>phase constant</td><td>rad/m</td></tr><tr><td>α</td><td>attenuation constant</td><td>Np/m</td></tr><tr><td>γ</td><td>propagation constant (α + jβ)</td><td>1/m</td></tr><tr><td>λ</td><td>wavelength</td><td>m</td></tr><tr><td>ℓ</td><td>line length</td><td>m</td></tr><tr><td>z</td><td>distance from the load (0 ≤ z ≤ ℓ)</td><td>m</td></tr><tr><td>v_p</td><td>phase velocity</td><td>m/s</td></tr><tr><td>f</td><td>frequency</td><td>Hz</td></tr><tr><td>V⁺, V⁻</td><td>incident, reflected voltage amplitude</td><td>V</td></tr></tbody></table></div>
+<h3 class="guide-h">5. Standard reference cases</h3>
+<div class="guide-table-wrap"><table class="guide-table"><thead><tr><th>Case</th><th>Set</th><th>Observe</th></tr></thead><tbody><tr><td><strong>Matched</strong></td><td>Z_L = Z₀</td><td>Γ = 0, VSWR = 1; flat envelope, reflected wave gone — a pure traveling wave.</td></tr><tr><td><strong>Short</strong></td><td>Z_L = 0</td><td>|Γ| = 1 at 180°; voltage <strong>node at the load</strong>, first antinode λ/4 away; VSWR → ∞.</td></tr><tr><td><strong>Open</strong></td><td>Z_L → ∞</td><td>|Γ| = 1 at 0°; voltage <strong>antinode at the load</strong>; VSWR → ∞.</td></tr><tr><td><strong>Complex load</strong></td><td>e.g. Z_L = 75 + j25 Ω</td><td>finite VSWR; the pattern <strong>shifts</strong> — the first minimum sits off the load by an amount set by ∠Γ.</td></tr><tr><td><strong>Lossy / long line</strong></td><td>α &gt; 0, large ℓ</td><td>both waves attenuate in their direction of travel; reflection cut by e^(−2αℓ); envelope flattens toward the source — looks matched at the input without being matched at the load.</td></tr></tbody></table></div>
+<h3 class="guide-h">6. Try this (guided exercises)</h3>
+<ol class="guide-ol"><li><strong>Make the reflection vanish.</strong> Set Z_L = Z₀. The red wave disappears and the envelope goes flat — a matched line.</li><li><strong>Find the node.</strong> Set Z_L = 0 (a short). Find where the envelope touches zero: it sits right at the load. Note the antinode a quarter-wavelength away.</li><li><strong>Flip it.</strong> Set Z_L very large (an open). The node and antinode swap — now there is an antinode at the load.</li><li><strong>Shift the pattern.</strong> Set a complex load (try 75 + j25 Ω) and watch the first minimum move off the load. Change X and watch it slide.</li><li><strong>Kill the reflection with distance.</strong> Turn loss on and lengthen the line. The reflected wave shrinks on its way back and the envelope flattens toward the source — a long line "looks matched."</li><li><strong>Change the ruler.</strong> Raise the frequency. More ripples appear on the same line as λ shrinks; confirm the maxima stay λ/2 apart.</li></ol>
+<h3 class="guide-h">7. What to notice (common misconceptions)</h3>
+<ul class="guide-ul"><li><strong>The standing wave doesn't travel.</strong> It is the sum of two waves that do; nothing propagates along the envelope itself.</li><li><strong>VSWR is not |Γ|.</strong> It is built from |Γ|, but it expresses the envelope's max/min ratio — even a small |Γ| gives VSWR &gt; 1.</li><li><strong>A line can look matched without being matched.</strong> Loss or length can drive the <em>input</em> reflection near zero while the <em>load</em> stays badly mismatched.</li><li><strong>|Γ| ≤ 1 holds only for passive loads.</strong> Active or negative-resistance loads can exceed it — and those are outside this tool's scope (§9).</li><li><strong>Matched is not the same as resonant.</strong> Matching is about the impedance the source sees, not about a resonant length.</li></ul>
+<h3 class="guide-h">8. How the views connect</h3>
+<p>The two tabs share one scene: edit a value on either tab and both update. Γ, VSWR, and the envelope are identical across Explorer and Traveling Waves <em>by construction</em> — the envelope on the Traveling-Waves tab is computed by the same engine routine the Explorer uses, and the maximum the resultant reaches over time at each point is exactly that envelope. The time picture and the steady-state picture are two views of one calculation.</p>
+<h3 class="guide-h">9. Model scope and assumptions</h3>
+<p>This tool models a single uniform transmission line, driven by one sinusoidal source at one frequency (a phasor, or time-harmonic, analysis), carrying a TEM wave with a real characteristic impedance Z₀. Loss is uniform and distributed (γ = α + jβ), and the load is linear and passive. It does <strong>not</strong> model: cascaded line sections, connectors or discontinuities, radiation, frequency dispersion beyond the entered parameters, nonlinear or active loads, or multi-frequency / transient excitation. Within those bounds, the displayed numbers are exact.</p>
+<h3 class="guide-h">10. Worked example</h3>
+<p>Take Z₀ = 50 Ω and a load Z_L = 75 + j25 Ω.</p>
+<div class="guide-eq">Γ = (75 + j25 − 50)/(75 + j25 + 50) = (25 + j25)/(125 + j25)<br>|Γ| = |25 + j25| / |125 + j25| = 35.36 / 127.48 ≈ <strong>0.277</strong>,  ∠Γ ≈ <strong>+33.7°</strong><br>VSWR = (1 + 0.277)/(1 − 0.277) ≈ <strong>1.77</strong></div>
+<p>Enter this load in the Explorer and confirm |Γ| ≈ 0.28 and VSWR ≈ 1.77. Pick a length — say ℓ = λ/8 — and read Z_in. Then switch to Traveling Waves and confirm that the first minimum sits <em>off</em> the load: because ∠Γ is neither 0° nor 180°, the pattern shifts, unlike the short and open cases.</p>
+<h3 class="guide-h">11. Further reading / course context</h3>
+<p>This Guide supports <strong>ECE 4123 Radio Frequency Engineering</strong>. For the underlying theory, work from your course notes alongside a standard transmission-line reference such as Pozar, <em>Microwave Engineering</em> (the transmission-line chapter).</p>
+<hr class="guide-hr">
+<p><em>University of Tulsa — ECE 4123 Radio Frequency Engineering</em></p>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════════════
+   TABLE OF CONTENTS
+   1.  NAMED CONSTANTS              — physical, formatting, plot, schematic
+   2.  COMPLEX ARITHMETIC           — cAdd/cSub/cMul/cDiv/cAbs/cArg/cNeg
+                                       cRecip/cExp/cTanh/cFmt
+   3.  HELPER FUNCTIONS             — cRoundTrip, cGammaD, avgPower,
+                                       getAlphaEff
+   4.  APPLICATION STATE            — STATE object
+   5.  LOAD MODE TOGGLE             — setLoadMode
+   6.  DERIVE Z_L FROM STATE        — getZL
+   7.  GAMMA — REFLECTION COEFFS    — computeGammaL, computeGammaIn
+   8.  Z_IN AT ARBITRARY POSITION   — computeZin
+   9.  V+ DERIVATION                — computeVplus
+   10. STANDING WAVE PROFILES       — standingWave
+   11. MAIN COMPUTE                 — compute
+   12. SCHEMATIC SVG                — buildSchematic
+   13. UI WIRING                    — el, setStatus, bindNumeric, syncTheta,
+                                       onLChange, onThetaChange, onBetaChange,
+                                       wireInputs
+   14. INIT                         — DOMContentLoaded entry point
+   15. TRAVELING-WAVES TAB (FR-TW)  — tab chrome, scene-sync, Canvas 2D stage,
+                                       animation (showTab/syncSceneInputs/
+                                       initWavesTab/drawWavesFrame). Read-only
+                                       engine consumer. DR-TW-05: traces from
+                                       the engine forward/reflected split (F/R).
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════════
+   NAMED CONSTANTS — Engineering Philosophy: no magic numbers
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** APP_VERSION — single source of truth for every version surface. The
+ *  on-screen .app-version span and document.title are derived from this at
+ *  load (see INIT / applyVersionSurfaces); the header comment stamp and the
+ *  literal <title> are the only hand-maintained copies. Reconciles the
+ *  INC-RFTL-010 stale-version recurrence. */
+const APP_VERSION = '2.0.0';
+
+/** ε_short: |Z_L| threshold below which load is treated as short circuit.
+ *  Rationale: 1e-9 Ω is far below any physically realizable passive load at RF
+ *  frequencies while safely preventing division-by-near-zero in Γ_L formula.
+ *  Flagged for PI confirmation. */
+const EPSILON_SHORT = 1e-9; // Ω
+
+/** ε_open: |Z_L| threshold above which (or |Y_L| below which) load is treated
+ *  as open circuit. Engine switches to admittance domain for this case.
+ *  Rationale: 1e9 Ω is symmetric with EPSILON_SHORT on log10 scale; no
+ *  physically realizable passive RF load approaches this value.
+ *  Flagged for PI confirmation. */
+const EPSILON_OPEN = 1e9;   // Ω
+
+/** Plot resolution — minimum 500 points per briefing spec. */
+const PLOT_POINTS = 500;
+
+/** Degrees-to-radians conversion */
+const DEG_TO_RAD = Math.PI / 180.0;
+
+/** Radians-to-degrees conversion */
+const RAD_TO_DEG = 180.0 / Math.PI;
+
+/** AVG_PWR_COEFF: 0.5 factor in average-power formula P_avg = ½·|I|²·R for
+ *  sinusoidal steady-state. Source: definition of average power for a peak-
+ *  amplitude sinusoid (Pozar, Microwave Engineering, 4e §1.6). */
+const AVG_PWR_COEFF = 0.5;
+
+/** W_TO_MW: Watts→milliwatts conversion. Readout bar displays milliwatts so
+ *  small RF powers (μW–mW range) are readable; computations are in SI watts. */
+const W_TO_MW = 1000;
+
+/** ROUND_TRIP_EXP: exponent of γ in e^(−2γd) — the round-trip propagation
+ *  factor (forward + reflected wave). The factor of 2 is the round-trip
+ *  distance; the minus sign is the convention for d measured from the load
+ *  toward the source. Used in Γ(d) = Γ_L·e^(−2γd) and V⁺ bounce-correction. */
+const ROUND_TRIP_EXP = -2;
+
+/** SWR_UNITY_TOL: tolerance on (1 − |Γ_L|) below which SWR is reported as
+ *  infinite. Avoids division-by-near-zero in SWR = (1+|Γ|)/(1−|Γ|) at
+ *  |Γ|→1 (short / open / pure reactance). */
+const SWR_UNITY_TOL = 1e-9;
+
+/** OPEN_FALLBACK_MULT: multiplier applied to EPSILON_OPEN when getZL must
+ *  return a finite Z_L for a near-zero admittance load. The factor of 2
+ *  pushes the synthesized |Z_L| above the EPSILON_OPEN threshold so
+ *  downstream open-circuit handling in computeZin engages cleanly. */
+const OPEN_FALLBACK_MULT = 2;
+
+/** Plotly dark theme colors */
+const PLOT_BG     = '#0f1318';
+const PLOT_PAPER  = '#0a0c0f';
+const PLOT_GRID   = '#1a2535';
+const PLOT_TICK   = '#9ab8cc';   /* matches upgraded --text-dim */
+const PLOT_FONT_FAMILY = "'IBM Plex Mono', 'Courier New', monospace";
+
+/** Plotly layout literals — margin (px), font sizes (px), trace widths (px) */
+const PLOT_MARGIN_T  = 8;
+const PLOT_MARGIN_B  = 38;
+const PLOT_MARGIN_L  = 55;
+const PLOT_MARGIN_R  = 10;
+const PLOT_FONT_SIZE       = 11;
+const PLOT_AXIS_TITLE_SIZE = 11;
+const PLOT_TICK_FONT_SIZE  = 10;
+const PLOT_TRACE_WIDTH     = 1.8;
+
+/** Plotly trace colors — match design tokens (--color-v / --color-i / --color-zin) */
+const TRACE_COLOR_V   = '#00e5b0';
+const TRACE_COLOR_I   = '#f0a030';
+const TRACE_COLOR_ZIN = '#7080ff';
+
+/* ── Schematic SVG geometry & colors ──
+ *  Coordinates are in the viewBox 0 0 800 80 frame. Y=68 is the ground rail.
+ *  Sizes are tuned for the 90px-tall schematic-svg display height. */
+const SCHEM_VB_W       = 800;     // viewBox width
+const SCHEM_VB_H       = 80;      // viewBox height
+const SCHEM_GROUND_Y   = 68;      // y-coord of ground line
+const SCHEM_GROUND_X1  = 50;
+const SCHEM_GROUND_X2  = 750;
+const SCHEM_STROKE_GND = 1.5;     // ground-line stroke width
+
+// Source box geometry
+const SCHEM_SRC_X        = 30;
+const SCHEM_SRC_Y        = 18;
+const SCHEM_SRC_W        = 70;
+const SCHEM_SRC_H        = 44;
+const SCHEM_SRC_RX       = 3;
+const SCHEM_SRC_LABEL_X  = 65;
+const SCHEM_SRC_LABEL_Y1 = 38;    // V_s line
+const SCHEM_SRC_LABEL_Y2 = 52;    // Z_s line
+const SCHEM_SRC_LINE_Y   = 40;    // mid-height conductor line
+const SCHEM_SRC_LINE_X2  = 230;
+const SCHEM_SRC_GND_Y2   = 62;
+
+// Transmission line block geometry
+const SCHEM_TL_X         = 230;
+const SCHEM_TL_Y         = 16;
+const SCHEM_TL_W         = 280;
+const SCHEM_TL_H         = 46;
+const SCHEM_TL_LABEL_X   = 370;
+const SCHEM_TL_LABEL_Y   = 33;
+const SCHEM_TL_PARAM_X   = 310;
+const SCHEM_TL_PARAM_Y   = 48;
+const SCHEM_TL_LEN_X     = 440;
+const SCHEM_TL_LEN_Y     = 48;
+
+// Load box geometry
+const SCHEM_LOAD_X       = 640;
+const SCHEM_LOAD_Y       = 18;
+const SCHEM_LOAD_W       = 110;
+const SCHEM_LOAD_H       = 44;
+const SCHEM_LOAD_LINE_X1 = 510;
+const SCHEM_LOAD_LINE_X2 = 640;
+const SCHEM_LOAD_LABEL_X = 695;
+const SCHEM_LOAD_LABEL_Y = 34;
+const SCHEM_LOAD_Z_Y     = 50;
+const SCHEM_LOAD_Z_LEN   = 100;   // textLength for ZL string
+
+// Direction labels
+const SCHEM_DIR_SRC_X  = 162;
+const SCHEM_DIR_SRC_Y  = 34;
+const SCHEM_DIR_LOAD_X = 575;
+const SCHEM_DIR_LOAD_Y = 34;
+
+// Strokes and font sizes
+const SCHEM_STROKE_THIN     = 1;
+const SCHEM_STROKE_REG      = 1.2;
+const SCHEM_STROKE_BLOCK    = 1.5;
+const SCHEM_FONT_TITLE      = 10;
+const SCHEM_FONT_PARAM      = 9;
+const SCHEM_FONT_ZLABEL     = 8;
+
+// Schematic colors — match design tokens (--color-source / --color-line / --color-load / --border)
+const SCHEM_COLOR_SOURCE   = '#4499dd';
+const SCHEM_COLOR_LINE     = '#22ccaa';
+const SCHEM_COLOR_LINE_BG  = '#0a1810';
+const SCHEM_COLOR_LOAD     = '#ffaa22';
+const SCHEM_COLOR_LOAD_BG  = '#0f1110';
+const SCHEM_COLOR_BORDER   = '#1e2a3a';
+const SCHEM_COLOR_PANEL    = '#0f1318';
+const SCHEM_COLOR_DIM      = '#9ab8cc';
+const SCHEM_COLOR_Z_LABEL  = '#aaa';
+
+// Marker geometry
+const SCHEM_MARKER_W   = 6;
+const SCHEM_MARKER_H   = 6;
+const SCHEM_MARKER_RX  = 3;
+const SCHEM_MARKER_RY  = 3;
+
+/** Z_L formatting precision (digits) used in schematic label */
+const SCHEM_ZL_PREC    = 3;
+/** General readout precision for fixed() outputs */
+const READOUT_PREC     = 4;
+/** Phase readout precision (degrees) */
+const PHASE_PREC       = 2;
+/** Z₀ / β / l label precision for schematic */
+const Z0_PREC          = 1;
+const BETA_PREC        = 3;
+const L_PREC           = 3;
+const L_INPUT_PREC     = 4;
+
+/* ══════════════════════════════════════════════════════════════════════
+   COMPLEX ARITHMETIC — full complex; no real-only shortcuts
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Complex addition: (a + b) for complex a, b in {re, im} form. */
+function cAdd(a, b) { return { re: a.re + b.re, im: a.im + b.im }; }
+
+/** Complex subtraction: (a − b). */
+function cSub(a, b) { return { re: a.re - b.re, im: a.im - b.im }; }
+
+/** Complex multiplication: (a·b) = (a.re·b.re − a.im·b.im) + j(a.re·b.im + a.im·b.re). */
+function cMul(a, b) {
+  return { re: a.re * b.re - a.im * b.im,
+           im: a.re * b.im + a.im * b.re };
+}
+
+/** Complex division: (a / b). Returns NaN-pair if b is zero (caller must guard). */
+function cDiv(a, b) {
+  const d = b.re * b.re + b.im * b.im;
+  if (d === 0) return { re: NaN, im: NaN };
+  return { re: (a.re * b.re + a.im * b.im) / d,
+           im: (a.im * b.re - a.re * b.im) / d };
+}
+
+/** Complex magnitude: |a| = √(re² + im²). */
+function cAbs(a) { return Math.sqrt(a.re * a.re + a.im * a.im); }
+
+/** Complex argument: arg(a) = atan2(im, re), result in radians. */
+function cArg(a) { return Math.atan2(a.im, a.re); } // radians
+
+/** Complex negation: −a. */
+function cNeg(a) { return { re: -a.re, im: -a.im }; }
+
+/** Complex reciprocal: 1/a. Returns NaN-pair if a is zero. */
+function cRecip(a) {
+  const d = a.re * a.re + a.im * a.im;
+  if (d === 0) return { re: NaN, im: NaN };
+  return { re: a.re / d, im: -a.im / d };
+}
+
+/** Complex exponential: e^(a + jb) = e^a * (cos b + j sin b) */
+function cExp(a) {
+  const ea = Math.exp(a.re);
+  return { re: ea * Math.cos(a.im), im: ea * Math.sin(a.im) };
+}
+
+/** Complex hyperbolic tanh: tanh(z) = (e^z - e^-z) / (e^z + e^-z) */
+function cTanh(z) {
+  const ep = cExp(z);
+  const em = cExp(cNeg(z));
+  return cDiv(cSub(ep, em), cAdd(ep, em));
+}
+
+/** Format complex as "a + jb" string. Caller is required to pass an explicit
+ *  precision; the prior `prec = prec || 4` fallback was dead code (both call
+ *  sites in v1.1.2 already passed READOUT_PREC or SCHEM_ZL_PREC). */
+function cFmt(z, prec) {
+  const r = z.re.toPrecision(prec);
+  const sgn = z.im >= 0 ? '+' : '−';
+  const i = Math.abs(z.im).toPrecision(prec);
+  return `${r} ${sgn} j${i}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   HELPER FUNCTIONS — shared expressions extracted from duplicated logic
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Round-trip propagation factor e^(−2γx). Used in Γ(d) propagation, V⁺
+ *  bounce-correction, and standing-wave profile evaluation. The −2 factor
+ *  is the round-trip propagation distance (ROUND_TRIP_EXP). */
+function cRoundTrip(gamma, x) {
+  return cExp({ re: ROUND_TRIP_EXP * gamma.re * x,
+                im: ROUND_TRIP_EXP * gamma.im * x });
+}
+
+/** Scaled propagation argument γ·d — the complex multiplied by a real
+ *  position d. Used wherever tanh(γd) or e^(γd) is needed. */
+function cGammaD(gamma, d) {
+  return { re: gamma.re * d, im: gamma.im * d };
+}
+
+/** Sinusoidal average power: P_avg = ½·|I|²·R for a peak-current sinusoid
+ *  through a resistive part R. AVG_PWR_COEFF = 0.5. */
+function avgPower(I_mag, R) {
+  return AVG_PWR_COEFF * I_mag * I_mag * R;
+}
+
+/** Effective attenuation α used by the engine and schematic label: returns
+ *  0 when the Lossless toggle is on, otherwise STATE.alpha. Shared by
+ *  compute() (γ = α_eff + jβ) and buildSchematic() (α label). */
+function getAlphaEff() {
+  return STATE.lossless ? 0.0 : STATE.alpha;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   APPLICATION STATE
+   ══════════════════════════════════════════════════════════════════════ */
+
+const STATE = {
+  Vs:    1.0,     // V — peak source voltage
+  Rs:    50.0,    // Ω
+  Xs:    0.0,     // Ω
+  f:     1.0,     // GHz
+  Z0:    50.0,    // Ω (real, v1.x)
+  alpha: 0.1,     // Np/m
+  beta:  20.944,  // rad/m
+  l:     0.15,    // m
+  lossless: false,
+  loadMode: 'series', // 'series' | 'parallel'
+  RL_s: 100.0,
+  XL_s: 50.0,
+  GL_p: 0.02,
+  BL_p: 0.0,
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+   LOAD MODE TOGGLE
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Switch the load between series-Z and parallel-Y entry modes: toggles which
+ *  input panel is visible, updates the active mode button, and recomputes. */
+function setLoadMode(mode) {
+  STATE.loadMode = mode;
+  document.getElementById('series-fields').style.display   = (mode === 'series')   ? '' : 'none';
+  document.getElementById('parallel-fields').style.display = (mode === 'parallel') ? '' : 'none';
+  document.getElementById('btn_series').classList.toggle('active',   mode === 'series');
+  document.getElementById('btn_parallel').classList.toggle('active', mode === 'parallel');
+  compute();
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   DERIVE Z_L FROM STATE
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Build the complex load impedance Z_L from STATE: in series mode returns
+ *  {R_L, X_L} directly; in parallel mode inverts {G_L, B_L}, falling back to
+ *  a large finite Z when |Y_L| underflows EPSILON_OPEN (near-open admittance). */
+function getZL() {
+  if (STATE.loadMode === 'series') {
+    return { re: STATE.RL_s, im: STATE.XL_s };
+  } else {
+    const YL = { re: STATE.GL_p, im: STATE.BL_p };
+    const absY = cAbs(YL);
+    if (absY < 1.0 / EPSILON_OPEN) {
+      return { re: EPSILON_OPEN * OPEN_FALLBACK_MULT, im: 0 };
+    }
+    return cRecip(YL);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   GAMMA — REFLECTION COEFFICIENTS
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Load reflection coefficient Γ_L = (Z_L − Z₀) / (Z_L + Z₀). For loads
+ *  below EPSILON_SHORT (short circuit) returns the exact value −1 + j0. */
+function computeGammaL(ZL, Z0c) {
+  const absZL = cAbs(ZL);
+  if (absZL < EPSILON_SHORT) return { re: -1, im: 0 };
+  return cDiv(cSub(ZL, Z0c), cAdd(ZL, Z0c));
+}
+
+/** Γ_in(l) = Γ_L · e^(−2γl) — reflection coefficient transformed from load
+ *  to a distance l away through a transmission line with propagation γ. */
+function computeGammaIn(gammaL, gamma, l) {
+  return cMul(gammaL, cRoundTrip(gamma, l));
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Z_IN AT ARBITRARY POSITION d
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Input impedance Z_in(d) looking toward the load from distance d on a
+ *  lossy line: Z_in = Z₀·(Z_L + Z₀·tanh(γd)) / (Z₀ + Z_L·tanh(γd)). For
+ *  short-circuit and open-circuit loads, evaluates the limit forms in the
+ *  Z- and Y-domains respectively to preserve numerical accuracy. */
+function computeZin(ZL, Z0c, gamma, d) {
+  const absZL = cAbs(ZL);
+  if (absZL < EPSILON_SHORT) {
+    const gd = cGammaD(gamma, d);
+    return cMul(Z0c, cTanh(gd));
+  }
+  if (absZL > EPSILON_OPEN) {
+    const Y0c = cRecip(Z0c);
+    const YL  = cRecip(ZL);
+    const gd  = cGammaD(gamma, d);
+    const th  = cTanh(gd);
+    const Yin = cMul(Y0c, cDiv(cAdd(YL, cMul(Y0c, th)), cAdd(Y0c, cMul(YL, th))));
+    return cRecip(Yin);
+  }
+  const gd = cGammaD(gamma, d);
+  const th = cTanh(gd);
+  return cMul(Z0c, cDiv(cAdd(ZL, cMul(Z0c, th)), cAdd(Z0c, cMul(ZL, th))));
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   V+ DERIVATION
+   V⁺ = Vs · Z₀ / [(Zs + Z₀)(1 − Γs · Γ_L · e^(−2γl))]
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Forward-wave amplitude V⁺ at the line input, accounting for the
+ *  source-impedance / load-impedance bounce term:
+ *  V⁺ = V_s · Z₀ / [(Z_s + Z₀)(1 − Γ_s · Γ_L · e^(−2γl))]. */
+function computeVplus(Vs, Zs, Z0c, gammaL, gamma, l) {
+  const gammaS = cDiv(cSub(Zs, Z0c), cAdd(Zs, Z0c));
+  const e2gl   = cRoundTrip(gamma, l);
+  const prod   = cMul(cMul(gammaS, gammaL), e2gl);
+  const one    = { re: 1, im: 0 };
+  const denom_bounce = cSub(one, prod);
+  const ZspZ0  = cAdd(Zs, Z0c);
+  const full_denom = cMul(ZspZ0, denom_bounce);
+  const Vs_c   = { re: Vs, im: 0 };
+  return cDiv(cMul(Vs_c, Z0c), full_denom);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   STANDING WAVE PROFILES
+   |V(d)| = |V⁺| · e^(α(d−l)) · |1 + Γ_L · e^(−2γd)|
+   |I(d)| = |V⁺/Z₀| · e^(α(d−l)) · |1 − Γ_L · e^(−2γd)|
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Standing-wave magnitude profiles along the line, evaluated at every
+ *  d in dArr. Under MATH-RFTLS-01 (V⁺ is the source-side forward-wave
+ *  amplitude defined at d=l), the lossy-line magnitude forms are
+ *    |V(d)| = |V⁺|·e^(α(d−l))·|1 + Γ_L·e^(−2γd)|
+ *    |I(d)| = |V⁺/Z₀|·e^(α(d−l))·|1 − Γ_L·e^(−2γd)|.
+ *  The envelope factor equals 1 at d=l (source end) and e^(−αl) at d=0
+ *  (load end). For α=0 the envelope is unity everywhere.
+ *  @param l  physical line length (m), used as the d=l reference for the
+ *            envelope factor. Must equal max(dArr) for self-consistency.
+ *  Returns parallel arrays {Vs, Is} of magnitudes. */
+function standingWave(Vplus, Z0c, gammaL, gamma, dArr, l) {
+  const Vmag = cAbs(Vplus);
+  const Imag = cAbs(cDiv(Vplus, Z0c));
+  const Vs_arr = [];
+  const Is_arr = [];
+  for (let k = 0; k < dArr.length; k++) {
+    const d    = dArr[k];
+    const e2gd = cRoundTrip(gamma, d);
+    const gle  = cMul(gammaL, e2gd);
+    const one  = { re: 1, im: 0 };
+    const envelope = Math.exp(gamma.re * (d - l));
+    Vs_arr.push(Vmag * envelope * cAbs(cAdd(one, gle)));
+    Is_arr.push(Imag * envelope * cAbs(cSub(one, gle)));
+  }
+  return { Vs: Vs_arr, Is: Is_arr };
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   MAIN COMPUTE
+   ══════════════════════════════════════════════════════════════════════ */
+
+let _plotsInitialized = false;
+
+/** Main compute pass: reads STATE, computes Γ, Z_in, V⁺, standing waves,
+ *  powers, and SWR; updates all readouts and refreshes the three Plotly
+ *  panels. Called on every input commit and on tab/init. */
+function compute() {
+  try {
+    setStatus('computing', '');
+
+    const alpha_eff = getAlphaEff();
+    const gamma = { re: alpha_eff, im: STATE.beta };   // γ = α + jβ
+    const Z0c   = { re: STATE.Z0,  im: 0 };            // Z₀ real for v1.x
+    const Zs    = { re: STATE.Rs,  im: STATE.Xs };
+    const l     = STATE.l;
+    const ZL    = getZL();
+
+    // Reflection coefficients
+    const gammaL  = computeGammaL(ZL, Z0c);
+    const gammaIn = computeGammaIn(gammaL, gamma, l);
+
+    // V+
+    const Vplus = computeVplus(STATE.Vs, Zs, Z0c, gammaL, gamma, l);
+
+    // Plot axis: d from 0 to l, PLOT_POINTS points
+    const dArr = [];
+    for (let k = 0; k < PLOT_POINTS; k++) {
+      dArr.push((k / (PLOT_POINTS - 1)) * l);
+    }
+    const dArrRev = dArr.slice().reverse(); // d goes l → 0 for left→right display
+
+    // Compute profiles on reversed d array
+    const { Vs: V_profile, Is: I_profile } = standingWave(Vplus, Z0c, gammaL, gamma, dArrRev, l);
+    const Zin_profile = dArrRev.map(d => cAbs(computeZin(ZL, Z0c, gamma, d)));
+
+    // Zin at input (d = l)
+    const Zin_at_input = computeZin(ZL, Z0c, gamma, l);
+
+    // SWR from |Γ_L|
+    const gammaL_mag = cAbs(gammaL);
+    // DEFECT-RFTL-002 fix (PI ruling 2026-05-27): explicit open-circuit guard.
+    // The synthesized open-circuit Z_L produced by getZL() (when |Y_L| ≈ 0 in
+    // parallel-Y mode) yields a Γ_L with |Γ_L| numerically just below 1 by
+    // ~5e-8 — i.e. far below the SWR_UNITY_TOL = 1e-9 threshold. The result
+    // was a finite SWR on the order of 1e7 displayed instead of ∞. Rather than
+    // rebalance SWR_UNITY_TOL against the precision of the synthesized Γ_L
+    // (cross-constant coordination), detect the open-circuit condition
+    // directly using the same |Z_L| > EPSILON_OPEN criterion already used by
+    // computeZin to switch to the admittance-domain limit. This makes the
+    // SWR display consistent with how the rest of the engine identifies an
+    // open-circuit load and removes the precision-coupling risk.
+    const isOpenLoad = cAbs(ZL) > EPSILON_OPEN;
+    const SWR = isOpenLoad
+      ? Infinity
+      : ((gammaL_mag < 1.0 - SWR_UNITY_TOL) ? (1 + gammaL_mag) / (1 - gammaL_mag) : Infinity);
+
+    // I_in = V_s / (Z_s + Z_in)
+    const ZspZin = cAdd(Zs, Zin_at_input);
+    const I_in   = cDiv({ re: STATE.Vs, im: 0 }, ZspZin);
+
+    /* ── Readout bar quantities ── */
+
+    // Source: Vs is the open-circuit source voltage (peak); Is = I_in
+    const Vs_peak = STATE.Vs;
+    const Is_peak = cAbs(I_in);
+    // DEFECT-RFTL-004 fix (PI ruling 2026-05-27): Ps is the total source
+    // output power, not the dissipation in Rs alone. The ideal voltage
+    // source Vs drives the current I_in through the series combination
+    // (Zs + Zin); the average power delivered by Vs is
+    //   Ps = ½·Re(Vs·conj(I_in)) = ½·|I_in|²·Re(Zs + Zin).
+    // Re(Zs + Zin) is just ZspZin.re (the Z_s + Z_in sum formed above for I_in);
+    // when Xs = 0 this reduces to Rs + Re(Zin), and the difference
+    // Ps − Pin = ½·|I_in|²·Rs is the power dissipated in Rs. The prior
+    // v1.1.5 formula avgPower(Is_peak, STATE.Rs) computed only the Rs
+    // dissipation term, producing Ps < Pin in violation of conservation
+    // of energy.
+    const Ps_avg  = avgPower(Is_peak, ZspZin.re);
+
+    // TL input: Vin = I_in * Zin, Pin = ½·|I_in|²·Re(Zin)
+    const Vin_c   = cMul(I_in, Zin_at_input);
+    const Vin_mag = cAbs(Vin_c);
+    const Iin_mag = Is_peak; // same current at lossless input node
+    const Pin_avg = avgPower(Iin_mag, Zin_at_input.re);
+
+    // Load: V_L = V(d=0), I_L = I(d=0)
+    const VL_mag = V_profile[V_profile.length - 1]; // d=0 is last in reversed array
+    const IL_mag = I_profile[I_profile.length - 1];
+    const ZL_re  = ZL.re;
+    const PL_avg = avgPower(IL_mag, ZL_re);
+
+    // ── Update readout bar elements ──
+    const fmt4 = v => isFinite(v) ? v.toFixed(READOUT_PREC) : '∞';
+    el('out_Vs_bar').textContent  = fmt4(Vs_peak);
+    el('out_Is_bar').textContent  = fmt4(Is_peak);
+    el('out_Ps_bar').textContent  = fmt4(Ps_avg * W_TO_MW);
+    el('out_Vin_bar').textContent = fmt4(Vin_mag);
+    el('out_Iin_bar').textContent = fmt4(Iin_mag);
+    el('out_Pin_bar').textContent = fmt4(Pin_avg * W_TO_MW);
+    el('out_VL_bar').textContent  = fmt4(VL_mag);
+    el('out_IL_bar').textContent  = fmt4(IL_mag);
+    el('out_PL_bar').textContent  = fmt4(PL_avg * W_TO_MW);
+
+    // ── Update sidebar readout elements ──
+    el('out_gammaL_mag').textContent   = gammaL_mag.toFixed(READOUT_PREC);
+    el('out_gammaL_phase').textContent = (cArg(gammaL) * RAD_TO_DEG).toFixed(PHASE_PREC) + ' °';
+    el('out_gammaIn_mag').textContent  = cAbs(gammaIn).toFixed(READOUT_PREC);
+    el('out_gammaIn_phase').textContent = (cArg(gammaIn) * RAD_TO_DEG).toFixed(PHASE_PREC) + ' °';
+
+    el('out_Zin_str').textContent = cFmt(Zin_at_input, READOUT_PREC) + ' Ω';
+    el('out_Zin_mag').textContent = cAbs(Zin_at_input).toFixed(READOUT_PREC);
+    el('out_SWR').textContent     = isFinite(SWR) ? SWR.toFixed(READOUT_PREC) : '∞';
+    el('out_Vplus').textContent   = cAbs(Vplus).toFixed(READOUT_PREC);
+    el('out_Pload').textContent   = fmt4(PL_avg * W_TO_MW);
+
+    // ── Update plots ──
+    const plotLayout = {
+      paper_bgcolor: PLOT_PAPER,
+      plot_bgcolor:  PLOT_BG,
+      margin: { t: PLOT_MARGIN_T, b: PLOT_MARGIN_B, l: PLOT_MARGIN_L, r: PLOT_MARGIN_R },
+      font:   { family: PLOT_FONT_FAMILY, size: PLOT_FONT_SIZE, color: PLOT_TICK },
+      xaxis: {
+        title: { text: 'Distance from load (m)', font: { size: PLOT_AXIS_TITLE_SIZE } },
+        color: PLOT_TICK,
+        gridcolor: PLOT_GRID,
+        zerolinecolor: PLOT_GRID,
+        tickfont: { size: PLOT_TICK_FONT_SIZE },
+        autorange: 'reversed',   // d=l on left (source), d=0 on right (load)
+      },
+      yaxis: {
+        color: PLOT_TICK,
+        gridcolor: PLOT_GRID,
+        zerolinecolor: PLOT_GRID,
+        tickfont: { size: PLOT_TICK_FONT_SIZE },
+      },
+      showlegend: false,
+    };
+
+    const plotConfig = { responsive: true, displayModeBar: false };
+
+    const traceV   = { x: dArrRev, y: V_profile,   type: 'scatter', mode: 'lines', line: { color: TRACE_COLOR_V,   width: PLOT_TRACE_WIDTH } };
+    const traceI   = { x: dArrRev, y: I_profile,   type: 'scatter', mode: 'lines', line: { color: TRACE_COLOR_I,   width: PLOT_TRACE_WIDTH } };
+    const traceZin = { x: dArrRev, y: Zin_profile, type: 'scatter', mode: 'lines', line: { color: TRACE_COLOR_ZIN, width: PLOT_TRACE_WIDTH } };
+
+    const lyV   = Object.assign({}, plotLayout, { yaxis: Object.assign({}, plotLayout.yaxis, { title: { text: '|V| (V)',  font:{size: PLOT_AXIS_TITLE_SIZE} } }) });
+    const lyI   = Object.assign({}, plotLayout, { yaxis: Object.assign({}, plotLayout.yaxis, { title: { text: '|I| (A)',  font:{size: PLOT_AXIS_TITLE_SIZE} } }) });
+    const lyZin = Object.assign({}, plotLayout, { yaxis: Object.assign({}, plotLayout.yaxis, { title: { text: '|Z| (Ω)', font:{size: PLOT_AXIS_TITLE_SIZE} } }) });
+
+    if (!_plotsInitialized) {
+      Plotly.newPlot('plot-V',   [traceV],   lyV,   plotConfig);
+      Plotly.newPlot('plot-I',   [traceI],   lyI,   plotConfig);
+      Plotly.newPlot('plot-Zin', [traceZin], lyZin, plotConfig);
+      _plotsInitialized = true;
+    } else {
+      Plotly.react('plot-V',   [traceV],   lyV,   plotConfig);
+      Plotly.react('plot-I',   [traceI],   lyI,   plotConfig);
+      Plotly.react('plot-Zin', [traceZin], lyZin, plotConfig);
+    }
+
+    buildSchematic();
+    setStatus('ok', '⯯ READY');
+
+  } catch (err) {
+    setStatus('err', '⯯ ERROR: ' + err.message);
+    console.error(err);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SCHEMATIC SVG — static labeled diagram
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Render the schematic SVG: source box (V_s, Z_s), transmission-line block
+ *  with current Z₀/α/β/l values, load box labeled with the current load
+ *  mode and Z_L, plus d=l and d=0 direction markers. Called after every
+ *  compute() pass to keep the schematic labels in sync with STATE. */
+function buildSchematic() {
+  const Z0      = STATE.Z0.toFixed(Z0_PREC);
+  const alpha_eff = getAlphaEff();
+  const beta    = STATE.beta.toFixed(BETA_PREC);
+  const l       = STATE.l.toFixed(L_PREC);
+  const modeStr = STATE.loadMode === 'series' ? 'Series Z_L' : 'Parallel Y_L';
+
+  const ZL    = getZL();
+  const ZLstr = cFmt(ZL, SCHEM_ZL_PREC) + ' Ω';
+
+  const svg = document.getElementById('schematic-svg');
+
+  // SEC-01 (Security Standards §4.2): the schematic is built through the SVG
+  // DOM instead of assigning an HTML string to svg.innerHTML. Every node is
+  // created with createElementNS, every attribute is set with setAttribute,
+  // and every label — including the computed values Z0, alpha_eff, beta, l,
+  // modeStr, and ZLstr — reaches a text node only, never an HTML-parsing sink.
+  // Rendered output is identical to the v1.1.6 innerHTML template.
+  const SVG_NS      = 'http://www.w3.org/2000/svg';
+  const FONT_FAMILY = 'IBM Plex Mono,monospace';   // shared by every <text> label
+
+  // Local node factory: namespaced element + attributes + optional text label.
+  const mk = (tag, attrs, text) => {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) node.setAttribute(k, attrs[k]);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+
+  svg.textContent = '';  // clear prior render (safe DOM clear, no HTML parse)
+
+  // defs › arrow marker
+  const defs   = mk('defs', {});
+  const marker = mk('marker', {
+    id: 'arr',
+    markerWidth: SCHEM_MARKER_W, markerHeight: SCHEM_MARKER_H,
+    refX: SCHEM_MARKER_RX, refY: SCHEM_MARKER_RY, orient: 'auto'
+  });
+  marker.appendChild(mk('path', { d: 'M0,0 L6,3 L0,6 Z', fill: SCHEM_COLOR_SOURCE }));
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
+  // Ground line
+  svg.appendChild(mk('line', {
+    x1: SCHEM_GROUND_X1, y1: SCHEM_GROUND_Y, x2: SCHEM_GROUND_X2, y2: SCHEM_GROUND_Y,
+    stroke: SCHEM_COLOR_BORDER, 'stroke-width': SCHEM_STROKE_GND
+  }));
+
+  // Source box + labels
+  svg.appendChild(mk('rect', {
+    x: SCHEM_SRC_X, y: SCHEM_SRC_Y, width: SCHEM_SRC_W, height: SCHEM_SRC_H, rx: SCHEM_SRC_RX,
+    fill: SCHEM_COLOR_PANEL, stroke: SCHEM_COLOR_SOURCE, 'stroke-width': SCHEM_STROKE_REG
+  }));
+  svg.appendChild(mk('text', {
+    x: SCHEM_SRC_LABEL_X, y: SCHEM_SRC_LABEL_Y1, 'text-anchor': 'middle',
+    'font-family': FONT_FAMILY, 'font-size': SCHEM_FONT_TITLE, fill: SCHEM_COLOR_SOURCE
+  }, 'V_s'));
+  svg.appendChild(mk('text', {
+    x: SCHEM_SRC_LABEL_X, y: SCHEM_SRC_LABEL_Y2, 'text-anchor': 'middle',
+    'font-family': FONT_FAMILY, 'font-size': SCHEM_FONT_PARAM, fill: SCHEM_COLOR_DIM
+  }, 'Z_s'));
+
+  // Source → TL conductors
+  svg.appendChild(mk('line', {
+    x1: SCHEM_SRC_X + SCHEM_SRC_W, y1: SCHEM_SRC_LINE_Y, x2: SCHEM_SRC_LINE_X2, y2: SCHEM_SRC_LINE_Y,
+    stroke: SCHEM_COLOR_SOURCE, 'stroke-width': SCHEM_STROKE_REG
+  }));
+  svg.appendChild(mk('line', {
+    x1: SCHEM_SRC_X, y1: SCHEM_GROUND_Y, x2: SCHEM_SRC_X, y2: SCHEM_SRC_GND_Y2,
+    stroke: SCHEM_COLOR_SOURCE, 'stroke-width': SCHEM_STROKE_THIN
+  }));
+
+  // Transmission-line block + labels
+  svg.appendChild(mk('rect', {
+    x: SCHEM_TL_X, y: SCHEM_TL_Y, width: SCHEM_TL_W, height: SCHEM_TL_H, rx: SCHEM_SRC_RX,
+    fill: SCHEM_COLOR_LINE_BG, stroke: SCHEM_COLOR_LINE, 'stroke-width': SCHEM_STROKE_BLOCK
+  }));
+  svg.appendChild(mk('text', {
+    x: SCHEM_TL_LABEL_X, y: SCHEM_TL_LABEL_Y, 'text-anchor': 'middle',
+    'font-family': FONT_FAMILY, 'font-size': SCHEM_FONT_TITLE, fill: SCHEM_COLOR_LINE
+  }, 'TRANSMISSION LINE'));
+  svg.appendChild(mk('text', {
+    x: SCHEM_TL_PARAM_X, y: SCHEM_TL_PARAM_Y, 'text-anchor': 'middle',
+    'font-family': FONT_FAMILY, 'font-size': SCHEM_FONT_PARAM, fill: SCHEM_COLOR_DIM
+  }, 'Z₀=' + Z0 + 'Ω  α=' + alpha_eff + '  β=' + beta));
+  svg.appendChild(mk('text', {
+    x: SCHEM_TL_LEN_X, y: SCHEM_TL_LEN_Y, 'text-anchor': 'middle',
+    'font-family': FONT_FAMILY, 'font-size': SCHEM_FONT_PARAM, fill: SCHEM_COLOR_DIM
+  }, 'l=' + l + 'm'));
+
+  // TL → load conductors
+  svg.appendChild(mk('line', {
+    x1: SCHEM_LOAD_LINE_X1, y1: SCHEM_SRC_LINE_Y, x2: SCHEM_LOAD_LINE_X2, y2: SCHEM_SRC_LINE_Y,
+    stroke: SCHEM_COLOR_LOAD, 'stroke-width': SCHEM_STROKE_REG
+  }));
+  svg.appendChild(mk('line', {
+    x1: SCHEM_GROUND_X2, y1: SCHEM_GROUND_Y, x2: SCHEM_GROUND_X2, y2: SCHEM_SRC_GND_Y2,
+    stroke: SCHEM_COLOR_LOAD, 'stroke-width': SCHEM_STROKE_THIN
+  }));
+
+  // Load box + labels
+  svg.appendChild(mk('rect', {
+    x: SCHEM_LOAD_X, y: SCHEM_LOAD_Y, width: SCHEM_LOAD_W, height: SCHEM_LOAD_H, rx: SCHEM_SRC_RX,
+    fill: SCHEM_COLOR_LOAD_BG, stroke: SCHEM_COLOR_LOAD, 'stroke-width': SCHEM_STROKE_BLOCK
+  }));
+  svg.appendChild(mk('text', {
+    x: SCHEM_LOAD_LABEL_X, y: SCHEM_LOAD_LABEL_Y, 'text-anchor': 'middle',
+    'font-family': FONT_FAMILY, 'font-size': SCHEM_FONT_TITLE, fill: SCHEM_COLOR_LOAD
+  }, modeStr));
+  svg.appendChild(mk('text', {
+    x: SCHEM_LOAD_LABEL_X, y: SCHEM_LOAD_Z_Y, 'text-anchor': 'middle',
+    'font-family': FONT_FAMILY, 'font-size': SCHEM_FONT_ZLABEL, fill: SCHEM_COLOR_Z_LABEL,
+    textLength: SCHEM_LOAD_Z_LEN, lengthAdjust: 'spacing'
+  }, ZLstr));
+
+  // Direction markers
+  svg.appendChild(mk('text', {
+    x: SCHEM_DIR_SRC_X, y: SCHEM_DIR_SRC_Y, 'text-anchor': 'middle',
+    'font-family': FONT_FAMILY, 'font-size': SCHEM_FONT_PARAM, fill: SCHEM_COLOR_SOURCE
+  }, 'd=l (src)'));
+  svg.appendChild(mk('text', {
+    x: SCHEM_DIR_LOAD_X, y: SCHEM_DIR_LOAD_Y, 'text-anchor': 'middle',
+    'font-family': FONT_FAMILY, 'font-size': SCHEM_FONT_PARAM, fill: SCHEM_COLOR_LOAD
+  }, 'd=0 (load)'));
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   UI WIRING — input bindings, sliders, coupled length
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** DOM lookup shortcut */
+function el(id) { return document.getElementById(id); }
+
+/** Set the status-bar text and CSS class. msg is optional — when omitted,
+ *  only the class changes (used during 'computing' transition). */
+function setStatus(cls, msg) {
+  const s = el('status-text');
+  s.className = cls;
+  if (msg) s.textContent = msg;
+}
+
+/** Bind numeric input + optional slider to a STATE key.
+ *  CQ-001: only the 'input' event drives compute() — 'change' fires
+ *  redundantly on commit and would double-fire the recompute. */
+function bindNumeric(inputId, stateKey, sliderId, onChange) {
+  const inp = el(inputId);
+  const sl  = sliderId ? el(sliderId) : null;
+
+  const handler = () => {
+    const v = parseFloat(inp.value);
+    if (!isNaN(v)) {
+      STATE[stateKey] = v;
+      if (sl) sl.value = v;
+      if (onChange) onChange(v);
+      compute();
+    }
+  };
+  inp.addEventListener('input',  handler);
+
+  if (sl) {
+    sl.addEventListener('input', () => {
+      const v = parseFloat(sl.value);
+      STATE[stateKey] = v;
+      inp.value = v;
+      if (onChange) onChange(v);
+      compute();
+    });
+  }
+}
+
+/** Update θ display from current l and β */
+function syncTheta() {
+  const theta = STATE.beta * STATE.l * RAD_TO_DEG;
+  el('in_theta').value = theta.toFixed(PHASE_PREC);
+}
+
+/** Update l and θ from physical length change */
+function onLChange(v) {
+  STATE.l = v;
+  syncTheta();
+  el('sl_l').value = v;
+}
+
+/** Update l from electrical length (θ) change */
+function onThetaChange() {
+  const theta_deg = parseFloat(el('in_theta').value);
+  if (!isNaN(theta_deg) && STATE.beta > 0) {
+    const l_new = (theta_deg * DEG_TO_RAD) / STATE.beta;
+    STATE.l = l_new;
+    el('in_l').value = l_new.toFixed(L_INPUT_PREC);
+    el('sl_l').value = l_new;
+    compute();
+  }
+}
+
+/** Update θ when β changes */
+function onBetaChange() { syncTheta(); }
+
+/** Wire all DOM inputs to STATE keys and recompute. CQ-001: each input is
+ *  bound to the 'input' event only — 'change' would double-fire compute. */
+function wireInputs() {
+  // Source
+  bindNumeric('in_Vs', 'Vs', 'sl_Vs');
+  bindNumeric('in_Rs', 'Rs', null);
+  bindNumeric('in_Xs', 'Xs', null);
+  // Frequency: reference field only
+  el('in_f').addEventListener('change', () => {
+    const v = parseFloat(el('in_f').value);
+    if (!isNaN(v) && v > 0) STATE.f = v;
+  });
+
+  // TL params
+  bindNumeric('in_Z0',    'Z0',    null);
+  bindNumeric('in_alpha', 'alpha', null);
+
+  // β — also refreshes θ
+  el('in_beta').addEventListener('input', () => {
+    const v = parseFloat(el('in_beta').value);
+    if (!isNaN(v)) { STATE.beta = v; onBetaChange(); compute(); }
+  });
+
+  // Physical length — with slider and θ coupling
+  el('in_l').addEventListener('input', () => {
+    const v = parseFloat(el('in_l').value);
+    if (!isNaN(v) && v > 0) { onLChange(v); compute(); }
+  });
+  el('sl_l').addEventListener('input', () => {
+    const v = parseFloat(el('sl_l').value);
+    STATE.l = v;
+    el('in_l').value = v;
+    syncTheta();
+    compute();
+  });
+
+  // Electrical length → updates l
+  el('in_theta').addEventListener('input', onThetaChange);
+
+  // Load — series
+  ['in_RL','in_XL'].forEach(id => {
+    const key = id === 'in_RL' ? 'RL_s' : 'XL_s';
+    el(id).addEventListener('input', () => { STATE[key] = parseFloat(el(id).value) || 0; compute(); });
+  });
+
+  // Load — parallel
+  ['in_GL','in_BL'].forEach(id => {
+    const key = id === 'in_GL' ? 'GL_p' : 'BL_p';
+    el(id).addEventListener('input', () => { STATE[key] = parseFloat(el(id).value) || 0; compute(); });
+  });
+
+  // Lossless toggle
+  el('tog_lossless').addEventListener('change', () => {
+    STATE.lossless = el('tog_lossless').checked;
+    el('lossless-indicator').textContent = STATE.lossless ? 'ON' : 'OFF';
+    compute();
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════════════════════════════════ */
+
+window.addEventListener('DOMContentLoaded', () => {
+  wireInputs();
+  syncTheta();  // set initial θ from default l and β
+  compute();
+  initWavesTab();   // FR-TW v1.2.0 — build the Traveling-Waves tab (spec §11: one appended init line)
+  applyVersionSurfaces();   // v2.0.0 — single-source version surfaces (INC-RFTL-010)
+});
+
+/* Single-source every JS-reachable version surface from APP_VERSION so they
+   cannot drift (INC-RFTL-010). document.title is derived here too, so the
+   title can never go stale even if its literal fallback lags. */
+function applyVersionSurfaces() {
+  const span = document.getElementById('app-version');
+  if (span) span.textContent = 'v' + APP_VERSION + ' — University of Tulsa ECE';
+  document.title = 'RF Transmission Line Simulator — v' + APP_VERSION;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   15. TRAVELING-WAVES TAB (FR-TW, v1.2.0)
+   ──────────────────────────────────────────────────────────────────────
+   A new tab that READS the Explorer engine and animates the incident,
+   reflected, and resultant voltage waves against the engine's stationary
+   |V(z)| envelope. No engine function, existing ID, or hook is modified.
+   Implements design spec v0.3 §4–§12 against the §2 engine inventory.
+
+   ┌────────────────────────────────────────────────────────────────────┐
+   │ DR-TW-05 (PI 2026-06-18) — Increment 2 active; ESC-RFTL-TW-01 closed │
+   └────────────────────────────────────────────────────────────────────┘
+   The traces are rendered from the ENGINE'S OWN forward/reflected complex
+   decomposition (not from constant-amplitude stubs and not from a hand-chosen
+   cos sign). standingWave() computes, per d (= z, z=0 at the LOAD):
+       |V(d)| = |V⁺|·e^{α(d−l)}·|1 + Γ_L·e^{−2γd}|,  γ = α + jβ.
+   The consistent complex value is V(d) = V⁺·e^{γ(d−l)}·(1 + Γ_L·e^{−2γd}),
+   which splits into the engine's forward and reflected components:
+       F(d) = V⁺ · e^{γ(d−l)}              (incident; full at source d=ℓ,
+                                            decays toward the load as e^{α(d−l)})
+       R(d) = V⁺ · Γ_L · e^{−γ(d+l)}       (reflected; largest at load,
+                                            decays toward source as e^{−α(d+l)})
+   Animation (DR-TW-05):
+       v⁺(z,t) = Re{F(z)·e^{jωt}},  v⁻(z,t) = Re{R(z)·e^{jωt}},  v = v⁺ + v⁻.
+
+   CONSTRUCTION INVARIANT (the whole point): F(z) + R(z) ≡ V(z), so
+   |F + R| equals standingWave()'s |V(z)| for every scene by construction —
+   verified to machine precision at lossless, complex-load, and lossy scenes
+   (self-check harness). Direction & decay fall out automatically:
+     • incident sweeps toward the load (right) and decays as it goes;
+     • reflected sweeps toward the source (left) and decays as it goes;
+     • α large or ℓ long ⇒ reflected ≈ 0 at the source, envelope flattens
+       there (looks matched); α = 0 ⇒ constant-amplitude travelling waves.
+
+   This is a READ-ONLY composition from existing helpers (computeVplus,
+   computeGammaL, getAlphaEff→γ, cExp/cMul/cAdd) — no engine function modified.
+   ESC-RFTL-TW-01 (the earlier §2 βz sign-vs-origin escalation) is RESOLVED by
+   this ruling: the engine split yields the load-origin directions intrinsically,
+   so no separate cos-sign switch is kept. Increment 1's constant-amplitude
+   A⁺/A⁻ stubs are removed (superseded by DR-TW-05).
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── TW named constants (Engineering Philosophy: no magic numbers) ── */
+const TW_POINTS          = 500;            // z samples across the line (≥ PLOT_POINTS, spec §9.2)
+const TW_BASE_STEP       = 0.045;          // simulated-time advance per frame at speed 1× (rad); deterministic (spec §8)
+const TW_SPEED_DEFAULT   = 1.0;
+const TW_CANVAS_MIN_H    = 420;            // px — projector floor (spec §12)
+const TW_PAD_L           = 56;             // canvas plot padding (px)
+const TW_PAD_R           = 18;
+const TW_PAD_T           = 16;
+const TW_PAD_B           = 40;
+const TW_VSCALE_HEADROOM = 1.08;           // vertical headroom multiplier above the antinode
+const TW_W_RESULTANT     = 3.5;            // stroke widths — spec §6 (weight = primary differentiator)
+const TW_W_INCIDENT      = 2.0;
+const TW_W_REFLECTED     = 2.0;
+const TW_W_ENVELOPE      = 1.6;
+const TW_DASH_REFLECTED  = [8, 5];         // spec §6
+const TW_DASH_ENVELOPE   = [2, 4];         // spec §6
+const TW_ENVELOPE_FILL_ALPHA = 0.08;       // faint standing-wave region fill (spec §6 — recommend include)
+const TW_COL_ENVELOPE    = '#8aa0b8';      // steel-grey literal (DR-TW-02; not a :root token)
+const TW_FONT            = "'IBM Plex Mono', monospace";
+const TW_STROKE_ZEROLINE = 1;              // zero-line stroke width (px); cf. SCHEM_STROKE_THIN
+const TW_FONT_AXIS       = 16;             // axis label font size (px), spec §12
+const TW_FONT_LABEL      = 13;             // endpoint label font size (px), spec §12
+const TW_LABEL_V_DX      = 8;              // "V" label x-offset from the left padding edge (px)
+const TW_LABEL_V_DY      = 6;              // "V" label y-offset above the zero line (px)
+const TW_LABEL_BASELINE_DY = 10;           // bottom-label baseline offset above the canvas bottom (px)
+const TW_TWO_PI          = 2 * Math.PI;    // λ = 2π/β (no existing TWO_PI/TAU in the file)
+
+/* ── TW module state (separate from the engine STATE) ── */
+let twActive        = false;  // waves tab built
+let twPlaying       = false;
+let twReducedMotion = false;
+let twT             = 0;      // simulated-time accumulator (deterministic, spec §8)
+let twSpeed         = TW_SPEED_DEFAULT;
+let twRAF           = null;
+let twCanvas        = null;
+let twCtx           = null;
+let twCol           = {};     // cached :root trace colours
+let twScene         = null;   // cached per-scene data (recomputed only on input commit / resize)
+
+/* DR-TW-05: forward/reflected COMPLEX components built from engine quantities
+   only. F(d)=V⁺·e^{γ(d−l)} (incident); R(d)=V⁺·Γ_L·e^{−γ(d+l)} (reflected);
+   F+R ≡ V(d), matching standingWave()'s split. Position-dependent amplitude
+   (true spatial attenuation) is intrinsic — no separate A⁺/A⁻ stub. */
+function twForward(Vplus, gamma, d, l) {
+  return cMul(Vplus, cExp({ re: gamma.re * (d - l), im: gamma.im * (d - l) }));
+}
+function twReflected(Vplus, gammaL, gamma, d, l) {
+  return cMul(cMul(Vplus, gammaL), cExp({ re: -gamma.re * (d + l), im: -gamma.im * (d + l) }));
+}
+
+/* Cache the dark :root trace tokens (spec §6 — reuse tokens). */
+function twReadColors() {
+  const cs = getComputedStyle(document.documentElement);
+  twCol = {
+    resultant: (cs.getPropertyValue('--text-value').trim()  || '#e8f4ff'),
+    incident:  (cs.getPropertyValue('--color-v').trim()     || '#00e5b0'),
+    reflected: (cs.getPropertyValue('--color-gamma').trim() || '#ff5060'),
+    envelope:  TW_COL_ENVELOPE,
+    text:      (cs.getPropertyValue('--text-dim').trim()    || '#9ab8cc'),
+    axis:      (cs.getPropertyValue('--border-bright').trim() || '#2a3a4e')
+  };
+}
+
+/* rgba() from a #rrggbb hex + alpha (for the faint envelope fill). */
+function twHexA(hex, a) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+}
+
+/* Mirror STATE → the tw_ control fields so the two input groups always show
+   the same numbers (spec §7). tw→STATE/Explorer happens in the tw handlers;
+   Explorer→tw is driven by the added mirror listeners that call this after
+   the Explorer's own handler has run. */
+function syncSceneInputs() {
+  const set = (id, v) => { const e = el(id); if (e) e.value = v; };
+  set('tw_Z0', STATE.Z0);
+  set('tw_RL', STATE.RL_s);
+  set('tw_XL', STATE.XL_s);
+  set('tw_l',  STATE.l);
+  set('sl_tw_l', STATE.l);
+  set('tw_f',  STATE.f);
+  set('tw_alpha', STATE.alpha);
+  const tl = el('tw_lossless'); if (tl) tl.checked = STATE.lossless;
+  const ind = el('tw_lossless_ind'); if (ind) ind.textContent = STATE.lossless ? 'ON' : 'OFF';
+}
+
+/* Derived strip (|Γ|, ∠Γ, VSWR, λ) — mirrored from the Explorer's already-
+   computed readouts so the two tabs cannot disagree (spec §7.3). λ = 2π/β. */
+function twDerivedStrip() {
+  const g = el('out_gammaL_mag'), p = el('out_gammaL_phase'), s = el('out_SWR');
+  if (el('tw_out_gammaMag'))   el('tw_out_gammaMag').textContent   = g ? g.textContent : '—';
+  if (el('tw_out_gammaPhase')) el('tw_out_gammaPhase').textContent = p ? p.textContent : '—';
+  if (el('tw_out_SWR'))        el('tw_out_SWR').textContent        = s ? s.textContent : '—';
+  if (el('tw_out_lambda')) {
+    const lam = (STATE.beta > 0) ? (TW_TWO_PI / STATE.beta) : Infinity;
+    el('tw_out_lambda').textContent = isFinite(lam) ? (lam.toFixed(READOUT_PREC) + ' m') : '∞';
+  }
+}
+
+/* Recompute the per-scene cache: engine envelope (reused, not re-derived),
+   |V⁺|, |Γ|, ∠Γ, β, ℓ, the z sample array, the antinode, and the canvas
+   geometry. Called on every input commit and on resize — NOT per frame
+   (CQ §2.8: invariants are cached out of the render loop). */
+function twRefreshScene() {
+  if (!twActive) return;
+  const alpha_eff = getAlphaEff();
+  const gamma = { re: alpha_eff, im: STATE.beta };   // mirror compute() assembly exactly
+  const Z0c   = { re: STATE.Z0,  im: 0 };
+  const Zs    = { re: STATE.Rs,  im: STATE.Xs };
+  const l     = STATE.l;
+  const gammaL = computeGammaL(getZL(), Z0c);
+  const Vplus  = computeVplus(STATE.Vs, Zs, Z0c, gammaL, gamma, l);
+  const VplusMag = cAbs(Vplus);
+  const gMag = cAbs(gammaL);
+  const gArg = cArg(gammaL);                         // radians, ∠Γ referenced at the load (z=0)
+  const beta = STATE.beta;
+
+  // z ≡ d sample array, 0..ℓ (z=0 load, z=ℓ source); envelope from the engine.
+  const zArr = new Array(TW_POINTS);
+  for (let k = 0; k < TW_POINTS; k++) zArr[k] = (k / (TW_POINTS - 1)) * l;
+  const env = standingWave(Vplus, Z0c, gammaL, gamma, zArr, l).Vs;   // +|V(z)|
+
+  // DR-TW-05: cache the complex forward/reflected components per sample.
+  // Re/Im are stored as flat arrays so the render loop only needs cos/sin(twT).
+  const Fre = new Array(TW_POINTS), Fim = new Array(TW_POINTS);
+  const Rre = new Array(TW_POINTS), Rim = new Array(TW_POINTS);
+  for (let k = 0; k < TW_POINTS; k++) {
+    const F = twForward(Vplus, gamma, zArr[k], l);
+    const R = twReflected(Vplus, gammaL, gamma, zArr[k], l);
+    Fre[k] = F.re; Fim[k] = F.im;
+    Rre[k] = R.re; Rim[k] = R.im;
+  }
+
+  let antinode = 0;
+  for (let k = 0; k < env.length; k++) if (env[k] > antinode) antinode = env[k];
+  if (!(antinode > 0)) antinode = (VplusMag * (1 + gMag)) || 1;       // degenerate guard
+
+  twScene = { zArr, env, Fre, Fim, Rre, Rim, VplusMag, gMag, gArg, beta, l, antinode, geom: null };
+  twDerivedStrip();
+  twComputeGeom();
+}
+
+/* Cache canvas geometry + vertical scale + the static x/envelope pixel arrays.
+   y is centred (zero-line mid). x maps z=ℓ (source) → left, z=0 (load) →
+   right (DR-TW-03; matches the Explorer's reversed axis). */
+function twComputeGeom() {
+  if (!twCanvas || !twScene) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = twCanvas.width  / dpr;
+  const H = twCanvas.height / dpr;
+  const x0 = TW_PAD_L, x1 = W - TW_PAD_R;
+  const y0 = TW_PAD_T, y1 = H - TW_PAD_B;
+  const yMid = (y0 + y1) / 2;
+  const yHalf = (y1 - y0) / 2;
+  const vmax = twScene.antinode * TW_VSCALE_HEADROOM;
+  const yScale = (vmax > 0) ? (yHalf / vmax) : 1;
+  const l = twScene.l || 1;
+
+  const xs = new Array(twScene.zArr.length);
+  const envTop = new Array(twScene.zArr.length);
+  const envBot = new Array(twScene.zArr.length);
+  for (let k = 0; k < twScene.zArr.length; k++) {
+    const z = twScene.zArr[k];
+    xs[k] = x1 - (z / l) * (x1 - x0);            // z=0 → x1 (right/load); z=ℓ → x0 (left/source)
+    envTop[k] = yMid - twScene.env[k] * yScale;
+    envBot[k] = yMid + twScene.env[k] * yScale;
+  }
+  twScene.geom = { W, H, x0, x1, yMid, yScale, l, xs, envTop, envBot };
+}
+
+/* (Trace generation is done inline in drawWavesFrame from the cached complex
+   F/R components: v⁺ = Re{F·e^{jt}}, v⁻ = Re{R·e^{jt}} — DR-TW-05.) */
+
+/* Stroke a polyline in CSS-pixel coords (ctx is dpr-scaled by the caller). */
+function twStroke(xs, ys, color, width, dash) {
+  const ctx = twCtx;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.setLineDash(dash || []);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let k = 0; k < xs.length; k++) { if (k) ctx.lineTo(xs[k], ys[k]); else ctx.moveTo(xs[k], ys[k]); }
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* Render one frame: stationary envelope (cached) + the three moving traces at
+   the current twT. Only the moving traces depend on twT (CQ §2.8). */
+function drawWavesFrame() {
+  if (!twCtx || !twScene || !twScene.geom) return;
+  const sc = twScene, g = sc.geom, ctx = twCtx;
+  const dpr = window.devicePixelRatio || 1;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, g.W, g.H);
+
+  // zero line
+  ctx.save();
+  ctx.strokeStyle = twCol.axis; ctx.lineWidth = TW_STROKE_ZEROLINE; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(g.x0, g.yMid); ctx.lineTo(g.x1, g.yMid); ctx.stroke();
+  ctx.restore();
+
+  // faint standing-wave region fill (between ±envelope)
+  ctx.save();
+  ctx.beginPath();
+  for (let k = 0; k < g.xs.length; k++) { if (k) ctx.lineTo(g.xs[k], g.envTop[k]); else ctx.moveTo(g.xs[k], g.envTop[k]); }
+  for (let k = g.xs.length - 1; k >= 0; k--) ctx.lineTo(g.xs[k], g.envBot[k]);
+  ctx.closePath();
+  ctx.fillStyle = twHexA(TW_COL_ENVELOPE, TW_ENVELOPE_FILL_ALPHA);
+  ctx.fill();
+  ctx.restore();
+
+  // ±envelope outline (dotted, steel-grey)
+  twStroke(g.xs, g.envTop, twCol.envelope, TW_W_ENVELOPE, TW_DASH_ENVELOPE);
+  twStroke(g.xs, g.envBot, twCol.envelope, TW_W_ENVELOPE, TW_DASH_ENVELOPE);
+
+  // moving traces (only these depend on twT). DR-TW-05: v⁺ = Re{F·e^{jt}},
+  // v⁻ = Re{R·e^{jt}}. cos/sin(twT) computed once; F/R are cached per sample.
+  const ct = Math.cos(twT), st = Math.sin(twT);
+  const incY = new Array(g.xs.length), refY = new Array(g.xs.length), resY = new Array(g.xs.length);
+  for (let k = 0; k < sc.zArr.length; k++) {
+    const vp = sc.Fre[k] * ct - sc.Fim[k] * st;   // Re{F·e^{jt}}
+    const vr = sc.Rre[k] * ct - sc.Rim[k] * st;   // Re{R·e^{jt}}
+    incY[k] = g.yMid - vp * g.yScale;
+    refY[k] = g.yMid - vr * g.yScale;
+    resY[k] = g.yMid - (vp + vr) * g.yScale;
+  }
+  twStroke(g.xs, incY, twCol.incident,  TW_W_INCIDENT,  null);                 // incident (teal, solid)
+  twStroke(g.xs, refY, twCol.reflected, TW_W_REFLECTED, TW_DASH_REFLECTED);    // reflected (red, dashed)
+  twStroke(g.xs, resY, twCol.resultant, TW_W_RESULTANT, null);                 // resultant (near-white, thick)
+
+  // labels — endpoint + axis (DR-TW-03 / §9.4: load right z=0, source left z=ℓ)
+  ctx.save();
+  ctx.fillStyle = twCol.text;
+  ctx.font = TW_FONT_AXIS + 'px ' + TW_FONT;
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';   ctx.fillText('V', g.x0 - TW_PAD_L + TW_LABEL_V_DX, g.yMid - TW_LABEL_V_DY);
+  ctx.font = TW_FONT_LABEL + 'px ' + TW_FONT;
+  ctx.textAlign = 'left';   ctx.fillText('source (z=ℓ)', g.x0, g.H - TW_LABEL_BASELINE_DY);
+  ctx.textAlign = 'right';  ctx.fillText('load (z=0)',   g.x1, g.H - TW_LABEL_BASELINE_DY);
+  ctx.textAlign = 'center'; ctx.fillText('z →',          (g.x0 + g.x1) / 2, g.H - TW_LABEL_BASELINE_DY);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+/* Deterministic animation loop (rAF only; no setInterval/setTimeout). */
+function twLoop() {
+  if (!twPlaying) { twRAF = null; return; }
+  twT += TW_BASE_STEP * twSpeed;     // simulated-time accumulator, not wall-clock (spec §8)
+  drawWavesFrame();
+  twRAF = requestAnimationFrame(twLoop);
+}
+/* Update the Play/Pause button label to reflect the current twPlaying state. */
+function twSetPlayLabel() { const b = el('tw_btn_play'); if (b) b.textContent = twPlaying ? '⏸ Pause' : '▶ Play'; }
+/* Start (or resume) the animation: mark playing and kick off the rAF loop if idle. */
+function twPlay()  { if (twPlaying) return; twPlaying = true;  twSetPlayLabel(); if (!twRAF) twRAF = requestAnimationFrame(twLoop); }
+/* Pause the animation: stop the rAF loop and redraw once so the current frame stays visible (never blanks). */
+function twPause() { twPlaying = false; if (twRAF) { cancelAnimationFrame(twRAF); twRAF = null; } twSetPlayLabel(); drawWavesFrame(); /* keep frame — never blank */ }
+
+/* Size the canvas to its container at devicePixelRatio (spec §12). */
+function twSizeCanvas() {
+  if (!twCanvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(twCanvas.clientWidth, 1);
+  const h = Math.max(twCanvas.clientHeight, TW_CANVAS_MIN_H);
+  twCanvas.width  = Math.round(w * dpr);
+  twCanvas.height = Math.round(h * dpr);
+  twComputeGeom();
+}
+
+/* Tab switching: toggle panel display + ARIA, with the spec §4 side effects. */
+function showTab(name) {
+  ['explorer', 'waves', 'guide'].forEach(t => {
+    const panel = el('tab-' + t); if (panel) panel.style.display = (t === name) ? '' : 'none';
+    const btn = el('tab-btn-' + t);
+    if (btn) { btn.setAttribute('aria-selected', String(t === name)); btn.tabIndex = (t === name) ? 0 : -1; }
+  });
+  if (name === 'explorer') {
+    twPause();
+    // double-rAF Plotly resize so the now-visible plots re-layout (spec §4 / Visual-UX §2.5)
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (window.Plotly) ['plot-V', 'plot-I', 'plot-Zin'].forEach(id => {
+        const d = el(id); if (d) { try { Plotly.Plots.resize(d); } catch (e) { /* hidden/teardown */ } }
+      });
+    }));
+  } else if (name === 'waves') {
+    twSizeCanvas();
+    twRefreshScene();
+    if (twReducedMotion) { twPause(); drawWavesFrame(); } else { twPlay(); }
+  } else {
+    twPause();   // guide (reserved)
+  }
+}
+
+/* Build the Traveling-Waves tab: bind tw_ controls (same STATE keys), wire the
+   both-way Explorer↔tw mirror with ADDED listeners (existing handlers
+   untouched), wire animation controls, and prime the scene. */
+function initWavesTab() {
+  twCanvas = el('tw_stage_canvas');
+  if (!twCanvas) return;
+  twCtx = twCanvas.getContext('2d');
+  twActive = true;
+  twReadColors();
+  twReducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  // tw_ numeric controls: write the same STATE key, mirror the Explorer field, recompute, refresh.
+  const bindTw = (twId, explorerId, stateKey, isLength) => {
+    const e = el(twId); if (!e) return;
+    e.addEventListener('input', () => {
+      const v = parseFloat(e.value);
+      if (isNaN(v)) return;
+      STATE[stateKey] = v;
+      const ex = el(explorerId); if (ex) ex.value = v;
+      if (isLength) {
+        if (el('sl_l')) el('sl_l').value = v;
+        if (el('sl_tw_l')) el('sl_tw_l').value = v;
+        syncTheta();
+      }
+      compute();
+      twRefreshScene();
+    });
+  };
+  bindTw('tw_Z0',    'in_Z0',    'Z0',    false);
+  bindTw('tw_RL',    'in_RL',    'RL_s',  false);
+  bindTw('tw_XL',    'in_XL',    'XL_s',  false);
+  bindTw('tw_l',     'in_l',     'l',     true);
+  bindTw('tw_alpha', 'in_alpha', 'alpha', false);
+
+  // tw length slider
+  const slt = el('sl_tw_l');
+  if (slt) slt.addEventListener('input', () => {
+    const v = parseFloat(slt.value); if (isNaN(v)) return;
+    STATE.l = v;
+    if (el('in_l')) el('in_l').value = v;
+    if (el('sl_l')) el('sl_l').value = v;
+    if (el('tw_l')) el('tw_l').value = v;
+    syncTheta(); compute(); twRefreshScene();
+  });
+
+  // tw_f — reference-only (mirrors in_f; does not drive compute, matching the Explorer)
+  const twf = el('tw_f');
+  if (twf) twf.addEventListener('change', () => {
+    const v = parseFloat(twf.value);
+    if (!isNaN(v) && v > 0) { STATE.f = v; if (el('in_f')) el('in_f').value = v; twRefreshScene(); }
+  });
+
+  // tw_lossless — mirrors tog_lossless
+  const twl = el('tw_lossless');
+  if (twl) twl.addEventListener('change', () => {
+    STATE.lossless = twl.checked;
+    if (el('tog_lossless')) el('tog_lossless').checked = STATE.lossless;
+    if (el('lossless-indicator')) el('lossless-indicator').textContent = STATE.lossless ? 'ON' : 'OFF';
+    if (el('tw_lossless_ind')) el('tw_lossless_ind').textContent = STATE.lossless ? 'ON' : 'OFF';
+    compute(); twRefreshScene();
+  });
+
+  // Explorer → tw mirror (ADDED listeners; the existing handler runs first, so STATE is fresh)
+  const mirror = () => { syncSceneInputs(); twRefreshScene(); };
+  [['in_Z0', 'input'], ['in_RL', 'input'], ['in_XL', 'input'], ['in_l', 'input'],
+   ['sl_l', 'input'], ['in_alpha', 'input'], ['in_f', 'change'], ['tog_lossless', 'change']
+  ].forEach(pair => { const e = el(pair[0]); if (e) e.addEventListener(pair[1], mirror); });
+  ['btn_series', 'btn_parallel'].forEach(id => { const e = el(id); if (e) e.addEventListener('click', mirror); });
+
+  // animation controls
+  const play = el('tw_btn_play');       if (play) play.addEventListener('click', () => { if (twPlaying) twPause(); else twPlay(); });
+  const spd  = el('tw_sl_speed');       if (spd)  spd.addEventListener('input', () => { const v = parseFloat(spd.value); if (!isNaN(v)) twSpeed = v; });
+  const rst  = el('tw_btn_resetphase'); if (rst)  rst.addEventListener('click', () => { twT = 0; drawWavesFrame(); });
+
+  // resize → re-size canvas + redraw (only while the tab is visible)
+  window.addEventListener('resize', () => {
+    const p = el('tab-waves');
+    if (p && p.style.display !== 'none') { twSizeCanvas(); drawWavesFrame(); }
+  });
+
+  // prime displayed values + scene; tab starts hidden (Explorer is active on load)
+  syncSceneInputs();
+  twSetPlayLabel();
+  twRefreshScene();
+}
+</script>
+
+</body>
+</html>

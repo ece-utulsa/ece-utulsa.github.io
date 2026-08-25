@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Circuit Analysis — Tools &amp; Animations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   TOKENS — sibling of the RF index; green phosphor instead of amber
+   ============================================================ */
+:root{
+  --field:#0C1A20;
+  --panel:#132A32;
+  --panel-hi:#1B3A44;
+  --phosphor:#7CE0A8;     /* primary accent — scope trace          */
+  --amber:#E8B33C;        /* secondary — tools / input waveform    */
+  --ink:#DEEAEE;
+  --muted:#87A3AC;
+  --radius:3px;
+  --gutter:clamp(20px,4vw,56px);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--field);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--phosphor);outline-offset:3px}
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero{
+  position:relative;
+  padding:clamp(36px,7vw,80px) var(--gutter) 0;
+  border-bottom:1px solid var(--panel-hi);
+  overflow:hidden;
+}
+.hero-wave{
+  position:absolute;
+  inset:auto 0 0 0;
+  width:100%;
+  height:190px;
+  display:block;
+  opacity:.9;
+}
+.hero-inner{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding-bottom:150px}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--phosphor);
+  margin:0 0 14px;
+}
+.hero h1{
+  font-family:"Archivo",sans-serif;
+  font-weight:800;
+  font-size:clamp(34px,6.2vw,70px);
+  line-height:.98;
+  letter-spacing:-.025em;
+  margin:0 0 18px;
+  max-width:16ch;
+}
+.hero h1 em{font-style:normal;color:var(--phosphor)}
+.lede{margin:0;max-width:56ch;color:var(--muted);font-size:clamp(15px,1.6vw,18px)}
+.lede a{color:var(--phosphor);border-bottom:1px solid rgba(124,224,168,.4)}
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+.controls{
+  position:sticky;top:0;z-index:5;
+  background:rgba(12,26,32,.94);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--panel-hi);
+  padding:14px var(--gutter);
+}
+.controls-inner{
+  max-width:1180px;margin:0 auto;
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+}
+#search{
+  flex:1 1 260px;
+  min-width:0;
+  background:var(--panel);
+  border:1px solid var(--panel-hi);
+  border-radius:var(--radius);
+  color:var(--ink);
+  font-family:"IBM Plex Mono",monospace;
+  font-size:14px;
+  padding:9px 12px;
+}
+#search::placeholder{color:var(--muted)}
+#search:focus{border-color:var(--phosphor);outline:none}
+.chips{display:flex;gap:6px}
+.chip{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  background:transparent;
+  border:1px solid var(--panel-hi);
+  border-radius:var(--radius);
+  color:var(--muted);
+  padding:8px 12px;
+  cursor:pointer;
+}
+.chip:hover{color:var(--ink);border-color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--phosphor);border-color:var(--phosphor);color:#0C1A20}
+.readout{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;color:var(--muted);
+  margin-left:auto;white-space:nowrap;
+}
+
+/* ============================================================
+   GROUPS + CARDS
+   ============================================================ */
+main{max-width:1180px;margin:0 auto;padding:0 var(--gutter) 90px}
+.group{padding-top:52px}
+.group-head{
+  display:flex;align-items:baseline;gap:14px;
+  border-top:1px solid var(--panel-hi);
+  padding-top:14px;margin-bottom:22px;
+}
+.group-head h2{
+  font-family:"Archivo",sans-serif;
+  font-weight:700;font-size:clamp(19px,2.4vw,26px);
+  letter-spacing:-.01em;margin:0;
+}
+.group-count{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted)}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:14px;
+}
+.card{
+  display:flex;flex-direction:column;
+  background:var(--panel);
+  border:1px solid var(--panel-hi);
+  border-left:2px solid var(--phosphor);
+  border-radius:var(--radius);
+  padding:18px 18px 15px;
+  min-height:150px;
+  transition:transform .16s ease,border-color .16s ease,background .16s ease;
+}
+.card-tool{border-left-color:var(--amber)}
+a.card:hover{transform:translateY(-2px);background:var(--panel-hi);border-color:var(--muted)}
+a.card:hover .card-go{color:var(--phosphor)}
+.card-kind{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--phosphor);margin-bottom:10px;
+}
+.card-tool .card-kind{color:var(--amber)}
+.card h3{
+  font-family:"Archivo",sans-serif;
+  font-weight:700;font-size:19px;line-height:1.2;
+  letter-spacing:-.01em;margin:0 0 8px;
+}
+.card p{margin:0 0 14px;font-size:14px;color:var(--muted);line-height:1.45}
+.card-foot{margin-top:auto;display:flex;align-items:center;gap:10px}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;color:var(--muted);
+  border:1px solid var(--panel-hi);border-radius:var(--radius);
+  padding:2px 6px;
+}
+a.card:hover .tag{border-color:var(--muted)}
+.card-go{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted)}
+
+.card-todo{border-left-color:var(--muted);border-style:dashed;opacity:.62}
+.card-todo .card-kind{color:var(--muted)}
+
+.empty{
+  padding:60px 0;text-align:center;color:var(--muted);
+  font-family:"IBM Plex Mono",monospace;font-size:14px;
+}
+
+footer{
+  border-top:1px solid var(--panel-hi);
+  padding:22px var(--gutter);
+  max-width:1180px;margin:0 auto;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);
+  display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;
+}
+footer a{color:var(--phosphor)}
+
+@media (max-width:560px){
+  .readout{margin-left:0;width:100%}
+  .hero-inner{padding-bottom:120px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">University of Tulsa · ECE 2003 Circuit Analysis</p>
+    <h1>Circuit Analysis <em>Tools &amp; Animations</em></h1>
+    <p class="lede">Narrated animations and interactive simulators for circuit analysis. Nothing to install — pick one and it opens in this browser. RF material is on the <a href="index.html">RF index</a>.</p>
+  </div>
+  <canvas class="hero-wave" id="wave" aria-hidden="true"></canvas>
+</header>
+
+<div class="controls">
+  <div class="controls-inner">
+    <input id="search" type="search" placeholder="Filter by name, topic, or tag…" aria-label="Filter tools and animations">
+    <div class="chips" role="group" aria-label="Filter by type">
+      <button class="chip" data-kind="all" aria-pressed="true">All</button>
+      <button class="chip" data-kind="animation" aria-pressed="false">Animations</button>
+      <button class="chip" data-kind="tool" aria-pressed="false">Tools</button>
+    </div>
+    <span class="readout" id="readout"></span>
+  </div>
+</div>
+
+<main id="list"></main>
+
+<footer>
+  <span>ECE 2003 · zero-install browser tools</span>
+  <span><a href="index.html">RF index →</a></span>
+  <span id="stamp"></span>
+</footer>
+
+<script>
+/* ==================================================================
+   MANIFEST — edit this list only. Everything below renders from it.
+
+   file   : path relative to this page, or null if not wired up yet
+   title  : display name
+   kind   : "animation" | "tool"
+   group  : section heading (see GROUP_ORDER below)
+   blurb  : one line, what it does for the student
+   tags   : short labels for search/scan
+
+   Animations live in  Circuit Animations/
+   Tools live in       ../Claude/Simulation Tools/
+   ================================================================== */
+const TOOLS = [
+  /* --- orientation ------------------------------------------------ */
+  { file:"Circuit Animations/Circuits Roadmap Final/Circuits Roadmap Fall2026.html",
+    title:"Circuits Roadmap", kind:"animation", group:"Getting Oriented",
+    blurb:"Where each topic sits in the course and how they connect.",
+    tags:["overview"] },
+
+  /* --- fundamental laws ------------------------------------------- */
+  { file:"Circuit Animations/KCL Final/KCL_-_Current_Law_Fall2026.html",
+    title:"KCL — Current Law", kind:"animation", group:"Fundamental Laws",
+    blurb:"Current in equals current out, and why the node sum has to vanish.",
+    tags:["KCL","nodes"] },
+
+  { file:"Circuit Animations/KVl Final/KVL_-_Voltage_Law_Fall2026.html",
+    title:"KVL — Voltage Law", kind:"animation", group:"Fundamental Laws",
+    blurb:"Voltage rises and drops around a closed loop.",
+    tags:["KVL","loops"] },
+
+  { file:"Circuit Animations/Series Parallel/Series-Parallel Equivalents Fall2026.html",
+    title:"Series-Parallel Equivalents", kind:"animation", group:"Fundamental Laws",
+    blurb:"Collapsing a network down to one equivalent element, step by step.",
+    tags:["Req","reduction"] },
+
+  /* --- analysis methods -------------------------------------------- */
+  { file:"Circuit Animations/Node Voltage Analysis/Nodal Analysis - Part 1.html",
+    title:"Nodal Analysis — Part 1", kind:"animation", group:"Analysis Methods",
+    blurb:"Choosing a reference node and writing the node equations.",
+    tags:["nodal"] },
+
+  { file:"Circuit Animations/Node Voltage Analysis/Nodal Analysis - Part 2.html",
+    title:"Nodal Analysis — Part 2", kind:"animation", group:"Analysis Methods",
+    blurb:"Supernodes and dependent sources.",
+    tags:["nodal","supernode"] },
+
+  { file:"Circuit Animations/Mesh Current/Mesh Analysis - Part 1.html",
+    title:"Mesh Analysis — Part 1", kind:"animation", group:"Analysis Methods",
+    blurb:"Assigning mesh currents and writing the loop equations.",
+    tags:["mesh"] },
+
+  { file:"Circuit Animations/Mesh Current/Mesh Analysis - Part 2.html",
+    title:"Mesh Analysis — Part 2", kind:"animation", group:"Analysis Methods",
+    blurb:"Current sources shared between meshes.",
+    tags:["mesh","supermesh"] },
+
+  { file:"Circuit Animations/Mesh Current/Mesh Analysis - Part 3.html",
+    title:"Mesh Analysis — Part 3", kind:"animation", group:"Analysis Methods",
+    blurb:"Worked cases pulling the method together.",
+    tags:["mesh"] },
+
+  { file:"Circuit Animations/Superposition/Superposition Fall2026.html",
+    title:"Superposition", kind:"animation", group:"Analysis Methods",
+    blurb:"One source at a time, then add the contributions back up.",
+    tags:["superposition"] },
+
+  { file:"Circuit Animations/thevenien and Norton Final/Thevenin and Norton Fall2026.html",
+    title:"Thévenin and Norton", kind:"animation", group:"Analysis Methods",
+    blurb:"Reducing any two-terminal network to a source and one impedance.",
+    tags:["Thévenin","Norton"] },
+
+  { file:"Circuit Animations/Mazimum Power/Maximum Power Fall2026.html",
+    title:"Maximum Power Transfer", kind:"animation", group:"Analysis Methods",
+    blurb:"Why the load matched to the Thévenin resistance draws the most power.",
+    tags:["max power"] },
+
+  /* --- AC steady state --------------------------------------------- */
+  { file:"Circuit Animations/Impedance vs Resistance Final/Impedance vs Resistance Fall2026.html",
+    title:"Impedance vs Resistance", kind:"animation", group:"AC Steady State",
+    blurb:"What changes once the source is sinusoidal and phase enters the picture.",
+    tags:["Z","R"] },
+
+  { file:"Circuit Animations/Impedance and Phasors/Phasors and Impedance Fall2026.html",
+    title:"Phasors and Impedance", kind:"animation", group:"AC Steady State",
+    blurb:"Rotating phasors and the complex impedance of R, L, and C.",
+    tags:["phasors","jω"] },
+
+  /* --- transients --------------------------------------------------- */
+  { file:"Circuit Animations/Rc and RL/RC-RL Time Constant and Corner Frequency Fall2026.html",
+    title:"RC/RL Time Constant and Corner Frequency", kind:"animation", group:"Transients",
+    blurb:"τ in the time domain and the same information as a corner frequency.",
+    tags:["τ","fc"] },
+
+  { file:"Circuit Animations/RLC/Source Free/Source-Free RLC.html",
+    title:"Source-Free RLC", kind:"animation", group:"Transients",
+    blurb:"Overdamped, critically damped, and underdamped natural response.",
+    tags:["RLC","damping"] },
+
+  { file:"Circuit Animations/RLC/Stepped/Step Response Response RLC Fall2026.html",
+    title:"RLC Step Response", kind:"animation", group:"Transients",
+    blurb:"Natural plus forced response when a step is applied.",
+    tags:["RLC","step"] },
+
+  /* --- complex power ------------------------------------------------ */
+  { file:"Circuit Animations/RMS/Complex Power - RMS and Effective Values.html",
+    title:"RMS and Effective Values", kind:"animation", group:"Complex Power",
+    blurb:"Why RMS is the value that makes AC power come out right.",
+    tags:["RMS"] },
+
+  { file:"Circuit Animations/Complex Power and the Power Triangle/Complex Power and the Power Triangle Fall2026.html",
+    title:"Complex Power and the Power Triangle", kind:"animation", group:"Complex Power",
+    blurb:"Real, reactive, and apparent power as one complex quantity.",
+    tags:["P","Q","S"] },
+
+  { file:"Circuit Animations/Power FActor and Combining Loads/Complex Power - Power Factor and Combining Loads Fall2026.html",
+    title:"Power Factor and Combining Loads", kind:"animation", group:"Complex Power",
+    blurb:"Adding loads in complex power terms and what it does to power factor.",
+    tags:["pf","loads"] },
+
+  { file:"Circuit Animations/Power Factor Correction/Complex Power - Power Factor Correction Fall2026.html",
+    title:"Power Factor Correction", kind:"animation", group:"Complex Power",
+    blurb:"Sizing the capacitor that pulls power factor back toward unity.",
+    tags:["pf correction"] },
+
+  /* --- Laplace and the s-domain ------------------------------------- */
+  { file:"Circuit Animations/Laplace Transform/Laplace as an Algebra Tool Fall2026.html",
+    title:"Laplace as an Algebra Tool", kind:"animation", group:"Laplace & the s-Domain",
+    blurb:"Trading differential equations for algebra in s.",
+    tags:["Laplace"] },
+
+  { file:"Circuit Animations/Factoring/SD-2a Factoring the Denominator (English) - standalone.html",
+    title:"Factoring the Denominator", kind:"animation", group:"Laplace & the s-Domain",
+    blurb:"Finding the poles before you can expand anything.",
+    tags:["poles","factoring"] },
+
+  { file:"Circuit Animations/Inverse Laplace/Partial Fraction Exp Properness Fall2026.html",
+    title:"Partial Fractions — Properness", kind:"animation", group:"Laplace & the s-Domain",
+    blurb:"Checking degree before expanding, and what to do when it fails.",
+    tags:["PFE","properness"] },
+
+  { file:"Circuit Animations/Inverse Laplace/Simple Poles/Inverse Laplace - Simple Poles Fall2026.html",
+    title:"Inverse Laplace — Simple Poles", kind:"animation", group:"Laplace & the s-Domain",
+    blurb:"Distinct real poles and the residues that go with them.",
+    tags:["PFE","simple"] },
+
+  { file:"Circuit Animations/Inverse Laplace/Repeated Poles/Invers Laplace - Repeated Poles Fall2026.html",
+    title:"Inverse Laplace — Repeated Poles", kind:"animation", group:"Laplace & the s-Domain",
+    blurb:"Multiple poles at one location and the extra terms they require.",
+    tags:["PFE","repeated"] },
+
+  { file:"Circuit Animations/Inverse Laplace/Complex Poles/Inverse Laplace - Complex Poles Fall2026.html",
+    title:"Inverse Laplace — Complex Poles", kind:"animation", group:"Laplace & the s-Domain",
+    blurb:"Conjugate pairs, and reading damped sinusoids straight off them.",
+    tags:["PFE","complex"] },
+
+  { file:"Circuit Animations/s domain/SD-3 S-Domain Circuit Analysis (English) - standalone.html",
+    title:"S-Domain Circuit Analysis", kind:"animation", group:"Laplace & the s-Domain",
+    blurb:"Analysing the circuit directly in s, initial conditions included.",
+    tags:["s-domain"] },
+
+  /* --- calculators and plotters ------------------------------------- */
+  { file:"../Claude/Simulation Tools/Complex Number Calculator/Circuit Math Toolkit.html",
+    title:"Circuit Math Toolkit", kind:"tool", group:"Calculators & Plotters",
+    blurb:"Complex arithmetic in rectangular and polar form.",
+    tags:["complex","polar"] },
+
+  { file:"../Claude/Simulation Tools/Function Plotter.html",
+    title:"Function Plotter", kind:"tool", group:"Calculators & Plotters",
+    blurb:"General-purpose plotting for course functions.",
+    tags:["plot"] },
+
+  { file:"../Claude/Simulation Tools/Fourier Tool.html",
+    title:"Fourier Tool", kind:"tool", group:"Calculators & Plotters",
+    blurb:"Harmonic content of periodic waveforms.",
+    tags:["Fourier","harmonics"] },
+
+  { file:"../Claude/Simulation Tools/Laplace_Transform_Inverse_Transform_Tool.html",
+    title:"Laplace Transform Tool", kind:"tool", group:"Calculators & Plotters",
+    blurb:"Forward and inverse transforms with the working shown.",
+    tags:["Laplace","inverse"] },
+
+  /* --- component and machine labs ----------------------------------- */
+  { file:"../Claude/Simulation Tools/Capacitor Simulator/Capacitor Simulation (offline).html",
+    title:"Capacitor Simulation", kind:"tool", group:"Component & Machine Labs",
+    blurb:"Charge, voltage, and stored energy as the circuit runs.",
+    tags:["C","energy"] },
+
+  { file:"../Claude/Simulation Tools/Inductor Simulation/Inductor Simulation (offline).html",
+    title:"Inductor Simulation", kind:"tool", group:"Component & Machine Labs",
+    blurb:"Current, flux, and induced voltage in an inductor.",
+    tags:["L","flux"] },
+
+  { file:"../Claude/Simulation Tools/Transistor Lab/BJT Transistor Amplifier Lab (offline).html",
+    title:"BJT Amplifier Lab", kind:"tool", group:"Component & Machine Labs",
+    blurb:"Bias point, gain, and swing for a single-stage BJT amplifier.",
+    tags:["BJT","bias","gain"] },
+
+  { file:"../Claude/Simulation Tools/Synchronous Machine Phasor Lab/Synchronous Machine Phasor Lab (offline).html",
+    title:"Synchronous Machine Phasor Lab", kind:"tool", group:"Component & Machine Labs",
+    blurb:"Phasor diagram as excitation and load are varied.",
+    tags:["machines","phasors"] },
+
+  { file:"../Claude/Simulation Tools/Dc Motors/DC Motor Simulation (offline) (1).html",
+    title:"DC Motor Simulation", kind:"tool", group:"Component & Machine Labs",
+    blurb:"Torque, speed, and current for a DC machine under load.",
+    tags:["DC motor","torque"] },
+
+  { file:"../Claude/Simulation Tools/Dc Motors/Commutation Simulation (offline).html",
+    title:"Commutation Simulation", kind:"tool", group:"Component & Machine Labs",
+    blurb:"How the commutator keeps torque in one direction.",
+    tags:["commutation"] },
+
+  /* --- power systems -------------------------------------------------- */
+  { file:"../Claude/Simulation Tools/eps/13July2026/Dynamic_Power_System_Simulator_v0_10_5.html",
+    title:"Dynamic Power System Simulator", kind:"tool", group:"Power Systems",
+    blurb:"EPN network dynamics and power flow. v0.10.5 — research build, not a course tool.",
+    tags:["EPN","power flow"] },
+];
+
+/* Section order. Groups not listed here are appended alphabetically. */
+const GROUP_ORDER = [
+  "Getting Oriented",
+  "Fundamental Laws",
+  "Analysis Methods",
+  "AC Steady State",
+  "Transients",
+  "Complex Power",
+  "Laplace & the s-Domain",
+  "Calculators & Plotters",
+  "Component & Machine Labs",
+  "Power Systems",
+];
+
+/* ================================ render ================================ */
+const listEl = document.getElementById("list");
+const readoutEl = document.getElementById("readout");
+const searchEl = document.getElementById("search");
+let activeKind = "all";
+
+function groupsOf(items){
+  const seen = [...new Set(items.map(t => t.group || "Other"))];
+  seen.sort((a,b) => {
+    const ia = GROUP_ORDER.indexOf(a), ib = GROUP_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
+  return seen;
+}
+
+function matches(t, q){
+  if (activeKind !== "all" && t.kind !== activeKind) return false;
+  if (!q) return true;
+  const hay = [t.title, t.blurb, t.group, (t.tags||[]).join(" ")].join(" ").toLowerCase();
+  return hay.includes(q);
+}
+
+function cardHTML(t){
+  const tags = (t.tags||[]).map(x => `<span class="tag">${x}</span>`).join("");
+  const kindLabel = t.kind === "tool" ? "Tool" : "Animation";
+  const cls = "card" + (t.kind === "tool" ? " card-tool" : "") + (t.file ? "" : " card-todo");
+  const inner = `
+    <span class="card-kind">${kindLabel}</span>
+    <h3>${t.title}</h3>
+    <p>${t.blurb || ""}</p>
+    <div class="card-foot">
+      <div class="tags">${tags}</div>
+      <span class="card-go">${t.file ? "Open →" : "Add file"}</span>
+    </div>`;
+  return t.file
+    ? `<a class="${cls}" href="${encodeURI(t.file)}">${inner}</a>`
+    : `<div class="${cls}">${inner}</div>`;
+}
+
+function render(){
+  const q = searchEl.value.trim().toLowerCase();
+  const items = TOOLS.filter(t => matches(t, q));
+
+  if (!items.length){
+    listEl.innerHTML = `<p class="empty">Nothing matches that filter. Clear the search to see everything.</p>`;
+  } else {
+    listEl.innerHTML = groupsOf(items).map(g => {
+      const inGroup = items.filter(t => (t.group || "Other") === g);
+      return `
+      <section class="group">
+        <div class="group-head">
+          <h2>${g}</h2>
+          <span class="group-count">${String(inGroup.length).padStart(2,"0")}</span>
+        </div>
+        <div class="grid">${inGroup.map(cardHTML).join("")}</div>
+      </section>`;
+    }).join("");
+  }
+
+  const anims = TOOLS.filter(t => t.kind === "animation").length;
+  const tools = TOOLS.filter(t => t.kind === "tool").length;
+  readoutEl.textContent =
+    `${items.length}/${TOOLS.length} shown · ${anims} animations · ${tools} tools`;
+}
+
+searchEl.addEventListener("input", render);
+document.querySelectorAll(".chip").forEach(btn => {
+  btn.addEventListener("click", () => {
+    activeKind = btn.dataset.kind;
+    document.querySelectorAll(".chip").forEach(b =>
+      b.setAttribute("aria-pressed", String(b === btn)));
+    render();
+  });
+});
+render();
+
+document.getElementById("stamp").textContent =
+  "updated " + new Date().toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});
+
+/* ============ hero: step input and first-order response ============ */
+(function(){
+  const cv = document.getElementById("wave");
+  const ctx = cv.getContext("2d");
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let w = 0, h = 0;
+
+  function size(){
+    const r = cv.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    w = r.width; h = r.height;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function draw(phase){
+    ctx.clearRect(0,0,w,h);
+    const base = h * 0.80, A = h * 0.52;
+    const period = Math.max(160, w/3);   // px per square-wave period
+    const tau = period * 0.16;           // RC time constant, in px
+
+    // graticule
+    ctx.strokeStyle = "rgba(124,224,168,.11)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= w; x += 56){
+      ctx.beginPath(); ctx.moveTo(x+.5,0); ctx.lineTo(x+.5,h); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(0,base+.5); ctx.lineTo(w,base+.5); ctx.stroke();
+
+    const input = x => (((x + phase) % period) < period/2) ? 1 : 0;
+
+    // driving square wave (amber)
+    ctx.strokeStyle = "rgba(232,179,60,.5)";
+    ctx.lineWidth = 1.25;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x++){
+      const y = base - A * input(x);
+      x ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+
+    // first-order response (phosphor)
+    ctx.strokeStyle = "rgba(124,224,168,.95)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let v = input(0);
+    for (let x = 0; x <= w; x++){
+      v += (input(x) - v) / tau;
+      const y = base - A * v;
+      x ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  function loop(ms){
+    draw(ms * 0.045);
+    requestAnimationFrame(loop);
+  }
+
+  size();
+  window.addEventListener("resize", () => { size(); if (reduce) draw(0); });
+  reduce ? draw(0) : requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

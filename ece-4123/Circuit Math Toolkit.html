@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Circuit Math Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #04070a;
+    --panel: rgba(8, 14, 17, 0.9);
+    --line: rgba(94, 243, 140, 0.18);
+    --line-strong: rgba(94, 243, 140, 0.4);
+    --text: #cad9d2;
+    --text-dim: #9fb4ab;
+    --phos: #5ef38c;
+    --re: #ffb454;   /* real part */
+    --im: #4cc9ff;   /* imaginary part */
+    --accent: #c77dff;
+    --warn: #ff7a7a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; background: var(--bg); color: var(--text);
+    font-family: "JetBrains Mono", ui-monospace, monospace; -webkit-font-smoothing: antialiased; }
+  body {
+    background:
+      radial-gradient(130% 90% at 30% 0%, rgba(10,21,18,0.55), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.13) 0px, rgba(0,0,0,0.13) 1px, transparent 2px, transparent 4px),
+      var(--bg);
+    padding: 30px 26px 70px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  /* header */
+  header { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 18px; }
+  h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.3em; color: var(--phos);
+       text-transform: uppercase; text-shadow: 0 0 12px rgba(94,243,140,0.45); }
+  .sub { font-size: 11px; letter-spacing: 0.16em; color: var(--text-dim); margin-top: 7px; text-transform: uppercase; }
+
+  /* segmented controls / tabs */
+  .seg { display: inline-flex; gap: 6px; }
+  .seg button {
+    appearance: none; cursor: pointer; font-family: inherit;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 8px 15px; color: var(--text-dim);
+    background: rgba(255,255,255,0.02); border: 1px solid var(--line);
+    border-radius: 4px; transition: all 0.15s;
+  }
+  .seg button:hover { color: var(--text); border-color: var(--line-strong); }
+  .seg button.active { color: var(--phos); border-color: var(--phos);
+    background: rgba(94,243,140,0.08); box-shadow: 0 0 14px rgba(94,243,140,0.14) inset; }
+
+  #tabs { margin-top: 26px; border-bottom: 1px solid var(--line); display: flex; gap: 4px; }
+  #tabs .tab {
+    appearance: none; cursor: pointer; font-family: inherit; font-size: 12px;
+    letter-spacing: 0.1em; padding: 13px 22px; color: var(--text-dim);
+    background: none; border: none; border-bottom: 2px solid transparent; transition: all 0.15s;
+  }
+  #tabs .tab:hover { color: var(--text); }
+  #tabs .tab.active { color: var(--phos); border-bottom-color: var(--phos);
+    text-shadow: 0 0 10px rgba(94,243,140,0.4); }
+
+  section.view { display: none; margin-top: 30px; }
+  section.view.active { display: block; }
+
+  /* cards */
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 22px; }
+  .card .label { font-size: 10px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--phos);
+    opacity: 0.9; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .card .label::before { content: ""; width: 5px; height: 5px; background: var(--phos);
+    box-shadow: 0 0 8px var(--phos); border-radius: 1px; }
+
+  /* inputs */
+  label.fld { display: flex; flex-direction: column; gap: 6px; }
+  label.fld span { font-size: 10.5px; letter-spacing: 0.08em; color: var(--text-dim); }
+  input.box {
+    font-family: inherit; font-size: 14px; color: var(--text);
+    background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 5px;
+    padding: 9px 11px; width: 100%; outline: none; transition: all 0.15s;
+  }
+  input.box:focus { border-color: var(--phos); box-shadow: 0 0 0 1px rgba(94,243,140,0.25), 0 0 14px rgba(94,243,140,0.12); }
+  input.box::placeholder { color: rgba(159,180,171,0.4); }
+
+  /* calculator layout */
+  .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .operand .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+  .operand .readout { margin-top: 12px; font-size: 12px; color: var(--text-dim); }
+  .operand .readout b { color: var(--text); font-weight: 500; }
+  .op-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .op-head .name { font-size: 13px; letter-spacing: 0.1em; color: var(--text); }
+  .op-head .seg button { padding: 5px 10px; font-size: 10px; }
+
+  .ops { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .ops .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .ops .row .tag { font-size: 10px; letter-spacing: 0.18em; color: var(--text-dim); text-transform: uppercase; width: 100%; }
+  .obtn {
+    appearance: none; cursor: pointer; font-family: inherit; font-size: 13px;
+    padding: 9px 14px; color: var(--text); background: rgba(255,255,255,0.02);
+    border: 1px solid var(--line); border-radius: 5px; transition: all 0.13s; min-width: 52px;
+  }
+  .obtn:hover { border-color: var(--phos); color: var(--phos); background: rgba(94,243,140,0.07); }
+  .obtn.prim { border-color: var(--phos); color: var(--phos); }
+  .nfield { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
+  .nfield input { width: 64px; }
+
+  /* result panel */
+  .result { margin-top: 18px; background: rgba(0,0,0,0.3); border: 1px solid var(--line);
+    border-radius: 8px; padding: 20px 22px; min-height: 110px; }
+  .result .rname { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+  .result .big { font-size: 26px; letter-spacing: 0.01em; line-height: 1.5; }
+  .result .pol { font-size: 16px; color: var(--text-dim); margin-top: 6px; }
+  .result .meta { display: flex; gap: 26px; margin-top: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-dim); }
+  .result .meta b { color: var(--text); font-weight: 500; }
+  .rootlist { display: flex; flex-direction: column; gap: 9px; }
+  .rootlist .ritem { font-size: 15px; display: flex; gap: 14px; align-items: baseline; }
+  .rootlist .ritem .k { color: var(--text-dim); font-size: 12px; min-width: 34px; }
+  .re { color: var(--re); } .im { color: var(--im); } .opx { color: var(--phos); } .ph { color: var(--accent); }
+
+  /* solver */
+  .solver-top { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 22px; margin-bottom: 6px; }
+  .sizer { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-dim); letter-spacing: 0.06em; }
+  .sizer .stp { width: 34px; height: 34px; font-size: 18px; line-height: 1; display: grid; place-items: center;
+    cursor: pointer; color: var(--text); background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-radius: 5px; }
+  .sizer .stp:hover { border-color: var(--phos); color: var(--phos); }
+  .sizer .nval { font-size: 16px; color: var(--phos); min-width: 22px; text-align: center; }
+
+  .eqcap { font-size: 13px; letter-spacing: 0.06em; color: var(--text); margin: 22px 0 14px; }
+  .eqcap .y { color: var(--phos); } .eqcap .x { color: var(--re); } .eqcap .b { color: var(--im); }
+
+  .matrow { display: flex; align-items: center; gap: 18px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; }
+  .bracket { display: flex; flex-direction: column; gap: 0; }
+  .blabel { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 9px; }
+  .blabel.m { color: var(--phos); } .blabel.v { color: var(--im); } .blabel.u { color: var(--re); }
+  .mgrid { display: grid; gap: 7px; padding: 8px 12px; border-left: 2px solid var(--line-strong);
+    border-right: 2px solid var(--line-strong); border-radius: 3px; }
+  .cellin { font-family: inherit; font-size: 13px; color: var(--text); background: rgba(0,0,0,0.4);
+    border: 1px solid var(--line); border-radius: 4px; padding: 8px 6px; width: 92px; text-align: center; outline: none; transition: all 0.13s; }
+  .cellin:focus { border-color: var(--phos); box-shadow: 0 0 0 1px rgba(94,243,140,0.22); }
+  .cellin::placeholder { color: rgba(159,180,171,0.35); }
+  .eqsym { font-size: 24px; color: var(--text-dim); padding: 0 2px; align-self: center; margin-top: 14px; }
+  .unkcol { display: grid; gap: 7px; padding: 8px 6px; }
+  .unkcell { width: 56px; height: 35px; display: grid; place-items: center; font-size: 14px; color: var(--re);
+    border: 1px dashed var(--line); border-radius: 4px; }
+
+  .solve-row { display: flex; align-items: center; gap: 16px; margin-top: 24px; flex-wrap: wrap; }
+  .solve-btn { appearance: none; cursor: pointer; font-family: inherit; font-size: 13px; letter-spacing: 0.16em;
+    text-transform: uppercase; padding: 13px 30px; color: #04110a; background: var(--phos); border: none;
+    border-radius: 6px; font-weight: 700; box-shadow: 0 0 22px rgba(94,243,140,0.3); transition: all 0.15s; }
+  .solve-btn:hover { filter: brightness(1.12); box-shadow: 0 0 30px rgba(94,243,140,0.5); }
+  .ghost-btn { appearance: none; cursor: pointer; font-family: inherit; font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 11px 18px; color: var(--text); background: rgba(255,255,255,0.02);
+    border: 1px solid var(--line); border-radius: 6px; transition: all 0.15s; }
+  .ghost-btn:hover { border-color: var(--line-strong); color: #fff; }
+
+  .sol-out { margin-top: 24px; }
+  .sol-list { display: flex; flex-direction: column; gap: 11px; }
+  .sol-item { display: grid; grid-template-columns: 70px 1fr; gap: 16px; align-items: baseline;
+    background: rgba(0,0,0,0.3); border: 1px solid var(--line); border-radius: 6px; padding: 13px 18px; }
+  .sol-item .uk { font-size: 15px; color: var(--re); }
+  .sol-item .vv { font-size: 16px; }
+  .sol-item .vp { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
+  .det-line { margin-top: 16px; font-size: 12.5px; color: var(--text-dim); }
+  .det-line b { color: var(--text); }
+  .warn { color: var(--warn); }
+
+  .legend { margin-top: 18px; font-size: 11.5px; line-height: 1.8; color: var(--text-dim); }
+  .legend code { color: var(--phos); background: rgba(94,243,140,0.06); padding: 1px 6px; border-radius: 3px; }
+
+  @media (max-width: 720px) {
+    .calc-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Circuit Math Toolkit</h1>
+      <div class="sub">Complex Numbers &middot; Node Voltage &amp; Mesh Current Analysis</div>
+    </div>
+    <div class="seg" id="angmode">
+      <button data-ang="deg" class="active">Degrees</button>
+      <button data-ang="rad">Radians</button>
+    </div>
+  </header>
+
+  <nav id="tabs">
+    <button class="tab active" data-view="calc">Complex Calculator</button>
+    <button class="tab" data-view="solver">Node / Mesh Solver</button>
+  </nav>
+
+  <!-- ============ CALCULATOR ============ -->
+  <section class="view active" id="view-calc">
+    <div class="calc-grid">
+      <div class="card operand" id="opA" data-mode="rect">
+        <div class="op-head">
+          <span class="name">Operand&nbsp; A</span>
+          <div class="seg modesel">
+            <button data-m="rect" class="active">a + jb</button>
+            <button data-m="polar">r &ang; &theta;</button>
+          </div>
+        </div>
+        <div class="duo">
+          <label class="fld"><span class="l1">Real (a)</span><input class="box f1" value="3" /></label>
+          <label class="fld"><span class="l2">Imag (b)</span><input class="box f2" value="4" /></label>
+        </div>
+        <div class="readout"></div>
+      </div>
+
+      <div class="card operand" id="opB" data-mode="rect">
+        <div class="op-head">
+          <span class="name">Operand&nbsp; B</span>
+          <div class="seg modesel">
+            <button data-m="rect" class="active">a + jb</button>
+            <button data-m="polar">r &ang; &theta;</button>
+          </div>
+        </div>
+        <div class="duo">
+          <label class="fld"><span class="l1">Real (a)</span><input class="box f1" value="1" /></label>
+          <label class="fld"><span class="l2">Imag (b)</span><input class="box f2" value="-2" /></label>
+        </div>
+        <div class="readout"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <div class="label">Operations</div>
+      <div class="ops">
+        <div class="row">
+          <span class="tag">Binary &middot; A &amp; B</span>
+          <button class="obtn" data-op="add">A + B</button>
+          <button class="obtn" data-op="sub">A &minus; B</button>
+          <button class="obtn" data-op="mul">A &times; B</button>
+          <button class="obtn" data-op="div">A &divide; B</button>
+          <button class="obtn" data-op="par">A &#8741; B</button>
+        </div>
+        <div class="row">
+          <span class="tag">Unary &middot; A</span>
+          <button class="obtn" data-op="conj">conj A</button>
+          <button class="obtn" data-op="recip">1 / A</button>
+          <button class="obtn" data-op="abs">|A|</button>
+          <button class="obtn" data-op="arg">&ang; A</button>
+        </div>
+        <div class="row">
+          <span class="tag">Powers &amp; roots &middot; A</span>
+          <button class="obtn" data-op="pow">A <sup>n</sup></button>
+          <button class="obtn" data-op="roots">&#8319;&radic;A</button>
+          <span class="nfield">n = <input class="box" id="nExp" value="2" /></span>
+        </div>
+      </div>
+      <div class="result" id="calcResult">
+        <div class="rname">Result</div>
+        <div class="big">&mdash;</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SOLVER ============ -->
+  <section class="view" id="view-solver">
+    <div class="card">
+      <div class="solver-top">
+        <div class="seg" id="analysis">
+          <button data-mode="node" class="active">Node Voltage &nbsp;(Y&middot;V = I)</button>
+          <button data-mode="mesh">Mesh Current &nbsp;(Z&middot;I = V)</button>
+        </div>
+        <div class="sizer">
+          Size N
+          <div class="stp" id="dec">&minus;</div>
+          <span class="nval" id="nval">3</span>
+          <div class="stp" id="inc">+</div>
+        </div>
+        <button class="ghost-btn" id="loadEx">Load example</button>
+        <button class="ghost-btn" id="clearAll">Clear</button>
+      </div>
+
+      <div class="eqcap" id="eqcap"></div>
+
+      <div class="matrow">
+        <div class="bracket">
+          <div class="blabel m" id="mlabel">Y &mdash; admittance matrix</div>
+          <div class="mgrid" id="matGrid"></div>
+        </div>
+        <div class="bracket">
+          <div class="blabel u" id="ulabel">V</div>
+          <div class="unkcol" id="unkCol"></div>
+        </div>
+        <div class="eqsym">=</div>
+        <div class="bracket">
+          <div class="blabel v" id="vlabel">I &mdash; sources</div>
+          <div class="mgrid" id="vecGrid" style="grid-template-columns: 1fr;"></div>
+        </div>
+      </div>
+
+      <div class="solve-row">
+        <button class="solve-btn" id="solveBtn">Solve</button>
+        <span class="det-line" id="detLine"></span>
+      </div>
+
+      <div class="legend">
+        Enter each cell as a real or complex value &mdash;
+        <code>5</code>, <code>3+4j</code>, <code>-2.5-1j</code>, <code>j2</code>, or polar <code>5&ang;-30</code>.
+        Angles use the current unit (degrees/radians) set above.
+      </div>
+    </div>
+
+    <div class="sol-out" id="solOut"></div>
+  </section>
+</div>
+
+<script>
+// ===================== complex math =====================
+const C = (re = 0, im = 0) => ({ re, im });
+const cadd = (a, b) => C(a.re + b.re, a.im + b.im);
+const csub = (a, b) => C(a.re - b.re, a.im - b.im);
+const cmul = (a, b) => C(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+const cdiv = (a, b) => { const d = b.re * b.re + b.im * b.im;
+  return C((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d); };
+const cabs = a => Math.hypot(a.re, a.im);
+const carg = a => Math.atan2(a.im, a.re);
+const cconj = a => C(a.re, -a.im);
+const crecip = a => cdiv(C(1, 0), a);
+const cpar = (a, b) => cdiv(cmul(a, b), cadd(a, b));
+const cpow = (a, n) => { const r = Math.pow(cabs(a), n), t = carg(a) * n; return C(r * Math.cos(t), r * Math.sin(t)); };
+const croots = (a, n) => { const r = Math.pow(cabs(a), 1 / n), t0 = carg(a); const out = [];
+  for (let k = 0; k < n; k++) { const t = (t0 + 2 * Math.PI * k) / n; out.push(C(r * Math.cos(t), r * Math.sin(t))); } return out; };
+
+let ANG = 'deg';
+const toRad = d => ANG === 'deg' ? d * Math.PI / 180 : d;
+const fromRad = r => ANG === 'deg' ? r * 180 / Math.PI : r;
+
+// ===================== formatting =====================
+function rnd(x, d = 4) { const v = +(+x).toFixed(d); return Object.is(v, -0) ? 0 : v; }
+const mns = s => String(s).replace('-', '\u2212');
+
+function fmtRect(c, d = 4) {
+  const a = rnd(c.re, d), b = rnd(c.im, d);
+  if (b === 0) return `<span class="re">${mns(a)}</span>`;
+  const bc = Math.abs(b) === 1 ? '' : Math.abs(b);
+  const bpart = `<span class="im">${bc}j</span>`;
+  if (a === 0) return (b < 0 ? '\u2212' : '') + bpart;
+  return `<span class="re">${mns(a)}</span> ${b < 0 ? '\u2212' : '+'} ${bpart}`;
+}
+function fmtPolar(c, d = 4) {
+  const m = rnd(cabs(c), d), ang = rnd(fromRad(carg(c)), 2);
+  const u = ANG === 'deg' ? '\u00b0' : ' rad';
+  return `${mns(m)} <span class="ph">&ang;</span> ${mns(ang)}${u}`;
+}
+
+// ===================== parser =====================
+function parseComplex(str) {
+  if (str == null) return C(0, 0);
+  let s = String(str).trim();
+  if (!s) return C(0, 0);
+  s = s.replace(/i/gi, 'j').replace(/\s+/g, '');
+  const pm = s.match(/^(-?\d*\.?\d+)(?:\u2220|<|@)(-?\d*\.?\d+)$/);
+  if (pm) { const r = +pm[1], a = toRad(+pm[2]); return C(r * Math.cos(a), r * Math.sin(a)); }
+  let re = 0, im = 0, term = '', tokens = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if ((c === '+' || c === '-') && i > 0 && s[i - 1] !== 'e' && s[i - 1] !== 'E') { tokens.push(term); term = c; }
+    else term += c;
+  }
+  if (term) tokens.push(term);
+  for (const t of tokens) {
+    if (t.indexOf('j') >= 0) {
+      const coef = t.replace('j', '');
+      if (coef === '' || coef === '+') im += 1;
+      else if (coef === '-') im -= 1;
+      else im += parseFloat(coef) || 0;
+    } else { re += parseFloat(t) || 0; }
+  }
+  return C(re, im);
+}
+
+// ===================== linear algebra =====================
+function determinant(M) {
+  const n = M.length, A = M.map(r => r.map(c => ({ ...c })));
+  let det = C(1, 0);
+  for (let col = 0; col < n; col++) {
+    let piv = col, mx = cabs(A[col][col]);
+    for (let r = col + 1; r < n; r++) { const m = cabs(A[r][col]); if (m > mx) { mx = m; piv = r; } }
+    if (mx < 1e-13) return C(0, 0);
+    if (piv !== col) { const tmp = A[col]; A[col] = A[piv]; A[piv] = tmp; det = cmul(det, C(-1, 0)); }
+    det = cmul(det, A[col][col]);
+    for (let r = col + 1; r < n; r++) { const f = cdiv(A[r][col], A[col][col]);
+      for (let c = col; c < n; c++) A[r][c] = csub(A[r][c], cmul(f, A[col][c])); }
+  }
+  return det;
+}
+function solveSystem(M, b) {
+  const n = M.length;
+  const A = M.map((row, i) => row.map(c => ({ ...c })).concat([{ ...b[i] }]));
+  for (let col = 0; col < n; col++) {
+    let piv = col, mx = cabs(A[col][col]);
+    for (let r = col + 1; r < n; r++) { const m = cabs(A[r][col]); if (m > mx) { mx = m; piv = r; } }
+    if (mx < 1e-12) return null;
+    const tmp = A[col]; A[col] = A[piv]; A[piv] = tmp;
+    const d = A[col][col];
+    for (let c = col; c <= n; c++) A[col][c] = cdiv(A[col][c], d);
+    for (let r = 0; r < n; r++) if (r !== col) { const f = A[r][col];
+      for (let c = col; c <= n; c++) A[r][c] = csub(A[r][c], cmul(f, A[col][c])); }
+  }
+  return A.map(row => row[n]);
+}
+
+// ===================== tabs =====================
+document.querySelectorAll('#tabs .tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('#tabs .tab').forEach(x => x.classList.toggle('active', x === t));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + t.dataset.view));
+}));
+
+// angle units
+document.querySelectorAll('#angmode button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#angmode button').forEach(x => x.classList.toggle('active', x === b));
+  ANG = b.dataset.ang;
+  refreshOperandReadouts();
+}));
+
+// ===================== calculator =====================
+function readOperand(id) {
+  const card = document.getElementById(id);
+  const mode = card.dataset.mode;
+  const v1 = parseFloat(card.querySelector('.f1').value) || 0;
+  const v2 = parseFloat(card.querySelector('.f2').value) || 0;
+  if (mode === 'polar') { const a = toRad(v2); return C(v1 * Math.cos(a), v1 * Math.sin(a)); }
+  return C(v1, v2);
+}
+function refreshOperandReadouts() {
+  ['opA', 'opB'].forEach(id => {
+    const card = document.getElementById(id);
+    const c = readOperand(id);
+    card.querySelector('.readout').innerHTML =
+      (card.dataset.mode === 'polar'
+        ? `= ${fmtRect(c)}`
+        : `= ${fmtPolar(c)}`);
+  });
+}
+['opA', 'opB'].forEach(id => {
+  const card = document.getElementById(id);
+  card.querySelectorAll('.modesel button').forEach(btn => btn.addEventListener('click', () => {
+    card.querySelectorAll('.modesel button').forEach(x => x.classList.toggle('active', x === btn));
+    card.dataset.mode = btn.dataset.m;
+    if (btn.dataset.m === 'polar') {
+      card.querySelector('.l1').textContent = 'Magnitude (r)';
+      card.querySelector('.l2').textContent = 'Angle (\u03b8)';
+    } else {
+      card.querySelector('.l1').textContent = 'Real (a)';
+      card.querySelector('.l2').textContent = 'Imag (b)';
+    }
+    refreshOperandReadouts();
+  }));
+  card.querySelectorAll('.box').forEach(inp => inp.addEventListener('input', refreshOperandReadouts));
+});
+
+const calcRes = document.getElementById('calcResult');
+function showScalar(name, value, unit = '') {
+  calcRes.innerHTML = `<div class="rname">${name}</div>
+    <div class="big"><span class="opx">${mns(rnd(value, 4))}</span>${unit}</div>`;
+}
+function showComplex(name, c) {
+  calcRes.innerHTML = `<div class="rname">${name}</div>
+    <div class="big">${fmtRect(c)}</div>
+    <div class="pol">${fmtPolar(c)}</div>
+    <div class="meta">
+      <span>magnitude <b>${mns(rnd(cabs(c), 4))}</b></span>
+      <span>angle <b>${mns(rnd(fromRad(carg(c)), 2))}${ANG === 'deg' ? '\u00b0' : ' rad'}</b></span>
+    </div>`;
+}
+function showRoots(name, list) {
+  let rows = list.map((c, k) => `<div class="ritem"><span class="k">k=${k}</span>
+    <span>${fmtRect(c)}</span><span class="pol" style="margin:0">${fmtPolar(c)}</span></div>`).join('');
+  calcRes.innerHTML = `<div class="rname">${name}</div><div class="rootlist">${rows}</div>`;
+}
+
+document.querySelectorAll('.obtn').forEach(b => b.addEventListener('click', () => {
+  const A = readOperand('opA'), B = readOperand('opB');
+  const n = parseFloat(document.getElementById('nExp').value) || 0;
+  switch (b.dataset.op) {
+    case 'add': showComplex('A + B', cadd(A, B)); break;
+    case 'sub': showComplex('A \u2212 B', csub(A, B)); break;
+    case 'mul': showComplex('A \u00d7 B', cmul(A, B)); break;
+    case 'div': showComplex('A \u00f7 B', cdiv(A, B)); break;
+    case 'par': showComplex('A \u2225 B  (parallel)', cpar(A, B)); break;
+    case 'conj': showComplex('conjugate of A', cconj(A)); break;
+    case 'recip': showComplex('1 / A', crecip(A)); break;
+    case 'abs': showScalar('|A|  magnitude', cabs(A)); break;
+    case 'arg': showScalar('\u2220A  angle', fromRad(carg(A)), ANG === 'deg' ? '\u00b0' : ' rad'); break;
+    case 'pow': showComplex(`A ^ ${rnd(n, 4)}`, cpow(A, n)); break;
+    case 'roots': { const k = Math.max(2, Math.round(n)); showRoots(`${k} roots of A`, croots(A, k)); break; }
+  }
+}));
+
+// ===================== solver =====================
+const S = { n: 3, mode: 'node', M: [], b: [] };
+const EX = {
+  node: { M: [['0.5-0.2j', '-0.2', '-0.1'], ['-0.2', '0.45+0.1j', '-0.25'], ['-0.1', '-0.25', '0.6-0.15j']],
+          b: ['2\u22200', '0', '1\u2220-45'] },
+  mesh: { M: [['8+6j', '-3', '0'], ['-3', '10-4j', '-2'], ['0', '-2', '7+5j']],
+          b: ['12\u22200', '0', '6\u222030'] },
+};
+function blankState(n) {
+  S.M = Array.from({ length: n }, () => Array.from({ length: n }, () => ''));
+  S.b = Array.from({ length: n }, () => '');
+}
+function resizeState(n) {
+  const oldM = S.M, oldB = S.b, oldN = oldM.length;
+  S.M = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i < oldN && j < oldN) ? oldM[i][j] : ''));
+  S.b = Array.from({ length: n }, (_, i) => i < oldN ? oldB[i] : '');
+  S.n = n;
+}
+function labels() {
+  const node = S.mode === 'node';
+  document.getElementById('eqcap').innerHTML = node
+    ? '<span class="y">[Y]</span> &middot; <span class="x">{V}</span> = <span class="b">{I}</span> &nbsp;&mdash;&nbsp; admittances &times; node voltages = source currents'
+    : '<span class="y">[Z]</span> &middot; <span class="x">{I}</span> = <span class="b">{V}</span> &nbsp;&mdash;&nbsp; impedances &times; mesh currents = source voltages';
+  document.getElementById('mlabel').textContent = node ? 'Y \u2014 admittance matrix' : 'Z \u2014 impedance matrix';
+  document.getElementById('ulabel').textContent = node ? 'V' : 'I';
+  document.getElementById('vlabel').textContent = node ? 'I \u2014 sources' : 'V \u2014 sources';
+}
+function renderSolver() {
+  S.n = S.M.length;
+  document.getElementById('nval').textContent = S.n;
+  labels();
+  const mg = document.getElementById('matGrid');
+  mg.style.gridTemplateColumns = `repeat(${S.n}, 92px)`;
+  mg.innerHTML = '';
+  for (let i = 0; i < S.n; i++) for (let j = 0; j < S.n; j++) {
+    const inp = document.createElement('input');
+    inp.className = 'cellin'; inp.placeholder = '0'; inp.value = S.M[i][j];
+    inp.addEventListener('input', () => { S.M[i][j] = inp.value; });
+    mg.appendChild(inp);
+  }
+  const uc = document.getElementById('unkCol');
+  uc.innerHTML = '';
+  for (let i = 0; i < S.n; i++) {
+    const d = document.createElement('div');
+    d.className = 'unkcell';
+    d.textContent = (S.mode === 'node' ? 'V' : 'I') + (i + 1);
+    uc.appendChild(d);
+  }
+  const vg = document.getElementById('vecGrid');
+  vg.innerHTML = '';
+  for (let i = 0; i < S.n; i++) {
+    const inp = document.createElement('input');
+    inp.className = 'cellin'; inp.placeholder = '0'; inp.value = S.b[i];
+    inp.addEventListener('input', () => { S.b[i] = inp.value; });
+    vg.appendChild(inp);
+  }
+}
+document.getElementById('inc').addEventListener('click', () => { if (S.n < 10) { resizeState(S.n + 1); renderSolver(); } });
+document.getElementById('dec').addEventListener('click', () => { if (S.n > 1) { resizeState(S.n - 1); renderSolver(); } });
+document.querySelectorAll('#analysis button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#analysis button').forEach(x => x.classList.toggle('active', x === b));
+  S.mode = b.dataset.mode; renderSolver();
+}));
+document.getElementById('clearAll').addEventListener('click', () => { blankState(S.n); renderSolver();
+  document.getElementById('solOut').innerHTML = ''; document.getElementById('detLine').innerHTML = ''; });
+document.getElementById('loadEx').addEventListener('click', () => {
+  const ex = EX[S.mode];
+  S.M = ex.M.map(r => r.slice()); S.b = ex.b.slice(); S.n = 3; renderSolver();
+});
+
+document.getElementById('solveBtn').addEventListener('click', () => {
+  const n = S.n;
+  const M = S.M.map(row => row.map(parseComplex));
+  const b = S.b.map(parseComplex);
+  const det = determinant(M);
+  const detLine = document.getElementById('detLine');
+  const out = document.getElementById('solOut');
+  detLine.innerHTML = `det = <b>${fmtRect(det)}</b>`;
+  if (cabs(det) < 1e-12) {
+    out.innerHTML = `<div class="sol-item"><span class="warn">Singular matrix &mdash; no unique solution. Check your entries.</span></div>`;
+    return;
+  }
+  const x = solveSystem(M, b);
+  const sym = S.mode === 'node' ? 'V' : 'I';
+  const unit = S.mode === 'node' ? ' V' : ' A';
+  out.innerHTML = `<div class="sol-list">` + x.map((c, i) =>
+    `<div class="sol-item"><span class="uk">${sym}${i + 1}</span>
+      <div><div class="vv">${fmtRect(c)}${unit}</div>
+      <div class="vp">${fmtPolar(c)}${unit}</div></div></div>`).join('') + `</div>`;
+});
+
+// init
+refreshOperandReadouts();
+S.M = EX.node.M.map(r => r.slice()); S.b = EX.node.b.slice(); S.n = 3;
+renderSolver();
+</script>
+</body>
+</html>
