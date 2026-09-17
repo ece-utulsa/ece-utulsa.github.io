@@ -286,6 +286,11 @@ const TOOLS = [
     blurb:"Decibels, dBm, and level budgets, with practice problems.",
     tags:["dB","dBm"] },
 
+  { file:"https://ece-utulsa.github.io/ece-4123/Circuit_Math_Toolkit.html",
+    title:"Circuit Math Toolkit", kind:"tool", group:"Impedance & Matching",
+    blurb:"Complex arithmetic in rectangular and polar form for impedance work.",
+    tags:["complex","polar"] },
+
   { file:"https://ece-utulsa.github.io/ece-4123/ZY Smith Chart.html",
     title:"ZY Smith Chart", kind:"tool", group:"Impedance & Matching",
     blurb:"Combined impedance and admittance chart for reading loads and matching.",
@@ -297,10 +302,15 @@ const TOOLS = [
     blurb:"Traveling waves, reflection, and standing-wave behaviour on a line. v2.0.0.",
     tags:["Z0","Γ","VSWR"] },
 
-  { file:"https://ece-utulsa.github.io/ece-4123/tdr_range_profile_explorer_v1.2.0.html",
+  { file:null,   /* file not in repo yet */
     title:"TDR Range Profile Explorer", kind:"tool", group:"Transmission Lines",
     blurb:"Locate and identify line discontinuities from the time-domain response. v1.2.0.",
     tags:["TDR","fault location"] },
+
+  { file:"https://ece-utulsa.github.io/ece-4123/Microstrip Field Visualizer (standalone).html",
+    title:"Microstrip Field Visualizer", kind:"tool", group:"Transmission Lines",
+    blurb:"Field cross-section of a microstrip line as substrate height, trace width, and \u03b5r change.",
+    tags:["microstrip","\u03b5r","Z0"] },
 
   { file:"https://ece-utulsa.github.io/ece-4123/EM Wave Simulator.html",
     title:"EM Wave Simulator", kind:"tool", group:"Waves & Propagation",
@@ -311,6 +321,12 @@ const TOOLS = [
     title:"RF Cascade Analyzer", kind:"tool", group:"Systems",
     blurb:"Gain, noise figure, and intercept through a chain of stages (Friis).",
     tags:["NF","cascade","IP3"] },
+
+  /* --- lab courseware ---------------------------------------------- */
+  { file:"https://ece-utulsa.github.io/ece-4123/Lab 1 S11 Tool.html",
+    title:"Lab 1 \u2014 Microstrip S11 Comparison", kind:"tool", group:"Labs",
+    blurb:"Load VNA files and compare measured S11 against the microstrip model, board by board.",
+    tags:["S11","VNA","microstrip"] },
 
   { file:"https://ece-utulsa.github.io/ece-4123/Modulation Explorer v3.1.0.html",
     title:"Modulation Explorer", kind:"tool", group:"Systems",
@@ -327,6 +343,7 @@ const GROUP_ORDER = [
   "Impedance & Matching",
   "Levels & Units",
   "Systems",
+  "Labs",
 ];
 
 /* ================================ render ================================ */
