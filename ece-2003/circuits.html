@@ -211,7 +211,7 @@ footer a{color:var(--phosphor)}
   <div class="hero-inner">
     <p class="eyebrow">University of Tulsa · ECE 2003 Circuit Analysis</p>
     <h1>Circuit Analysis <em>Tools &amp; Animations</em></h1>
-    <p class="lede">Narrated animations and interactive simulators for circuit analysis. Nothing to install — pick one and it opens in this browser. RF material is on the <a href="index.html">RF index</a>.</p>
+    <p class="lede">Narrated animations and interactive simulators for circuit analysis. Nothing to install — pick one and it opens in this browser. RF material is on the <a href="../ece-4123/ECE-4123.html">RF index</a>.</p>
   </div>
   <canvas class="hero-wave" id="wave" aria-hidden="true"></canvas>
 </header>
@@ -232,7 +232,7 @@ footer a{color:var(--phosphor)}
 
 <footer>
   <span>ECE 2003 · zero-install browser tools</span>
-  <span><a href="index.html">RF index →</a></span>
+  <span><a href="../ece-4123/ECE-4123.html">RF index →</a></span>
   <span id="stamp"></span>
 </footer>
 
@@ -247,8 +247,8 @@ footer a{color:var(--phosphor)}
    blurb  : one line, what it does for the student
    tags   : short labels for search/scan
 
-   Animations live in  Circuit Animations/
-   Tools live in       ../Claude/Simulation Tools/
+   Animations and tools both live beside this page in ece-2003/;
+   shared tools live in ../ece-4123/
    ================================================================== */
 const TOOLS = [
   /* --- orientation ------------------------------------------------ */
@@ -368,7 +368,7 @@ const TOOLS = [
     blurb:"Trading differential equations for algebra in s.",
     tags:["Laplace"] },
 
-  { file:null,
+  { file:"Factoring the Denominator.html",
     title:"Factoring the Denominator", kind:"animation", group:"Laplace & the s-Domain",
     blurb:"Finding the poles before you can expand anything.",
     tags:["poles","factoring"] },
@@ -393,7 +393,7 @@ const TOOLS = [
     blurb:"Conjugate pairs, and reading damped sinusoids straight off them.",
     tags:["PFE","complex"] },
 
-  { file:null,
+  { file:"S-Domain Circuit Analysis.html",
     title:"S-Domain Circuit Analysis", kind:"animation", group:"Laplace & the s-Domain",
     blurb:"Analysing the circuit directly in s, initial conditions included.",
     tags:["s-domain"] },
@@ -404,28 +404,28 @@ const TOOLS = [
     blurb:"Complex arithmetic in rectangular and polar form.",
     tags:["complex","polar"] },
 
-  { file:null,
+  { file:"Function Plotter.html",
     title:"Function Plotter", kind:"tool", group:"Calculators & Plotters",
     blurb:"General-purpose plotting for course functions.",
     tags:["plot"] },
 
-  { file:null,
+  { file:"Fourier Tool.html",
     title:"Fourier Tool", kind:"tool", group:"Calculators & Plotters",
     blurb:"Harmonic content of periodic waveforms.",
     tags:["Fourier","harmonics"] },
 
-  { file:null,
+  { file:"Laplace_Transform_Inverse_Transform_Tool.html",
     title:"Laplace Transform Tool", kind:"tool", group:"Calculators & Plotters",
     blurb:"Forward and inverse transforms with the working shown.",
     tags:["Laplace","inverse"] },
 
   /* --- component and machine labs ----------------------------------- */
-  { file:null,
+  { file:"Capacitor Simulation.html",
     title:"Capacitor Simulation", kind:"tool", group:"Component & Machine Labs",
     blurb:"Charge, voltage, and stored energy as the circuit runs.",
     tags:["C","energy"] },
 
-  { file:null,
+  { file:"Inductor Simulation.html",
     title:"Inductor Simulation", kind:"tool", group:"Component & Machine Labs",
     blurb:"Current, flux, and induced voltage in an inductor.",
     tags:["L","flux"] },
