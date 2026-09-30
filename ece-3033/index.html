@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Electric Power Systems — Tools &amp; Animations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root{
+  --field:#0C1A20;        /* deep petrol — instrument bezel        */
+  --panel:#132A32;        /* card face                             */
+  --panel-hi:#1B3A44;     /* hover / border                        */
+  --amber:#E8B33C;        /* graticule + primary accent (CRT amber)*/
+  --cyan:#54BFC9;         /* live trace / secondary                */
+  --ink:#DEEAEE;
+  --muted:#87A3AC;
+  --radius:3px;
+  --gutter:clamp(20px,4vw,56px);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--field);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero{
+  position:relative;
+  padding:clamp(36px,7vw,80px) var(--gutter) 0;
+  border-bottom:1px solid var(--panel-hi);
+  overflow:hidden;
+}
+.hero-wave{
+  position:absolute;
+  inset:auto 0 0 0;
+  width:100%;
+  height:190px;
+  display:block;
+  opacity:.9;
+}
+.hero-inner{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding-bottom:150px}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--amber);
+  margin:0 0 14px;
+}
+.hero h1{
+  font-family:"Archivo",sans-serif;
+  font-weight:800;
+  font-size:clamp(34px,6.2vw,70px);
+  line-height:.98;
+  letter-spacing:-.025em;
+  margin:0 0 18px;
+  max-width:16ch;
+}
+.hero h1 em{font-style:normal;color:var(--amber)}
+.lede{margin:0;max-width:56ch;color:var(--muted);font-size:clamp(15px,1.6vw,18px)}
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+.controls{
+  position:sticky;top:0;z-index:5;
+  background:rgba(12,26,32,.94);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--panel-hi);
+  padding:14px var(--gutter);
+}
+.controls-inner{
+  max-width:1180px;margin:0 auto;
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+}
+#search{
+  flex:1 1 260px;
+  min-width:0;
+  background:var(--panel);
+  border:1px solid var(--panel-hi);
+  border-radius:var(--radius);
+  color:var(--ink);
+  font-family:"IBM Plex Mono",monospace;
+  font-size:14px;
+  padding:9px 12px;
+}
+#search::placeholder{color:var(--muted)}
+#search:focus{border-color:var(--amber);outline:none}
+.chips{display:flex;gap:6px}
+.chip{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  background:transparent;
+  border:1px solid var(--panel-hi);
+  border-radius:var(--radius);
+  color:var(--muted);
+  padding:8px 12px;
+  cursor:pointer;
+}
+.chip:hover{color:var(--ink);border-color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:#0C1A20}
+.readout{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;color:var(--muted);
+  margin-left:auto;white-space:nowrap;
+}
+
+/* ============================================================
+   GROUPS + CARDS
+   ============================================================ */
+main{max-width:1180px;margin:0 auto;padding:0 var(--gutter) 90px}
+.group{padding-top:52px}
+.group-head{
+  display:flex;align-items:baseline;gap:14px;
+  border-top:1px solid var(--panel-hi);
+  padding-top:14px;margin-bottom:22px;
+}
+.group-head h2{
+  font-family:"Archivo",sans-serif;
+  font-weight:700;font-size:clamp(19px,2.4vw,26px);
+  letter-spacing:-.01em;margin:0;
+}
+.group-count{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted)}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:14px;
+}
+.card{
+  display:flex;flex-direction:column;
+  background:var(--panel);
+  border:1px solid var(--panel-hi);
+  border-left:2px solid var(--cyan);
+  border-radius:var(--radius);
+  padding:18px 18px 15px;
+  min-height:150px;
+  transition:transform .16s ease,border-color .16s ease,background .16s ease;
+}
+.card-anim{border-left-color:var(--amber)}
+a.card:hover{transform:translateY(-2px);background:var(--panel-hi);border-color:var(--muted)}
+a.card:hover .card-go{color:var(--amber)}
+.card-kind{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--cyan);margin-bottom:10px;
+}
+.card-anim .card-kind{color:var(--amber)}
+.card h3{
+  font-family:"Archivo",sans-serif;
+  font-weight:700;font-size:19px;line-height:1.2;
+  letter-spacing:-.01em;margin:0 0 8px;
+}
+.card p{margin:0 0 14px;font-size:14px;color:var(--muted);line-height:1.45}
+.card-foot{margin-top:auto;display:flex;align-items:center;gap:10px}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;color:var(--muted);
+  border:1px solid var(--panel-hi);border-radius:var(--radius);
+  padding:2px 6px;
+}
+a.card:hover .tag{border-color:var(--muted)}
+.card-go{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted)}
+
+/* unlinked entries: structure present, file not wired up yet */
+.card-todo{border-left-color:var(--muted);border-style:dashed;opacity:.62}
+.card-todo .card-kind{color:var(--muted)}
+
+.empty{
+  padding:60px 0;text-align:center;color:var(--muted);
+  font-family:"IBM Plex Mono",monospace;font-size:14px;
+}
+
+footer{
+  border-top:1px solid var(--panel-hi);
+  padding:22px var(--gutter);
+  max-width:1180px;margin:0 auto;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);
+  display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;
+}
+
+@media (max-width:560px){
+  .readout{margin-left:0;width:100%}
+  .hero-inner{padding-bottom:120px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">University of Tulsa · Electrical &amp; Computer Engineering</p>
+    <h1>Electric Power Systems <em>Tools &amp; Animations</em></h1>
+    <p class="lede">Browser-based simulations and interactive visualizations for ECE 3033. Nothing to install — pick one and it opens in this browser.</p>
+  </div>
+  <canvas class="hero-wave" id="wave" aria-hidden="true"></canvas>
+</header>
+
+<div class="controls">
+  <div class="controls-inner">
+    <input id="search" type="search" placeholder="Filter by name, topic, or tag…" aria-label="Filter tools and animations">
+    <div class="chips" role="group" aria-label="Filter by type">
+      <button class="chip" data-kind="all" aria-pressed="true">All</button>
+      <button class="chip" data-kind="tool" aria-pressed="false">Tools</button>
+      <button class="chip" data-kind="animation" aria-pressed="false">Animations</button>
+    </div>
+    <span class="readout" id="readout"></span>
+  </div>
+</div>
+
+<main id="list"></main>
+
+<footer>
+  <span>ECE 3033 Electric Power Systems · zero-install browser tools</span>
+  <span id="stamp"></span>
+</footer>
+
+<script>
+/* ==================================================================
+   MANIFEST — edit this list only. Everything below renders from it.
+
+   To add a file: drop the .html into this folder (ece-3033/), then add
+   an entry below, e.g.
+
+   { file:"Per-Unit Calculator.html",
+     title:"Per-Unit Calculator", kind:"tool", group:"Per-Unit System",
+     blurb:"Convert between actual and per-unit values across base changes.",
+     tags:["pu","base"] },
+
+   file   : filename in this folder, or null if not built/wired yet
+   title  : display name
+   kind   : "tool" | "animation"
+   group  : section heading (see GROUP_ORDER below)
+   blurb  : one line, what it does for the student
+   tags   : short labels for search/scan
+   ================================================================== */
+const TOOLS = [
+  /* --- three-phase power ----------------------------------------------- */
+  { file:"Polyphase_Power_Superposition_Explorer_v0.1.0.html",
+    title:"Polyphase Power Superposition Explorer", kind:"tool", group:"Three-Phase Circuits",
+    blurb:"Add the instantaneous power of 1\u20136 phases and see when the double-frequency ripple cancels to a constant total. v0.1.0.",
+    tags:["3\u03c6","instantaneous power","ripple"] },
+
+  /* --- machines -------------------------------------------------------- */
+  { file:"DC_Motor_Simulation_v1.4.0.html",
+    title:"Shunt DC Motor \u2014 Power-Flow Lab", kind:"tool", group:"DC Machines",
+    blurb:"Back-EMF, torque, and speed of a shunt motor, with every watt traced from electrical input to shaft output. v1.4.0.",
+    tags:["shunt","back-EMF","losses"] },
+
+  { file:"Synchronous_Machine_Phasor_Lab_v1.0.0.html",
+    title:"Synchronous Machine Phasor Lab", kind:"tool", group:"Synchronous Machines",
+    blurb:"Build E\u2090, V\u03c6, and I\u2090 phasor diagrams for generators, motors, and condensers across power factor and excitation. v1.0.0.",
+    tags:["phasor","torque angle \u03b4","excitation"] },
+];
+
+/* Section order. Groups not listed here are appended alphabetically. */
+const GROUP_ORDER = [
+  "Fundamentals",
+  "Three-Phase Circuits",
+  "Per-Unit System",
+  "Transformers",
+  "DC Machines",
+  "Synchronous Machines",
+  "Transmission Lines",
+  "Power Flow",
+  "Faults",
+  "Stability",
+  "Worked Problems",
+  "Labs",
+];
+
+/* ================================ render ================================ */
+const listEl = document.getElementById("list");
+const readoutEl = document.getElementById("readout");
+const searchEl = document.getElementById("search");
+let activeKind = "all";
+
+function groupsOf(items){
+  const seen = [...new Set(items.map(t => t.group || "Other"))];
+  seen.sort((a,b) => {
+    const ia = GROUP_ORDER.indexOf(a), ib = GROUP_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
+  return seen;
+}
+
+function matches(t, q){
+  if (activeKind !== "all" && t.kind !== activeKind) return false;
+  if (!q) return true;
+  const hay = [t.title, t.blurb, t.group, (t.tags||[]).join(" ")].join(" ").toLowerCase();
+  return hay.includes(q);
+}
+
+function cardHTML(t){
+  const tags = (t.tags||[]).map(x => `<span class="tag">${x}</span>`).join("");
+  const kindLabel = t.kind === "animation" ? "Animation" : "Tool";
+  const cls = "card" + (t.kind === "animation" ? " card-anim" : "") + (t.file ? "" : " card-todo");
+  const inner = `
+    <span class="card-kind">${kindLabel}</span>
+    <h3>${t.title}</h3>
+    <p>${t.blurb || ""}</p>
+    <div class="card-foot">
+      <div class="tags">${tags}</div>
+      <span class="card-go">${t.file ? "Open →" : "Add file"}</span>
+    </div>`;
+  return t.file
+    ? `<a class="${cls}" href="${encodeURI(t.file)}">${inner}</a>`
+    : `<div class="${cls}">${inner}</div>`;
+}
+
+function render(){
+  const q = searchEl.value.trim().toLowerCase();
+  const items = TOOLS.filter(t => matches(t, q));
+
+  if (!TOOLS.length){
+    listEl.innerHTML = `<p class="empty">No tools or animations yet. New files will appear here as they are added.</p>`;
+  } else if (!items.length){
+    listEl.innerHTML = `<p class="empty">Nothing matches that filter. Clear the search to see everything.</p>`;
+  } else {
+    listEl.innerHTML = groupsOf(items).map(g => {
+      const inGroup = items.filter(t => (t.group || "Other") === g);
+      return `
+      <section class="group">
+        <div class="group-head">
+          <h2>${g}</h2>
+          <span class="group-count">${String(inGroup.length).padStart(2,"0")}</span>
+        </div>
+        <div class="grid">${inGroup.map(cardHTML).join("")}</div>
+      </section>`;
+    }).join("");
+  }
+
+  const tools = TOOLS.filter(t => t.kind === "tool").length;
+  const anims = TOOLS.filter(t => t.kind === "animation").length;
+  readoutEl.textContent =
+    `${items.length}/${TOOLS.length} shown · ${tools} tools · ${anims} animations`;
+}
+
+searchEl.addEventListener("input", render);
+document.querySelectorAll(".chip").forEach(btn => {
+  btn.addEventListener("click", () => {
+    activeKind = btn.dataset.kind;
+    document.querySelectorAll(".chip").forEach(b =>
+      b.setAttribute("aria-pressed", String(b === btn)));
+    render();
+  });
+});
+render();
+
+document.getElementById("stamp").textContent =
+  "updated " + new Date().toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});
+
+/* ============ hero: balanced three-phase voltages ============ */
+(function(){
+  const cv = document.getElementById("wave");
+  const ctx = cv.getContext("2d");
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let w = 0, h = 0;
+
+  function size(){
+    const r = cv.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    w = r.width; h = r.height;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  const PHASES = [
+    { shift:0,              color:"rgba(232,179,60,.95)", width:2    },  // a — amber
+    { shift:-2*Math.PI/3,   color:"rgba(84,191,201,.85)", width:1.6  },  // b — cyan
+    { shift: 2*Math.PI/3,   color:"rgba(222,234,238,.55)",width:1.3  },  // c — ink
+  ];
+
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    const mid = h * 0.55, A = h * 0.32;
+
+    // graticule
+    ctx.strokeStyle = "rgba(232,179,60,.13)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= w; x += 56){
+      ctx.beginPath(); ctx.moveTo(x+.5,0); ctx.lineTo(x+.5,h); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(0,mid+.5); ctx.lineTo(w,mid+.5); ctx.stroke();
+
+    const k = (2*Math.PI)/(w/2.6);
+
+    for (const p of PHASES){
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = p.width;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x++){
+        const y = mid - A * Math.sin(k*x - t + p.shift);
+        x ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function loop(ms){
+    draw(ms/620);
+    requestAnimationFrame(loop);
+  }
+
+  size();
+  window.addEventListener("resize", () => { size(); if (reduce) draw(0); });
+  reduce ? draw(0) : requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
