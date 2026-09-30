@@ -256,6 +256,22 @@ footer{
    tags   : short labels for search/scan
    ================================================================== */
 const TOOLS = [
+  /* --- three-phase power ----------------------------------------------- */
+  { file:"Polyphase_Power_Superposition_Explorer_v0.1.0.html",
+    title:"Polyphase Power Superposition Explorer", kind:"tool", group:"Three-Phase Circuits",
+    blurb:"Add the instantaneous power of 1\u20136 phases and see when the double-frequency ripple cancels to a constant total. v0.1.0.",
+    tags:["3\u03c6","instantaneous power","ripple"] },
+
+  /* --- machines -------------------------------------------------------- */
+  { file:"DC_Motor_Simulation_v1.4.0.html",
+    title:"Shunt DC Motor \u2014 Power-Flow Lab", kind:"tool", group:"DC Machines",
+    blurb:"Back-EMF, torque, and speed of a shunt motor, with every watt traced from electrical input to shaft output. v1.4.0.",
+    tags:["shunt","back-EMF","losses"] },
+
+  { file:"Synchronous_Machine_Phasor_Lab_v1.0.0.html",
+    title:"Synchronous Machine Phasor Lab", kind:"tool", group:"Synchronous Machines",
+    blurb:"Build E\u2090, V\u03c6, and I\u2090 phasor diagrams for generators, motors, and condensers across power factor and excitation. v1.0.0.",
+    tags:["phasor","torque angle \u03b4","excitation"] },
 ];
 
 /* Section order. Groups not listed here are appended alphabetically. */
@@ -264,6 +280,8 @@ const GROUP_ORDER = [
   "Three-Phase Circuits",
   "Per-Unit System",
   "Transformers",
+  "DC Machines",
+  "Synchronous Machines",
   "Transmission Lines",
   "Power Flow",
   "Faults",
