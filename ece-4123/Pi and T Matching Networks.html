@@ -132,7 +132,7 @@
 <body>
 <header>
   <div class="t">Π and T Matching Networks</div>
-  <div class="s">three elements &middot; virtual resistance &middot; Q circles</div>
+  <div class="s">three elements &middot; virtual resistance &middot; Q circles &middot; lumped or transmission line</div>
   <button id="bPresent" style="padding:7px 13px;font-size:13px;font-weight:bold;
     border:2px solid var(--ink);border-radius:5px;background:var(--ink);color:#fff">
     Presentation view &nbsp;<span style="font-weight:normal;opacity:.7">P</span></button>
@@ -172,6 +172,22 @@
   <div class="seg" id="segTopo">
     <button data-t="PI" class="on">&Pi; network</button>
     <button data-t="T">T network</button>
+  </div>
+
+  <label class="f">Build as</label>
+  <div class="seg" id="segReal">
+    <button data-r="lumped" class="on">lumped</button>
+    <button data-r="stubs">stubs</button>
+    <button data-r="lines">lines + stubs</button>
+  </div>
+  <div id="tlBox" style="display:none">
+    <div class="row" style="margin-top:2px;align-items:flex-end">
+      <div style="flex:1" id="zhWrap"><label class="f">Line Z<sub>h</sub> (&#937;)</label>
+        <input type="text" id="zh" value="100"></div>
+      <div style="flex:1"><label class="f">Stub Z<sub>st</sub> (&#937;)</label>
+        <input type="text" id="zs" value="50"></div>
+    </div>
+    <div class="note" id="tlNote"></div>
   </div>
 
   <label class="f">Units</label>
@@ -403,7 +419,7 @@ const S={
   playing:false, sols:[], err:"", info:"", arcs:[], nodes:[],
   speed:520, alab:"active", gz:true, gy:true, gc:true,
   pick:null, loadKey:"", uL:null, uC:null, present:false, pzoom:1,
-  topo:"PI", qmin:0, rv:0
+  topo:"PI", qmin:0, rv:0, real:"lumped", peakQ:0
 };
 const $=id=>document.getElementById(id);
 const num=(id,d)=>{const v=parseFloat($(id).value);return isFinite(v)?v:d;};
@@ -419,7 +435,9 @@ function inputs(){
   let zT=C(1,0);
   if(S.tgt==="cx")zT=norm?C(rt,xt):C(rt/z0,xt/z0);
   const q=num("q",3);
-  return {z0:z0,f:f,w:2*Math.PI*f,zL:zL,zT:zT,norm:norm,q:q,topo:S.topo};
+  const zh=num("zh",100), zs=num("zs",50);
+  return {z0:z0,f:f,w:2*Math.PI*f,zL:zL,zT:zT,norm:norm,q:q,topo:S.topo,
+    real:S.real, zh:zh>0?zh/z0:NaN, zs:zs>0?zs/z0:NaN};
 }
 
 /* ---------- L-section engine (same algebra as the ZY Smith Chart tool) ------ */
@@ -457,6 +475,43 @@ function secShunt(zA,zB){                     /* shunt element first */
    runs at a true peak Q of 3.391.  With the dual taken properly, the
    dialled Q IS the realised peak Q of the path, for either topology and
    for complex terminations.                                            */
+/* ---------- transmission-line realization --------------------------------
+   "stubs":         each shunt susceptance b becomes a stub of Z_st shorter
+                    than lambda/4 -- open for b > 0 (theta = atan(b z_st)),
+                    shorted for b < 0 (theta = atan(-1/(b z_st))).  Exact at
+                    f0: a stub IS a shunt susceptance, so the arc is the same.
+   "lines + stubs": each series element becomes a line of Z_h as well.  A line
+                    is NOT a series reactance: it is jZ_h sin(theta) in series
+                    with tan(theta/2)/Z_h shunt at EACH end, so dropping
+                    theta = asin(X/Z_h) into the lumped design misses the
+                    target.  The lines are therefore solved on the chart: the
+                    node the lumped design fixes is held (T: g = 1/R_v after
+                    line 1; Pi: r = R_v after stub 1) and the line lengths are
+                    found as exact crossings.  Q then fixes that node, not the
+                    peak Q of the path, which is reported separately.       */
+function lineZ(z,zr,t){                 /* z seen through theta = t of line zr */
+  const c=Math.cos(t), s=Math.sin(t);
+  return cmul(C(zr),cdiv(C(z.re*c,z.im*c+zr*s),C(zr*c-z.im*s,z.re*s)));
+}
+/* electrical lengths in [0, pi) at which Re{1/z_in} = g; rev = from the far end */
+function lineRoots(z,zr,g,rev){
+  const h=function(t){return cinv(lineZ(z,zr,rev?-t:t)).re-g;};
+  const out=[], N=720;
+  let t0=0, h0=h(0);
+  if(Math.abs(h0)<1e-10)out.push(0);
+  for(let i=1;i<=N;i++){
+    const t1=Math.PI*i/N, h1=h(t1);
+    if(h0*h1<0){
+      let a=t0,b=t1,ha=h0;
+      for(let k=0;k<64;k++){const m=(a+b)/2,hm=h(m);if(ha*hm<=0)b=m;else{a=m;ha=hm;}}
+      const r=(a+b)/2;
+      if(!out.some(function(o){return Math.abs(o-r)<1e-7||Math.abs(o-r+Math.PI)<1e-7;}))out.push(r);
+    }
+    t0=t1;h0=h1;
+  }
+  return out;
+}
+const DEG=180/Math.PI;
 const Rser=z=>z.re;                    /* series resistance            */
 const Rpar=z=>1/cinv(z).re;            /* parallel resistance          */
 
@@ -480,6 +535,8 @@ function synth(){
     S.err="Load R must be greater than zero. A load with R \u2264 0 is a "+
           "negative-resistance load and lies outside the chart.";return;}
   if(!(I.zT.re>0)){S.err="Target R must be greater than zero.";return;}
+  if(I.real!=="lumped"&&!(I.zs>0)){S.err="Stub Z\u209b\u209c must be greater than zero.";return;}
+  if(I.real==="lines"&&!(I.zh>0)){S.err="Line Z\u2095 must be greater than zero.";return;}
 
   S.qmin=qFloor(I);
   if(!(I.q>0)){S.err="Q must be greater than zero.";return;}
@@ -493,7 +550,32 @@ function synth(){
   }
   const Rv=virtualR(I); S.rv=Rv;
   const zv=C(Rv,0), out=[];
-  if(I.topo==="T"){
+  if(I.real==="lines"&&I.topo==="T"){
+    /* line -> stub -> line: node 1 held at g = 1/R_v, as in the lumped T */
+    const gv=1/Rv;
+    lineRoots(I.zL,I.zh,gv,false).forEach(function(t1,ia){
+      const yP=cinv(lineZ(I.zL,I.zh,t1));
+      lineRoots(I.zT,I.zh,gv,true).forEach(function(t2,ib){
+        const yQ=cinv(lineZ(I.zT,I.zh,-t2));
+        const o=mk(ia?-1:1,ib?-1:1,
+          [{kind:"l",v:t1},{kind:"p",v:yQ.im-yP.im},{kind:"l",v:t2}],I,Rv);
+        o.name="line 1 crossing "+(ia+1)+" / line 2 crossing "+(ib+1);
+        out.push(o);
+      });
+    });
+  }else if(I.real==="lines"){
+    /* stub -> line -> stub: node 1 held at r = R_v, as in the lumped Pi */
+    const yL=cinv(I.zL), yT=cinv(I.zT);
+    secShunt(I.zL,zv).forEach(function(A){
+      const P1=cinv(C(yL.re,yL.im+A.b));
+      lineRoots(P1,I.zh,yT.re,false).forEach(function(tt,ib){
+        const o=mk(A.root,ib?-1:1,
+          [{kind:"p",v:A.b},{kind:"l",v:tt},{kind:"p",v:yT.im-cinv(lineZ(P1,I.zh,tt)).im}],I,Rv);
+        o.name="root "+(A.root>0?"upper":"lower")+" / line crossing "+(ib+1);
+        out.push(o);
+      });
+    });
+  }else if(I.topo==="T"){
     secSeries(I.zL,zv).forEach(function(A){
       secShunt(zv,I.zT).forEach(function(B){
         out.push(mk(A.root,B.root,
@@ -528,10 +610,15 @@ function synth(){
     if(e.L)Ls.push(e.L); if(e.Cv)Cs.push(e.Cv);});});
   S.uL=pickUnit(Ls,L_UNITS); S.uC=pickUnit(Cs,C_UNITS);
   good.forEach(function(o){o.els.forEach(function(e){
-    e.comp=(e.L!==undefined)?indStr(e.L):capStr(e.Cv);});});
-  if(!good.length)S.err="No "+(I.topo==="T"?"T":"\u03a0")+
-    " solution exists for this load, target and Q.";
-  const key=I.zL.re+","+I.zL.im+","+I.zT.re+","+I.zT.im+","+I.q+","+I.topo;
+    if(e.comp===undefined)e.comp=(e.L!==undefined)?indStr(e.L):capStr(e.Cv);});});
+  if(!good.length)S.err=(I.real==="lines")
+    ?"No line + stub "+(I.topo==="T"?"T":"\u03a0")+" solution at this Q and Z\u2095: "+
+      (I.topo==="T"?"the Z\u2095 circle through the load or the target never reaches "+
+        "the node conductance g = 1/R\u1d65 = "+sig(1/Rv,4)
+       :"the Z\u2095 circle through node 1 never reaches the target conductance g = "+
+        sig(cinv(I.zT).re,4))+". Change Z\u2095 or Q."
+    :"No "+(I.topo==="T"?"T":"\u03a0")+" solution exists for this load, target and Q.";
+  const key=I.zL.re+","+I.zL.im+","+I.zT.re+","+I.zT.im+","+I.q+","+I.topo+","+I.real;
   if(key!==S.loadKey){S.pick=null;S.loadKey=key;}
   let want=-1;
   if(S.pick)want=S.sols.findIndex(function(o){
@@ -545,7 +632,20 @@ function mk(rootA,rootB,els,I,Rv){
   els.forEach(function(e){
     /* normalized -> denormalized -> component, at the entered frequency */
     /* e.comp is filled in later, once the units are chosen for the whole set */
-    if(e.kind==="s"){
+    if(e.kind==="l"){
+      /* v = electrical length theta (rad).  X and Bend are its lumped
+         equivalent: series jZ_h sin(theta), shunt tan(theta/2)/Z_h each end */
+      e.zh=I.zh; e.th=e.v;
+      e.type="line";
+      e.X=I.zh*I.z0*Math.sin(e.v); e.Bend=Math.tan(e.v/2)/(I.zh*I.z0);
+      e.comp="line "+sig(I.zh*I.z0,4)+" \u03a9, \u03b8 = "+sig(e.v*DEG,4)+"\u00b0";
+    }else if(e.kind==="p"&&I.real!=="lumped"){
+      e.B=e.v/I.z0; e.zs=I.zs;
+      e.mode=e.v>0?"open":"shorted";
+      e.th=e.v>0?Math.atan(e.v*I.zs):Math.atan(-1/(e.v*I.zs));
+      e.type=e.mode+" stub";
+      e.comp=e.mode+" stub "+sig(I.zs*I.z0,4)+" \u03a9, \u03b8 = "+sig(e.th*DEG,4)+"\u00b0";
+    }else if(e.kind==="s"){
       e.X=e.v*I.z0;
       if(e.v>0){e.type="series L";e.L=e.v*I.z0/I.w;}
       else     {e.type="series C";e.Cv=-1/(e.v*I.w*I.z0);}
@@ -568,9 +668,17 @@ function build(){
   if(!sol||sol.bad)return;
   let z=I.zL;
   S.nodes.push({z:z,y:cinv(z),label:"zₗ"});
+  S.peakQ=0;
   sol.els.forEach(function(e){
     const pts=[]; const N=64;
-    if(e.kind==="s"){
+    if(e.kind==="l"){
+      /* rides the constant-|Gamma| circle of ITS OWN Z_h, which on this
+         chart is an off-centre circle (a Mobius image), not a concentric one */
+      e.circle="line"; e.cval=e.zh;
+      for(let i=0;i<=N;i++)pts.push(z2g(lineZ(z,e.zh,e.v*i/N)));
+      e.ring=[]; for(let i=0;i<=96;i++)e.ring.push(z2g(lineZ(z,e.zh,Math.PI*i/96)));
+      z=lineZ(z,e.zh,e.v);
+    }else if(e.kind==="s"){
       e.circle="r"; e.cval=z.re; e.from=z.im; e.to=z.im+e.v;
       for(let i=0;i<=N;i++)pts.push(z2g(C(z.re,z.im+e.v*i/N)));
       z=C(z.re,z.im+e.v);
@@ -581,6 +689,8 @@ function build(){
       z=cinv(C(y.re,y.im+e.v));
     }
     S.arcs.push({pts:pts,el:e});
+    pts.forEach(function(g){const zz=g2z(g);
+      if(zz.re>1e-9)S.peakQ=Math.max(S.peakQ,Math.abs(zz.im)/zz.re);});
     S.nodes.push({z:z,y:cinv(z)});
   });
   S.nodes[S.nodes.length-1].label="zₜ";
@@ -827,6 +937,14 @@ function dodge(box,placed){
   }
   return dy;
 }
+/* centre of the circle through three screen points (a line's riding circle) */
+function circum(a,b,c){
+  const d=2*(a[0]*(b[1]-c[1])+b[0]*(c[1]-a[1])+c[0]*(a[1]-b[1]));
+  if(Math.abs(d)<1e-9)return [CX,CY];
+  const a2=a[0]*a[0]+a[1]*a[1], b2=b[0]*b[0]+b[1]*b[1], c2=c[0]*c[0]+c[1]*c[1];
+  return [(a2*(b[1]-c[1])+b2*(c[1]-a[1])+c2*(a[1]-b[1]))/d,
+          (a2*(c[0]-b[0])+b2*(a[0]-c[0])+c2*(b[0]-a[0]))/d];
+}
 function activeInfo(){
   const n=arcsVisible(S.stage);
   if(n===0||!S.arcs.length)return {g:z2g(inputs().zL),idx:-1,k:0};
@@ -884,9 +1002,13 @@ function drawOv(){
   /* dashed riding circle of the active arc (the circle a compass would draw) */
   if(n>0){
     const el=S.arcs[A.idx].el;
-    const c=el.kind==="s"?rCirc(el.cval):gCirc(el.cval);
-    s+=ci(c[0],c[1],c[2],{c:el.kind==="s"?"#b02418":"#1b4f9c",w:1.6,d:"7 5",
-      op:S.prog<1?0.75:0.3});
+    if(el.kind==="l")s+='<g clip-path="url(#disc)">'+pth(poly(el.ring)+"Z",
+      {c:"#141414",w:1.6,d:"7 5",op:S.prog<1?0.75:0.3})+'</g>';
+    else{
+      const c=el.kind==="s"?rCirc(el.cval):gCirc(el.cval);
+      s+=ci(c[0],c[1],c[2],{c:el.kind==="s"?"#b02418":"#1b4f9c",w:1.6,d:"7 5",
+        op:S.prog<1?0.75:0.3});
+    }
   }
   /* Each move has its OWN colour and keeps it for good: move 1 amber, move 2
      violet.  The first arc must not fade when the second swings — both halves
@@ -923,7 +1045,8 @@ function drawOv(){
       const arc=S.arcs[i], el=arc.el;
       const pts=(i===n-1)?arc.pts.slice(0,Math.max(2,A.k+1)):arc.pts;
       const mid=pts[Math.floor(pts.length/2)];
-      const rc=(el.kind==="s")?rCirc(el.cval):gCirc(el.cval);
+      const rc=(el.kind==="l")?circum(P(el.ring[0]),P(el.ring[32]),P(el.ring[64]))
+        :(el.kind==="s")?rCirc(el.cval):gCirc(el.cval);
       const pm=P(mid);
       let nx=pm[0]-rc[0], ny=pm[1]-rc[1];
       const nl=Math.hypot(nx,ny)||1; nx/=nl; ny/=nl;
@@ -939,16 +1062,24 @@ function drawOv(){
       /* the label takes the arc's colour too, so a finished move stays
          identifiable at a glance while the next one is swinging          */
       const lcol=ARCC[i%ARCC.length];   /* the label takes its arc's colour */
-      const t1=el.type+"   "+sym+ssig(el.v,4)+"  ·  along "+
+      let t1=el.type+"   "+sym+ssig(el.v,4)+"  ·  along "+
               el.circle+" = "+sig(el.cval,4);
-      const long=(t1.length>dir.length)?t1:dir;
+      let dirL=dir;
+      if(el.kind==="l"){
+        t1="line   θ = "+sig(el.th*DEG,4)+"°  ·  Zₕ = "+sig(el.zh*I.z0,4)+" Ω (z = "+sig(el.zh,4)+")";
+        dirL="clockwise toward generator, on the Zₕ circle (not centred: Zₕ ≠ Z₀)";
+        if(Math.abs(el.zh-1)<1e-9)dirL="clockwise toward generator, at constant |Γ|";
+      }else if(el.mode){
+        t1=el.type+" θ = "+sig(el.th*DEG,4)+"°   Δb = "+ssig(el.v,4)+"  ·  along g = "+sig(el.cval,4);
+      }
+      const long=(t1.length>dirL.length)?t1:dirL;
       const fsz=12*FSC();
       const lxc=fitX(lx,lan,long,fsz);
       let lyc=fitY(ly);
       lyc=fitY(lyc+dodge(boxOf(lxc,lyc,lan,long,fsz,2),PLACED));
       PLACED.push(boxOf(lxc,lyc,lan,long,fsz,2));
       s+=txh(lxc,lyc,t1,{s:12,a:lan,bold:true,c:lcol});
-      s+=txh(lxc,lyc+14*FSC(),dir,{s:11,a:lan,c:lcol});
+      s+=txh(lxc,lyc+14*FSC(),dirL,{s:11,a:lan,c:lcol});
     }
   }
   s+=cons(A.g);
@@ -1055,7 +1186,7 @@ function drawSchInner(){
   s+=ln(X0-3,BOT+24,X0+3,BOT+24,{c:"#141414",w:2});
   /* top wire with gaps where a series element sits */
   let cuts=[];
-  items.forEach(function(e,i){if(e.kind==="s")cuts.push([xs[i]-26,xs[i]+26]);});
+  items.forEach(function(e,i){if(e.kind==="s"||e.kind==="l")cuts.push([xs[i]-26,xs[i]+26]);});
   cuts.sort(function(a,b){return a[0]-b[0];});
   let cur=X0;
   cuts.forEach(function(c){s+=ln(cur,TOP,c[0],TOP,{c:"#141414",w:2});cur=c[1];});
@@ -1067,7 +1198,28 @@ function drawSchInner(){
     const col=ARCC[idx%ARCC.length];            /* move 1/2/3 colours       */
     const lw=on?4:2.6;
     const x=xs[i];
-    if(e.kind==="s"){
+    const valTxt=function(){
+      if(S.stage>=nEls()+2)return {t:e.comp,c:"#141414",b:true};
+      if(arcsVisible(S.stage)>idx)return {t:(e.kind==="l"||e.mode)?"θ = "+sig(e.th*DEG,4)+"°":"j"+sig(e.v,4),c:"#333",b:false};
+      return null;
+    };
+    if(e.kind==="l"){
+      s+='<rect x="'+(x-26)+'" y="'+(TOP-7)+'" width="52" height="14" fill="#ffffff" stroke="'+
+         col+'" stroke-width="'+lw+'"/>';
+      s+=tx(x,TOP-30,(idx+1)+"  line Zₕ",{s:12.5,bold:true,c:col});
+      const vt=valTxt(); if(vt)s+=tx(x,TOP-16,vt.t,{s:vt.b?13:12,bold:vt.b,c:vt.c});
+    }else if(e.mode){
+      /* stub: open floats, shorted runs to ground */
+      const y0=TOP+12, y1=(e.mode==="shorted")?BOT:BOT-24;
+      s+=ln(x,TOP,x,y0,{c:"#141414",w:2});
+      s+='<rect x="'+(x-7)+'" y="'+y0+'" width="14" height="'+(y1-y0)+'" fill="#ffffff" stroke="'+
+         col+'" stroke-width="'+lw+'"/>';
+      if(e.mode==="open")s+=tx(x,y1+11,"open",{s:10.5,c:"#555"});
+      const my=(TOP+BOT)/2;
+      s+=tx(x+16,my-8,(idx+1)+"  "+e.type,{s:12.5,bold:true,c:col,a:"start"});
+      const vt=valTxt(); if(vt)s+=tx(x+16,my+8,vt.t,{s:vt.b?13:12,bold:vt.b,c:vt.c,a:"start"});
+      s+=ci(x,TOP,3,{c:"#141414",w:0,f:"#141414"});
+    }else if(e.kind==="s"){
       if(e.v>0)s+=indH(x,TOP,44,col,lw); else s+=capH(x,TOP,col,lw);
       if(e.v<0){s+=ln(x-26,TOP,x-4,TOP,{c:"#141414",w:2});
                 s+=ln(x+4,TOP,x+26,TOP,{c:"#141414",w:2});}
@@ -1117,8 +1269,10 @@ function drawSols(){
   const I=inputs();
   let s="";
   S.sols.forEach(function(o,i){
-    const prev=o.els.map(function(e){return e.type+" "+e.comp;}).join("  \u2192  ");
+    const prev=o.els.map(function(e){
+      return (e.kind==="l"||e.mode)?e.comp:e.type+" "+e.comp;}).join("  \u2192  ");
     const nrm=o.els.map(function(e){
+      if(e.kind==="l")return "θ = "+sig(e.v*DEG,4)+"° @ zₕ = "+sig(e.zh,4);
       return (e.kind==="s"?"jx = ":"jb = ")+jf(e.v,4);}).join("  \u2192  ");
     s+='<button class="sol'+(i===S.sel?" on":"")+'" data-i="'+i+'"><b>'+
        esc(o.degen?"collapses to an L-section":o.name)+'</b>'+
@@ -1139,6 +1293,8 @@ function drawSols(){
      ", and R<sub>v</sub> must sit "+(I.topo==="T"?"above both":"below both")+".";
   if(S.rv>0)qi+=" At Q = "+sig(I.q,4)+", R<sub>v</sub> = <b>"+sig(S.rv*I.z0,4)+
      " \u03a9</b> (r = "+sig(S.rv,4)+").";
+  if(I.real==="lines"&&S.sols[S.sel])qi+=" With lines, Q fixes node 1 only; the peak Q along "+
+     "this path is <b>"+sig(S.peakQ,4)+"</b>.";
   $("qinfo").innerHTML=qi;
 
   let m="";
@@ -1179,11 +1335,14 @@ function drawTables(){
   let e='<tr><th>El</th><th>Normalized</th><th>Denormalized</th><th>Component</th></tr>';
   sol.els.forEach(function(el,i){
     const vis=(n>i);
-    const dn=el.kind==="s"?("X = "+ssig(el.X,4)+" Ω")
+    const dn=el.kind==="l"?("Zₕ = "+sig(el.zh*I.z0,4)+" Ω, ℓ = "+sig(el.th/(2*Math.PI),4)+" λ")
+      :el.kind==="s"?("X = "+ssig(el.X,4)+" Ω")
       :("B = "+ssig(el.B,4)+" S");
-    const dn2=el.kind==="s"?"":("1/B = "+ssig(1/el.B,4)+" Ω");
+    const dn2=el.kind==="l"?("≡ jX = "+ssig(el.X,4)+" Ω, end B = "+ssig(el.Bend,4)+" S")
+      :el.kind==="s"?"":el.mode?("Zₛₜ = "+sig(el.zs*I.z0,4)+" Ω, ℓ = "+sig(el.th/(2*Math.PI),4)+" λ")
+      :("1/B = "+ssig(1/el.B,4)+" Ω");
     e+='<tr class="el"><td>'+(i+1)+' '+el.type+'</td>'+
-      cell(vis,(el.kind==="s"?"jx = ":"jb = ")+jf(el.v,4))+
+      cell(vis,el.kind==="l"?("θ = "+sig(el.th*DEG,4)+"°"):(el.kind==="s"?"jx = ":"jb = ")+jf(el.v,4))+
       cell(vis&&showZ,dn+(dn2?'<br><span style="color:#555">'+dn2+'</span>':''))+
       cell(vis&&showC,'<b>'+el.comp+'</b>')+'</tr>';
   });
@@ -1194,7 +1353,21 @@ function drawTables(){
     const f=fStr();
     sol.els.forEach(function(el,i){
       let line;
-      if(el.kind==="s"&&el.v>0)
+      if(el.kind==="l")
+        line="line θ, solved on the chart ("+(I.topo==="T"
+          ?(i===0?"node 1 reaches g = 1/R<sub>v</sub> = "+sig(1/S.rv,4):"lands on zₜ")
+          :"node 2 reaches the target g = "+sig(cinv(I.zT).re,4))+") = <b>"+sig(el.th*DEG,4)+
+          "°</b> = "+sig(el.th/(2*Math.PI),4)+" λ.  Equivalent: series jZₕ sin θ = j"+sig(el.X,4)+
+          " Ω with tan(θ/2)/Zₕ = "+sig(el.Bend,4)+" S shunt at each end"+
+          (Math.abs(el.X)<el.zh*I.z0?" (arcsin(X/Zₕ) on this X alone gives "+
+            sig(Math.asin(el.X/(el.zh*I.z0))*DEG,4)+"°, the end shunts uncompensated)":"")+".";
+      else if(el.mode==="open")
+        line="open stub: θ = arctan(b·zₛₜ) = arctan(("+sig(el.v,4)+")("+sig(el.zs,4)+
+          ")) = <b>"+sig(el.th*DEG,4)+"°</b> = "+sig(el.th/(2*Math.PI),4)+" λ";
+      else if(el.mode==="shorted")
+        line="shorted stub: θ = arctan(−1/(b·zₛₜ)) = arctan(−1/(("+sig(el.v,4)+")("+
+          sig(el.zs,4)+"))) = <b>"+sig(el.th*DEG,4)+"°</b> = "+sig(el.th/(2*Math.PI),4)+" λ";
+      else if(el.kind==="s"&&el.v>0)
         line="L = x&middot;Z₀/ω = ("+sig(el.v,4)+")("+sig(I.z0,4)+
           ") / (2π × "+f+") = <b>"+el.comp+"</b>";
       else if(el.kind==="s")
@@ -1208,6 +1381,9 @@ function drawTables(){
           sig(el.v,4)+")(2π × "+f+")) = <b>"+el.comp+"</b>";
       a+='<div class="arith">'+(i+1)+".&nbsp; "+line+"</div>";
     });
+    if(I.real!=="lumped")a+='<div class="arith" style="color:#555">Lengths are electrical, at the entered '+
+      'frequency. Physical ℓ = (θ/360°)·λ<sub>g</sub> needs the substrate (ε<sub>eff</sub>); '+
+      'junction and open-end effects are not modelled.</div>';
   }
   $("arith").innerHTML=a;
   drawPfoot();
@@ -1266,8 +1442,9 @@ function drawPfoot(){
     h+='<div class="fr"><span class="lab"><span class="tagm" style="background:'+
        col+'">move '+(i+1)+'</span></span><span class="vals">'+
        '<span class="val" style="color:#555">'+el.type+'</span>'+
-       v(n>i,(el.kind==="s"?"jx = ":"jb = ")+jf(el.v,4))+
-       v(n>i&&showZ,el.kind==="s"?("X = "+ssig(el.X,4)+" \u03a9")
+       v(n>i,el.kind==="l"?("θ = "+sig(el.th*DEG,4)+"°"):(el.kind==="s"?"jx = ":"jb = ")+jf(el.v,4))+
+       v(n>i&&showZ,el.kind==="l"?("Zₕ = "+sig(el.zh*I.z0,4)+" \u03a9")
+                                 :el.kind==="s"?("X = "+ssig(el.X,4)+" \u03a9")
                                  :("B = "+ssig(el.B,4)+" S"))+
        (showC?'<span class="comp">'+el.comp+'</span>':v(false,""))+'</span></div>';
   });
@@ -1369,7 +1546,7 @@ function recalc(){stopAnim();S.playing=false;S.stage=0;S.prog=1;
 function tsv(){
   const I=inputs(), sol=S.sols[S.sel];
   const plain=s=>String(s).replace(/<[^>]*>/g,"").replace(/−/g,"-");
-  let L=["L-section matching  —  ECE 4123/6423  Fall 2026"];
+  let L=["Pi / T matching  —  ECE 4123/6423  Fall 2026"];
   L.push("Z0\t"+I.z0+" ohm\tf\t"+fStr()+"\tQ\t"+I.q+"\tRv\t"+sig(S.rv*I.z0,4)+" ohm");
   L.push("zL\t"+plain(cf(I.zL))+"\tyL\t"+plain(cf(cinv(I.zL))));
   if(sol){
@@ -1382,8 +1559,8 @@ function tsv(){
     });
     L.push("");L.push("El\tNormalized\tDenormalized\tComponent");
     sol.els.forEach(function(el,i){
-      L.push((i+1)+" "+el.type+"\t"+plain((el.kind==="s"?"jx = ":"jb = ")+jf(el.v))+
-        "\t"+plain(el.kind==="s"?("X = "+ssig(el.X,4)+" ohm"):("B = "+ssig(el.B,4)+" S"))+
+      L.push((i+1)+" "+el.type+"\t"+plain(el.kind==="l"?("theta = "+sig(el.th*DEG,4)+" deg"):(el.kind==="s"?"jx = ":"jb = ")+jf(el.v))+
+        "\t"+plain(el.kind==="l"?("Zh = "+sig(el.zh*I.z0,4)+" ohm"):el.kind==="s"?("X = "+ssig(el.X,4)+" ohm"):("B = "+ssig(el.B,4)+" S"))+
         "\t"+plain(el.comp));
     });
   }
@@ -1470,6 +1647,25 @@ function setTopo(t){
     b.className=(b.getAttribute("data-t")===t)?"on":"";});
   recalc();
 }
+const TLNOTE={
+  stubs:"Series elements stay lumped. Each shunt element becomes an open stub (b &gt; 0) "+
+    "or shorted stub (b &lt; 0) shorter than &lambda;/4 with the same susceptance &mdash; "+
+    "the same arc on the chart, exact at f.",
+  lines:"Series elements become lines of Z<sub>h</sub>, shunt elements stubs. The lines are "+
+    "solved on the chart, not by &theta; = arcsin(X/Z<sub>h</sub>): a line also adds "+
+    "tan(&theta;/2)/Z<sub>h</sub> shunt at each end. Q fixes node 1 where the lumped design "+
+    "puts it; the peak Q of the path is reported under Loaded Q. A line rides its own "+
+    "Z<sub>h</sub> circle, which is off-centre on this chart."
+};
+function setReal(r){
+  S.real=r;
+  Array.prototype.forEach.call($("segReal").children,function(b){
+    b.className=(b.getAttribute("data-r")===r)?"on":"";});
+  $("tlBox").style.display=(r==="lumped")?"none":"block";
+  $("zhWrap").style.visibility=(r==="lines")?"visible":"hidden";
+  $("tlNote").innerHTML=TLNOTE[r]||"";
+  recalc();
+}
 function setTgt(t){
   S.tgt=t;
   Array.prototype.forEach.call($("segTgt").children,function(b){
@@ -1479,7 +1675,7 @@ function setTgt(t){
     $("rt").value=(S.units==="norm")?"1":String(z0);$("xt").value="0";}
   recalc();
 }
-["z0","rl","xl","fr","rt","xt","q"].forEach(function(id){
+["z0","rl","xl","fr","rt","xt","q","zh","zs"].forEach(function(id){
   $(id).addEventListener("input",recalc);
 });
 $("fu").addEventListener("change",recalc);
@@ -1489,6 +1685,8 @@ Array.prototype.forEach.call($("segTgt").children,function(b){
   b.onclick=function(){setTgt(b.getAttribute("data-t"));};});
 Array.prototype.forEach.call($("segTopo").children,function(b){
   b.onclick=function(){setTopo(b.getAttribute("data-t"));};});
+Array.prototype.forEach.call($("segReal").children,function(b){
+  b.onclick=function(){setReal(b.getAttribute("data-r"));};});
 $("qMinBtn").onclick=function(){
   /* nudge just above the floor: AT the floor an element vanishes */
   const I=inputs(), f=qFloor(I);
