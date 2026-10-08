@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<!--
+  Voltage Divider Simulation
+  Version:   1.0.4
+  Released:  2026-09-29
+  Owner:     Design (EE Interactive Teaching Simulations)
+  Changelog:
+    1.0.4 — Preset buttons spaced 14 px below the R2 / wiper slider.
+    1.0.3 — Layout (customer screenshot, 2026-09-29): schematic view widened left (x0 −0.9 → −2.3) so the Vin label
+            is not clipped; first/last log-axis tick labels edge-aligned so "10 MΩ" and "10³" stay inside the panel;
+            equation-strip separators use em spaces (HTML collapsed the runs of spaces).
+    1.0.2 — rich() recurses into captured text so <b>V<sub>out</sub></b> in the equation strip renders as markup, not literal tags.
+    1.0.1 — si(): trailing-zero strip applied only after a decimal point (100 kΩ read "1 kΩ"); syncControls()
+            scopes aria-pressed to the sidebar so the Tweaks accent swatch ring persists; --vout token declared in :root.
+    1.0.0 — Initial release. Circuit per uploads/divider.tex (source left, R1/R2 right, node, output
+            terminals, ground). Fixed-resistor and potentiometer modes, optional load RL, animated charge
+            flow (speed and density follow I), wire potential shading, resistor heat glow by I²R, analog
+            Vout gauge, transfer curve Vout/Vin vs R2/R1, loading curve Vout vs RL with the Rth marker,
+            I²R power bars, equation strip with live substitution, Tutorial and Experiments pages, Tweaks.
+  Model:     DC, ideal source, linear resistors. Rp = R2∥RL (RL open when load is off); I = Vin/(R1+Rp);
+             Vout = I·Rp; Rth = R1∥R2; Vth = Vin·R2/(R1+R2); loading error = Rth/(RL+Rth).
+             Potentiometer: R1 = (1−α)·Rpot, R2 = α·Rpot. Animation speed is a monotone function of I and
+             is a cue only, not to scale.
+  Standards: IEEE Std 315-1975 / IEC 60617 (graphic symbols for electrical diagrams);
+             IEC 60063 (E-series preferred resistor values used by the presets)
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';
+  style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com;
+  img-src 'self' data:; object-src 'none'; base-uri 'self'; upgrade-insecure-requests">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voltage Divider Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#0f1218;--bg2:#161b22;--bg3:#1c222b;--inset:#090c11;--line:#262d38;--line2:#333c49;--txt:#e6ebf2;--mut:#8b95a6;--mut2:#5d6675}
+:root{--acc:#a3e635;--acc-d:#6f9e1f;--nav1:#181d25;--nav2:#11151c;--glowtop:#1a212b;--para:#c0c8d4;--plot:#090c11;--ontxt:#101800}
+:root{--good:#3ddc84;--bad:#ff5d5d;--warn:#ffd23f;--vhi:#ff5d5d;--vlo:#5b9dff;--cur:#ffb340;--vout:#c47f8c}
+:root{--shadow-inset:inset 0 1px 2px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.015)}
+*{margin:0;padding:0;box-sizing:border-box}
+a{color:var(--acc)}a:hover{color:var(--txt)}
+body{background:radial-gradient(1200px 600px at 50% -10%,var(--glowtop) 0%,transparent 60%),var(--bg);color:var(--txt)}
+body{font-family:'Archivo',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+.topnav{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;z-index:200;background:linear-gradient(var(--nav1),var(--nav2));border-bottom:1px solid var(--line2)}
+.topnav-brand{font-size:.84rem;font-weight:800;letter-spacing:.4px;display:flex;align-items:center;gap:9px;text-transform:uppercase;white-space:nowrap}
+.tn-dot{width:9px;height:9px;border-radius:50%;background:var(--acc);box-shadow:0 0 9px var(--acc)}
+.topnav-right{display:flex;align-items:center;gap:12px}
+.topnav-tabs{display:flex;gap:4px}
+.topnav-tabs button{font-family:'Archivo',sans-serif;font-size:.8rem;font-weight:700;padding:8px 18px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--mut);cursor:pointer;transition:.15s;letter-spacing:.3px}
+.topnav-tabs button:hover{color:var(--txt);background:color-mix(in srgb,var(--txt) 6%,transparent)}
+.topnav-tabs button.active{background:linear-gradient(var(--acc),var(--acc-d));color:var(--ontxt);border-color:var(--acc);box-shadow:0 0 12px color-mix(in srgb,var(--acc) 35%,transparent)}
+.tweaks-toggle{font-family:'Archivo',sans-serif;font-size:.76rem;font-weight:700;padding:7px 14px;border:1px solid var(--line2);border-radius:7px;background:var(--bg3);color:var(--mut);cursor:pointer;transition:.15s}
+.tweaks-toggle:hover{color:var(--acc);border-color:var(--acc-d)}
+.page{display:none}.page.active{display:flex;flex:1 1 auto;min-height:0}
+.main{display:flex;flex:1;overflow:hidden;min-width:0}
+.sidebar{width:272px;min-width:272px;background:var(--bg2);border-right:1px solid var(--line);padding:9px 9px 16px;overflow-y:auto}
+.sidebar::-webkit-scrollbar,.content::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb,.content::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+.ctrl-section{background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:8px 9px 9px;margin-bottom:8px}
+.ctrl-section h3{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:1.4px;color:var(--acc);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px}
+.ctrl-section h3::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--acc);box-shadow:0 0 5px var(--acc)}
+.ctrl-row{margin-bottom:8px}.ctrl-row:last-child{margin-bottom:0}
+.ctrl-row label{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:.74rem;color:var(--mut);margin-bottom:5px}
+.ctrl-row label .val{font-family:'JetBrains Mono',monospace;font-size:.74rem;color:var(--acc);font-weight:700;background:var(--inset);border:1px solid var(--line);border-radius:4px;padding:1px 6px;min-width:66px;text-align:right;white-space:nowrap}
+.ctrl-row.off{opacity:.4;pointer-events:none}
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:3px;background:var(--inset);outline:none;cursor:pointer;border:1px solid var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--acc);cursor:pointer;border:1px solid var(--acc-d);box-shadow:0 0 6px color-mix(in srgb,var(--acc) 55%,transparent)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border:1px solid var(--acc-d);border-radius:50%;background:var(--acc)}
+.seg-btns{display:flex;gap:4px;margin-bottom:8px}.seg-btns:last-child{margin-bottom:0}
+.seg-btns button{flex:1;font-family:'Archivo',sans-serif;font-size:.7rem;font-weight:700;padding:7px 4px;border:1px solid var(--line2);border-radius:5px;background:var(--inset);color:var(--mut);cursor:pointer;transition:.15s}
+.seg-btns button.active{background:linear-gradient(var(--acc),var(--acc-d));color:var(--ontxt);border-color:var(--acc);box-shadow:0 0 10px color-mix(in srgb,var(--acc) 35%,transparent)}
+.seg-btns button:hover:not(.active){border-color:var(--acc-d);color:var(--txt)}
+.run-row{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.btn{font-family:'Archivo',sans-serif;font-size:.74rem;font-weight:700;padding:8px 4px;border:1px solid var(--line2);border-radius:6px;cursor:pointer;background:var(--inset);color:var(--mut);transition:.15s;width:100%}
+.btn:hover{color:var(--txt);border-color:var(--acc-d)}
+.btn.main{background:linear-gradient(var(--acc),var(--acc-d));color:var(--ontxt);border-color:var(--acc)}
+.hint{font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--mut2);margin-top:6px;text-align:center;line-height:1.4}
+.content{flex:1;display:flex;flex-direction:column;gap:8px;padding:8px;overflow:hidden auto;min-width:0}
+.stage{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:8px;min-height:0}
+.auxcol{display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:8px;min-height:0}
+.well{background:var(--plot);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--shadow-inset);position:relative;overflow:hidden;min-height:0}
+.well canvas{display:block;width:100%;height:100%}
+.hud{position:absolute;top:9px;left:12px;font-family:'JetBrains Mono',monospace;font-size:.66rem;color:var(--mut);pointer-events:none;line-height:1.5}
+.hud b{color:var(--txt)}
+.pill{position:absolute;top:9px;right:12px;font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:800;padding:5px 11px;border-radius:6px;border:1px solid currentColor;background:color-mix(in srgb,var(--plot) 80%,transparent);letter-spacing:.5px}
+.readouts{flex-shrink:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px}
+.rb{background:var(--inset);border:1px solid var(--line);border-radius:7px;padding:6px 6px 5px;text-align:center;box-shadow:var(--shadow-inset);min-width:0}
+.rl{font-size:.56rem;text-transform:uppercase;letter-spacing:1px;color:var(--mut2);margin-bottom:2px;line-height:1.25}
+.rv{font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:800;color:var(--acc);text-shadow:0 0 8px currentColor;white-space:nowrap}
+.rv.vo{color:var(--vout)}.rv.cur{color:var(--cur)}.rv.bad{color:var(--bad)}
+.eq-strip{flex:0 0 auto;display:flex;align-items:center;gap:16px;background:var(--inset);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--shadow-inset);padding:6px 16px;overflow-x:auto;scrollbar-width:thin}
+.eq-title{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:1.4px;color:var(--mut2);flex-shrink:0;writing-mode:vertical-rl;transform:rotate(180deg)}
+.eq-lines{display:flex;flex-direction:column;gap:4px}
+.eql{font-family:'JetBrains Mono',monospace;font-size:.86rem;color:var(--para);white-space:nowrap}
+.eql b{color:var(--acc);font-weight:800}.eql i{font-style:normal;color:var(--txt)}.eql .r{color:var(--vout);font-weight:800;text-shadow:0 0 8px currentColor}
+.eql sub{font-size:.68em}
+@media (max-height:760px){.eql{font-size:.78rem}.rv{font-size:.95rem}}
+.scroll{flex:1;overflow-y:auto;padding:28px 40px 60px}
+.tutorial-inner{max-width:860px;margin:0 auto;font-size:.94rem;line-height:1.65;color:var(--para)}
+.tutorial-inner h1{font-size:1.6rem;font-weight:800;color:var(--txt);margin-bottom:6px;letter-spacing:-.3px}
+.tutorial-inner .sub{color:var(--mut);margin-bottom:26px}
+.tutorial-inner h2{font-size:1.12rem;font-weight:700;color:var(--txt);margin:30px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:9px}
+.tutorial-inner h2::before{content:"";width:5px;height:16px;border-radius:2px;background:var(--acc);box-shadow:0 0 8px color-mix(in srgb,var(--acc) 50%,transparent)}
+.tutorial-inner p{margin-bottom:12px;text-wrap:pretty}.tutorial-inner ul,.tutorial-inner ol{margin:0 0 13px 20px}
+.tutorial-inner strong{color:var(--txt)}.tutorial-inner code{font-family:'JetBrains Mono',monospace;color:var(--txt);font-size:.9em}
+.eq-box{background:var(--inset);border:1px solid var(--line2);border-radius:8px;padding:14px 18px;margin:14px 0;text-align:center;box-shadow:var(--shadow-inset)}
+.eq-box .eq{font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:600;color:var(--acc);line-height:1.9}
+.eq-box .eq-note{font-size:.78rem;color:var(--mut);margin-top:6px}
+.tut-table{width:100%;border-collapse:collapse;font-size:.86rem;margin:12px 0 16px}
+.tut-table th{text-align:left;padding:8px 11px;background:var(--bg3);font-weight:700;color:var(--acc);border-bottom:1px solid var(--acc-d)}
+.tut-table td{padding:7px 11px;border-bottom:1px solid var(--line);color:var(--para)}
+.tut-table td:first-child{font-family:'JetBrains Mono',monospace;color:var(--txt);white-space:nowrap}
+.exp-card{background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:15px 18px;margin:11px 0}
+.exp-num{font-family:'JetBrains Mono',monospace;font-size:.66rem;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px}
+.exp-card h3{font-size:1rem;font-weight:700;color:var(--txt);margin-bottom:8px}
+.exp-card p{margin-bottom:8px}.exp-card .obs{color:var(--mut);font-size:.88rem}
+.exp-foot{display:flex;justify-content:flex-end;margin-top:10px;gap:8px}
+.nav-btn{display:inline-block;padding:9px 18px;font-family:'Archivo',sans-serif;font-size:.8rem;font-weight:700;color:var(--ontxt);background:linear-gradient(var(--acc),var(--acc-d));border:1px solid var(--acc);border-radius:7px;cursor:pointer}
+.nav-btn.ghost{background:var(--inset);color:var(--mut);border-color:var(--line2)}.nav-btn.ghost:hover{color:var(--txt);border-color:var(--acc-d)}
+.twk{position:fixed;top:48px;right:0;bottom:0;width:282px;background:var(--bg2);border-left:1px solid var(--line2);padding:12px;overflow-y:auto;z-index:300;display:none;box-shadow:-8px 0 24px rgba(0,0,0,.35)}
+.twk.open{display:block}
+.twk-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.twk-head h4{font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:1.4px;color:var(--acc)}
+.twk-sec{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:var(--mut2);margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.twk-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0;font-size:.74rem;color:var(--mut)}
+.twk-row .val{font-family:'JetBrains Mono',monospace;color:var(--acc);font-weight:700;min-width:48px;text-align:right}
+.twk-row.col{flex-direction:column;align-items:stretch;gap:5px}.twk-row.col .lbl{display:flex;justify-content:space-between}
+.sws{display:flex;gap:6px}
+.sw{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+.sw[aria-pressed=true]{border-color:var(--txt);box-shadow:0 0 6px currentColor}
+.tg{width:38px;height:20px;border-radius:10px;border:1px solid var(--line2);background:var(--inset);position:relative;cursor:pointer;flex-shrink:0}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--mut);transition:.15s}
+.tg[aria-checked=true]{background:var(--acc);border-color:var(--acc)}.tg[aria-checked=true]::after{left:20px;background:var(--ontxt)}
+.twk .seg-btns{margin:0}
+</style>
+</head>
+<body>
+<template id="__bundler_thumbnail"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#0f1218"></rect><path d="M30 25h40M70 25v10l-6 3 12 6-12 6 12 6-6 3v3l-6 3 12 6-12 6 12 6-6 3v3H30V25" fill="none" stroke="#a3e635" stroke-width="3" stroke-linejoin="round"></path><circle cx="70" cy="52" r="3.5" fill="#a3e635"></circle></svg></template>
+<div class="topnav">
+<div class="topnav-brand"><span class="tn-dot"></span>Voltage Divider Simulation</div>
+<div class="topnav-right">
+<div class="topnav-tabs" role="tablist"><button class="active" data-page="simPage" role="tab" aria-selected="true">Sim</button><button data-page="tutPage" role="tab" aria-selected="false">Tutorial</button><button data-page="expPage" role="tab" aria-selected="false">Experiments</button></div>
+<button class="tweaks-toggle" id="themeBtn" aria-label="Toggle light or dark theme">☀ Light</button>
+<button class="tweaks-toggle" id="tweaksBtn" aria-expanded="false" aria-controls="tweaks">Tweaks</button>
+</div>
+</div>
+
+<div class="page active" id="simPage" data-screen-label="Sim">
+<div class="main">
+<aside class="sidebar" aria-label="Controls">
+<div class="ctrl-section"><h3>Source</h3>
+<div class="ctrl-row"><label><span class="lt">V<sub>in</sub></span><span class="val" id="vVin"></span></label><input type="range" id="sVin" min="0" max="24" step="0.1" aria-label="Input voltage"></div>
+</div>
+<div class="ctrl-section"><h3>Divider</h3>
+<div class="seg-btns" role="group" aria-label="Divider mode"><button data-mode="fixed" id="mFixed">Fixed R₁ / R₂</button><button data-mode="pot" id="mPot">Potentiometer</button></div>
+<div id="fixedCtl">
+<div class="ctrl-row"><label><span class="lt">R<sub>1</sub></span><span class="val" id="vR1"></span></label><input type="range" id="sR1" min="0" max="1000" step="1" aria-label="R1 (logarithmic)"></div>
+<div class="ctrl-row"><label><span class="lt">R<sub>2</sub></span><span class="val" id="vR2"></span></label><input type="range" id="sR2" min="0" max="1000" step="1" aria-label="R2 (logarithmic)"></div>
+</div>
+<div id="potCtl" style="display:none">
+<div class="ctrl-row"><label><span class="lt">R<sub>pot</sub> (total)</span><span class="val" id="vRpot"></span></label><input type="range" id="sRpot" min="0" max="1000" step="1" aria-label="Potentiometer total resistance (logarithmic)"></div>
+<div class="ctrl-row"><label><span class="lt">Wiper α</span><span class="val" id="vAlpha"></span></label><input type="range" id="sAlpha" min="0" max="100" step="0.5" aria-label="Wiper position, percent"></div>
+</div>
+<div class="seg-btns" role="group" aria-label="Presets" style="margin-top:14px"><button data-preset="0">1 : 1</button><button data-preset="1">5 V → 3.3 V</button><button data-preset="2">12 V → 5 V</button></div>
+<div class="hint">presets use IEC 60063 E24 values</div>
+</div>
+<div class="ctrl-section"><h3>Load</h3>
+<div class="seg-btns" role="group" aria-label="Load"><button data-load="0" id="lOff">Open (no load)</button><button data-load="1" id="lOn">R<sub>L</sub> connected</button></div>
+<div class="ctrl-row" id="rlRow"><label><span class="lt">R<sub>L</sub></span><span class="val" id="vRL"></span></label><input type="range" id="sRL" min="0" max="1000" step="1" aria-label="Load resistance (logarithmic)"></div>
+<div class="hint" id="rlHint"></div>
+</div>
+<div class="ctrl-section"><h3>Animation</h3>
+<div class="run-row"><button class="btn main" id="bRun">Pause</button><button class="btn" id="bReset">Reset</button></div>
+<div class="ctrl-row" style="margin-top:8px"><label><span class="lt">Flow speed</span><span class="val" id="vSpd"></span></label><input type="range" id="sSpd" min="0.25" max="3" step="0.25" aria-label="Animation speed multiplier"></div>
+<div class="seg-btns" role="group" aria-label="Current convention" style="margin-top:8px"><button data-conv="c" id="cConv">Conventional +→−</button><button data-conv="e" id="cElec">Electron −→+</button></div>
+<div class="hint">flow speed tracks I (cue only, not to scale)</div>
+</div>
+</aside>
+<div class="content">
+<div class="stage">
+<div class="well"><canvas id="cvCkt"></canvas><div class="hud" id="hud"></div><div class="pill" id="pill"></div></div>
+<div class="auxcol">
+<div class="well"><canvas id="cvXfer"></canvas></div>
+<div class="well"><canvas id="cvLoad"></canvas></div>
+<div class="well"><canvas id="cvPow"></canvas></div>
+</div>
+</div>
+<div class="readouts" id="readouts"></div>
+<div class="eq-strip"><div class="eq-title">Governing</div><div class="eq-lines" id="eqs"></div></div>
+</div>
+</div>
+</div>
+
+<div class="page" id="tutPage" data-screen-label="Tutorial"><div class="scroll"><div class="tutorial-inner" id="tutBody"></div></div></div>
+<div class="page" id="expPage" data-screen-label="Experiments"><div class="scroll"><div class="tutorial-inner" id="expBody"></div></div></div>
+
+<aside class="twk" id="tweaks" aria-label="Tweaks">
+<div class="twk-head"><h4>Tweaks</h4><button class="btn" id="twkReset" style="width:auto;padding:5px 10px">Reset</button></div>
+<div id="twkBody"></div>
+</aside>
+
+<script>
+'use strict';
+/* ═══ TABLE OF CONTENTS ═══
+    1. CONSTANTS
+    2. STATE & PERSISTENCE
+    3. THEME
+    4. DOM HELPERS & FORMATTING
+    5. MODEL            solve() — divider with optional load
+    6. CIRCUIT VIEW     symbols, potential shading, charge flow, gauge
+    7. AUX PANELS       transfer curve, loading curve, power bars
+    8. READOUTS / EQUATION STRIP / HUD
+    9. SIDEBAR & UI BINDING
+   10. TUTORIAL & EXPERIMENTS
+   11. TWEAKS PANEL
+   12. MAIN LOOP & BOOT
+*/
+
+/* ═══ 1. CONSTANTS ═══ */
+const LS_STATE = 'vdiv_v1', LS_TWEAKS = 'vdiv_tweaks_v1';
+const R_LOG_MIN = 0, R_LOG_MAX = 6;          // slider decades: 1 Ω … 1 MΩ
+const RL_LOG_MIN = 0, RL_LOG_MAX = 7;        // 1 Ω … 10 MΩ
+const SLIDER_STEPS = 1000;
+const VIN_MAX = 24;
+const I_LOG_LO = -6, I_LOG_HI = 0;           // animation speed maps log10(I) over 1 µA … 1 A
+const FLOW_MIN_FRAC = 0.04, FLOW_MAX_FRAC = 0.9;   // loop fraction per second at the two ends of the map
+const DOTS_PER_UNIT = 1.1;                   // charge dots per circuit unit of path at full share
+const DOT_R = 3.2;
+const GLOW_MAX_BLUR = 26;                    // px, resistor heat glow at the hottest resistor
+const CKT = {                                // schematic geometry in tikz units (uploads/divider.tex)
+  XS: 0, XR: 3.2, XT: 5.1, XA: 5.55, XG: 7.2, YT: 4, YN: 2.2, YB: 0,
+  RLEN: 1.1, RHALF: 0.22, ZIGS: 6, BATT_H: 0.5, GND_X: 1.6, TERM_R: 0.07,
+  VIEW: { x0: -2.3, x1: 8.4, y0: -0.95, y1: 5.1 }
+};
+const GAUGE_R = 0.85;                        // analog meter radius, tikz units
+const XFER_LOG_LO = -3, XFER_LOG_HI = 3;     // R2/R1 axis
+const AUX_L = 46, AUX_R = 12, AUX_T = 26, AUX_B = 24;
+const PRESETS = [
+  { Vin: 10, R1: 10e3, R2: 10e3 },
+  { Vin: 5, R1: 1.0e3, R2: 2.0e3 },      // 3.33 V — nearest E24 pair to 3.3 V from 5 V
+  { Vin: 12, R1: 1.5e3, R2: 1.1e3 }      // 5.08 V
+];
+const DEF = { Vin: 12, R1: 10e3, R2: 4.7e3, mode: 'fixed', Rpot: 10e3, alpha: 50, load: false, RL: 100e3, spd: 1, conv: 'c', run: true };
+const BG_THEMES = {
+  Charcoal: { '--bg': '#0f1218', '--bg2': '#161b22', '--bg3': '#1c222b', '--inset': '#090c11', '--line': '#262d38', '--line2': '#333c49' },
+  Slate: { '--bg': '#0d141c', '--bg2': '#141d27', '--bg3': '#1a2531', '--inset': '#070c12', '--line': '#22303d', '--line2': '#2f4150' },
+  Black: { '--bg': '#060709', '--bg2': '#0d0f13', '--bg3': '#13161c', '--inset': '#000000', '--line': '#1c222b', '--line2': '#2a3340' }
+};
+const DARK_TXT = { '--txt': '#e6ebf2', '--mut': '#8b95a6', '--mut2': '#5d6675', '--nav1': '#181d25', '--nav2': '#11151c', '--glowtop': '#1a212b', '--para': '#c0c8d4', '--good': '#3ddc84', '--bad': '#ff5d5d', '--warn': '#ffd23f', '--vhi': '#ff5d5d', '--vlo': '#5b9dff', '--cur': '#ffb340' };
+const LIGHT = { '--bg': '#e8ecf1', '--bg2': '#f5f7fa', '--bg3': '#ffffff', '--inset': '#eef2f6', '--line': '#d2d9e2', '--line2': '#aeb9c7', '--txt': '#0c131d', '--mut': '#3f4a5b', '--mut2': '#5f6a7c', '--nav1': '#ffffff', '--nav2': '#edf1f5', '--glowtop': '#ffffff', '--para': '#253041', '--plot': '#ffffff', '--good': '#0b8a44', '--bad': '#d9202a', '--warn': '#a87700', '--vhi': '#d9202a', '--vlo': '#1d5fd0', '--cur': '#b86a00' };
+const LIGHT_ACCENT_SHADE = 0.3, ACCENT_DARK_SHADE = 0.32, BASE_FONT_PX = 16;
+const TWEAK_DEFAULTS = { accent: '#a3e635', bgTheme: 'Charcoal', uiScale: 100, shading: true, flow: true, heat: true, gauge: true, dotDensity: 100 };
+const TWEAK_SPEC = [
+  { sec: 'Theme' },
+  { k: 'accent', type: 'color', label: 'Accent', options: ['#a3e635', '#2fd4e6', '#ff9a1f', '#8b7bff'] },
+  { k: 'bgTheme', type: 'radio', label: 'Background', options: Object.keys(BG_THEMES) },
+  { k: 'uiScale', type: 'slider', label: 'UI scale', min: 80, max: 140, step: 5, unit: '%' },
+  { sec: 'Circuit view' },
+  { k: 'shading', type: 'toggle', label: 'Wire potential shading' },
+  { k: 'flow', type: 'toggle', label: 'Charge flow animation' },
+  { k: 'dotDensity', type: 'slider', label: 'Charge density', min: 40, max: 200, step: 10, unit: '%' },
+  { k: 'heat', type: 'toggle', label: 'Resistor heat glow (I²R)' },
+  { k: 'gauge', type: 'toggle', label: 'Analog Vout gauge' }
+];
+
+/* ═══ 2. STATE & PERSISTENCE ═══ */
+let P = Object.assign({}, DEF), TW = Object.assign({}, TWEAK_DEFAULTS);
+let curPage = 'simPage', isLight = false, COL = {};
+let phase = 0, dirty = true;                 // phase: charge-flow position, loop fractions
+// Restore saved control values; only keys present in DEF are accepted.
+function loadLS() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_STATE) || '{}');
+    if (s.P) for (const k in DEF) if (k in s.P && typeof s.P[k] === typeof DEF[k]) P[k] = s.P[k];
+    if (s.page) curPage = s.page;
+    isLight = !!s.light;
+    if (typeof s.phase === 'number') phase = s.phase;
+  } catch (e) { P = Object.assign({}, DEF); }
+}
+function saveLS() {
+  try { localStorage.setItem(LS_STATE, JSON.stringify({ P, page: curPage, light: isLight, phase })); } catch (e) { /* quota */ }
+}
+function loadTweaks() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_TWEAKS) || '{}');
+    for (const k in TWEAK_DEFAULTS) if (k in s && typeof s[k] === typeof TWEAK_DEFAULTS[k]) TW[k] = s[k];
+  } catch (e) { TW = Object.assign({}, TWEAK_DEFAULTS); }
+}
+function saveTweaks() { try { localStorage.setItem(LS_TWEAKS, JSON.stringify(TW)); } catch (e) { /* quota */ } }
+
+/* ═══ 3. THEME ═══ */
+// Darken a #rrggbb colour by fraction f.
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16), ch = c => Math.round(c * (1 - f)).toString(16).padStart(2, '0');
+  return '#' + ch((n >> 16) & 255) + ch((n >> 8) & 255) + ch(n & 255);
+}
+// Linear blend of two #rrggbb colours; t = 0 gives a, t = 1 gives b.
+function mix(a, b, t) {
+  const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16);
+  const ch = s => Math.round(((A >> s) & 255) * (1 - t) + ((B >> s) & 255) * t).toString(16).padStart(2, '0');
+  return '#' + ch(16) + ch(8) + ch(0);
+}
+// Push theme variables to :root and refresh the canvas colour cache.
+function applyTheme() {
+  const R = document.documentElement.style, dark = BG_THEMES[TW.bgTheme] || BG_THEMES.Charcoal;
+  const m = isLight ? LIGHT : Object.assign({}, dark, DARK_TXT, { '--plot': dark['--inset'] });
+  for (const k in m) R.setProperty(k, m[k]);
+  const ac = isLight ? shade(TW.accent, LIGHT_ACCENT_SHADE) : TW.accent;
+  R.setProperty('--acc', ac); R.setProperty('--acc-d', shade(ac, ACCENT_DARK_SHADE));
+  R.fontSize = (BASE_FONT_PX * TW.uiScale / 100).toFixed(2) + 'px';
+  const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
+  COL = { bg: g('--plot'), grid: g('--line'), axis: g('--line2'), txt: g('--txt'), mut: g('--mut'), mut2: g('--mut2'), acc: ac,
+    bad: g('--bad'), good: g('--good'), warn: g('--warn'), vhi: g('--vhi'), vlo: g('--vlo'), cur: g('--cur'), wire: isLight ? '#2b3442' : '#9aa5b6' };
+  $('themeBtn').textContent = isLight ? '☾ Dark' : '☀ Light';
+  dirty = true;
+}
+// Colour of a node at potential V, blended between the 0 V and Vin tones (falls back to wire grey when shading is off).
+function potCol(V, Vin) { if (!TW.shading || Vin <= 0) return COL.wire; return mix(COL.vlo, COL.vhi, Math.max(0, Math.min(1, V / Vin))); }
+
+/* ═══ 4. DOM HELPERS & FORMATTING ═══ */
+function $(id) { return document.getElementById(id); }
+function el(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+// Build an element from a light markup where <sub>, <b>, <i>, <r> (→ span.r) are the only tags allowed; nests one level
+// (e.g. <b>V<sub>out</sub></b>) by recursing on the captured inner text. All text goes through textContent.
+function rich(tag, cls, src) {
+  const e = el(tag, cls), re = /<(sub|b|i|r)>(.*?)<\/\1>/g; let last = 0, m;
+  while ((m = re.exec(src))) {
+    if (m.index > last) e.appendChild(document.createTextNode(src.slice(last, m.index)));
+    e.appendChild(rich(m[1] === 'r' ? 'span' : m[1], m[1] === 'r' ? 'r' : null, m[2])); last = re.lastIndex;
+  }
+  if (last < src.length) e.appendChild(document.createTextNode(src.slice(last)));
+  return e;
+}
+const SI = [[1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p']];
+// Engineering format with SI prefix, 3 significant figures.
+function si(v, unit, sig = 3) {
+  if (!isFinite(v)) return '∞ ' + unit;
+  if (v === 0) return '0 ' + unit;
+  const a = Math.abs(v);
+  for (const [m, p] of SI) if (a >= m * 0.9995) { const q = v / m, s = q.toPrecision(Math.max(sig, Math.floor(Math.log10(Math.abs(q))) + 1)); return (s.includes('.') ? s.replace(/\.?0+$/, '') : s) + ' ' + p + unit; }
+  return v.toExponential(2) + ' ' + unit;
+}
+// Log-slider mapping: integer 0..SLIDER_STEPS ↔ resistance in decades [lo, hi], snapped to 3 significant figures.
+function sliderToR(v, lo, hi) { const r = Math.pow(10, lo + (hi - lo) * v / SLIDER_STEPS); return +r.toPrecision(3); }
+function rToSlider(r, lo, hi) { return Math.round((Math.log10(Math.max(r, Math.pow(10, lo))) - lo) / (hi - lo) * SLIDER_STEPS); }
+function mono(px, w) { return (w || 500) + ' ' + px + 'px "JetBrains Mono", monospace'; }
+function sans(px, w) { return (w || 700) + ' ' + px + 'px Archivo, sans-serif'; }
+// Size a canvas to its CSS box at device resolution and return a scaled 2-D context.
+function fit(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const W = Math.max(1, Math.round(r.width * dpr)), H = Math.max(1, Math.round(r.height * dpr));
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: r.width, h: r.height };
+}
+// Round-number tick positions between lo and hi (about n of them).
+function nice(lo, hi, n) {
+  const raw = (hi - lo) / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  const step = (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p, out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+
+/* ═══ 5. MODEL ═══ */
+// Effective R1/R2 for the current mode (potentiometer splits Rpot by wiper fraction α).
+function R12() { return P.mode === 'pot' ? [Math.max(1e-3, (1 - P.alpha / 100) * P.Rpot), Math.max(1e-3, P.alpha / 100 * P.Rpot)] : [P.R1, P.R2]; }
+// DC solution of the divider with optional load: Rp = R2∥RL, I = Vin/(R1+Rp), Vout = I·Rp.
+function solve(Vin, R1, R2, RL) {
+  const Rp = RL === Infinity ? R2 : R2 * RL / (R2 + RL);
+  const I = Vin / (R1 + Rp), Vout = I * Rp, I2 = Vout / R2, IL = RL === Infinity ? 0 : Vout / RL;
+  const Rth = R1 * R2 / (R1 + R2), Vth = Vin * R2 / (R1 + R2);
+  return { Vin, R1, R2, RL, Rp, I, Vout, I2, IL, P1: I * I * R1, P2: Vout * Vout / R2, PL: RL === Infinity ? 0 : Vout * Vout / RL, Pt: Vin * I,
+    Rth, Vth, err: Vth > 0 ? (Vth - Vout) / Vth : 0, ratio: R2 / (R1 + R2) };
+}
+function state() { const [R1, R2] = R12(); return solve(P.Vin, R1, R2, P.load ? P.RL : Infinity); }
+
+/* ═══ 6. CIRCUIT VIEW ═══ */
+let view = { s: 1, ox: 0, oy: 0 };
+// Map tikz world coords to canvas px (y up in world).
+function WX(x) { return view.ox + x * view.s; }
+function WY(y) { return view.oy - y * view.s; }
+// Vertical resistor between world y1 (top) and y2 (bottom) at world x; shaded top→bottom by potential, glowing by power share.
+function resistor(ctx, x, y1, y2, cTop, cBot, glow, label, value, side) {
+  const cx = WX(x), py1 = WY(y1), py2 = WY(y2), len = py2 - py1, body = CKT.RLEN * view.s, lead = (len - body) / 2;
+  const hw = CKT.RHALF * view.s, top = py1 + lead, bot = py2 - lead;
+  const grad = ctx.createLinearGradient(0, py1, 0, py2); grad.addColorStop(0, cTop); grad.addColorStop(1, cBot);
+  ctx.save();
+  ctx.strokeStyle = grad; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (TW.heat && glow > 0.01) { ctx.shadowColor = COL.warn; ctx.shadowBlur = GLOW_MAX_BLUR * glow; }
+  ctx.beginPath(); ctx.moveTo(cx, py1); ctx.lineTo(cx, top);
+  const n = CKT.ZIGS * 2, dz = (bot - top) / n;
+  for (let k = 1; k <= n; k++) { const y = top + dz * (k - 0.5), sx = k % 2 ? -hw : hw; ctx.lineTo(cx + sx, y); }
+  ctx.lineTo(cx, bot); ctx.lineTo(cx, py2); ctx.stroke();
+  ctx.restore();
+  const dir = side === 'left' ? -1 : 1, lx = cx + dir * (hw + 10 * view.s / 60 + 8);
+  ctx.textAlign = side === 'left' ? 'right' : 'left'; ctx.textBaseline = 'middle';
+  ctx.font = mono(Math.max(12, 0.28 * view.s), 700); ctx.fillStyle = COL.txt;
+  ctx.fillText(label, lx, (top + bot) / 2 - 0.15 * view.s);
+  ctx.font = mono(Math.max(11, 0.22 * view.s), 500); ctx.fillStyle = COL.mut;
+  ctx.fillText(value, lx, (top + bot) / 2 + 0.16 * view.s);
+}
+// Battery symbol (long plate = +, top) between world y0 (bottom) and y1 (top) at world x.
+function battery(ctx, x, y0, y1, cTop, cBot) {
+  const cx = WX(x), yb = WY(y0), yt = WY(y1), mid = (yb + yt) / 2, h = CKT.BATT_H * view.s;
+  const grad = ctx.createLinearGradient(0, yt, 0, yb); grad.addColorStop(0, cTop); grad.addColorStop(1, cBot);
+  ctx.strokeStyle = grad; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx, yt); ctx.lineTo(cx, mid - h * 0.5); ctx.moveTo(cx, mid + h * 0.5); ctx.lineTo(cx, yb); ctx.stroke();
+  const plates = [[-0.5, 0.42], [-0.17, 0.2], [0.17, 0.42], [0.5, 0.2]];   // [y offset (h), half-width (units)]
+  for (const [o, hwid] of plates) {
+    const y = mid + o * h, w = hwid * view.s;
+    ctx.strokeStyle = o < 0 ? cTop : cBot; ctx.lineWidth = hwid > 0.3 ? 3.5 : 5;
+    ctx.beginPath(); ctx.moveTo(cx - w, y); ctx.lineTo(cx + w, y); ctx.stroke();
+  }
+  ctx.font = mono(Math.max(13, 0.3 * view.s), 700); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = COL.txt; ctx.fillText('Vin', cx - 0.6 * view.s, mid - 0.16 * view.s);
+  ctx.font = mono(Math.max(11, 0.22 * view.s), 500); ctx.fillStyle = COL.mut; ctx.fillText(si(P.Vin, 'V'), cx - 0.6 * view.s, mid + 0.16 * view.s);
+  ctx.textAlign = 'left'; ctx.font = mono(Math.max(13, 0.3 * view.s), 800);
+  ctx.fillStyle = cTop; ctx.fillText('+', cx + 0.3 * view.s, WY(2.42));
+  ctx.fillStyle = cBot; ctx.fillText('−', cx + 0.3 * view.s, WY(1.58));
+}
+// Ground symbol hanging from world (x, y).
+function ground(ctx, x, y) {
+  const cx = WX(x), py = WY(y), s = view.s;
+  ctx.strokeStyle = COL.wire; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx, py); ctx.lineTo(cx, py + 0.3 * s);
+  for (let k = 0; k < 3; k++) { const w = (0.32 - k * 0.1) * s, yy = py + (0.3 + k * 0.12) * s; ctx.moveTo(cx - w, yy); ctx.lineTo(cx + w, yy); }
+  ctx.stroke();
+}
+// Straight wire in world coords with a potential colour.
+function wire(ctx, x1, y1, x2, y2, col, lw) {
+  ctx.strokeStyle = col; ctx.lineWidth = lw || 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(WX(x1), WY(y1)); ctx.lineTo(WX(x2), WY(y2)); ctx.stroke();
+}
+// Arrow from world (x1,y1) to (x2,y2).
+function arrow(ctx, x1, y1, x2, y2, col, lw) {
+  const ax = WX(x1), ay = WY(y1), bx = WX(x2), by = WY(y2), ang = Math.atan2(by - ay, bx - ax), hl = 9;
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw || 2;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - hl * Math.cos(ang - 0.42), by - hl * Math.sin(ang - 0.42));
+  ctx.lineTo(bx - hl * Math.cos(ang + 0.42), by - hl * Math.sin(ang + 0.42)); ctx.closePath(); ctx.fill();
+}
+function terminal(ctx, x, y, col) {
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(WX(x), WY(y), CKT.TERM_R * view.s + 1.5, 0, 7); ctx.fill();
+}
+// Total world length of a polyline.
+function pathLen(pts) { let L = 0; for (let k = 1; k < pts.length; k++) L += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); return L; }
+// Point at fraction f (0..1) along a polyline.
+function pathAt(pts, f, L) {
+  let d = f * L;
+  for (let k = 1; k < pts.length; k++) {
+    const seg = Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
+    if (d <= seg || k === pts.length - 1) { const t = seg ? Math.min(1, d / seg) : 0; return [pts[k - 1][0] + (pts[k][0] - pts[k - 1][0]) * t, pts[k - 1][1] + (pts[k][1] - pts[k - 1][1]) * t]; }
+    d -= seg;
+  }
+  return pts[pts.length - 1];
+}
+// Charge dots along one closed path: count ∝ path length × current share; all paths share the same phase.
+function flowDots(ctx, pts, share, ph) {
+  const L = pathLen(pts), n = Math.round(L * DOTS_PER_UNIT * TW.dotDensity / 100 * share);
+  if (n <= 0) return;
+  ctx.fillStyle = COL.cur; ctx.shadowColor = COL.cur; ctx.shadowBlur = 8;
+  for (let k = 0; k < n; k++) {
+    const f = ((k / n + ph) % 1 + 1) % 1, [x, y] = pathAt(pts, f, L);
+    ctx.beginPath(); ctx.arc(WX(x), WY(y), DOT_R, 0, 7); ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+}
+// Analog meter: arc gauge for Vout / Vin with a needle, centred at world (cx, cy).
+function gauge(ctx, cx, cy, frac, label) {
+  const px = WX(cx), py = WY(cy), r = GAUGE_R * view.s, a0 = Math.PI * 1.15, a1 = Math.PI * 1.85;
+  ctx.save();
+  ctx.fillStyle = COL.bg; ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(px, py, r + 8, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = COL.grid; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(px, py, r, a0, a1); ctx.stroke();
+  const grad = ctx.createLinearGradient(px - r, 0, px + r, 0); grad.addColorStop(0, COL.vlo); grad.addColorStop(1, COL.vhi);
+  ctx.strokeStyle = grad; ctx.beginPath(); ctx.arc(px, py, r, a0, a0 + (a1 - a0) * Math.max(0, Math.min(1, frac))); ctx.stroke();
+  ctx.strokeStyle = COL.mut2; ctx.lineWidth = 1.5; ctx.font = mono(9, 600); ctx.fillStyle = COL.mut2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let k = 0; k <= 10; k++) {
+    const a = a0 + (a1 - a0) * k / 10, big = k % 5 === 0, r1 = r - 7, r2 = r - (big ? 15 : 11);
+    ctx.beginPath(); ctx.moveTo(px + r1 * Math.cos(a), py + r1 * Math.sin(a)); ctx.lineTo(px + r2 * Math.cos(a), py + r2 * Math.sin(a)); ctx.stroke();
+    if (big) ctx.fillText(k * 10 + '%', px + (r - 25) * Math.cos(a), py + (r - 25) * Math.sin(a));
+  }
+  const a = a0 + (a1 - a0) * Math.max(0, Math.min(1, frac));
+  ctx.strokeStyle = COL.acc; ctx.lineWidth = 2.5; ctx.shadowColor = COL.acc; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.moveTo(px - 10 * Math.cos(a), py - 10 * Math.sin(a)); ctx.lineTo(px + (r - 4) * Math.cos(a), py + (r - 4) * Math.sin(a)); ctx.stroke();
+  ctx.shadowBlur = 0; ctx.fillStyle = COL.acc; ctx.beginPath(); ctx.arc(px, py, 4, 0, 7); ctx.fill();
+  ctx.fillStyle = COL.txt; ctx.font = mono(Math.max(11, 0.24 * view.s), 800); ctx.textAlign = 'center';
+  ctx.fillText(label, px, py + r * 0.55);
+  ctx.fillStyle = COL.mut2; ctx.font = mono(9, 600); ctx.fillText('Vout / Vin', px, py + r * 0.55 + 14);
+  ctx.restore();
+}
+// Full schematic frame.
+function drawCircuit(st) {
+  const { ctx, w, h } = fit($('cvCkt'));
+  ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+  const V = CKT.VIEW, vx1 = TW.gauge ? V.x1 : V.x1 - 1.9, s = Math.min(w / (vx1 - V.x0), h / (V.y1 - V.y0));
+  view = { s, ox: (w - (vx1 - V.x0) * s) / 2 - V.x0 * s, oy: (h + (V.y1 - V.y0) * s) / 2 + V.y0 * s };
+  const cHi = potCol(st.Vin, st.Vin), cLo = potCol(0, st.Vin), cN = potCol(st.Vout, st.Vin);
+  const Pmax = Math.max(st.P1, st.P2, st.PL, 1e-12), gl = p => Math.min(1, p / Pmax) * Math.min(1, Math.log10(1 + p / 1e-3) / 3);
+  // wires
+  wire(ctx, CKT.XS, CKT.YT, CKT.XR, CKT.YT, cHi);
+  wire(ctx, CKT.XR, CKT.YB, CKT.XS, CKT.YB, cLo);
+  wire(ctx, CKT.XR, CKT.YN, CKT.XT, CKT.YN, cN);
+  wire(ctx, CKT.XR, CKT.YB, CKT.XT, CKT.YB, cLo);
+  if (P.load) wire(ctx, CKT.XT, CKT.YN, CKT.XT + 0.9, CKT.YN, cN), wire(ctx, CKT.XT, CKT.YB, CKT.XT + 0.9, CKT.YB, cLo);
+  ground(ctx, CKT.GND_X, CKT.YB);
+  // elements
+  battery(ctx, CKT.XS, CKT.YB, CKT.YT, cHi, cLo);
+  const potMode = P.mode === 'pot';
+  resistor(ctx, CKT.XR, CKT.YT, CKT.YN, cHi, cN, gl(st.P1), potMode ? '(1−α)·Rpot' : 'R1', si(st.R1, 'Ω'), 'left');
+  resistor(ctx, CKT.XR, CKT.YN, CKT.YB, cN, cLo, gl(st.P2), potMode ? 'α·Rpot' : 'R2', si(st.R2, 'Ω'), 'left');
+  if (P.load) resistor(ctx, CKT.XT + 0.9, CKT.YN, CKT.YB, cN, cLo, gl(st.PL), 'RL', si(st.RL, 'Ω'), 'right');
+  if (potMode) { arrow(ctx, CKT.XR + 0.75, CKT.YN, CKT.XR + CKT.RHALF + 0.12, CKT.YN, COL.acc, 2.5); }
+  // node + terminals
+  terminal(ctx, CKT.XR, CKT.YN, cN); terminal(ctx, CKT.XT, CKT.YN, cN); terminal(ctx, CKT.XT, CKT.YB, cLo);
+  ctx.font = mono(Math.max(10, 0.2 * view.s), 500); ctx.fillStyle = COL.mut2; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+  ctx.fillText('node', WX(CKT.XR - 0.15), WY(CKT.YN + 0.1));
+  // Vout arrow + label
+  const xa = P.load ? CKT.XA + 0.95 : CKT.XA;
+  arrow(ctx, xa, 0.25, xa, CKT.YN - 0.25, cN, 2.5);
+  ctx.font = mono(Math.max(13, 0.3 * view.s), 800); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = cN; ctx.shadowColor = cN; ctx.shadowBlur = 10;
+  ctx.fillText('Vout', WX(xa + 0.22), WY(1.35));
+  ctx.font = mono(Math.max(14, 0.34 * view.s), 800); ctx.fillText(si(st.Vout, 'V'), WX(xa + 0.22), WY(0.9));
+  ctx.shadowBlur = 0;
+  // current arrow on the top wire (direction follows convention)
+  const e = P.conv === 'e';
+  arrow(ctx, e ? 1.85 : 1.15, 4.3, e ? 1.15 : 1.85, 4.3, COL.cur, 2);
+  ctx.font = mono(Math.max(12, 0.26 * view.s), 700); ctx.fillStyle = COL.cur; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('I = ' + si(st.I, 'A'), WX(1.5), WY(4.45));
+  // charge flow
+  if (TW.flow && st.I > 0) {
+    const ph = e ? -phase : phase, sh2 = st.I2 / st.I, shL = st.IL / st.I;
+    const loopR2 = [[CKT.XS, CKT.YT], [CKT.XR, CKT.YT], [CKT.XR, CKT.YB], [CKT.XS, CKT.YB], [CKT.XS, CKT.YT]];
+    const loopRL = [[CKT.XS, CKT.YT], [CKT.XR, CKT.YT], [CKT.XR, CKT.YN], [CKT.XT + 0.9, CKT.YN], [CKT.XT + 0.9, CKT.YB], [CKT.XS, CKT.YB], [CKT.XS, CKT.YT]];
+    flowDots(ctx, loopR2, sh2, ph);
+    if (P.load) flowDots(ctx, loopRL, shL, ph + 0.37);
+  }
+  if (TW.gauge) gauge(ctx, CKT.XG + (P.load ? 0.6 : 0), 2.1, st.Vin > 0 ? st.Vout / st.Vin : 0, (st.Vin > 0 ? (100 * st.Vout / st.Vin).toFixed(1) : '0.0') + ' %');
+  // potential legend
+  if (TW.shading) {
+    const lx = 14, ly = h - 16, lw = 110;
+    const grad = ctx.createLinearGradient(lx, 0, lx + lw, 0); grad.addColorStop(0, COL.vlo); grad.addColorStop(1, COL.vhi);
+    ctx.fillStyle = grad; ctx.fillRect(lx, ly - 4, lw, 6);
+    ctx.font = mono(9, 600); ctx.fillStyle = COL.mut2; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText('0 V', lx, ly - 7); ctx.textAlign = 'right'; ctx.fillText(si(st.Vin, 'V'), lx + lw, ly - 7);
+    ctx.textAlign = 'left'; ctx.fillText('wire potential', lx + lw + 8, ly + 3);
+  }
+  ctx.font = mono(9, 500); ctx.fillStyle = COL.mut2; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+  ctx.fillText('flow speed ∝ log I (cue only) · glow ∝ I²R', w - 10, h - 6);
+}
+
+/* ═══ 7. AUX PANELS ═══ */
+function auxFrame(cv, title) {
+  const { ctx, w, h } = fit(cv);
+  ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+  ctx.font = sans(10, 800); ctx.fillStyle = COL.mut; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(title.toUpperCase(), 10, 8);
+  return { ctx, w, h, L: AUX_L, T: AUX_T, pw: w - AUX_L - AUX_R, ph: h - AUX_T - AUX_B };
+}
+function hGrid(ctx, x0, x1, y, lbl) {
+  ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  ctx.fillStyle = COL.mut2; ctx.font = mono(9, 500); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(lbl, x0 - 5, y);
+}
+function vGrid(ctx, x, y0, y1, lbl, align) {
+  ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke();
+  ctx.fillStyle = COL.mut2; ctx.font = mono(9, 500); ctx.textAlign = align || 'center'; ctx.textBaseline = 'top'; ctx.fillText(lbl, x, y1 + 5);
+}
+function marker(ctx, x, y, col) {
+  ctx.fillStyle = col; ctx.strokeStyle = COL.bg; ctx.lineWidth = 2; ctx.shadowColor = col; ctx.shadowBlur = 10;
+  ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+}
+// Vout/Vin vs R2/R1 (log axis), unloaded (dashed) and loaded (solid) curves, marker at the operating point.
+function drawXfer(st) {
+  const f = auxFrame($('cvXfer'), 'Transfer  Vout / Vin  vs  R2 / R1'), { ctx, L, T, pw, ph } = f;
+  if (ph < 20) return;
+  const X = r => L + (Math.log10(r) - XFER_LOG_LO) / (XFER_LOG_HI - XFER_LOG_LO) * pw, Y = v => T + (1 - v) * ph;
+  for (const v of [0, 0.25, 0.5, 0.75, 1]) hGrid(ctx, L, L + pw, Y(v), v.toFixed(2));
+  for (let e = XFER_LOG_LO; e <= XFER_LOG_HI; e++) vGrid(ctx, X(Math.pow(10, e)), T, T + ph, e === 0 ? '1' : '10' + (e < 0 ? '⁻' : '') + '⁰¹²³⁴⁵⁶⁷⁸⁹'[Math.abs(e)], e === XFER_LOG_LO ? 'left' : e === XFER_LOG_HI ? 'right' : 'center');
+  ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
+  const curve = (fn, col, dash) => {
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.setLineDash(dash || []); ctx.beginPath();
+    for (let k = 0; k <= 200; k++) { const r = Math.pow(10, XFER_LOG_LO + (XFER_LOG_HI - XFER_LOG_LO) * k / 200), y = Y(fn(r)); k ? ctx.lineTo(X(r), y) : ctx.moveTo(X(r), y); }
+    ctx.stroke(); ctx.setLineDash([]);
+  };
+  curve(r => r / (1 + r), P.load ? COL.mut2 : COL.acc, P.load ? [4, 4] : null);
+  if (P.load) curve(r => { const R2 = r * st.R1, Rp = R2 * st.RL / (R2 + st.RL); return Rp / (st.R1 + Rp); }, COL.acc);
+  ctx.restore();
+  const r = st.R2 / st.R1;
+  marker(ctx, Math.max(L, Math.min(L + pw, X(r))), Y(st.Vin > 0 ? st.Vout / st.Vin : 0), potCol(st.Vout, st.Vin));
+  ctx.font = mono(10, 700); ctx.fillStyle = COL.txt; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+  ctx.fillText('R2/R1 = ' + r.toPrecision(3) + (P.load ? '  (dashed: unloaded)' : ''), L + pw, T + 4);
+}
+// Vout vs RL (log axis) for the present R1, R2: Vout = Vth·RL/(RL+Rth); Rth marker where Vout = Vth/2.
+function drawLoad(st) {
+  const f = auxFrame($('cvLoad'), 'Loading  Vout  vs  RL   (Vth = ' + si(st.Vth, 'V') + ', Rth = ' + si(st.Rth, 'Ω') + ')'), { ctx, L, T, pw, ph } = f;
+  if (ph < 20) return;
+  const lo = RL_LOG_MIN, hi = RL_LOG_MAX, X = r => L + (Math.log10(r) - lo) / (hi - lo) * pw, top = Math.max(st.Vth, 1e-9), Y = v => T + (1 - v / top) * ph;
+  for (const v of nice(0, top, 4)) hGrid(ctx, L, L + pw, Y(v), si(v, 'V', 2));
+  for (let e = lo; e <= hi; e++) vGrid(ctx, X(Math.pow(10, e)), T, T + ph, si(Math.pow(10, e), 'Ω', 1), e === lo ? 'left' : e === hi ? 'right' : 'center');
+  ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
+  ctx.strokeStyle = COL.acc; ctx.lineWidth = 2.5; ctx.beginPath();
+  for (let k = 0; k <= 200; k++) { const R = Math.pow(10, lo + (hi - lo) * k / 200), v = st.Vth * R / (R + st.Rth); k ? ctx.lineTo(X(R), Y(v)) : ctx.moveTo(X(R), Y(v)); }
+  ctx.stroke();
+  ctx.strokeStyle = COL.mut2; ctx.setLineDash([3, 4]); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(X(st.Rth), T); ctx.lineTo(X(st.Rth), T + ph); ctx.moveTo(L, Y(st.Vth / 2)); ctx.lineTo(L + pw, Y(st.Vth / 2)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+  ctx.font = mono(9, 600); ctx.fillStyle = COL.mut; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.fillText('RL = Rth → Vth/2', Math.min(X(st.Rth) + 5, L + pw - 90), T + ph - 3);
+  if (P.load) {
+    marker(ctx, X(Math.max(Math.pow(10, lo), Math.min(Math.pow(10, hi), st.RL))), Y(st.Vout), potCol(st.Vout, st.Vin));
+    ctx.font = mono(10, 700); ctx.fillStyle = COL.txt; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('drop ' + (100 * st.err).toFixed(1) + ' %', L + pw, T + 4);
+  } else {
+    ctx.font = mono(10, 700); ctx.fillStyle = COL.mut; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('connect RL to place the operating point', L + pw, T + 4);
+  }
+}
+// Power bars P1, P2, PL (+ total from the source) with values.
+function drawPow(st) {
+  const f = auxFrame($('cvPow'), 'Power  I²R   Σ = ' + si(st.Pt, 'W')), { ctx, L, T, pw, ph } = f;
+  if (ph < 20) return;
+  const bars = [['R1', st.P1, COL.vhi], ['R2', st.P2, COL.vlo]];
+  if (P.load) bars.push(['RL', st.PL, COL.good]);
+  const top = Math.max(st.Pt, 1e-12), Y = p => T + (1 - p / top) * ph;
+  for (const v of nice(0, top, 3)) hGrid(ctx, L, L + pw, Y(v), si(v, 'W', 2));
+  const n = bars.length, bw = pw / n * 0.5;
+  bars.forEach(([lbl, p, col], k) => {
+    const cx = L + pw * (k + 0.5) / n, y = Y(p);
+    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12; ctx.fillRect(cx - bw / 2, y, bw, T + ph - y); ctx.shadowBlur = 0;
+    ctx.font = mono(10, 700); ctx.fillStyle = COL.txt; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(si(p, 'W'), cx, Math.min(y - 3, T + ph - 14));
+    ctx.fillStyle = COL.mut; ctx.textBaseline = 'top'; ctx.fillText(lbl + (st.Pt > 0 ? '  ' + (100 * p / st.Pt).toFixed(0) + '%' : ''), cx, T + ph + 5);
+  });
+  if (P.load) {
+    ctx.font = mono(10, 700); ctx.fillStyle = COL.good; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('η to load ' + (st.Pt > 0 ? (100 * st.PL / st.Pt).toFixed(1) : '0') + ' %', L + pw, T + 4);
+  }
+}
+
+/* ═══ 8. READOUTS / EQUATION STRIP / HUD ═══ */
+function readout(lbl, val, cls) {
+  const b = el('div', 'rb'); b.appendChild(rich('div', 'rl', lbl)); b.appendChild(el('div', 'rv' + (cls ? ' ' + cls : ''), val)); return b;
+}
+function updateReadouts(st) {
+  const box = $('readouts'); clear(box);
+  document.documentElement.style.setProperty('--vout', potCol(st.Vout, st.Vin));
+  box.appendChild(readout('V<sub>out</sub>', si(st.Vout, 'V'), 'vo'));
+  box.appendChild(readout('I (source)', si(st.I, 'A'), 'cur'));
+  box.appendChild(readout('Ratio R<sub>2</sub>/(R<sub>1</sub>+R<sub>2</sub>)', st.ratio.toFixed(4)));
+  box.appendChild(readout('R<sub>th</sub> = R<sub>1</sub>∥R<sub>2</sub>', si(st.Rth, 'Ω')));
+  box.appendChild(readout('P<sub>R1</sub>', si(st.P1, 'W')));
+  box.appendChild(readout('P<sub>R2</sub>', si(st.P2, 'W')));
+  box.appendChild(readout('P total', si(st.Pt, 'W')));
+  box.appendChild(readout('Load drop', P.load ? (100 * st.err).toFixed(2) + ' %' : '— (open)', P.load && st.err > 0.05 ? 'bad' : ''));
+  const eq = $('eqs'); clear(eq);
+  const f = (v, u) => si(v, u);
+  if (P.load) {
+    eq.appendChild(rich('div', 'eql', '<b>R<sub>2</sub>∥R<sub>L</sub></b> = ' + f(st.R2, 'Ω') + ' ∥ ' + f(st.RL, 'Ω') + ' = <i>' + f(st.Rp, 'Ω') + '</i>'));
+    eq.appendChild(rich('div', 'eql', '<b>V<sub>out</sub></b> = V<sub>in</sub> · (R<sub>2</sub>∥R<sub>L</sub>) / (R<sub>1</sub> + R<sub>2</sub>∥R<sub>L</sub>) = ' + f(st.Vin, 'V') + ' · ' + f(st.Rp, 'Ω') + ' / ' + f(st.R1 + st.Rp, 'Ω') + ' = <r>' + f(st.Vout, 'V') + '</r>'));
+    eq.appendChild(rich('div', 'eql', '<b>V<sub>out</sub></b> = V<sub>th</sub> · R<sub>L</sub>/(R<sub>L</sub>+R<sub>th</sub>) = ' + f(st.Vth, 'V') + ' · ' + f(st.RL, 'Ω') + '/' + f(st.RL + st.Rth, 'Ω') + ' = <r>' + f(st.Vout, 'V') + '</r> \u2003(drop R<sub>th</sub>/(R<sub>L</sub>+R<sub>th</sub>) = ' + (100 * st.err).toFixed(2) + ' %)'));
+  } else {
+    eq.appendChild(rich('div', 'eql', '<b>V<sub>out</sub></b> = V<sub>in</sub> · R<sub>2</sub> / (R<sub>1</sub> + R<sub>2</sub>) = ' + f(st.Vin, 'V') + ' · ' + f(st.R2, 'Ω') + ' / ' + f(st.R1 + st.R2, 'Ω') + ' = <r>' + f(st.Vout, 'V') + '</r>'));
+    eq.appendChild(rich('div', 'eql', '<b>I</b> = V<sub>in</sub> / (R<sub>1</sub> + R<sub>2</sub>) = ' + f(st.Vin, 'V') + ' / ' + f(st.R1 + st.R2, 'Ω') + ' = <i>' + f(st.I, 'A') + '</i> \u2003 <b>P</b> = V<sub>in</sub> · I = <i>' + f(st.Pt, 'W') + '</i>'));
+    eq.appendChild(rich('div', 'eql', '<b>R<sub>th</sub></b> = R<sub>1</sub>∥R<sub>2</sub> = ' + f(st.Rth, 'Ω') + ' \u2003 <b>V<sub>th</sub></b> = ' + f(st.Vth, 'V') + ' \u2003 ∂V<sub>out</sub>/∂R<sub>2</sub> = V<sub>in</sub>·R<sub>1</sub>/(R<sub>1</sub>+R<sub>2</sub>)² = ' + f(st.Vin * st.R1 / Math.pow(st.R1 + st.R2, 2), 'V/Ω')));
+  }
+  const hud = $('hud'); clear(hud);
+  hud.appendChild(rich('div', null, (P.mode === 'pot' ? 'POTENTIOMETER  α = ' + P.alpha.toFixed(1) + ' %' : 'FIXED DIVIDER') + (P.load ? '  ·  LOADED' : '  ·  OPEN OUTPUT')));
+  hud.appendChild(rich('div', null, 'KVL: ' + f(st.Vin, 'V') + ' = ' + f(st.I * st.R1, 'V') + ' + ' + f(st.Vout, 'V')));
+  const pill = $('pill'), hot = Math.max(st.P1, st.P2, st.PL);
+  pill.textContent = hot > 0.25 ? '⚠ ' + si(hot, 'W') + ' > ¼ W' : P.load && st.err > 0.1 ? 'LOADED −' + (100 * st.err).toFixed(0) + ' %' : 'LINEAR · DC';
+  pill.style.color = hot > 0.25 ? COL.bad : P.load && st.err > 0.1 ? COL.warn : COL.good;
+}
+
+/* ═══ 9. SIDEBAR & UI BINDING ═══ */
+function syncControls() {
+  $('sVin').value = P.Vin; $('vVin').textContent = si(P.Vin, 'V');
+  $('sR1').value = rToSlider(P.R1, R_LOG_MIN, R_LOG_MAX); $('vR1').textContent = si(P.R1, 'Ω');
+  $('sR2').value = rToSlider(P.R2, R_LOG_MIN, R_LOG_MAX); $('vR2').textContent = si(P.R2, 'Ω');
+  $('sRpot').value = rToSlider(P.Rpot, R_LOG_MIN, R_LOG_MAX); $('vRpot').textContent = si(P.Rpot, 'Ω');
+  $('sAlpha').value = P.alpha; $('vAlpha').textContent = P.alpha.toFixed(1) + ' %';
+  $('sRL').value = rToSlider(P.RL, RL_LOG_MIN, RL_LOG_MAX); $('vRL').textContent = si(P.RL, 'Ω');
+  $('sSpd').value = P.spd; $('vSpd').textContent = P.spd.toFixed(2) + '×';
+  $('fixedCtl').style.display = P.mode === 'fixed' ? '' : 'none'; $('potCtl').style.display = P.mode === 'pot' ? '' : 'none';
+  $('mFixed').classList.toggle('active', P.mode === 'fixed'); $('mPot').classList.toggle('active', P.mode === 'pot');
+  $('lOff').classList.toggle('active', !P.load); $('lOn').classList.toggle('active', P.load);
+  $('rlRow').classList.toggle('off', !P.load);
+  $('cConv').classList.toggle('active', P.conv === 'c'); $('cElec').classList.toggle('active', P.conv === 'e');
+  $('bRun').textContent = P.run ? 'Pause' : 'Run';
+  const st = state();
+  $('rlHint').textContent = P.load ? 'RL / Rth = ' + (P.RL / st.Rth).toPrecision(3) + '  →  drop ' + (100 * st.err).toFixed(1) + ' %' : 'open output: Vout = Vth';
+  for (const b of document.querySelectorAll('#simPage .seg-btns button')) b.setAttribute('aria-pressed', b.classList.contains('active') ? 'true' : 'false');
+}
+function changed() { syncControls(); dirty = true; saveLS(); }
+function bindSlider(id, fn) {
+  const s = $(id);
+  s.addEventListener('input', () => { fn(+s.value); changed(); });
+}
+function bindUI() {
+  bindSlider('sVin', v => P.Vin = v);
+  bindSlider('sR1', v => P.R1 = sliderToR(v, R_LOG_MIN, R_LOG_MAX));
+  bindSlider('sR2', v => P.R2 = sliderToR(v, R_LOG_MIN, R_LOG_MAX));
+  bindSlider('sRpot', v => P.Rpot = sliderToR(v, R_LOG_MIN, R_LOG_MAX));
+  bindSlider('sAlpha', v => P.alpha = v);
+  bindSlider('sRL', v => P.RL = sliderToR(v, RL_LOG_MIN, RL_LOG_MAX));
+  bindSlider('sSpd', v => P.spd = v);
+  for (const b of document.querySelectorAll('[data-mode]')) b.addEventListener('click', () => { P.mode = b.dataset.mode; changed(); });
+  for (const b of document.querySelectorAll('[data-load]')) b.addEventListener('click', () => { P.load = b.dataset.load === '1'; changed(); });
+  for (const b of document.querySelectorAll('[data-conv]')) b.addEventListener('click', () => { P.conv = b.dataset.conv; changed(); });
+  for (const b of document.querySelectorAll('[data-preset]')) b.addEventListener('click', () => { Object.assign(P, PRESETS[+b.dataset.preset], { mode: 'fixed' }); changed(); });
+  $('bRun').addEventListener('click', () => { P.run = !P.run; changed(); });
+  $('bReset').addEventListener('click', () => { P = Object.assign({}, DEF); phase = 0; changed(); });
+  $('themeBtn').addEventListener('click', () => { isLight = !isLight; applyTheme(); saveLS(); });
+  $('tweaksBtn').addEventListener('click', toggleTweaks);
+  $('twkReset').addEventListener('click', () => { TW = Object.assign({}, TWEAK_DEFAULTS); saveTweaks(); applyTheme(); renderTweaks(); });
+  for (const b of document.querySelectorAll('.topnav-tabs button')) b.addEventListener('click', () => showPage(b.dataset.page));
+  window.addEventListener('resize', () => { dirty = true; });
+}
+function showPage(id) {
+  curPage = id;
+  for (const p of document.querySelectorAll('.page')) p.classList.toggle('active', p.id === id);
+  for (const b of document.querySelectorAll('.topnav-tabs button')) { const on = b.dataset.page === id; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
+  saveLS();
+  if (id === 'simPage') requestAnimationFrame(() => requestAnimationFrame(() => { dirty = true; }));
+}
+
+/* ═══ 10. TUTORIAL & EXPERIMENTS ═══ */
+const TUTORIAL = [
+  ['h1', 'The resistive voltage divider'],
+  ['sub', 'Two resistors in series across a source; the output is taken at their junction. The circuit under study is the one in the Sim tab: V<sub>in</sub> on the left, R<sub>1</sub> above the node, R<sub>2</sub> below it, output terminals to the right, reference at the bottom rail.'],
+  ['h2', '1. Governing relation'],
+  ['p', 'With the output open, R<sub>1</sub> and R<sub>2</sub> carry the same current I. Kirchhoff\'s voltage law (KVL) around the loop and Ohm\'s law give:'],
+  ['eq', 'I = V<sub>in</sub> / (R<sub>1</sub> + R<sub>2</sub>)          V<sub>out</sub> = I · R<sub>2</sub> = V<sub>in</sub> · R<sub>2</sub> / (R<sub>1</sub> + R<sub>2</sub>)', 'The output depends only on the ratio R<sub>2</sub>/(R<sub>1</sub>+R<sub>2</sub>), never on the absolute values.'],
+  ['p', 'Scaling both resistors by the same factor leaves V<sub>out</sub> unchanged and scales I and the dissipated power inversely. That is the whole design trade: small resistors waste power and heat up; large resistors make the output sensitive to whatever is connected to it (§3).'],
+  ['h2', '2. What the picture shows'],
+  ['ul', ['Wire colour is the node potential: blue at 0 V, red at V<sub>in</sub>; the output wire sits at the blend that equals V<sub>out</sub>/V<sub>in</sub>.', 'Charge dots move at a speed that increases with I and split at the node in proportion to the branch currents (with a load connected). The speed map is logarithmic and a cue only.', 'Resistor glow scales with I²R relative to the hottest resistor; the pill turns red above ¼ W, the common rating of a small through-hole part.', 'The analog gauge is V<sub>out</sub>/V<sub>in</sub> in percent.']],
+  ['h2', '3. Loading and the Thévenin equivalent'],
+  ['p', 'Seen from the output terminals, the divider is a Thévenin source: open-circuit voltage V<sub>th</sub> = V<sub>in</sub>·R<sub>2</sub>/(R<sub>1</sub>+R<sub>2</sub>) and series resistance R<sub>th</sub> = R<sub>1</sub>∥R<sub>2</sub> (source shorted). A load R<sub>L</sub> then sees a second divider:'],
+  ['eq', 'V<sub>out</sub> = V<sub>th</sub> · R<sub>L</sub> / (R<sub>L</sub> + R<sub>th</sub>)          relative drop = R<sub>th</sub> / (R<sub>L</sub> + R<sub>th</sub>)', 'R<sub>L</sub> = R<sub>th</sub> halves the output; R<sub>L</sub> = 10·R<sub>th</sub> drops it 9.1 %; R<sub>L</sub> = 100·R<sub>th</sub> drops it 0.99 %.'],
+  ['p', 'The Loading panel plots this curve for the present R<sub>1</sub>, R<sub>2</sub>; the dashed lines mark R<sub>L</sub> = R<sub>th</sub> and V<sub>th</sub>/2. Equivalently, the load appears in parallel with R<sub>2</sub>: replace R<sub>2</sub> by R<sub>2</sub>∥R<sub>L</sub> in the divider formula — the equation strip shows both forms and they agree.'],
+  ['h2', '4. Power'],
+  ['eq', 'P<sub>1</sub> = I²R<sub>1</sub>     P<sub>2</sub> = V<sub>out</sub>²/R<sub>2</sub>     P<sub>L</sub> = V<sub>out</sub>²/R<sub>L</sub>     P<sub>source</sub> = V<sub>in</sub>·I = P<sub>1</sub> + P<sub>2</sub> + P<sub>L</sub>', 'Energy conservation: the bars in the Power panel always sum to the source power.'],
+  ['p', 'A divider is a poor way to power anything: the efficiency P<sub>L</sub>/P<sub>source</sub> is at most the ratio itself, and only in the limit where R<sub>2</sub> is removed. Its proper use is a reference or sense point feeding a high-impedance input.'],
+  ['h2', '5. Potentiometer'],
+  ['p', 'A potentiometer is a single resistor R<sub>pot</sub> with a sliding contact at fraction α of its length: R<sub>1</sub> = (1−α)·R<sub>pot</sub>, R<sub>2</sub> = α·R<sub>pot</sub>, so V<sub>out</sub> = α·V<sub>in</sub> — linear in the wiper position while the output is open. Loading bends the relation (§3), and the effect is strongest near α = 0.5 where R<sub>th</sub> = R<sub>pot</sub>/4 is largest.'],
+  ['h2', '6. Sensitivity'],
+  ['eq', '∂V<sub>out</sub>/∂R<sub>2</sub> = V<sub>in</sub>·R<sub>1</sub>/(R<sub>1</sub>+R<sub>2</sub>)²          ∂V<sub>out</sub>/∂R<sub>1</sub> = −V<sub>in</sub>·R<sub>2</sub>/(R<sub>1</sub>+R<sub>2</sub>)²', 'A 1 % change in R<sub>2</sub> changes V<sub>out</sub> by (1 − ratio) %; a 1 % change in R<sub>1</sub> by −ratio %. Tolerances matter most far from the rails.'],
+  ['h2', '7. Design procedure'],
+  ['ol', ['Pick the ratio: R<sub>2</sub>/(R<sub>1</sub>+R<sub>2</sub>) = V<sub>out</sub>/V<sub>in</sub>.', 'Pick the scale from the load: choose R<sub>th</sub> = R<sub>1</sub>∥R<sub>2</sub> ≤ R<sub>L</sub>/100 for under 1 % drop (or correct the ratio for the known load).', 'Check power: I = V<sub>in</sub>/(R<sub>1</sub>+R<sub>2</sub>) and I²R against the part ratings.', 'Snap to preferred values (IEC 60063 E-series) and recompute.']],
+  ['table', [['Preset', 'R<sub>1</sub>', 'R<sub>2</sub>', 'V<sub>out</sub> (open)', 'R<sub>th</sub>'], ['1 : 1', '10 kΩ', '10 kΩ', '5.00 V of 10 V', '5.00 kΩ'], ['5 V → 3.3 V', '1.0 kΩ', '2.0 kΩ', '3.33 V', '667 Ω'], ['12 V → 5 V', '1.5 kΩ', '1.1 kΩ', '5.08 V', '635 Ω']]]
+];
+const EXPERIMENTS = [
+  { t: 'Ratio, not size', s: { Vin: 12, R1: 1e3, R2: 1e3, mode: 'fixed', load: false }, d: 'Start at 1 kΩ / 1 kΩ. Now set R<sub>1</sub> and R<sub>2</sub> both to 10 kΩ, then both to 100 kΩ.', o: 'V<sub>out</sub> stays at 6.00 V. I falls 6.00 mA → 600 µA → 60.0 µA and the total power 72.0 mW → 7.20 mW → 720 µW. The charge dots slow and thin; the glow fades.' },
+  { t: 'Loading at R<sub>L</sub> = R<sub>th</sub>', s: { Vin: 12, R1: 10e3, R2: 10e3, mode: 'fixed', load: true, RL: 5e3 }, d: 'R<sub>th</sub> = 10 kΩ ∥ 10 kΩ = 5 kΩ. The load is set exactly to R<sub>th</sub>.', o: 'V<sub>out</sub> = 3.00 V, half of V<sub>th</sub> = 6.00 V; the loading marker sits on the crossing of the dashed lines. Load drop reads 50 %.' },
+  { t: 'The 10× and 100× rules', s: { Vin: 12, R1: 10e3, R2: 10e3, mode: 'fixed', load: true, RL: 50e3 }, d: 'R<sub>L</sub> = 50 kΩ = 10·R<sub>th</sub>. Then raise R<sub>L</sub> to 500 kΩ.', o: 'Drop 9.09 % (V<sub>out</sub> = 5.45 V), then 0.99 % (5.94 V). The relative drop is R<sub>th</sub>/(R<sub>L</sub>+R<sub>th</sub>) regardless of V<sub>in</sub>.' },
+  { t: 'Design 5 V → 3.3 V for a 10 kΩ input', s: { Vin: 5, R1: 1e3, R2: 2e3, mode: 'fixed', load: true, RL: 10e3 }, d: 'The E24 pair 1.0 kΩ / 2.0 kΩ gives 3.33 V open. Connect the 10 kΩ input.', o: 'V<sub>out</sub> = 3.13 V (drop 6.25 %; R<sub>th</sub> = 667 Ω). Scale both resistors down by 10 (100 Ω / 200 Ω): drop 0.66 %, but I rises to 16.9 mA and P<sub>R2</sub> to 55 mW. Scale is the trade.' },
+  { t: 'Heat', s: { Vin: 24, R1: 100, R2: 100, mode: 'fixed', load: false }, d: '24 V across 100 Ω + 100 Ω.', o: 'I = 120 mA; each resistor dissipates 1.44 W — far above a ¼ W part. The pill warns and both resistors glow. Raise the resistors until the pill clears (≥ 580 Ω each keeps each below 0.25 W: 24²/(4·580) = 0.248 W).' },
+  { t: 'Potentiometer under load', s: { Vin: 10, mode: 'pot', Rpot: 10e3, alpha: 50, load: true, RL: 10e3 }, d: 'Sweep α from 0 to 100 % with R<sub>L</sub> = R<sub>pot</sub>. Then set the output open and sweep again.', o: 'Open: V<sub>out</sub> = α·V<sub>in</sub>, a straight line. Loaded: V<sub>out</sub> sags below the line, worst at α = 50 % where R<sub>th</sub> = 2.5 kΩ and the drop is 20 % (4.00 V instead of 5.00 V).' }
+];
+function buildTutorial() {
+  const b = $('tutBody');
+  for (const [k, a, note] of TUTORIAL) {
+    if (k === 'h1') b.appendChild(rich('h1', null, a));
+    else if (k === 'sub') b.appendChild(rich('p', 'sub', a));
+    else if (k === 'h2') b.appendChild(rich('h2', null, a));
+    else if (k === 'p') b.appendChild(rich('p', null, a));
+    else if (k === 'eq') { const box = el('div', 'eq-box'); box.appendChild(rich('div', 'eq', a)); if (note) box.appendChild(rich('div', 'eq-note', note)); b.appendChild(box); }
+    else if (k === 'ul' || k === 'ol') { const l = el(k); for (const it of a) l.appendChild(rich('li', null, it)); b.appendChild(l); }
+    else if (k === 'table') {
+      const t = el('table', 'tut-table'), th = el('tr'); for (const c of a[0]) th.appendChild(rich('th', null, c)); t.appendChild(th);
+      for (const row of a.slice(1)) { const tr = el('tr'); for (const c of row) tr.appendChild(rich('td', null, c)); t.appendChild(tr); } b.appendChild(t);
+    }
+  }
+  const foot = el('div', 'exp-foot'); const go = el('button', 'nav-btn', 'Go to experiments →'); go.addEventListener('click', () => showPage('expPage')); foot.appendChild(go); b.appendChild(foot);
+}
+function buildExperiments() {
+  const b = $('expBody');
+  b.appendChild(rich('h1', null, 'Experiments'));
+  b.appendChild(rich('p', 'sub', 'Each card loads its settings into the Sim tab. Stated results are the closed-form values from §1 and §3 of the Tutorial.'));
+  EXPERIMENTS.forEach((x, k) => {
+    const c = el('div', 'exp-card');
+    c.appendChild(el('div', 'exp-num', 'Experiment ' + (k + 1)));
+    c.appendChild(rich('h3', null, x.t)); c.appendChild(rich('p', null, x.d)); c.appendChild(rich('p', 'obs', 'Observe: ' + x.o));
+    const f = el('div', 'exp-foot'), go = el('button', 'nav-btn', 'Load settings & open Sim');
+    go.addEventListener('click', () => { Object.assign(P, x.s); changed(); showPage('simPage'); });
+    f.appendChild(go); c.appendChild(f); b.appendChild(c);
+  });
+}
+
+/* ═══ 11. TWEAKS PANEL ═══ */
+function setTweak(k, v) { TW[k] = v; saveTweaks(); applyTheme(); renderTweaks(); }
+function renderTweaks() {
+  const body = $('twkBody'); clear(body);
+  for (const it of TWEAK_SPEC) {
+    if (it.sec) { body.appendChild(el('div', 'twk-sec', it.sec)); continue; }
+    if (it.type === 'color') {
+      const row = el('div', 'twk-row'); row.appendChild(el('span', null, it.label)); const sws = el('div', 'sws');
+      for (const c of it.options) { const b = el('button', 'sw'); b.style.background = c; b.style.color = c; b.setAttribute('aria-label', it.label + ' ' + c); b.setAttribute('aria-pressed', TW[it.k] === c ? 'true' : 'false'); b.addEventListener('click', () => setTweak(it.k, c)); sws.appendChild(b); }
+      row.appendChild(sws); body.appendChild(row);
+    } else if (it.type === 'radio') {
+      const row = el('div', 'twk-row col'); row.appendChild(el('span', null, it.label)); const seg = el('div', 'seg-btns'); seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', it.label);
+      for (const o of it.options) { const b = el('button', TW[it.k] === o ? 'active' : '', o); b.setAttribute('aria-pressed', TW[it.k] === o ? 'true' : 'false'); b.addEventListener('click', () => setTweak(it.k, o)); seg.appendChild(b); }
+      row.appendChild(seg); body.appendChild(row);
+    } else if (it.type === 'slider') {
+      const row = el('div', 'twk-row col'), lbl = el('div', 'lbl'); lbl.appendChild(el('span', null, it.label)); lbl.appendChild(el('span', 'val', TW[it.k] + ' ' + it.unit));
+      const inp = el('input'); inp.type = 'range'; inp.min = it.min; inp.max = it.max; inp.step = it.step; inp.value = TW[it.k]; inp.setAttribute('aria-label', it.label);
+      inp.addEventListener('input', () => { TW[it.k] = +inp.value; lbl.lastChild.textContent = inp.value + ' ' + it.unit; applyTheme(); });
+      inp.addEventListener('change', saveTweaks);
+      row.appendChild(lbl); row.appendChild(inp); body.appendChild(row);
+    } else if (it.type === 'toggle') {
+      const row = el('div', 'twk-row'); row.appendChild(el('span', null, it.label));
+      const b = el('button', 'tg'); b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', TW[it.k] ? 'true' : 'false'); b.setAttribute('aria-label', it.label);
+      b.addEventListener('click', () => setTweak(it.k, !TW[it.k])); row.appendChild(b); body.appendChild(row);
+    }
+  }
+}
+function toggleTweaks() { const p = $('tweaks'), open = !p.classList.contains('open'); p.classList.toggle('open', open); $('tweaksBtn').setAttribute('aria-expanded', open ? 'true' : 'false'); }
+
+/* ═══ 12. MAIN LOOP & BOOT ═══ */
+let last = performance.now(), saveT = 0;
+// Flow speed in loop fractions per second: log map of I over [1 µA, 1 A], times the user multiplier.
+function flowRate(I) {
+  if (I <= 0) return 0;
+  const u = Math.max(0, Math.min(1, (Math.log10(I) - I_LOG_LO) / (I_LOG_HI - I_LOG_LO)));
+  return (FLOW_MIN_FRAC + (FLOW_MAX_FRAC - FLOW_MIN_FRAC) * u) * P.spd;
+}
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (curPage === 'simPage') {
+    const st = state();
+    if (P.run && TW.flow && st.I > 0) { phase = (phase + flowRate(st.I) * dt) % 1; saveT += dt; if (saveT > 2) { saveT = 0; saveLS(); } }
+    if (dirty) { drawXfer(st); drawLoad(st); drawPow(st); updateReadouts(st); dirty = false; }
+    drawCircuit(st);
+  }
+  requestAnimationFrame(frame);
+}
+function boot() {
+  loadLS(); loadTweaks();
+  buildTutorial(); buildExperiments(); bindUI(); renderTweaks();
+  applyTheme(); syncControls(); showPage(curPage);
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body>
+</html>
