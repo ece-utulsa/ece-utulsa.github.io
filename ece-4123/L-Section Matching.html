@@ -179,12 +179,18 @@
   <label class="f" id="lzo">Characteristic impedance Z&#8320; (&#937;)</label>
   <input type="text" id="z0" value="50">
 
+  <label class="f">Load form</label>
+  <div class="seg" id="segLoad">
+    <button data-l="ser" class="on">series R + jX</button>
+    <button data-l="par">parallel R &#8741; jX</button>
+  </div>
   <label class="f" id="llo">Load impedance Z<sub>L</sub> (&#937;)</label>
   <div class="row">
     <input type="text" id="rl" value="25">
-    <span class="unit">+ j</span>
+    <span class="unit" id="lsep">+ j</span>
     <input type="text" id="xl" value="-30">
   </div>
+  <div class="note" id="leq" style="margin-top:4px"></div>
 
   <label class="f">Frequency</label>
   <div class="row">
@@ -434,7 +440,7 @@ function capStr(Cv){return unitStr(Cv,S.uC||C_UNITS[1]);}
 
 /* ---------- state ---------- */
 const S={
-  units:"phys", tgt:"z0", real:"hilo", stage:0, sel:0, prog:1, anim:null,
+  units:"phys", lform:"ser", tgt:"z0", real:"hilo", stage:0, sel:0, prog:1, anim:null,
   playing:false, sols:[], err:"", info:"", arcs:[], nodes:[],
   speed:520, alab:"active", gz:true, gy:true, gc:true,
   pick:null, loadKey:"", uL:null, uC:null, present:false, pstrip:false, pzoom:1
@@ -449,10 +455,12 @@ function inputs(){
   const rl=num("rl",0), xl=num("xl",0);
   const rt=num("rt",z0), xt=num("xt",0);
   const norm=S.units==="norm";
-  const zL=norm?C(rl,xl):C(rl/z0,xl/z0);
+  /* the load as entered: series R + jX, or parallel R || jX (X = 0: none) */
+  const r1=norm?rl:rl/z0, x1=norm?xl:xl/z0, par=(S.lform==="par");
+  const zL=par?parZ(r1,x1):C(r1,x1);
   let zT=C(1,0);
   if(S.tgt==="cx")zT=norm?C(rt,xt):C(rt/z0,xt/z0);
-  return {z0:z0,f:f,w:2*Math.PI*f,zL:zL,zT:zT,norm:norm,hilo:(S.real==="hilo"),
+  return {z0:z0,f:f,w:2*Math.PI*f,zL:zL,par:par,rp:r1,xp:x1,zT:zT,norm:norm,hilo:(S.real==="hilo"),
           zh:num("zh",100),zlo:num("zlo",20),
           sub:{er:num("er",4.4),h:num("hs",1.6)*1e-3,tand:Math.max(0,num("tand",0)),
                t:Math.max(0,num("tcu",35))*1e-6,rough:Math.max(0,num("rough",0))*1e-6,
@@ -460,6 +468,11 @@ function inputs(){
           };
 }
 
+/* R || jX; X = 0 is taken as "no reactance", not a short */
+function parZ(r,x){
+  if(Math.abs(x)<1e-12)return C(r,0);
+  return cdiv(C(0,r*x),C(r,x));
+}
 /* ---------- L-section engine (same algebra as the ZY Smith Chart tool) ------ */
 function secSeries(zA,zB){                    /* series element first */
   const yB=cinv(zB), t=zA.re/yB.re-zA.re*zA.re;
@@ -1302,6 +1315,11 @@ function drawHiLoLayout(I,sol,items,s){
   const zp=zls.split(" ");
   s+=tx(X1+44,YC+4,zp[0],{s:12.5,c:"#b02418"});
   s+=tx(X1+44,YC+20,zp.slice(1).join(""),{s:12.5,c:"#b02418"});
+  if(I.par){
+    const u=S.units==="norm"?1:I.z0;
+    s+=tx(X1+44,YC+36,"= "+sig(I.rp*u,3)+" \u2225 "+(Math.abs(I.xp)<1e-12?"R only":jf(I.xp*u,3)),
+      {s:10,c:"#8a6a66"});
+  }
   $("sch").innerHTML=s;
 }
 /* ---------- microstrip line table and layout warnings ---------- */
@@ -1359,8 +1377,12 @@ function mmul(m,n){
 }
 const mSer=z=>M2(C(1),z,C(0),C(1));
 const mSh=y=>M2(C(1),C(0),y,C(1));
+/* the load across the sweep: its R holds, its reactance is an L (X > 0)
+   or a C (X < 0) fixed at f0 -- in series or in parallel with R        */
 function loadAt(I,f){
-  const r=f/I.f, x=I.zL.im;
+  const r=f/I.f;
+  if(I.par){const x=I.xp; return parZ(I.rp, x>=0?x*r:x/r);}
+  const x=I.zL.im;
   return C(I.zL.re, x>=0?x*r:x/r);
 }
 /* one microstrip section at frequency f; first = the first-order length */
@@ -1428,8 +1450,10 @@ function drawPerf(){
   h+='</table>';
   $("perf").innerHTML=h;
   drawSweep(I,sol,showRef);
-  $("perfNote").innerHTML="Sweep: the load keeps R = "+sig(I.zL.re*I.z0,4)+" \u03a9 and its "+
-    "reactance is a series "+(I.zL.im>=0?"L":"C")+" set at f\u2080. Source = "+
+  const xr=I.par?I.xp:I.zL.im;
+  $("perfNote").innerHTML="Sweep: the load keeps R = "+sig((I.par?I.rp:I.zL.re)*I.z0,4)+
+    " \u03a9 "+(Math.abs(xr)<1e-12?"with no reactance":"and its reactance is "+
+    (I.par?"a parallel ":"a series ")+(xr>0?"L":"C")+" set at f\u2080")+". Source = "+
     (S.tgt==="z0"?"Z\u2080":"Z<sub>T</sub>*")+". Each section is re-evaluated at every "+
     "frequency (dispersion, skin-effect and dielectric loss); the feed lines are the "+
     "reference planes. Dashed: the same sections cut to the first-order lengths. "+
@@ -1694,7 +1718,7 @@ try{
   if(isFinite(z)&&z>=0.55&&z<=1)S.pzoom=z;
 }catch(e){}
 function redraw(){drawGrid();drawRings();drawOv();drawSch();
-  drawSols();drawTables();drawStage();drawPfoot();drawPerf();}
+  drawSols();drawTables();drawStage();drawPfoot();drawPerf();drawLoadEq();}
 
 /* ------------------------------ animation --------------------------------- */
 function stopAnim(){if(S.anim){cancelAnimationFrame(S.anim);S.anim=null;}}
@@ -1745,6 +1769,8 @@ function tsv(){
   const plain=s=>String(s).replace(/<[^>]*>/g,"").replace(/−/g,"-");
   let L=["Hi-Lo microstrip L-section matching  —  ECE 4123/6423  Fall 2026"];
   L.push("Z0\t"+I.z0+" ohm\tf\t"+fStr());
+  if(I.par)L.push("load\tparallel R || jX\t"+plain(sig(I.rp*I.z0,6))+" ohm\t"+
+    plain(sig(I.xp*I.z0,6))+" ohm");
   L.push("zL\t"+plain(cf(I.zL))+"\tyL\t"+plain(cf(cinv(I.zL))));
   L.push("Hi-Lo microstrip\tZh\t"+I.zh+" ohm\tZl\t"+I.zlo+" ohm\ter\t"+
     I.sub.er+"\th\t"+I.sub.h*1e3+" mm\ttan d\t"+I.sub.tand+"\tt\t"+I.sub.t*1e6+" um");
@@ -1843,9 +1869,40 @@ function setUnits(u){
   S.units=u;
   Array.prototype.forEach.call($("segUnits").children,function(b){
     b.className=(b.getAttribute("data-u")===u)?"on":"";});
-  $("llo").innerHTML=(u==="norm")?"Load impedance z<sub>L</sub> (normalized)"
-    :"Load impedance Z<sub>L</sub> (&#937;)";
+  loadLabels();
   recalc();
+}
+function loadLabels(){
+  const norm=S.units==="norm", par=S.lform==="par";
+  $("llo").innerHTML=(par?"Load R &#8741; jX ":(norm?"Load impedance z<sub>L</sub> ":"Load impedance Z<sub>L</sub> "))+
+    (norm?"(normalized)":"(&#937;)")+(par?" &mdash; X = 0 for none":"");
+  $("lsep").innerHTML=par?"&#8741; j":"+ j";
+}
+/* switching form keeps the SAME load: convert the numbers in the fields */
+function setLoadForm(f){
+  if(f===S.lform)return;
+  const r=parseFloat($("rl").value), x=parseFloat($("xl").value);
+  if(isFinite(r)&&isFinite(x)&&r>0){
+    let a,b;
+    if(f==="par"){const m=r*r+x*x; a=m/r; b=Math.abs(x)<1e-12?0:m/x;}
+    else{const z=parZ(r,x); a=z.re; b=z.im;}
+    $("rl").value=parseFloat(a.toPrecision(6)); $("xl").value=parseFloat(b.toPrecision(6));
+  }
+  S.lform=f;
+  Array.prototype.forEach.call($("segLoad").children,function(b){
+    b.className=(b.getAttribute("data-l")===f)?"on":"";});
+  loadLabels();
+  recalc();
+}
+Array.prototype.forEach.call($("segLoad").children,function(b){
+  b.onclick=function(){setLoadForm(b.getAttribute("data-l"));};});
+function drawLoadEq(){
+  const I=inputs(), u=S.units==="norm"?1:I.z0, un=S.units==="norm"?"":" \u03a9";
+  if(!(I.zL.re>0)){$("leq").innerHTML="";return;}
+  if(I.par)$("leq").innerHTML="\u2261 series "+cf(cmul(I.zL,C(u)),4)+un;
+  else{const m=I.zL.re*I.zL.re+I.zL.im*I.zL.im;
+    $("leq").innerHTML="\u2261 parallel "+sig(m/I.zL.re*u,4)+un+" \u2225 "+
+      (Math.abs(I.zL.im)<1e-12?"no reactance":jf(m/I.zL.im*u,4)+un);}
 }
 function setTgt(t){
   S.tgt=t;
