@@ -38,7 +38,7 @@
   select{padding:5px 4px;min-width:74px;font-size:13px;border:1px solid #9a9a95;border-radius:4px;
     background:#fff;color:var(--ink);}
   .seg{display:flex;border:2px solid var(--ink);border-radius:5px;overflow:hidden;}
-  .seg button{flex:1;padding:6px 4px;font-size:13px;font-weight:bold;border:0;
+  .seg button{flex:1;padding:6px 4px;font-size:12.5px;font-weight:bold;border:0;
     background:#fff;color:var(--ink);}
   .seg button.on{background:var(--ink);color:#fff;}
   .unit{font-size:13px;color:#444;white-space:nowrap;flex:0 0 auto;}
@@ -132,7 +132,7 @@
 <body>
 <header>
   <div class="t">Transmission Line Matching</div>
-  <div class="s">single-stub tuner &middot; line + stub or stub at the load &middot; ZY Smith Chart &middot; animated construction</div>
+  <div class="s">single- and double-stub tuners &middot; ZY Smith Chart &middot; animated construction</div>
   <button id="bPresent" style="padding:7px 13px;font-size:13px;font-weight:bold;
     border:2px solid var(--ink);border-radius:5px;background:var(--ink);color:#fff">
     Presentation view &nbsp;<span style="font-weight:normal;opacity:.7">P</span></button>
@@ -189,6 +189,13 @@
   <div class="seg" id="segTopo">
     <button data-t="ls" class="on">line, then stub</button>
     <button data-t="sl">stub at the load</button>
+    <button data-t="ds">double stub</button>
+  </div>
+  <div id="dsBox" style="display:none">
+    <label class="f">Stub spacing d (&lambda;) &mdash; stub 1 to stub 2</label>
+    <input type="text" id="dsp" value="0.125">
+    <label class="f">Load to stub 1, d&#8320; (&lambda;) &mdash; 0 puts stub 1 at the load</label>
+    <input type="text" id="ds0" value="0">
   </div>
   <label class="f">Connection</label>
   <div class="seg" id="segConn">
@@ -259,7 +266,8 @@
   <div id="pcol">
   <div class="key">
     <span><i style="border-color:#d98200;border-top-width:4px"></i><span id="keyLine">line</span></span>
-    <span><i style="border-color:#7b2d8b;border-top-width:4px"></i>stub</span>
+    <span><i style="border-color:#7b2d8b;border-top-width:4px"></i><span id="keyStub">stub</span></span>
+    <span id="keyDs" style="display:none"><span style="margin-right:14px"><i style="border-color:#0f7c80;border-top-width:4px"></i>spacing line</span><i style="border-color:#c2185b;border-top-width:4px"></i>stub 2</span>
     <span><i style="border-color:#b02418"></i>constant r (impedance)</span>
     <span><i style="border-color:#1b4f9c"></i>constant g (admittance)</span>
     <span><i style="border-color:#1a7a35"></i>target and |&Gamma;|</span>
@@ -399,7 +407,8 @@ function inputs(){
   const a=shunt?(z0/z0s):(z0s/z0);
   const lambda=CLIGHT/(f*Math.sqrt(eps));   /* guide wavelength, metres     */
   return {z0:z0,z0s:z0s,f:f,eps:eps,zL:zL,shunt:shunt,opened:opened,
-          a:a,lambda:lambda,norm:norm,atLoad:(S.topo==="sl")};
+          a:a,lambda:lambda,norm:norm,atLoad:(S.topo==="sl"),dbl:(S.topo==="ds"),
+          dsp:num("dsp",0.125),ds0:num("ds0",0)};
 }
 
 /* ---------- the single-stub solver -------------------------------------
@@ -464,13 +473,14 @@ function synth(){
     return;
   }
   if(I.atLoad){synthAtLoad(I);return;}
+  if(I.dbl){synthDouble(I);return;}
   const raw=stubSolve(I.zL,I.shunt);
   const out=[];
   raw.forEach(function(r){
     const L=stubLen(r.need,I.a,I.shunt,I.opened);
     const els=[
-      {kind:"line",v:r.d,type:"line",d:r.d},
-      {kind:"stub",v:r.need,len:L,shunt:I.shunt,
+      {kind:"line",v:r.d,type:"line",d:r.d,slot:1},
+      {kind:"stub",v:r.need,len:L,shunt:I.shunt,slot:2,
        type:(I.opened?"open":"shorted")+" stub"}
     ];
     out.push({root:r.root,d:r.d,len:L,z1:r.z1,y1:r.y1,need:r.need,els:els,
@@ -508,10 +518,10 @@ function synthAtLoad(I){
   const els=[];
   if(Math.abs(r.need)>EPS)
     els.push({kind:"stub",v:r.need,len:stubLen(r.need,I.a,I.shunt,I.opened),
-      shunt:I.shunt,type:(I.opened?"open":"shorted")+" stub"});
+      shunt:I.shunt,slot:1,type:(I.opened?"open":"shorted")+" stub"});
   /* z_T = 1 would be a plain Z0 line: the stub alone has already matched */
   if(Math.abs(r.zt-1)>EPS)
-    els.push({kind:"qw",v:0.25,zt:r.zt,type:"\u03bb/4 transformer"});
+    els.push({kind:"qw",v:0.25,zt:r.zt,slot:2,type:"\u03bb/4 transformer"});
   const o={root:0,d:0,len:els.length&&els[0].kind==="stub"?els[0].len:0,
     z1:r.z1,y1:r.y1,need:r.need,zt:r.zt,els:els,
     name:"stub at the load \u00b7 then a \u03bb/4 transformer"};
@@ -519,12 +529,93 @@ function synthAtLoad(I){
   S.sols=[o]; S.sel=0; S.pick=null;
   S.loadKey=I.zL.re+","+I.zL.im+","+I.shunt+","+I.opened+","+I.a+","+S.topo;
 }
+/* ---------- double-stub tuner -------------------------------------------
+   Work in w = y (shunt stubs) or w = z (series stubs): a Z0 line moves
+   either one by the same law, so one derivation serves both.
+
+   w1 = g + jb' is the point just after stub 1.  The spacing line (beta d,
+   s = sin, c = cos) takes it to
+       w2 = (w1 c + j s)/(c + j w1 s),
+   and stub 2 can only finish the job if Re w2 = 1.  Clearing fractions,
+       (c - b' s)^2 = g - g^2 s^2   =>   b' = (c -/+ sqrt(g - g^2 s^2))/s.
+   A real root needs g <= 1/s^2 = 1/sin^2(beta d): loads with a larger g
+   (r, for series stubs) at stub 1 are the FORBIDDEN REGION.  Stub 1
+   supplies b' - b, stub 2 cancels Im w2.                               */
+function lineW(w,d){                       /* move w toward the generator  */
+  const c=Math.cos(TAU*d), s=Math.sin(TAU*d);
+  return cdiv(C(w.re*c,w.im*c+s),C(c-w.im*s,w.re*s));
+}
+function forbidG(d){const s=Math.sin(TAU*d);return 1/(s*s);}
+function synthDouble(I){
+  const EPS=1e-6, d=I.dsp, d0=I.ds0;
+  const key=I.zL.re+","+I.zL.im+","+I.shunt+","+I.opened+","+I.a+","+S.topo+
+    ","+d+","+d0;
+  if(!(d>0)||!(d0>=0)){
+    S.err="The spacing d must be greater than zero and d\u2080 zero or more.";return;}
+  const sn=Math.sin(TAU*d);
+  if(Math.abs(sn)<1e-3){
+    S.err="A spacing of a multiple of \u03bb/2 brings the rotated circle back onto "+
+      "itself, so the two stubs act as one. Pick another spacing (\u03bb/8 and "+
+      "3\u03bb/8 are the usual choices).";return;}
+  const wL=I.shunt?cinv(I.zL):I.zL;
+  const w0=d0>EPS?lineW(wL,d0):wL;          /* at stub 1                   */
+  const g=w0.re, gmax=forbidG(d), disc=g-g*g*sn*sn;
+  const fam=I.shunt?"g":"r";
+  if(disc<-1e-12){
+    S.err="At stub 1 the load sits at "+fam+" = "+sig(g,4)+", inside the forbidden "+
+      "region "+fam+" &gt; 1/sin\u00b2\u03b2d = "+sig(gmax,4)+" (shaded). No pair of "+
+      "stub lengths can match it. Move stub 1 (change d\u2080 &mdash; try about "+
+      "0.1 \u03bb) or change the spacing d.";
+    S.loadKey=key; return;
+  }
+  const c=Math.cos(TAU*d), q=Math.sqrt(Math.max(0,disc));
+  const out=[];
+  [1,-1].forEach(function(sg){
+    const bp=(c-sg*q)/sn;
+    const b1=bp-w0.im;
+    const w2=lineW(C(g,bp),d);
+    const b2=-w2.im;
+    const tp=(I.opened?"open":"shorted");
+    const els=[];
+    if(d0>EPS)els.push({kind:"line",v:d0,slot:1,lab:"Z\u2080 line, d\u2080"});
+    if(Math.abs(b1)>EPS)els.push({kind:"stub",v:b1,len:stubLen(b1,I.a,I.shunt,I.opened),
+      shunt:I.shunt,slot:2,type:"stub 1 ("+tp+")",col:"#7b2d8b"});
+    els.push({kind:"line",v:d,slot:3,lab:"Z\u2080 line, spacing d",
+      col:"#0f7c80"});
+    if(Math.abs(b2)>EPS)els.push({kind:"stub",v:b2,len:stubLen(b2,I.a,I.shunt,I.opened),
+      shunt:I.shunt,slot:4,type:"stub 2 ("+tp+")",col:"#c2185b"});
+    out.push({root:sg,b1:b1,b2:b2,w1:C(g,bp),w2:w2,els:els,need:b2,
+      z1:I.shunt?cinv(C(g,bp)):C(g,bp),y1:I.shunt?C(g,bp):cinv(C(g,bp))});
+  });
+  /* a tangent landing (disc = 0) gives one solution, not two */
+  if(q<1e-9)out.pop();
+  out.forEach(function(o){
+    o.tot=o.els.reduce(function(t,e){return t+(e.kind==="stub"?e.len:0);},0);});
+  out.sort(function(p,q){return p.tot-q.tot;});
+  out.forEach(function(o,i){
+    o.name="solution "+(i+1)+(out.length>1?(i===0?" \u00b7 shorter stubs":
+      " \u00b7 longer stubs"):"");});
+  S.sols=out;
+  if(key!==S.loadKey){S.pick=null;S.loadKey=key;}
+  let want=-1;
+  if(S.pick)want=S.sols.findIndex(function(o){return o.root===S.pick;});
+  S.sel=(want<0)?0:want;
+}
 /* element helpers shared by every panel */
 const isLine=e=>e.kind==="line"||e.kind==="qw";
 const elLen=e=>e.kind==="stub"?e.len:e.v;
-const elCol=e=>isLine(e)?"#d98200":"#7b2d8b";
-const elHead=e=>isLine(e)?"ahA":"ahV";
+const elCol=e=>e.col||(isLine(e)?"#d98200":"#7b2d8b");
+const HEADS={"#d98200":"ahA","#7b2d8b":"ahV","#0f7c80":"ahT","#c2185b":"ahM"};
+const elHead=e=>HEADS[elCol(e)];
+function secName(e){
+  return e.lab||(e.kind==="line"?"Z\u2080 line":(e.kind==="qw"?"\u03bb/4 line":e.type));
+}
+function nodeName(e){
+  if(S.topo==="ds")return ({1:"At stub 1",2:"After stub 1",3:"At stub 2"})[e.slot];
+  return isLine(e)?"After the line":"After the stub";
+}
 function elName(e,I){
+  if(e.lab)return e.lab;
   if(e.kind==="line")return "Z\u2080 line";
   if(e.kind==="qw")return "\u03bb/4 line  Z\u209c = "+sig(e.zt*I.z0,4)+" \u03a9";
   return e.type;
@@ -578,29 +669,42 @@ function build(){
   });
 }
 
-/* ---------- stages (the line is stage 1, the stub stage 2) ---------- */
+/* ---------- stages ----------------------------------------------------
+   Every element sits in a numbered SLOT: one stage per slot, then
+   denormalize, then lengths.  Line + stub and stub-at-load have two slots;
+   double-stub has four (line to stub 1, stub 1, spacing line, stub 2).  A
+   slot whose element came out as zero has no element and its stage is
+   skipped.                                                             */
+function nSlots(){return S.topo==="ds"?4:2;}
+function lastStage(){return nSlots()+2;}
 function nEls(){const s=S.sols[S.sel];return s?s.els.length:0;}
-function stageSkipped(k){return k===1&&nEls()===1;}
+function stageSkipped(k){
+  const s=S.sols[S.sel];
+  return !!s&&k>=1&&k<=nSlots()&&!s.els.some(function(e){return e.slot===k;});
+}
 function arcsVisible(st){
-  const n=nEls();
-  if(n===2)return st<=0?0:(st===1?1:2);
-  if(n===1)return st<=1?0:1;
-  return 0;
+  const s=S.sols[S.sel];
+  return s?s.els.filter(function(e){return e.slot<=st;}).length:0;
 }
-const STAGE_NAME=["load","run the line","add the stub","denormalize","lengths"];
-const STAGE_NAME_AT=["load","add the stub at the load","add the \u03bb/4 transformer",
-  "denormalize","lengths"];
+const SLOT_NAME={
+  ls:["run the line","add the stub"],
+  sl:["add the stub at the load","add the \u03bb/4 transformer"],
+  ds:["run the line to stub 1","stub 1 onto the rotated circle",
+      "run the spacing line","stub 2 into the centre"]
+};
 function stageName(k){
-  const sol=S.sols[S.sel];
-  if(sol&&k>=1&&k<=2&&sol.els.length){
-    const e=sol.els[Math.max(0,Math.min(sol.els.length-1,arcsVisible(k)-1))];
-    if(e.kind==="stub")return S.topo==="sl"?"add the stub at the load":"add the stub";
-    return e.kind==="qw"?"add the \u03bb/4 transformer":"run the line";
-  }
-  return (S.topo==="sl"?STAGE_NAME_AT:STAGE_NAME)[k];
+  if(k===0)return "load";
+  if(k===nSlots()+1)return "denormalize";
+  if(k>nSlots())return "lengths";
+  return SLOT_NAME[S.topo][k-1];
 }
-function nextStage(){let k=S.stage+1;while(k<=4&&stageSkipped(k))k++;
-  return Math.min(4,k);}
+function skippedList(){
+  const out=[];
+  for(let k=1;k<=nSlots();k++)if(stageSkipped(k))out.push(k);
+  return out;
+}
+function nextStage(){const L=lastStage();let k=S.stage+1;
+  while(k<=L&&stageSkipped(k))k++;return Math.min(L,k);}
 function prevStage(){let k=S.stage-1;while(k>=0&&stageSkipped(k))k--;
   return Math.max(0,k);}
 /* ============================ chart geometry ============================== */
@@ -686,6 +790,10 @@ function drawGrid(){
     /* arrowhead for the second move, in its own colour */
     '<marker id="ahV" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" '+
       'markerHeight="5.5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#7b2d8b"/></marker>'+
+    '<marker id="ahT" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" '+
+      'markerHeight="5.5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#0f7c80"/></marker>'+
+    '<marker id="ahM" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5.5" '+
+      'markerHeight="5.5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#c2185b"/></marker>'+
     '<marker id="ahK" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" '+
       'markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#141414"/></marker>'+
     '<marker id="ahK0" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="5" '+
@@ -782,8 +890,12 @@ function labelAt(g,lines,col,sz){
   const an=dx>0.25?"start":(dx<-0.25?"end":"middle");
   const fs=(sz||12)*FSC();
   let longest=""; lines.forEach(function(t){if(t.length>longest.length)longest=t;});
-  const x=fitX(bx,an,longest,fs), y0=fitY(by);
-  if(PLACED)PLACED.push(boxOf(x,y0,an,longest,fs,lines.length));
+  const x=fitX(bx,an,longest,fs);
+  let y0=fitY(by);
+  if(PLACED){
+    y0=fitY(y0+dodge(boxOf(x,y0,an,longest,fs,lines.length),PLACED));
+    PLACED.push(boxOf(x,y0,an,longest,fs,lines.length));
+  }
   let s="";
   lines.forEach(function(t,i){s+=txh(x,y0+i*fs*1.16,t,{s:sz||12,a:an,c:col,bold:i===0});});
   return s;
@@ -860,9 +972,29 @@ function drawOv(){
     const L=[cc[0]+1.34*cc[2]*ux, cc[1]+1.34*cc[2]*uy];
     const on=[cc[0]+cc[2]*ux, cc[1]+cc[2]*uy];
     s+=ln(on[0],on[1],L[0]-ux*11,L[1]-uy*11,{c:gcol,w:1,d:"3 3",op:0.8});
-    s+=txh(L[0],L[1]-7,(I.shunt?"g = 1":"r = 1"),{s:14,bold:true,c:gcol});
-    s+=txh(L[0],L[1]+8,"the line must land here",{s:11,c:gcol});
+    const sub=I.dbl?"the spacing line must land here":"the line must land here";
+    const lx=fitX(L[0],"middle",sub,11*FSC());
+    s+=txh(lx,L[1]-7,(I.shunt?"g = 1":"r = 1"),{s:14,bold:true,c:gcol});
+    s+=txh(lx,L[1]+8,sub,{s:11,c:gcol});
   })();
+  /* Double stub: the g = 1 circle carried back toward the load by the
+     spacing d (counter-clockwise by 2 beta d) is where stub 1 must land, and
+     the 1/sin^2(beta d) circle bounds the region stub 1 cannot leave.    */
+  if(I.dbl&&I.dsp>0&&Math.abs(Math.sin(TAU*I.dsp))>=1e-3){
+    const gm=forbidG(I.dsp), fc=I.shunt?gCirc(gm):rCirc(gm);
+    s+=ci(fc[0],fc[1],fc[2],{c:"#8a8a85",w:1.4,f:"rgba(120,120,115,0.16)",d:"4 3"});
+    s+=txh(fc[0],fc[1]+(I.shunt?-1:1)*Math.min(fc[2]*0.45,26),"forbidden",
+      {s:11,bold:true,c:"#5f5f5a"});
+    s+=txh(fc[0],fc[1]+(I.shunt?-1:1)*Math.min(fc[2]*0.45,26)+13,
+      (I.shunt?"g":"r")+" > "+sig(gm,3),{s:10,c:"#5f5f5a"});
+    const phi=(I.shunt?Math.PI:0)+2*TAU*I.dsp;
+    const rc=P(polar(0.5,phi));
+    s+='<g clip-path="url(#disc)">'+
+       ci(rc[0],rc[1],R*0.5,{c:gcol,w:2.2*LWC(),d:"10 5",op:0.85})+'</g>';
+    const lp=P(polar(0.78,phi));
+    s+=txh(lp[0],lp[1]-7,"rotated "+(I.shunt?"g = 1":"r = 1"),{s:13,bold:true,c:gcol});
+    s+=txh(lp[0],lp[1]+8,"stub 1 must land here",{s:11,c:gcol});
+  }
 
   /* target at the chart centre */
   const gT=C(0,0), pT=P(gT);
@@ -874,7 +1006,7 @@ function drawOv(){
     s+=mark(gL,"#b02418");
     s+=labelAt(gL,["zₗ = "+cf(I.zL,4),"yₗ = "+cf(cinv(I.zL),4)],"#b02418");
     s+=cons(gL);
-    $("ov").innerHTML=s;return;
+    $("ov").innerHTML=s;drawActiveReadout(gL);return;
   }
 
   const n=arcsVisible(S.stage), A=activeInfo();
@@ -912,11 +1044,13 @@ function drawOv(){
   s+=mark(z2g(S.nodes[0].z),"#b02418");
   s+=labelAt(z2g(S.nodes[0].z),["zₗ = "+cf(S.nodes[0].z,4),
       "yₗ = "+cf(S.nodes[0].y,4)],"#b02418");
-  /* the crossing point: the number a student hunts for with a compass */
-  if(S.nodes.length>2&&n>=1&&(n>1||S.prog>=1)){
-    const nd=S.nodes[1], g=z2g(nd.z);
+  /* the crossing points: the numbers a student hunts for with a compass */
+  const SUB="₀₁₂₃₄₅";
+  for(let j=1;j<S.nodes.length-1;j++){
+    if(!(n>j||(n===j&&S.prog>=1)))break;
+    const nd=S.nodes[j], g=z2g(nd.z);
     s+=mark(g,"#141414");
-    s+=labelAt(g,["z₁ = "+cf(nd.z,4),"y₁ = "+cf(nd.y,4)],"#141414");
+    s+=labelAt(g,["z"+SUB[j]+" = "+cf(nd.z,4),"y"+SUB[j]+" = "+cf(nd.y,4)],"#141414");
   }
   if(n>=S.arcs.length&&S.prog>=1){
     s+=labelAt(gT,["z = 1.000 + j0   ✓ matched"],"#1a7a35");
@@ -944,7 +1078,8 @@ function drawOv(){
       const lcol=elCol(el);
       let t1,dir;
       if(el.kind==="line"){
-        t1="line  d = "+el.v.toFixed(4)+" \u03bb toward generator"+
+        t1=(S.topo==="ds"?(el.slot===3?"spacing line  d = ":"line to stub 1  d\u2080 = ")
+           :"line  d = ")+el.v.toFixed(4)+" \u03bb toward generator"+
            "   \u00b7  along |\u0393| = "+sig(el.cval,4);
         /* the wavelength ring already carries the factor of 2, so the
            reading simply advances by d                                  */
@@ -1058,7 +1193,8 @@ function drawSchInner(){
   const TOP=64, BOT=170, X0=46, XL=612;
   let s="";
   s+=tx(350,20,I.atLoad?"Stub at the load, then a \u03bb/4 transformer"
-    :"Single-stub tuner \u2014 source on the left, load on the right",
+    :(I.dbl?"Double-stub tuner \u2014 stub 2 nearest the source"
+    :"Single-stub tuner \u2014 source on the left, load on the right"),
     {s:12.5,bold:true,c:"#333"});
   if(!sol){
     s+=ln(X0,TOP,XL,TOP,{c:"#141414",w:2});
@@ -1069,7 +1205,7 @@ function drawSchInner(){
   const line=sol.els.filter(isLine)[0];
   const stub=sol.els.filter(function(e){return e.kind==="stub";})[0];
   const act=(function(){
-    if(S.stage<1||S.stage>2)return -1;
+    if(S.stage<1||S.stage>nSlots())return -1;
     const n=arcsVisible(S.stage);
     return n<1?-1:Math.min(n-1,sol.els.length-1);
   })();
@@ -1096,7 +1232,67 @@ function drawSchInner(){
        '" stroke-width="'+lw+'"/>';
     s+=tx((x0+x1)/2,TOP,lineTxt,{s:13,bold:true,c:lcol});
   };
-  if(I.atLoad&&I.shunt){
+  if(I.dbl){
+    /* source -- stub 2 -- spacing line -- stub 1 -- (d0 line) -- load */
+    const bySlot=function(k){return sol.els.filter(function(e){return e.slot===k;})[0];};
+    const e0=bySlot(1), st1=bySlot(2), sp=bySlot(3), st2=bySlot(4);
+    const on=function(e){return !!e&&act>=0&&sol.els[act]===e;};
+    const box=function(x0,x1,e,txt,fill){
+      const c=on(e)?elCol(e):"#141414";
+      s+='<rect x="'+x0+'" y="'+(TOP-13)+'" width="'+(x1-x0)+'" height="26" rx="3" '+
+         'fill="'+(on(e)?fill:"#f2f2ef")+'" stroke="'+c+'" stroke-width="'+
+         (on(e)?4:2.6)+'"/>';
+      if(txt)s+=tx((x0+x1)/2,TOP,txt,{s:13,bold:true,c:c});
+    };
+    const wire=function(x0,x1){s+=ln(x0,TOP,x1,TOP,{c:"#141414",w:2.6});};
+    const stubLines=function(n,e){
+      return e?["stub "+n+" \u00b7 "+(I.opened?"open":"shorted"),
+        "\u2113 = "+e.len.toFixed(4)+" \u03bb","Z\u2080\u209b = "+sig(I.z0s,4)+" \u03a9"]
+        :["stub "+n,"not needed"];
+    };
+    const labs=function(x,y,lines,col,an){
+      lines.forEach(function(t,i){
+        s+=tx(x,y+i*16,t,{s:i===0?12.5:12,bold:i===0,c:i===0?col:"#555",a:an});});
+    };
+    if(I.shunt){
+      const S2=170, S1=e0?430:548, SB=BOT-6;
+      wire(X0,S2);
+      box(S2,S1,sp,"spacing   d = "+(sp?sp.v.toFixed(4):"")+" \u03bb","#e3f3f3");
+      if(e0)box(S1,XL,e0,"d\u2080 = "+e0.v.toFixed(4)+" \u03bb","#fdf3e3");
+      else wire(S1,XL);
+      [[S2,st2,2,"start"],[S1,st1,1,e0?"start":"end"]].forEach(function(q){
+        const x=q[0], e=q[1], col=e?(on(e)?elCol(e):elCol(e)):"#8a8a85";
+        const w=on(e)?4:2.6;
+        s+=ci(x,TOP,4,{c:"#141414",w:0,f:"#141414"});
+        if(e){
+          s+='<rect x="'+(x-15)+'" y="'+(TOP+10)+'" width="30" height="'+(SB-TOP-10)+
+             '" rx="3" fill="'+(on(e)?"#f6eefa":"#f2f2ef")+'" stroke="'+col+
+             '" stroke-width="'+w+'"/>';
+          if(I.opened)s+=ln(x-15,SB,x+15,SB,{c:col,w:w});
+          else s+=ln(x,SB,x,BOT,{c:col,w:w});
+        }
+        labs(q[3]==="start"?x+24:x-24,TOP+34,stubLines(q[2],e),col,q[3]);
+      });
+    }else{
+      wire(X0,70);
+      const sbox=function(x0,x1,e,n){
+        if(e)box(x0,x1,e,"series","#f6eefa"); else wire(x0,x1);
+        labs((x0+x1)/2,TOP+30,stubLines(n,e),e?elCol(e):"#8a8a85","middle");
+      };
+      sbox(70,170,st2,2);
+      wire(170,190);
+      box(190,400,sp,"spacing   d = "+(sp?sp.v.toFixed(4):"")+" \u03bb","#e3f3f3");
+      wire(400,420);
+      sbox(420,520,st1,1);
+      if(e0){
+        wire(520,530);
+        box(530,606,e0,"","#fdf3e3");
+        s+=tx(568,TOP+30,"d\u2080 =",{s:12.5,bold:true,c:elCol(e0)});
+        s+=tx(568,TOP+46,e0.v.toFixed(4)+" \u03bb",{s:12,c:"#555"});
+        wire(606,XL);
+      }else wire(520,XL);
+    }
+  }else if(I.atLoad&&I.shunt){
     /* source -- lambda/4 transformer -- stub tap right at the load */
     s+=ln(X0,TOP,140,TOP,{c:"#141414",w:2.6});
     lineBox(140,500);
@@ -1212,7 +1408,8 @@ function drawSols(){
   let s="";
   S.sols.forEach(function(o,i){
     const bits=o.els.map(function(e){
-      if(e.kind==="line")return "line d = "+e.v.toFixed(4)+" \u03bb";
+      if(e.kind==="line")return (S.topo!=="ds"?"line d":(e.slot===3?"spacing d":"d\u2080"))+
+        " = "+e.v.toFixed(4)+" \u03bb";
       if(e.kind==="qw")return "\u03bb/4 line Z\u209c = "+sig(e.zt*I.z0,4)+" \u03a9";
       return e.type+" \u2113 = "+e.len.toFixed(4)+" \u03bb";
     });
@@ -1221,7 +1418,10 @@ function drawSols(){
       ?(o.els[0].kind==="qw"?"the load is already real \u2014 no stub needed"
                             :"the stub alone matches \u2014 no transformer needed")
       :"the load already lies on the gateway circle";
-    const second=I.atLoad
+    const second=I.dbl
+      ? ((I.shunt?"jb\u2081 = ":"jx\u2081 = ")+jf(o.b1,4)+"   \u00b7   "+
+         (I.shunt?"jb\u2082 = ":"jx\u2082 = ")+jf(o.b2,4))
+      : I.atLoad
       ? ("stub supplies "+(I.shunt?"jb = ":"jx = ")+jf(o.need,4)+
          "   \u2192   "+(I.shunt?"y":"z")+"\u2081 = "+cf(I.shunt?o.y1:o.z1,4))
       : ((I.shunt?"y":"z")+"\u2081 = "+cf(I.shunt?o.y1:o.z1,4)+
@@ -1242,7 +1442,16 @@ function drawSols(){
   else if(S.info)m='<div class="ok">'+S.info+'</div>';
   else{
     const sol=S.sols[S.sel];
-    if(sol&&sol.degen&&!I.atLoad)
+    if(sol&&I.dbl){
+      const w0=I.ds0>1e-6?lineW(I.shunt?cinv(I.zL):I.zL,I.ds0):(I.shunt?cinv(I.zL):I.zL);
+      const fam=I.shunt?"g":"r";
+      m='<div class="ok">At stub 1, '+fam+' = '+sig(w0.re,4)+' \u2014 outside the '+
+        'forbidden region '+fam+' &gt; 1/sin\u00b2\u03b2d = '+sig(forbidG(I.dsp),4)+
+        ', so two stub pairs exist. Stub 1 moves the point along its '+fam+
+        ' circle onto the rotated circle; the spacing line carries it to '+fam+
+        ' = 1; stub 2 finishes.</div>';
+    }
+    else if(sol&&sol.degen&&!I.atLoad)
       m='<div class="ok">The load already lies on the '+(I.shunt?"g = 1":"r = 1")+
         ' circle, so no line length is needed \u2014 the stub alone matches it. '+
         'Stage 1 is skipped.</div>';
@@ -1260,7 +1469,7 @@ function drawSols(){
 
 function drawTables(){
   const I=inputs(), sol=S.sols[S.sel];
-  const n=arcsVisible(S.stage), showZ=(S.stage>=3), showL=(S.stage>=4);
+  const n=arcsVisible(S.stage), showZ=(S.stage>=nSlots()+1), showL=(S.stage>=lastStage());
   const nrow=function(name,z,y,vis,vz){
     const g='<span style="color:#555">';
     return '<tr><td>'+name+'</td>'+
@@ -1275,8 +1484,7 @@ function drawTables(){
   }
   const names=["Load"];
   sol.els.forEach(function(e,i){
-    names.push(i===sol.els.length-1?"Match (input)"
-      :(isLine(e)?"After the line":"After the stub"));});
+    names.push(i===sol.els.length-1?"Match (input)":nodeName(e));});
   S.nodes.forEach(function(nd,i){t+=nrow(names[i],nd.z,nd.y,(i<=n),showZ);});
   $("tn").innerHTML=t;
 
@@ -1287,12 +1495,11 @@ function drawTables(){
     const L=elLen(el);
     const phys=L*I.lambda;
     const sup=(el.kind==="line")
-      ? ("|\u0393| held at "+sig(cabs(z2g(I.zL)),4))
+      ? ("|\u0393| held at "+sig(el.cval,4))
       : (el.kind==="qw"
         ? ("Z\u209c = "+sig(el.zt*I.z0,4)+" \u03a9")
         : ((el.shunt?"jb = ":"jx = ")+jf(el.v,4)));
-    e+='<tr class="el"><td>'+(i+1)+" "+(el.kind==="line"?"Z\u2080 line"
-      :(el.kind==="qw"?"\u03bb/4 line":el.type))+'</td>'+
+    e+='<tr class="el"><td>'+(i+1)+" "+secName(el)+'</td>'+
       cell(vis,L.toFixed(4)+" \u03bb<br><span style=\"color:#555\">"+
            sig(L*360,4)+"\u00b0</span>")+
       cell(vis&&showZ,sup)+
@@ -1309,7 +1516,7 @@ function drawTables(){
       const L=elLen(el);
       let line;
       if(el.kind==="line")
-        line="d = "+L.toFixed(4)+" \u03bb \u00d7 "+lenStr(I.lambda)+
+        line=(S.topo==="ds"&&el.slot===1?"d\u2080 = ":"d = ")+L.toFixed(4)+" \u03bb \u00d7 "+lenStr(I.lambda)+
              " = <b>"+lenStr(L*I.lambda)+"</b>";
       else if(el.kind==="qw"){
         const Rp=sol.z1.re*I.z0;
@@ -1338,20 +1545,21 @@ function cell(vis,html){
 function drawStage(){
   const sol=S.sols[S.sel], n=nEls();
   let extra="";
-  if(sol&&S.stage>=1&&S.stage<=2&&arcsVisible(S.stage)>0){
+  if(sol&&S.stage>=1&&S.stage<=nSlots()&&arcsVisible(S.stage)>0){
     const el=sol.els[Math.min(arcsVisible(S.stage)-1,sol.els.length-1)];
     extra=" \u2014 "+(el.kind==="line"?("Z\u2080 line, "+el.v.toFixed(4)+" \u03bb")
       :(el.kind==="qw"?("\u03bb/4 line, Z\u209c = "+sig(el.zt*inputs().z0,4)+" \u03a9")
                       :(el.type+", "+el.len.toFixed(4)+" \u03bb")));
   }
-  const txt="stage "+S.stage+" of 4 <span>&mdash; "+
+  const sk=sol?skippedList():[];
+  const txt="stage "+S.stage+" of "+lastStage()+" <span>&mdash; "+
     stageName(S.stage)+esc(extra)+"</span>"+
-    (n===1?' <span>(stage 1 skipped)</span>':"");
+    (sk.length?' <span>(stage'+(sk.length>1?"s ":" ")+sk.join(", ")+' skipped)</span>':"");
   $("stage").innerHTML=txt; $("pstage").innerHTML=txt;
-  $("pNext").disabled=(S.stage>=4)||!sol;
+  $("pNext").disabled=(S.stage>=lastStage())||!sol;
   $("pPlay").disabled=!sol;
   $("pBack").disabled=(S.stage<=0);
-  $("bNext").disabled=(S.stage>=4)||!sol;
+  $("bNext").disabled=(S.stage>=lastStage())||!sol;
   $("bPlay").disabled=!sol;
   $("bBack").disabled=(S.stage<=0);
 }
@@ -1362,7 +1570,7 @@ function drawStage(){
 function drawPfoot(){
   if(!S.present)return;
   const I=inputs(), sol=S.sols[S.sel];
-  const n=arcsVisible(S.stage), showZ=(S.stage>=3), showL=(S.stage>=4);
+  const n=arcsVisible(S.stage), showZ=(S.stage>=nSlots()+1), showL=(S.stage>=lastStage());
   const v=function(on,t){return '<span class="val'+(on?"":" dim")+'">'+
     (on?t:"\u2014")+'</span>';};
   let h="";
@@ -1376,8 +1584,7 @@ function drawPfoot(){
   }
   const names=["Load"];
   sol.els.forEach(function(e,i){
-    names.push(i===sol.els.length-1?"Match"
-      :(isLine(e)?"After line":"After stub"));});
+    names.push(i===sol.els.length-1?"Match":nodeName(e));});
   S.nodes.forEach(function(nd,i){
     h+='<div class="fr"><span class="lab">'+names[i]+'</span><span class="vals">'+
        v(i<=n,"z = "+cf(nd.z))+v(i<=n,"y = "+cf(nd.y))+
@@ -1389,7 +1596,7 @@ function drawPfoot(){
     h+='<div class="fr"><span class="lab"><span class="tagm" style="background:'+
        col+'">move '+(i+1)+'</span></span><span class="vals">'+
        '<span class="val" style="color:#555">'+
-       (el.kind==="line"?"Z\u2080 line":(el.kind==="qw"?"\u03bb/4 line":el.type))+
+       secName(el)+
        '</span>'+
        v(n>i,L.toFixed(4)+" \u03bb")+v(n>i,sig(L*360,4)+"\u00b0")+
        v(n>i&&showZ,el.kind==="line"?"|\u0393| held"
@@ -1469,7 +1676,7 @@ function goStage(k,after){
   if(newArcs>prevArcs){S.prog=0;runArc(after);}
   else{S.prog=1;drawOv();drawSch();drawTables();if(after)after();}
 }
-function next(){if(S.stage<4)goStage(nextStage());}
+function next(){if(S.stage<lastStage())goStage(nextStage());}
 function back(){stopAnim();S.playing=false;S.stage=prevStage();S.prog=1;
   drawStage();drawOv();drawSch();drawTables();drawSols();}
 function playAll(){
@@ -1478,7 +1685,7 @@ function playAll(){
   stopAnim();S.playing=true;S.stage=0;S.prog=1;
   const step=function(){
     if(!S.playing)return;
-    if(S.stage>=4){S.playing=false;return;}
+    if(S.stage>=lastStage()){S.playing=false;return;}
     goStage(nextStage(),function(){setTimeout(step,250);});
   };
   redraw();setTimeout(step,200);
@@ -1491,11 +1698,12 @@ function recalc(){stopAnim();S.playing=false;S.stage=0;S.prog=1;
 function tsv(){
   const I=inputs(), sol=S.sols[S.sel];
   const plain=s=>String(s).replace(/<[^>]*>/g,"").replace(/\u2212/g,"-");
-  let L=["Single-stub tuner  \u2014  ECE 4123/6423  Fall 2026"];
+  let L=[(I.dbl?"Double":"Single")+"-stub tuner  \u2014  ECE 4123/6423  Fall 2026"];
   L.push("Z0\t"+I.z0+" ohm\tZ0s\t"+I.z0s+" ohm");
   L.push("f\t"+fStr()+"\teps_eff\t"+I.eps+"\tlambda\t"+plain(lenStr(I.lambda)));
   L.push("stub\t"+(I.shunt?"shunt":"series")+" "+(I.opened?"open":"shorted")+
-    "\t"+(I.atLoad?"at the load, then lambda/4 transformer":"line, then stub"));
+    "\t"+(I.atLoad?"at the load, then lambda/4 transformer"
+      :(I.dbl?"double stub, spacing "+I.dsp+" lambda, d0 "+I.ds0+" lambda":"line, then stub")));
   L.push("zL\t"+plain(cf(I.zL))+"\tyL\t"+plain(cf(cinv(I.zL))));
   if(sol){
     L.push("solution\t"+plain(sol.name));
@@ -1508,7 +1716,7 @@ function tsv(){
     L.push("");L.push("Section\tlambda\tdegrees\tsupplies\tphysical");
     sol.els.forEach(function(el,i){
       const Ln=elLen(el);
-      L.push((i+1)+" "+(el.kind==="line"?"Z0 line":(el.kind==="qw"?"lambda/4 line":el.type))+
+      L.push((i+1)+" "+plain(secName(el))+
         "\t"+Ln.toFixed(4)+"\t"+plain(sig(Ln*360,4))+"\t"+
         (el.kind==="line"?"|G| held":(el.kind==="qw"
           ?"ZT = "+plain(sig(el.zt*I.z0,4))+" ohm"
@@ -1601,8 +1809,27 @@ function setSeg(id,key,val){
   topoText();
   recalc();
 }
+function dsShow(){$("dsBox").style.display=(S.topo==="ds")?"block":"none";}
 /* the explanatory text follows the chosen placement */
 function topoText(){
+  dsShow();
+  if(S.topo==="ds"){
+    $("topoNote").innerHTML="Two stubs a fixed spacing d apart; only their lengths "+
+      "change. Stub 1 (nearer the load) puts the point on the g&nbsp;=&nbsp;1 circle "+
+      "rotated toward the load by d; the spacing line turns it onto g&nbsp;=&nbsp;1; "+
+      "stub 2 brings it to the centre. Loads with g&nbsp;&gt;&nbsp;1/sin&sup2;&beta;d at "+
+      "stub 1 cannot be matched (the forbidden region) &mdash; move stub 1 with "+
+      "d&#8320; or change d. Series stubs work the same way in r.";
+    $("keyLine").innerHTML="line to stub 1";
+    $("keyText").innerHTML="Stub 1 rides its constant-g (or r) circle onto the "+
+      "rotated gateway circle (dashed). The spacing line, in teal, turns that point "+
+      "clockwise by 2&beta;d onto g&nbsp;=&nbsp;1 (or r&nbsp;=&nbsp;1), and stub 2, in "+
+      "rose, rides g&nbsp;=&nbsp;1 into the centre. The grey disc is the forbidden "+
+      "region for this spacing.";
+    $("keyDs").style.display=""; $("keyStub").textContent="stub 1";
+    return;
+  }
+  $("keyDs").style.display="none"; $("keyStub").textContent="stub";
   if(S.topo==="sl"){
     $("topoNote").innerHTML="The stub sits right at the load and cancels its "+
       "susceptance (shunt) or reactance (series), leaving a pure resistance R&prime;. "+
@@ -1627,7 +1854,7 @@ function topoText(){
       "readable together.";
   }
 }
-["z0","z0s","rl","xl","fr","eps"].forEach(function(id){
+["z0","z0s","rl","xl","fr","eps","dsp","ds0"].forEach(function(id){
   $(id).addEventListener("input",recalc);
 });
 $("fu").addEventListener("change",recalc);
@@ -1679,7 +1906,7 @@ window.addEventListener("keydown",function(e){
   else if(k==="Escape"&&S.present){e.preventDefault();setPresent(false);}
   else if(k==="Home"){e.preventDefault();reset();}
   else if(k==="End"){e.preventDefault();stopAnim();S.playing=false;
-    S.stage=4;S.prog=1;redraw();}
+    S.stage=lastStage();S.prog=1;redraw();}
 });
 
 topoText();
