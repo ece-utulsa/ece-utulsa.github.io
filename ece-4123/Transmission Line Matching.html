@@ -132,7 +132,7 @@
 <body>
 <header>
   <div class="t">Transmission Line Matching</div>
-  <div class="s">single-stub tuner &middot; ZY Smith Chart &middot; animated construction</div>
+  <div class="s">single-stub tuner &middot; line + stub or stub at the load &middot; ZY Smith Chart &middot; animated construction</div>
   <button id="bPresent" style="padding:7px 13px;font-size:13px;font-weight:bold;
     border:2px solid var(--ink);border-radius:5px;background:var(--ink);color:#fff">
     Presentation view &nbsp;<span style="font-weight:normal;opacity:.7">P</span></button>
@@ -185,6 +185,11 @@
   </div>
 
   <h2>Stub</h2>
+  <label class="f">Placement</label>
+  <div class="seg" id="segTopo">
+    <button data-t="ls" class="on">line, then stub</button>
+    <button data-t="sl">stub at the load</button>
+  </div>
   <label class="f">Connection</label>
   <div class="seg" id="segConn">
     <button data-c="sh" class="on">shunt</button>
@@ -197,11 +202,7 @@
   </div>
   <label class="f">Stub impedance Z<sub>0s</sub> (&#937;)</label>
   <input type="text" id="z0s" value="50">
-  <div class="note" style="margin-top:6px">
-    The main line runs at Z&#8320;, so the move toward the generator is a
-    rotation on the constant-|&Gamma;| circle. A stub of its own Z<sub>0s</sub>
-    only changes the stub length.
-  </div>
+  <div class="note" id="topoNote" style="margin-top:6px"></div>
 
   <h2>Physical length</h2>
   <label class="f">Frequency</label>
@@ -257,18 +258,13 @@
   </svg></div>
   <div id="pcol">
   <div class="key">
-    <span><i style="border-color:#d98200;border-top-width:4px"></i>move 1 &mdash; line</span>
-    <span><i style="border-color:#7b2d8b;border-top-width:4px"></i>move 2 &mdash; stub</span>
+    <span><i style="border-color:#d98200;border-top-width:4px"></i><span id="keyLine">line</span></span>
+    <span><i style="border-color:#7b2d8b;border-top-width:4px"></i>stub</span>
     <span><i style="border-color:#b02418"></i>constant r (impedance)</span>
     <span><i style="border-color:#1b4f9c"></i>constant g (admittance)</span>
     <span><i style="border-color:#1a7a35"></i>target and |&Gamma;|</span>
   </div>
-  <div style="font-size:11.5px;color:#555;margin:5px 0 0;line-height:1.5">
-    Move 1 runs the line toward the generator &mdash; a clockwise rotation on the
-    constant-|&Gamma;| (SWR) circle until it meets the gateway circle. Move 2 is
-    the stub, riding that gateway circle into the centre. Each move keeps its own
-    colour for good, so both halves stay readable together.
-  </div>
+  <div id="keyText" style="font-size:11.5px;color:#555;margin:5px 0 0;line-height:1.5"></div>
   <div style="font-size:11.5px;color:#555;margin:5px 0 0;line-height:1.5">
     Outer rings, from the rim outward: angle of reflection coefficient (degrees),
     then one wavelength tick band read two ways &mdash; wavelengths toward load on
@@ -381,7 +377,7 @@ function lenStr(m){                       /* physical length, auto-scaled */
 
 /* ---------- state ---------- */
 const S={
-  units:"phys", conn:"sh", end:"sc", stage:0, sel:0, prog:1, anim:null,
+  units:"phys", topo:"ls", conn:"sh", end:"sc", stage:0, sel:0, prog:1, anim:null,
   playing:false, sols:[], err:"", info:"", arcs:[], nodes:[],
   speed:520, alab:"active", gz:true, gy:true, gc:true,
   pick:null, loadKey:"", present:false, pzoom:1
@@ -403,7 +399,7 @@ function inputs(){
   const a=shunt?(z0/z0s):(z0s/z0);
   const lambda=CLIGHT/(f*Math.sqrt(eps));   /* guide wavelength, metres     */
   return {z0:z0,z0s:z0s,f:f,eps:eps,zL:zL,shunt:shunt,opened:opened,
-          a:a,lambda:lambda,norm:norm};
+          a:a,lambda:lambda,norm:norm,atLoad:(S.topo==="sl")};
 }
 
 /* ---------- the single-stub solver -------------------------------------
@@ -437,6 +433,22 @@ function stubLen(need,a,shunt,opened){
   return L;
 }
 
+/* ---------- stub at the load -------------------------------------------
+   The stub goes first, right across (or in series with) the load, and
+   cancels the load's own susceptance (shunt) or reactance (series): the
+   point rides its g (or r) circle onto the real axis.  What is left is a
+   pure resistance, and a Z0 line can no longer help -- it would only spin
+   that point round its |G| circle, never to the centre.  So the line that
+   follows is a quarter-wave transformer of its own impedance,
+       Z_T = sqrt(Z0 * R'),   R' = resistance after the stub,
+   which carries R' to Z0 exactly.  One solution per termination.       */
+function stubAtLoadSolve(zL,shunt){
+  const yL=cinv(zL);
+  const need=-(shunt?yL.im:zL.im);
+  const z1=shunt?C(1/yL.re,0):C(zL.re,0);
+  return {need:need,z1:z1,y1:cinv(z1),zt:Math.sqrt(z1.re)};
+}
+
 function synth(){
   const I=inputs();
   S.err=""; S.info=""; S.sols=[];
@@ -451,6 +463,7 @@ function synth(){
     S.info="already matched — no tuner needed (z<sub>L</sub> = 1 + j0).";
     return;
   }
+  if(I.atLoad){synthAtLoad(I);return;}
   const raw=stubSolve(I.zL,I.shunt);
   const out=[];
   raw.forEach(function(r){
@@ -484,11 +497,37 @@ function synth(){
   });
   S.sols=good;
   if(!good.length)S.err="No single-stub solution exists for this load.";
-  const key=I.zL.re+","+I.zL.im+","+I.shunt+","+I.opened+","+I.a;
+  const key=I.zL.re+","+I.zL.im+","+I.shunt+","+I.opened+","+I.a+","+S.topo;
   if(key!==S.loadKey){S.pick=null;S.loadKey=key;}
   let want=-1;
   if(S.pick)want=S.sols.findIndex(function(o){return o.root===S.pick;});
   S.sel=(want<0)?0:want;
+}
+function synthAtLoad(I){
+  const r=stubAtLoadSolve(I.zL,I.shunt), EPS=1e-6;
+  const els=[];
+  if(Math.abs(r.need)>EPS)
+    els.push({kind:"stub",v:r.need,len:stubLen(r.need,I.a,I.shunt,I.opened),
+      shunt:I.shunt,type:(I.opened?"open":"shorted")+" stub"});
+  /* z_T = 1 would be a plain Z0 line: the stub alone has already matched */
+  if(Math.abs(r.zt-1)>EPS)
+    els.push({kind:"qw",v:0.25,zt:r.zt,type:"\u03bb/4 transformer"});
+  const o={root:0,d:0,len:els.length&&els[0].kind==="stub"?els[0].len:0,
+    z1:r.z1,y1:r.y1,need:r.need,zt:r.zt,els:els,
+    name:"stub at the load \u00b7 then a \u03bb/4 transformer"};
+  o.degen=(els.length===1);
+  S.sols=[o]; S.sel=0; S.pick=null;
+  S.loadKey=I.zL.re+","+I.zL.im+","+I.shunt+","+I.opened+","+I.a+","+S.topo;
+}
+/* element helpers shared by every panel */
+const isLine=e=>e.kind==="line"||e.kind==="qw";
+const elLen=e=>e.kind==="stub"?e.len:e.v;
+const elCol=e=>isLine(e)?"#d98200":"#7b2d8b";
+const elHead=e=>isLine(e)?"ahA":"ahV";
+function elName(e,I){
+  if(e.kind==="line")return "Z\u2080 line";
+  if(e.kind==="qw")return "\u03bb/4 line  Z\u209c = "+sig(e.zt*I.z0,4)+" \u03a9";
+  return e.type;
 }
 
 /* ---------- path: nodes and arcs for the selected solution ---------- */
@@ -509,6 +548,21 @@ function build(){
       for(let i=0;i<=N;i++)pts.push(polar(m,a0-2*TAU*e.v*(i/N)));
       z=g2z(pts[pts.length-1]);
       e.wtg1=((0.25-carg(pts[pts.length-1])*180/Math.PI/720)%0.5+0.5)%0.5;
+    }else if(e.kind==="qw"){
+      /* Z_in = Z_T (z cos + j z_T sin)/(z_T cos + j z sin), normalized to Z0.
+         On the Z0 chart this is not a turn about the centre -- it is half a
+         turn on the |G| circle of a chart normalized to Z_T, which maps to
+         an off-centre circle through r' and the centre.                  */
+      const t=e.zt, z0=z;
+      const zin=function(bl){const c=Math.cos(bl), s=Math.sin(bl);
+        return cmul(C(t),cdiv(C(z0.re*c,z0.im*c+t*s),C(t*c-z0.im*s,z0.re*s)));};
+      e.circle="|\u0393\u209c|";
+      e.cval=cabs(z2g(C(z0.re/t,z0.im/t)));
+      e.ride=[];
+      for(let i=0;i<=96;i++)e.ride.push(z2g(zin(Math.PI*i/96)));
+      for(let i=0;i<=N;i++)pts.push(z2g(zin(Math.PI/2*i/N)));
+      z=zin(Math.PI/2);
+      if(Math.abs(z.re-1)<1e-9&&Math.abs(z.im)<1e-9)z=C(1,0);
     }else if(e.shunt){
       const y=cinv(z);
       e.circle="g"; e.cval=y.re;
@@ -534,6 +588,17 @@ function arcsVisible(st){
   return 0;
 }
 const STAGE_NAME=["load","run the line","add the stub","denormalize","lengths"];
+const STAGE_NAME_AT=["load","add the stub at the load","add the \u03bb/4 transformer",
+  "denormalize","lengths"];
+function stageName(k){
+  const sol=S.sols[S.sel];
+  if(sol&&k>=1&&k<=2&&sol.els.length){
+    const e=sol.els[Math.max(0,Math.min(sol.els.length-1,arcsVisible(k)-1))];
+    if(e.kind==="stub")return S.topo==="sl"?"add the stub at the load":"add the stub";
+    return e.kind==="qw"?"add the \u03bb/4 transformer":"run the line";
+  }
+  return (S.topo==="sl"?STAGE_NAME_AT:STAGE_NAME)[k];
+}
 function nextStage(){let k=S.stage+1;while(k<=4&&stageSkipped(k))k++;
   return Math.min(4,k);}
 function prevStage(){let k=S.stage-1;while(k>=0&&stageSkipped(k))k--;
@@ -772,13 +837,24 @@ function drawOv(){
      as well would invite the class to aim at the wrong circle.           */
   const cgate=I.shunt?gCirc(1):rCirc(1);
   const gcol=I.shunt?"#1b4f9c":"#b02418";
-  s+=ci(cgate[0],cgate[1],cgate[2],{c:gcol,w:2.6*LWC(),op:0.85});
+  /* With the stub at the load the stub moves first, so its target is the
+     real axis (b = 0 or x = 0); the lambda/4 transformer then takes any
+     point there to the centre.                                            */
+  if(I.atLoad){
+    s+=ln(CX-R,CY,CX+R,CY,{c:gcol,w:2.6*LWC(),op:0.85});
+    const up=(z2g(I.zL).im>=0)?1:-1;     /* label on the side away from the load */
+    const lx=CX+R*0.62, ly=(up>0)?CY+34:CY-50;
+    s+=ln(lx,CY,lx,(up>0)?ly-10:ly+24,{c:gcol,w:1,d:"3 3",op:0.8});
+    s+=txh(lx,ly,(I.shunt?"b = 0":"x = 0"),{s:14,bold:true,c:gcol});
+    s+=txh(lx,ly+15,"the stub must land here",{s:11,c:gcol});
+  }
+  if(!I.atLoad)s+=ci(cgate[0],cgate[1],cgate[2],{c:gcol,w:2.6*LWC(),op:0.85});
   const half=(function(){
     let t=z2g(I.zL).im, k=1;
     S.nodes.forEach(function(nd){t+=z2g(nd.z).im;k++;});
     return (t/k)>=0?-1:1;                     /* -1 = park it lower         */
   })();
-  (function(){
+  if(!I.atLoad)(function(){
     const cc=cgate, a=half*(I.shunt?140:40)*Math.PI/180;
     const ux=Math.cos(a), uy=-Math.sin(a);
     const L=[cc[0]+1.34*cc[2]*ux, cc[1]+1.34*cc[2]*uy];
@@ -807,10 +883,15 @@ function drawOv(){
   if(n>0){
     const el=S.arcs[A.idx].el;
     let c,cc;
-    if(el.kind==="line"){ c=[CX,CY,R*el.cval]; cc="#141414"; }   /* SWR circle */
-    else if(el.shunt){ c=gCirc(el.cval); cc="#1b4f9c"; }
-    else { c=rCirc(el.cval); cc="#b02418"; }
-    s+=ci(c[0],c[1],c[2],{c:cc,w:1.8,d:"7 5",op:S.prog<1?0.8:0.3});
+    if(el.kind==="qw"){
+      /* the transformer's own |G_T| circle, seen on the Z0 chart */
+      s+=pth(poly(el.ride),{c:"#141414",w:1.8,d:"7 5",op:S.prog<1?0.8:0.3});
+    }else{
+      if(el.kind==="line"){ c=[CX,CY,R*el.cval]; cc="#141414"; }   /* SWR circle */
+      else if(el.shunt){ c=gCirc(el.cval); cc="#1b4f9c"; }
+      else { c=rCirc(el.cval); cc="#b02418"; }
+      s+=ci(c[0],c[1],c[2],{c:cc,w:1.8,d:"7 5",op:S.prog<1?0.8:0.3});
+    }
   }
   /* Each move has its OWN colour and keeps it for good: move 1 amber, move 2
      violet.  The first arc must not fade when the second swings — both halves
@@ -820,7 +901,7 @@ function drawOv(){
      family is carried by the dashed riding circle and by the arc label.    */
   for(let i=0;i<n;i++){
     const arc=S.arcs[i];
-    const col=ARCC[i%ARCC.length], head=ARCH[i%ARCH.length];
+    const col=elCol(arc.el), head=elHead(arc.el);
     const last=(i===n-1);
     const pts=last?arc.pts.slice(0,A.k+1):arc.pts;
     const d=poly(pts);
@@ -847,8 +928,12 @@ function drawOv(){
       const arc=S.arcs[i], el=arc.el;
       const pts=(i===n-1)?arc.pts.slice(0,Math.max(2,A.k+1)):arc.pts;
       const mid=pts[Math.floor(pts.length/2)];
-      const rc=(el.kind==="line")?[CX,CY]
-              :(el.shunt?gCirc(el.cval):rCirc(el.cval));
+      let rc;
+      if(el.kind==="line")rc=[CX,CY];
+      else if(el.kind==="qw"){      /* centre of the transformer's circle */
+        const a=P(el.ride[0]), b=P(el.ride[48]);
+        rc=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+      }else rc=el.shunt?gCirc(el.cval):rCirc(el.cval);
       const pm=P(mid);
       let nx=pm[0]-rc[0], ny=pm[1]-rc[1];
       const nl=Math.hypot(nx,ny)||1; nx/=nl; ny/=nl;
@@ -856,7 +941,7 @@ function drawOv(){
       const lan=nx>0.25?"start":(nx<-0.25?"end":"middle");
       /* the label takes the arc's colour too, so a finished move stays
          identifiable at a glance while the next one is swinging          */
-      const lcol=ARCC[i%ARCC.length];
+      const lcol=elCol(el);
       let t1,dir;
       if(el.kind==="line"){
         t1="line  d = "+el.v.toFixed(4)+" \u03bb toward generator"+
@@ -865,6 +950,11 @@ function drawOv(){
            reading simply advances by d                                  */
         dir="WTG  "+el.wtg0.toFixed(3)+" \u03bb  +  "+el.v.toFixed(3)+
             " \u03bb  =  "+el.wtg1.toFixed(3)+" \u03bb   \u00b7  clockwise";
+      }else if(el.kind==="qw"){
+        t1="\u03bb/4 line  Z\u209c = "+sig(el.zt*I.z0,4)+" \u03a9   (z\u209c = "+
+           sig(el.zt,4)+")";
+        dir="half a turn on its own |\u0393\u209c| = "+sig(el.cval,4)+
+            " circle  \u00b7  r\u2032 \u2192 1";
       }else{
         const sym=el.shunt?"\u0394b = ":"\u0394x = ";
         const rise=el.v>0;
@@ -967,7 +1057,8 @@ function drawSchInner(){
   const I=inputs(), sol=S.sols[S.sel];
   const TOP=64, BOT=170, X0=46, XL=612;
   let s="";
-  s+=tx(350,20,"Single-stub tuner \u2014 source on the left, load on the right",
+  s+=tx(350,20,I.atLoad?"Stub at the load, then a \u03bb/4 transformer"
+    :"Single-stub tuner \u2014 source on the left, load on the right",
     {s:12.5,bold:true,c:"#333"});
   if(!sol){
     s+=ln(X0,TOP,XL,TOP,{c:"#141414",w:2});
@@ -975,7 +1066,7 @@ function drawSchInner(){
     s+=tx(350,116,"no tuner",{s:13,c:"#767671"});
     $("sch").innerHTML=s;return;
   }
-  const line=sol.els.filter(function(e){return e.kind==="line";})[0];
+  const line=sol.els.filter(isLine)[0];
   const stub=sol.els.filter(function(e){return e.kind==="stub";})[0];
   const act=(function(){
     if(S.stage<1||S.stage>2)return -1;
@@ -983,7 +1074,7 @@ function drawSchInner(){
     return n<1?-1:Math.min(n-1,sol.els.length-1);
   })();
   const iLine=sol.els.indexOf(line), iStub=sol.els.indexOf(stub);
-  const SX=300;                        /* where the stub taps the main line */
+  const SX=I.atLoad?548:300;           /* where the stub taps the main line */
   const AMB="#d98200", VIO="#7b2d8b";
   const lcol=(act===iLine)?AMB:"#141414", lw=(act===iLine)?4:2.6;
   const scol=(act===iStub)?VIO:"#7b2d8b", sw=(act===iStub)?4:2.6;
@@ -995,7 +1086,55 @@ function drawSchInner(){
   s+=ln(X0-8,BOT+19,X0+8,BOT+19,{c:"#141414",w:2});
   s+=ln(X0-3,BOT+24,X0+3,BOT+24,{c:"#141414",w:2});
 
-  if(I.shunt){
+  const lineTxt=line?(line.kind==="qw"
+    ?"\u03bb/4   Z\u209c = "+sig(line.zt*I.z0,4)+" \u03a9"
+    :"Z\u2080 line   d = "+line.v.toFixed(4)+" \u03bb"):"";
+  const lineBox=function(x0,x1){
+    if(!line){s+=ln(x0,TOP,x1,TOP,{c:"#141414",w:2.6});return;}
+    s+='<rect x="'+x0+'" y="'+(TOP-13)+'" width="'+(x1-x0)+'" height="26" '+
+       'rx="3" fill="'+((act===iLine)?"#fdf3e3":"#f2f2ef")+'" stroke="'+lcol+
+       '" stroke-width="'+lw+'"/>';
+    s+=tx((x0+x1)/2,TOP,lineTxt,{s:13,bold:true,c:lcol});
+  };
+  if(I.atLoad&&I.shunt){
+    /* source -- lambda/4 transformer -- stub tap right at the load */
+    s+=ln(X0,TOP,140,TOP,{c:"#141414",w:2.6});
+    lineBox(140,500);
+    s+=ln(500,TOP,XL,TOP,{c:"#141414",w:2.6});
+    s+=ci(SX,TOP,4,{c:"#141414",w:0,f:"#141414"});
+    const SB=BOT-6;
+    s+='<rect x="'+(SX-15)+'" y="'+(TOP+10)+'" width="30" height="'+(SB-TOP-10)+
+       '" rx="3" fill="'+((act===iStub)?"#f6eefa":"#f2f2ef")+'" stroke="'+scol+
+       '" stroke-width="'+sw+'"/>';
+    s+=tx(SX-26,TOP+34,stub?(stub.type+"  \u2113 = "+stub.len.toFixed(4)+" \u03bb")
+      :"no stub needed",{s:13,bold:true,c:scol,a:"end"});
+    s+=tx(SX-26,TOP+52,"Z\u2080\u209b = "+sig(I.z0s,4)+" \u03a9",
+      {s:12,c:"#555",a:"end"});
+    if(I.opened){
+      s+=ln(SX-15,SB,SX+15,SB,{c:scol,w:sw});
+      s+=tx(SX,SB+15,"open",{s:11.5,c:scol});
+    }else{
+      s+=ln(SX,SB,SX,BOT,{c:scol,w:sw});
+      s+=tx(SX-22,BOT-10,"short",{s:11.5,c:scol,a:"end"});
+    }
+  }else if(I.atLoad){
+    /* source -- lambda/4 transformer -- series stub right at the load */
+    const A=480;
+    s+=ln(X0,TOP,110,TOP,{c:"#141414",w:2.6});
+    lineBox(110,450);
+    s+=ln(450,TOP,A,TOP,{c:"#141414",w:2.6});
+    if(stub){
+      s+='<rect x="'+A+'" y="'+(TOP-13)+'" width="'+(XL-A)+'" height="26" rx="3" '+
+         'fill="'+((act===iStub)?"#f6eefa":"#f2f2ef")+'" stroke="'+scol+
+         '" stroke-width="'+sw+'"/>';
+      s+=tx(XL-4,TOP-26,stub.type+"  \u2113 = "+stub.len.toFixed(4)+" \u03bb",
+        {s:13,bold:true,c:scol,a:"end"});
+      s+=tx((A+XL)/2,TOP,"series",{s:12,c:scol});
+    }else{
+      s+=ln(A,TOP,XL,TOP,{c:"#141414",w:2.6});
+      s+=tx((A+XL)/2,TOP-26,"no stub needed",{s:13,bold:true,c:scol});
+    }
+  }else if(I.shunt){
     /* main line: source -- stub tap -- length d -- load */
     s+=ln(X0,TOP,SX,TOP,{c:"#141414",w:2.6});
     if(line){
@@ -1072,16 +1211,23 @@ function drawSols(){
   const I=inputs();
   let s="";
   S.sols.forEach(function(o,i){
-    const line=o.els.filter(function(e){return e.kind==="line";})[0];
-    const stub=o.els.filter(function(e){return e.kind==="stub";})[0];
-    const bits=[];
-    if(line)bits.push("line d = "+line.v.toFixed(4)+" \u03bb");
-    if(stub)bits.push(stub.type+" \u2113 = "+stub.len.toFixed(4)+" \u03bb");
+    const bits=o.els.map(function(e){
+      if(e.kind==="line")return "line d = "+e.v.toFixed(4)+" \u03bb";
+      if(e.kind==="qw")return "\u03bb/4 line Z\u209c = "+sig(e.zt*I.z0,4)+" \u03a9";
+      return e.type+" \u2113 = "+e.len.toFixed(4)+" \u03bb";
+    });
+    let title=o.name;
+    if(o.degen)title=I.atLoad
+      ?(o.els[0].kind==="qw"?"the load is already real \u2014 no stub needed"
+                            :"the stub alone matches \u2014 no transformer needed")
+      :"the load already lies on the gateway circle";
+    const second=I.atLoad
+      ? ("stub supplies "+(I.shunt?"jb = ":"jx = ")+jf(o.need,4)+
+         "   \u2192   "+(I.shunt?"y":"z")+"\u2081 = "+cf(I.shunt?o.y1:o.z1,4))
+      : ((I.shunt?"y":"z")+"\u2081 = "+cf(I.shunt?o.y1:o.z1,4)+
+         "   stub supplies "+(I.shunt?"jb = ":"jx = ")+jf(o.need,4));
     s+='<button class="sol'+(i===S.sel?" on":"")+'" data-i="'+i+'"><b>'+
-       esc(o.degen?"the load already lies on the gateway circle":o.name)+'</b>'+
-       esc(bits.join("   \u2192   "))+'<br>'+
-       esc((I.shunt?"y":"z")+"\u2081 = "+cf(I.shunt?o.y1:o.z1,4)+
-           "   stub supplies "+(I.shunt?"jb = ":"jx = ")+jf(o.need,4))+
+       esc(title)+'</b>'+esc(bits.join("   \u2192   "))+'<br>'+esc(second)+
        '</button>';
   });
   $("sols").innerHTML=s;
@@ -1096,10 +1242,18 @@ function drawSols(){
   else if(S.info)m='<div class="ok">'+S.info+'</div>';
   else{
     const sol=S.sols[S.sel];
-    if(sol&&sol.degen)
+    if(sol&&sol.degen&&!I.atLoad)
       m='<div class="ok">The load already lies on the '+(I.shunt?"g = 1":"r = 1")+
         ' circle, so no line length is needed \u2014 the stub alone matches it. '+
         'Stage 1 is skipped.</div>';
+    else if(sol&&sol.degen&&sol.els[0].kind==="qw")
+      m='<div class="ok">The load is already a pure resistance, so no stub is '+
+        'needed \u2014 the \u03bb/4 transformer alone matches it. Stage 1 is '+
+        'skipped.</div>';
+    else if(sol&&sol.degen)
+      m='<div class="ok">Once the stub cancels the load\u2019s '+
+        (I.shunt?"susceptance":"reactance")+' the point is already at the '+
+        'centre, so no transformer is needed. Stage 1 is skipped.</div>';
   }
   $("msg").innerHTML=m;
 }
@@ -1122,7 +1276,7 @@ function drawTables(){
   const names=["Load"];
   sol.els.forEach(function(e,i){
     names.push(i===sol.els.length-1?"Match (input)"
-      :(e.kind==="line"?"After the line":"After the stub"));});
+      :(isLine(e)?"After the line":"After the stub"));});
   S.nodes.forEach(function(nd,i){t+=nrow(names[i],nd.z,nd.y,(i<=n),showZ);});
   $("tn").innerHTML=t;
 
@@ -1130,13 +1284,15 @@ function drawTables(){
         '<th>Physical</th></tr>';
   sol.els.forEach(function(el,i){
     const vis=(n>i);
-    const L=(el.kind==="line")?el.v:el.len;
+    const L=elLen(el);
     const phys=L*I.lambda;
     const sup=(el.kind==="line")
       ? ("|\u0393| held at "+sig(cabs(z2g(I.zL)),4))
-      : ((el.shunt?"jb = ":"jx = ")+jf(el.v,4));
-    e+='<tr class="el"><td>'+(i+1)+" "+(el.kind==="line"?"Z\u2080 line":el.type)+
-      '</td>'+
+      : (el.kind==="qw"
+        ? ("Z\u209c = "+sig(el.zt*I.z0,4)+" \u03a9")
+        : ((el.shunt?"jb = ":"jx = ")+jf(el.v,4)));
+    e+='<tr class="el"><td>'+(i+1)+" "+(el.kind==="line"?"Z\u2080 line"
+      :(el.kind==="qw"?"\u03bb/4 line":el.type))+'</td>'+
       cell(vis,L.toFixed(4)+" \u03bb<br><span style=\"color:#555\">"+
            sig(L*360,4)+"\u00b0</span>")+
       cell(vis&&showZ,sup)+
@@ -1150,12 +1306,17 @@ function drawTables(){
        sig(CLIGHT/1e6,4)+'\u00d710\u2076 / ('+fStr()+' \u00d7 \u221a'+
        sig(I.eps,4)+') = <b>'+lenStr(I.lambda)+'</b></div>';
     sol.els.forEach(function(el,i){
-      const L=(el.kind==="line")?el.v:el.len;
+      const L=elLen(el);
       let line;
       if(el.kind==="line")
         line="d = "+L.toFixed(4)+" \u03bb \u00d7 "+lenStr(I.lambda)+
              " = <b>"+lenStr(L*I.lambda)+"</b>";
-      else{
+      else if(el.kind==="qw"){
+        const Rp=sol.z1.re*I.z0;
+        line="Z\u209c = \u221a(Z\u2080 R\u2032) = \u221a("+sig(I.z0,4)+" \u00d7 "+
+             sig(Rp,4)+") = <b>"+sig(el.zt*I.z0,4)+" \u03a9</b>, &nbsp;\u2113 = "+
+             "\u03bb/4 = <b>"+lenStr(L*I.lambda)+"</b>";
+      }else{
         const law=el.shunt
           ? (I.opened ? "b = (Z\u2080/Z\u2080\u209b) tan \u03b2\u2113"
                       : "b = \u2212(Z\u2080/Z\u2080\u209b) cot \u03b2\u2113")
@@ -1180,10 +1341,11 @@ function drawStage(){
   if(sol&&S.stage>=1&&S.stage<=2&&arcsVisible(S.stage)>0){
     const el=sol.els[Math.min(arcsVisible(S.stage)-1,sol.els.length-1)];
     extra=" \u2014 "+(el.kind==="line"?("Z\u2080 line, "+el.v.toFixed(4)+" \u03bb")
-                                       :(el.type+", "+el.len.toFixed(4)+" \u03bb"));
+      :(el.kind==="qw"?("\u03bb/4 line, Z\u209c = "+sig(el.zt*inputs().z0,4)+" \u03a9")
+                      :(el.type+", "+el.len.toFixed(4)+" \u03bb")));
   }
   const txt="stage "+S.stage+" of 4 <span>&mdash; "+
-    STAGE_NAME[S.stage]+esc(extra)+"</span>"+
+    stageName(S.stage)+esc(extra)+"</span>"+
     (n===1?' <span>(stage 1 skipped)</span>':"");
   $("stage").innerHTML=txt; $("pstage").innerHTML=txt;
   $("pNext").disabled=(S.stage>=4)||!sol;
@@ -1215,22 +1377,24 @@ function drawPfoot(){
   const names=["Load"];
   sol.els.forEach(function(e,i){
     names.push(i===sol.els.length-1?"Match"
-      :(e.kind==="line"?"After line":"After stub"));});
+      :(isLine(e)?"After line":"After stub"));});
   S.nodes.forEach(function(nd,i){
     h+='<div class="fr"><span class="lab">'+names[i]+'</span><span class="vals">'+
        v(i<=n,"z = "+cf(nd.z))+v(i<=n,"y = "+cf(nd.y))+
        v(i<=n&&showZ,"Z = "+cf(cmul(nd.z,C(I.z0)))+" \u03a9")+'</span></div>';
   });
   sol.els.forEach(function(el,i){
-    const col=["#d98200","#7b2d8b"][i%2];
-    const L=(el.kind==="line")?el.v:el.len;
+    const col=elCol(el);
+    const L=elLen(el);
     h+='<div class="fr"><span class="lab"><span class="tagm" style="background:'+
        col+'">move '+(i+1)+'</span></span><span class="vals">'+
        '<span class="val" style="color:#555">'+
-       (el.kind==="line"?"Z\u2080 line":el.type)+'</span>'+
+       (el.kind==="line"?"Z\u2080 line":(el.kind==="qw"?"\u03bb/4 line":el.type))+
+       '</span>'+
        v(n>i,L.toFixed(4)+" \u03bb")+v(n>i,sig(L*360,4)+"\u00b0")+
        v(n>i&&showZ,el.kind==="line"?"|\u0393| held"
-         :((el.shunt?"jb = ":"jx = ")+jf(el.v,4)))+
+         :(el.kind==="qw"?"Z\u209c = "+sig(el.zt*I.z0,4)+" \u03a9"
+           :((el.shunt?"jb = ":"jx = ")+jf(el.v,4))))+
        (showL?'<span class="comp">'+lenStr(L*I.lambda)+'</span>':v(false,""))+
        '</span></div>';
   });
@@ -1330,7 +1494,8 @@ function tsv(){
   let L=["Single-stub tuner  \u2014  ECE 4123/6423  Fall 2026"];
   L.push("Z0\t"+I.z0+" ohm\tZ0s\t"+I.z0s+" ohm");
   L.push("f\t"+fStr()+"\teps_eff\t"+I.eps+"\tlambda\t"+plain(lenStr(I.lambda)));
-  L.push("stub\t"+(I.shunt?"shunt":"series")+" "+(I.opened?"open":"shorted"));
+  L.push("stub\t"+(I.shunt?"shunt":"series")+" "+(I.opened?"open":"shorted")+
+    "\t"+(I.atLoad?"at the load, then lambda/4 transformer":"line, then stub"));
   L.push("zL\t"+plain(cf(I.zL))+"\tyL\t"+plain(cf(cinv(I.zL))));
   if(sol){
     L.push("solution\t"+plain(sol.name));
@@ -1342,10 +1507,12 @@ function tsv(){
     });
     L.push("");L.push("Section\tlambda\tdegrees\tsupplies\tphysical");
     sol.els.forEach(function(el,i){
-      const Ln=(el.kind==="line")?el.v:el.len;
-      L.push((i+1)+" "+(el.kind==="line"?"Z0 line":el.type)+"\t"+
-        Ln.toFixed(4)+"\t"+plain(sig(Ln*360,4))+"\t"+
-        (el.kind==="line"?"|G| held":plain((el.shunt?"jb = ":"jx = ")+jf(el.v,4)))+
+      const Ln=elLen(el);
+      L.push((i+1)+" "+(el.kind==="line"?"Z0 line":(el.kind==="qw"?"lambda/4 line":el.type))+
+        "\t"+Ln.toFixed(4)+"\t"+plain(sig(Ln*360,4))+"\t"+
+        (el.kind==="line"?"|G| held":(el.kind==="qw"
+          ?"ZT = "+plain(sig(el.zt*I.z0,4))+" ohm"
+          :plain((el.shunt?"jb = ":"jx = ")+jf(el.v,4))))+
         "\t"+plain(lenStr(Ln*I.lambda)));
     });
   }
@@ -1428,9 +1595,37 @@ function setUnits(u){
 }
 function setSeg(id,key,val){
   S[key]=val;
+  const attr={conn:"data-c",end:"data-e",topo:"data-t"}[key];
   Array.prototype.forEach.call($(id).children,function(b){
-    b.className=(b.getAttribute(key==="conn"?"data-c":"data-e")===val)?"on":"";});
+    b.className=(b.getAttribute(attr)===val)?"on":"";});
+  topoText();
   recalc();
+}
+/* the explanatory text follows the chosen placement */
+function topoText(){
+  if(S.topo==="sl"){
+    $("topoNote").innerHTML="The stub sits right at the load and cancels its "+
+      "susceptance (shunt) or reactance (series), leaving a pure resistance R&prime;. "+
+      "A Z&#8320; line cannot move a real point to the centre, so a &lambda;/4 "+
+      "transformer of Z<sub>T</sub> = &radic;(Z&#8320;R&prime;) finishes the match.";
+    $("keyLine").innerHTML="&lambda;/4 transformer";
+    $("keyText").innerHTML="The stub moves first, riding the load&rsquo;s own "+
+      "constant-g (or constant-r) circle onto the real axis. The &lambda;/4 "+
+      "transformer then takes that real point to the centre &mdash; half a turn on "+
+      "its own |&Gamma;<sub>T</sub>| circle (normalized to Z<sub>T</sub>), which on "+
+      "this Z&#8320; chart is the off-centre circle drawn dashed. Each element keeps "+
+      "its own colour for good.";
+  }else{
+    $("topoNote").innerHTML="The main line runs at Z&#8320;, so the move toward the "+
+      "generator is a rotation on the constant-|&Gamma;| circle. A stub of its own "+
+      "Z<sub>0s</sub> only changes the stub length.";
+    $("keyLine").innerHTML="line";
+    $("keyText").innerHTML="Move 1 runs the line toward the generator &mdash; a "+
+      "clockwise rotation on the constant-|&Gamma;| (SWR) circle until it meets the "+
+      "gateway circle. Move 2 is the stub, riding that gateway circle into the "+
+      "centre. Each move keeps its own colour for good, so both halves stay "+
+      "readable together.";
+  }
 }
 ["z0","z0s","rl","xl","fr","eps"].forEach(function(id){
   $(id).addEventListener("input",recalc);
@@ -1442,6 +1637,8 @@ Array.prototype.forEach.call($("segConn").children,function(b){
   b.onclick=function(){setSeg("segConn","conn",b.getAttribute("data-c"));};});
 Array.prototype.forEach.call($("segEnd").children,function(b){
   b.onclick=function(){setSeg("segEnd","end",b.getAttribute("data-e"));};});
+Array.prototype.forEach.call($("segTopo").children,function(b){
+  b.onclick=function(){setSeg("segTopo","topo",b.getAttribute("data-t"));};});
 $("spd").onchange=function(){S.speed=parseFloat(this.value);};
 $("alab").onchange=function(){S.alab=this.value;drawOv();};
 $("gz").onchange=function(){S.gz=this.checked;drawGrid();};
@@ -1485,6 +1682,7 @@ window.addEventListener("keydown",function(e){
     S.stage=4;S.prog=1;redraw();}
 });
 
+topoText();
 recalc();
 layoutPresent();
 </script>
