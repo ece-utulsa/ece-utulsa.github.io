@@ -222,28 +222,7 @@
       <div style="flex:1"><label class="f">Low Z<sub>l</sub> (&#937;) &mdash; wide</label>
         <input type="text" id="zlo" value="20"></div>
     </div>
-    <label class="f">Substrate</label>
-    <select id="subp" style="width:100%">
-      <option value="fr4" selected>FR-4 &mdash; &epsilon;r 4.4, h 1.6 mm, tan&delta; 0.02</option>
-      <option value="ro4350">RO4350B &mdash; &epsilon;r 3.66, h 0.508 mm, tan&delta; 0.0037</option>
-      <option value="ro4003">RO4003C &mdash; &epsilon;r 3.55, h 0.508 mm, tan&delta; 0.0027</option>
-      <option value="alu">Alumina &mdash; &epsilon;r 9.8, h 0.635 mm, tan&delta; 0.0001</option>
-      <option value="custom">custom</option>
-    </select>
-    <div class="row">
-      <div style="flex:1"><label class="f">&epsilon;<sub>r</sub></label>
-        <input type="text" id="er" value="4.4"></div>
-      <div style="flex:1"><label class="f">h (mm)</label>
-        <input type="text" id="hs" value="1.6"></div>
-      <div style="flex:1"><label class="f">tan&delta;</label>
-        <input type="text" id="tand" value="0.02"></div>
-    </div>
-    <div class="row">
-      <div style="flex:1"><label class="f">copper t (&micro;m)</label>
-        <input type="text" id="tcu" value="35"></div>
-      <div style="flex:1"><label class="f">roughness (&micro;m rms)</label>
-        <input type="text" id="rough" value="1"></div>
-    </div>
+    <div id="subPanel"></div>
     <div class="note">Stepped-impedance (Hi-Lo) L-section. A short narrow (high-Z)
       section supplies a series reactance +jx, &beta;&ell; &asymp; X/Z<sub>h</sub>; a
       short wide (low-Z) section supplies a shunt susceptance +jb,
@@ -251,11 +230,6 @@
       +jx and +jb can be built this way. The chart plays the <b>tuned</b> lengths,
       which land exactly; the dashed arcs are the ideal +jx / +jb moves the
       sections stand in for.</div>
-    <div class="note">Line model: Hammerstad&ndash;Jensen Z&#8320; and &epsilon;<sub>eff</sub>
-      with strip thickness, Kirschning&ndash;Jansen dispersion, copper conductor loss
-      (skin effect, current crowding, roughness) and dielectric loss. Not modelled:
-      the step-junction parasitics, radiation and coupling &mdash; those need an EM
-      solver.</div>
   </div>
   <div id="msg"></div>
 
@@ -364,6 +338,7 @@
 </div>
 
 </div>
+<script src="js/microstrip.js"></script>
 <script>
 "use strict";
 /* ============================================================================
@@ -462,9 +437,7 @@ function inputs(){
   if(S.tgt==="cx")zT=norm?C(rt,xt):C(rt/z0,xt/z0);
   return {z0:z0,f:f,w:2*Math.PI*f,zL:zL,par:par,rp:r1,xp:x1,zT:zT,norm:norm,hilo:(S.real==="hilo"),
           zh:num("zh",100),zlo:num("zlo",20),
-          sub:{er:num("er",4.4),h:num("hs",1.6)*1e-3,tand:Math.max(0,num("tand",0)),
-               t:Math.max(0,num("tcu",35))*1e-6,rough:Math.max(0,num("rough",0))*1e-6,
-               sigma:5.8e7},
+          sub:SUBP.get(),
           };
 }
 
@@ -592,69 +565,9 @@ function synth(){
        z_in = zc (z cos t + j zc sin t) / (zc cos t + j z sin t),
    so the two lengths are then TUNED (Newton, from the first-order start)
    until the pair lands exactly on the target.                           */
-/* ---------- microstrip: closed-form, quasi-static plus dispersion ---------
-   Hammerstad & Jensen (1980) for Z0 and eps_eff, with their strip-thickness
-   correction; Kirschning & Jansen (1982) for the frequency dependence of
-   eps_eff; conductor loss as in Hammerstad & Jensen (skin depth, a current
-   distribution factor, Hammerstad's roughness factor); dielectric loss from
-   the filling factor.  These are the same closed forms circuit simulators
-   use for a microstrip line -- no field solution is involved.           */
-const CLIGHT=299792458, ETA0=376.730313, MU0=4e-7*Math.PI;
-function hjZ01(u){
-  const fu=6+(2*Math.PI-6)*Math.exp(-Math.pow(30.666/u,0.7528));
-  return ETA0/(2*Math.PI)*Math.log(fu/u+Math.sqrt(1+4/(u*u)));
-}
-function hjEe(u,er){
-  const a=1+Math.log((Math.pow(u,4)+Math.pow(u/52,2))/(Math.pow(u,4)+0.432))/49+
-          Math.log(1+Math.pow(u/18.1,3))/18.7;
-  const b=0.564*Math.pow((er-0.9)/(er+3),0.053);
-  return (er+1)/2+(er-1)/2*Math.pow(1+10/u,-a*b);
-}
-/* static Z0 and eps_eff of a strip of width W on substrate sub */
-function msStatic(W,sub){
-  const u=W/sub.h, er=sub.er;
-  if(!(sub.t>0)){const ee=hjEe(u,er);return {Z0:hjZ01(u)/Math.sqrt(ee),ee:ee};}
-  const tn=sub.t/sub.h;
-  const x=Math.sqrt(6.517*u), cth=1/Math.tanh(x);
-  const du1=tn/Math.PI*Math.log(1+4*Math.E/(tn*cth*cth));
-  const dur=0.5*(1+1/Math.cosh(Math.sqrt(Math.max(0,er-1))))*du1;
-  const u1=u+du1, ur=u+dur;
-  const eer=hjEe(ur,er);
-  const Z0=hjZ01(ur)/Math.sqrt(eer);
-  const ee=eer*Math.pow(hjZ01(u1)/hjZ01(ur),2);
-  return {Z0:Z0,ee:ee};
-}
-/* Kirschning-Jansen: eps_eff at frequency f (Hz) */
-function kjEe(ee0,W,sub,f){
-  const u=W/sub.h, er=sub.er, fn=f*1e-9*sub.h*1e3;         /* GHz*mm   */
-  const P1=0.27488+(0.6315+0.525/Math.pow(1+0.0157*fn,20))*u-0.065683*Math.exp(-8.7513*u);
-  const P2=0.33622*(1-Math.exp(-0.03442*er));
-  const P3=0.0363*Math.exp(-4.6*u)*(1-Math.exp(-Math.pow(fn/38.7,4.97)));
-  const P4=1+2.751*(1-Math.exp(-Math.pow(er/15.916,8)));
-  const P=P1*P2*Math.pow((0.1844+P3*P4)*fn,1.5763);
-  return er-(er-ee0)/(1+P);
-}
-/* everything about one strip at frequency f: Z0, eps_eff(f), beta, alpha */
-function msLine(W,sub,f){
-  const st=msStatic(W,sub);
-  const ee=kjEe(st.ee,W,sub,f);
-  const beta=2*Math.PI*f*Math.sqrt(ee)/CLIGHT;
-  const delta=1/Math.sqrt(Math.PI*f*MU0*sub.sigma), Rs=1/(sub.sigma*delta);
-  const Ki=Math.exp(-1.2*Math.pow(st.Z0/ETA0,0.7));
-  const Kr=1+2/Math.PI*Math.atan(1.4*Math.pow(sub.rough/delta,2));
-  const ac=Rs/(st.Z0*W)*Ki*Kr;
-  const ad=sub.er>1?Math.PI*f/CLIGHT*sub.er/(sub.er-1)*(ee-1)/Math.sqrt(ee)*sub.tand:0;
-  return {Z0:st.Z0,ee0:st.ee,ee:ee,beta:beta,ac:ac,ad:ad,alpha:ac+ad,W:W,
-          lg:2*Math.PI/beta};
-}
-/* width for a wanted Z0: bisection on ln(W/h) -- Z0 falls as W grows */
-function msSynth(Z,sub){
-  let lo=Math.log(0.005), hi=Math.log(200);
-  const z=function(lu){return msStatic(Math.exp(lu)*sub.h,sub).Z0;};
-  if(Z>z(lo)||Z<z(hi))return NaN;
-  for(let i=0;i<80;i++){const m=(lo+hi)/2; if(z(m)>Z)lo=m; else hi=m;}
-  return Math.exp((lo+hi)/2)*sub.h;
-}
+/* ---------- microstrip: the shared model in js/microstrip.js ----------- */
+const CLIGHT=MS.CLIGHT;
+const msLine=MS.line, msSynth=MS.synth;
 
 /* complex hyperbolic functions for a lossy line, gl = alpha*l + j*beta*l */
 const ccosh=a=>C(Math.cosh(a.re)*Math.cos(a.im),Math.sinh(a.re)*Math.sin(a.im));
@@ -1913,15 +1826,8 @@ function setTgt(t){
     $("rt").value=(S.units==="norm")?"1":String(z0);$("xt").value="0";}
   recalc();
 }
-const SUBS={fr4:[4.4,1.6,0.02],ro4350:[3.66,0.508,0.0037],ro4003:[3.55,0.508,0.0027],
-  alu:[9.8,0.635,0.0001]};
-$("subp").onchange=function(){
-  const v=SUBS[this.value]; if(!v)return;
-  $("er").value=v[0];$("hs").value=v[1];$("tand").value=v[2];recalc();
-};
-["er","hs","tand"].forEach(function(id){
-  $(id).addEventListener("input",function(){$("subp").value="custom";});});
-["z0","rl","xl","fr","rt","xt","zh","zlo","er","hs","tand","tcu","rough"].forEach(function(id){
+const SUBP=MS.mount($("subPanel"),function(){recalc();});
+["z0","rl","xl","fr","rt","xt","zh","zlo"].forEach(function(id){
   $(id).addEventListener("input",recalc);
 });
 $("fu").addEventListener("change",recalc);
