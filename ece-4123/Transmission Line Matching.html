@@ -67,6 +67,7 @@
   th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#555;
     border-bottom:1.5px solid #9a9a95;}
   td.n{font-variant-numeric:tabular-nums;}
+  table.perf td{white-space:normal;}
   td.dim{color:#b5b5b0;}
   tr.el td{background:#faf7f0;}
   .arith{font-size:12px;color:#333;line-height:1.5;margin:3px 0 0;
@@ -177,12 +178,18 @@
   <label class="f" id="lzo">System impedance Z&#8320; (&#937;)</label>
   <input type="text" id="z0" value="50">
 
+  <label class="f">Load form</label>
+  <div class="seg" id="segLoad">
+    <button data-l="ser" class="on">series R + jX</button>
+    <button data-l="par">parallel R &#8741; jX</button>
+  </div>
   <label class="f" id="llo">Load impedance Z<sub>L</sub> (&#937;)</label>
   <div class="row">
     <input type="text" id="rl" value="60">
-    <span class="unit">+ j</span>
+    <span class="unit" id="lsep">+ j</span>
     <input type="text" id="xl" value="-80">
   </div>
+  <div class="note" id="leq" style="margin-top:4px"></div>
 
   <h2>Stub</h2>
   <label class="f">Placement</label>
@@ -211,7 +218,7 @@
   <input type="text" id="z0s" value="50">
   <div class="note" id="topoNote" style="margin-top:6px"></div>
 
-  <h2>Physical length</h2>
+  <h2>Frequency &amp; microstrip</h2>
   <label class="f">Frequency</label>
   <div class="row">
     <input type="text" id="fr" value="1">
@@ -220,8 +227,7 @@
       <option value="6">MHz</option>
     </select>
   </div>
-  <label class="f">Effective permittivity &epsilon;<sub>eff</sub></label>
-  <input type="text" id="eps" value="1">
+  <div id="subPanel"></div>
 
   <div id="msg"></div>
 
@@ -310,6 +316,16 @@
   <table id="te"></table>
   <div id="arith"></div>
 
+  <h2>Microstrip lines</h2>
+  <table id="tms" class="perf"></table>
+  <div id="msw"></div>
+
+  <h2>Performance</h2>
+  <div id="perf"></div>
+  <svg id="sweep" viewBox="0 0 440 230" xmlns="http://www.w3.org/2000/svg"
+    font-family="Arial, Helvetica, sans-serif" style="margin-top:6px"></svg>
+  <div class="note" id="perfNote"></div>
+
   <h2>Export</h2>
   <div class="ctl">
     <button id="bCopy">Copy table</button>
@@ -318,6 +334,7 @@
 </div>
 
 </div>
+<script src="js/microstrip.js"></script>
 <script>
 "use strict";
 /* ============================================================================
@@ -385,7 +402,7 @@ function lenStr(m){                       /* physical length, auto-scaled */
 
 /* ---------- state ---------- */
 const S={
-  units:"phys", topo:"ls", conn:"sh", end:"sc", stage:0, sel:0, prog:1, anim:null,
+  units:"phys", lform:"ser", topo:"ls", conn:"sh", end:"sc", stage:0, sel:0, prog:1, anim:null,
   playing:false, sols:[], err:"", info:"", arcs:[], nodes:[],
   speed:520, alab:"active", gz:true, gy:true, gc:true,
   pick:null, loadKey:"", present:false, pzoom:1
@@ -396,18 +413,18 @@ const num=(id,d)=>{const v=parseFloat($(id).value);return isFinite(v)?v:d;};
 function inputs(){
   const z0=num("z0",50), z0s=num("z0s",z0);
   const f=num("fr",1)*Math.pow(10,parseFloat($("fu").value));
-  const eps=Math.max(1e-6,num("eps",1));
   const rl=num("rl",0), xl=num("xl",0);
   const norm=S.units==="norm";
-  const zL=norm?C(rl,xl):C(rl/z0,xl/z0);
+  /* the load as entered: series R + jX, or parallel R || jX (X = 0: none) */
+  const r1=norm?rl:rl/z0, x1=norm?xl:xl/z0, par=(S.lform==="par");
+  const zL=par?MS.parZ(r1,x1):C(r1,x1);
   const shunt=(S.conn==="sh"), opened=(S.end==="oc");
   /* a is the stub's characteristic ratio, in the units its own law needs:
      a shunt stub works in admittance (Y0s/Y0 = Z0/Z0s), a series stub in
      impedance (Z0s/Z0).                                                  */
   const a=shunt?(z0/z0s):(z0s/z0);
-  const lambda=CLIGHT/(f*Math.sqrt(eps));   /* guide wavelength, metres     */
-  return {z0:z0,z0s:z0s,f:f,eps:eps,zL:zL,shunt:shunt,opened:opened,
-          a:a,lambda:lambda,norm:norm,atLoad:(S.topo==="sl"),dbl:(S.topo==="ds"),
+  return {z0:z0,z0s:z0s,f:f,zL:zL,shunt:shunt,opened:opened,par:par,r1:r1,x1:x1,
+          sub:SUBP.get(),a:a,norm:norm,atLoad:(S.topo==="sl"),dbl:(S.topo==="ds"),
           dsp:num("dsp",0.125),ds0:num("ds0",0)};
 }
 
@@ -458,7 +475,77 @@ function stubAtLoadSolve(zL,shunt){
   return {need:need,z1:z1,y1:cinv(z1),zt:Math.sqrt(z1.re)};
 }
 
+/* Every element is a real strip: the main line at Z0, the stubs at Z0s,
+   a lambda/4 transformer at its own Z_T.  Each has its own eps_eff, so the
+   same electrical length is a different physical length on each.       */
 function synth(){
+  synthCore();
+  if(S.err||!S.sols.length){S.ms=null;return;}
+  const I=inputs(), sub=I.sub;
+  if(!(sub.er>=1)||!(sub.h>0)){S.err="The substrate needs \u03b5<sub>r</sub> \u2265 1 and h &gt; 0.";
+    S.sols=[];S.ms=null;return;}
+  const cache={};
+  const strip=function(Z){
+    const k=Z.toPrecision(10);
+    if(!cache[k]){const W=MS.synth(Z,sub); cache[k]=isFinite(W)?MS.line(W,sub,I.f):null;}
+    return cache[k];
+  };
+  S.ms={main:strip(I.z0),stub:strip(I.z0s)};
+  let bad=!S.ms.main||!S.ms.stub;
+  S.sols.forEach(function(o){o.els.forEach(function(e){
+    e.ms=e.kind==="stub"?S.ms.stub:(e.kind==="qw"?strip(e.zt*I.z0):S.ms.main);
+    if(!e.ms)bad=true;
+    else e.phys=elLen(e)*e.ms.lg;
+  });});
+  if(bad){S.err="One of the line impedances cannot be made on this substrate (W/h would "+
+    "fall outside 0.005 \u2026 200).";S.sols=[];S.ms=null;return;}
+  S.sols.forEach(function(o){tuneSol(I,o);});
+}
+/* The chart's lengths are exact for LOSSLESS lines.  Real strips lose a
+   little, which leaves a small mismatch, so the two free lengths of each
+   design (line + stub; stub + lambda/4 section; stub 1 + stub 2) are
+   tuned -- Newton, on the full lossy, dispersive model at f0 -- until the
+   built tuner lands exactly.  The fixed lengths (the double-stub spacing
+   and d0) stay as set.                                                  */
+function tuneSol(I,o){
+  o.els.forEach(function(e){e.phys0=e.phys;e.ms0=e.ms;});
+  /* the two knobs: lengths, except that a lambda/4 section is tuned by its
+     WIDTH (its Z_T) and kept a quarter of its own guided wavelength --
+     near lambda/4 its length cannot move the real part of z_in          */
+  const knobs=[];
+  o.els.forEach(function(e){
+    if(I.dbl&&e.kind!=="stub")return;
+    if(e.kind==="qw")knobs.push({get:function(){return e.ms.W;},
+      set:function(v){e.ms=MS.line(v,I.sub,I.f);e.phys=0.25*e.ms.lg;}});
+    else knobs.push({get:function(){return e.phys;},set:function(v){e.phys=v;}});
+  });
+  o.tuned=false;
+  if(knobs.length!==2)return;
+  const res=function(){return csub(perfAt(I,o,I.f,false).zin,C(1));};
+  const x0=knobs.map(function(k){return k.get();});
+  for(let it=0;it<50;it++){
+    const f=res(); if(Math.hypot(f.re,f.im)<1e-12)break;
+    const J=knobs.map(function(k){const v=k.get(), h=v*1e-6;
+      k.set(v+h); const d=res(); k.set(v); return [(d.re-f.re)/h,(d.im-f.im)/h];});
+    const det=J[0][0]*J[1][1]-J[1][0]*J[0][1];
+    if(!isFinite(det)||Math.abs(det)<1e-30)break;
+    let d=[-( J[1][1]*f.re-J[1][0]*f.im)/det, -(-J[0][1]*f.re+J[0][0]*f.im)/det];
+    /* keep every step within 5% of where the knob started */
+    let sc=1; d.forEach(function(v,k){sc=Math.min(sc,0.05*x0[k]/Math.max(Math.abs(v),1e-30));});
+    knobs.forEach(function(k,n){k.set(k.get()+d[n]*sc);});
+  }
+  const ok=perfAt(I,o,I.f,false).G<1e-9&&knobs.every(function(k){return k.get()>0;});
+  if(ok)o.tuned=true;
+  else o.els.forEach(function(e){e.phys=e.phys0;e.ms=e.ms0;});
+}
+const physOf=e=>e.phys;
+/* "lossless length -> tuned length", for the worked arithmetic */
+function physTxt(e){
+  const moved=Math.abs(e.phys/e.phys0-1)>1e-6||(e.ms0&&e.ms!==e.ms0);
+  return lenStr(e.phys0)+(moved?" &nbsp;\u2192&nbsp; tuned <b>"+lenStr(e.phys)+"</b>"+
+    (e.kind==="qw"?", W "+sig(e.ms.W*1e3,3)+" mm":""):"");
+}
+function synthCore(){
   const I=inputs();
   S.err=""; S.info=""; S.sols=[];
   if(!(I.z0>0)){S.err="Z₀ must be greater than zero.";return;}
@@ -1398,6 +1485,107 @@ function drawSchInner(){
     '</marker></defs>'+s;
   $("sch").innerHTML=s;
 }
+/* ---------- performance of the built tuner -------------------------------
+   Cascade from the source to the load as ABCD matrices (normalized to Z0):
+   each line and each stub is its own strip, re-evaluated at every frequency
+   (eps_eff(f), conductor loss ~ sqrt f with roughness, dielectric loss ~ f).
+   "ideal" is the textbook picture: lossless lines whose electrical length
+   just scales with f.  Source = Z0.                                      */
+function elMatAt(I,e,f,ideal,raw){
+  const C0=C(0), r=f/I.f;
+  const zOf=function(zc,th,kind){            /* lossless reference         */
+    const gl=C(0,th), ch=MS.cosh(gl), sn=MS.sinh(gl);
+    if(kind==="line")return MS.M(ch,cmul(C(zc),sn),cmul(C(1/zc),sn),ch);
+    return cmul(C(zc),I.opened?cdiv(ch,sn):cdiv(sn,ch));
+  };
+  if(e.kind==="stub"){
+    const z=ideal?zOf(I.z0s/I.z0,TAU*e.len*r,"stub")
+                 :MS.stubZ(e.ms.W,I.sub,f,raw?e.phys0:e.phys,I.opened,I.z0);
+    return e.shunt?MS.sh(cinv(z)):MS.ser(z);
+  }
+  const zc=e.kind==="qw"?e.zt:1;
+  return ideal?zOf(zc,TAU*elLen(e)*r,"line")
+    :MS.lineM((raw?e.ms0:e.ms).W,I.sub,f,raw?e.phys0:e.phys,I.z0);
+}
+/* mode: false = the built (tuned) strips, true = ideal lossless lines,
+   "raw" = the strips cut to the lossless lengths, before tuning          */
+function perfAt(I,sol,f,mode){
+  let Mx=MS.I2();
+  const ideal=(mode===true), raw=(mode==="raw");
+  sol.els.slice().reverse().forEach(function(e){Mx=MS.mmul(Mx,elMatAt(I,e,f,ideal,raw));});
+  return MS.drive(Mx,MS.loadAt(S.lform,I.r1,I.x1,I.f,f),C(1));
+}
+function fFmt(f){const u=parseFloat($("fu").value);
+  return sig(f/Math.pow(10,u),4)+(u===9?" GHz":" MHz");}
+function drawLines(I){
+  if(!S.ms||S.err){$("tms").innerHTML="";$("msw").innerHTML="";return;}
+  const sol=S.sols[S.sel];
+  const dbcm=a=>sig(a*8.686/100,3);
+  const rows=[["main line",S.ms.main],["stub",S.ms.stub]];
+  if(sol)sol.els.forEach(function(e){
+    if(e.kind==="qw")rows.push(["\u03bb/4 line",e.ms]);});
+  let t='<tr><th>Line</th><th>Z\u2080</th><th>W</th><th>\u03b5<sub>eff</sub></th>'+
+        '<th>\u03bb<sub>g</sub></th><th>loss dB/cm</th></tr>';
+  rows.forEach(function(q){const m=q[1];
+    t+='<tr><td>'+q[0]+'</td><td class="n">'+sig(m.Z0,4)+' \u03a9</td><td class="n"><b>'+
+       sig(m.W*1e3,3)+' mm</b></td><td class="n">'+sig(m.ee,4)+
+       '<br><span style="color:#555">static '+sig(m.ee0,4)+'</span></td><td class="n">'+
+       lenStr(m.lg)+'</td><td class="n">'+dbcm(m.alpha)+
+       '<br><span style="color:#555">c '+dbcm(m.ac)+' \u00b7 d '+dbcm(m.ad)+'</span></td></tr>';});
+  $("tms").innerHTML=t;
+  let w=[];
+  rows.forEach(function(q){w=w.concat(MS.checks(q[0],q[1],I.sub,I.f));});
+  w=w.concat(MS.fhCheck(I.sub,I.f));
+  $("msw").innerHTML=w.length?'<div class="err">'+w.join("<br>")+'</div>':"";
+}
+function drawPerf(){
+  const I=inputs(), sol=S.sols[S.sel];
+  drawLines(I);
+  if(!sol||S.err||!S.ms){$("perf").innerHTML="";$("sweep").innerHTML="";
+    $("perfNote").innerHTML="";return;}
+  const re=perfAt(I,sol,I.f,false), id=perfAt(I,sol,I.f,"raw");
+  const g=function(mode){return function(f){return perfAt(I,sol,f,mode).G;};};
+  const bw=MS.band(g(false),I.f), bwi=MS.band(g("raw"),I.f);
+  const bwStr=function(b){
+    if(!b)return "never below \u221210 dB";
+    if(!isFinite(b[0])||!isFinite(b[1]))return "below \u221210 dB past the sweep";
+    return fFmt(b[0]).replace(/ (GHz|MHz)/,"")+" \u2013 "+fFmt(b[1])+"<br>"+
+      sig((b[1]-b[0])/I.f*100,3)+"% fractional";
+  };
+  const rl=G=>G<1e-6?"&gt; 120 dB":sig(-20*Math.log10(G),3)+" dB";
+  const L10=v=>-10*Math.log10(v);
+  let h='<table class="perf"><tr><th>at f\u2080 = '+fFmt(I.f)+'</th><th>'+
+        (sol.tuned?'tuned lengths':'microstrip')+'</th><th>lossless lengths</th></tr>';
+  const row=function(n,a,b){h+='<tr><td>'+n+'</td><td class="n"><b>'+a+'</b></td><td class="n">'+
+    b+'</td></tr>';};
+  const mm=G=>L10(1-G*G);
+  row("Return loss",rl(re.G),rl(id.G));
+  row("|\u0393<sub>in</sub>|",sig(re.G,3),sig(id.G,3));
+  row("Mismatch loss",sig(mm(re.G),3)+" dB",sig(mm(id.G),3)+" dB");
+  row("Dissipative loss",sig(Math.max(0,L10(re.GT)-mm(re.G)),3)+" dB",
+      sig(Math.max(0,L10(id.GT)-mm(id.G)),3)+" dB");
+  row("Insertion loss",sig(L10(re.GT),3)+" dB",sig(L10(id.GT),3)+" dB");
+  row("\u221210 dB band",bwStr(bw),bwStr(bwi));
+  h+='</table>';
+  $("perf").innerHTML=h;
+  MS.sweepSVG($("sweep"),[{g:g(false),col:"#d98200",name:sol.tuned?"tuned lengths":"microstrip"},
+    {g:g("raw"),col:"#8a8a85",w:1.6,dash:"5 4",name:"lossless lengths"}],
+    I.f,parseFloat($("fu").value));
+  const xr=I.x1;
+  const chg=sol.els.map(function(e){
+    return e.kind==="qw"?(e.ms.W/e.ms0.W-1)*100:(e.phys/e.phys0-1)*100;});
+  $("perfNote").innerHTML=(sol.tuned
+    ?"The chart's lengths are exact only for lossless lines; the strips are tuned on the "+
+     "lossy model so the built tuner lands exactly ("+chg.map(function(c,k){
+       return (sol.els[k].kind==="qw"?"\u03bb/4 width ":"")+(c>=0?"+":"\u2212")+
+       sig(Math.abs(c),2)+"%";}).join(", ")+"). Dashed: the "+
+     "strips cut to the lossless lengths. "
+    :"These lengths are the lossless ones; with one free length the loss cannot be "+
+     "tuned out. ")+"Sweep: the load keeps R = "+
+    sig(I.r1*I.z0,4)+" \u03a9 "+(Math.abs(xr)<1e-12?"with no reactance":"and its reactance is "+
+    (I.par?"a parallel ":"a series ")+(xr>0?"L":"C")+" set at f\u2080")+"; source = Z\u2080. "+
+    "Junction parasitics, open-end fringing and via inductance are not modelled (EM).";
+}
 /* ------------------------------- panels ----------------------------------- */
 function fStr(){
   const v=$("fr").value.trim();
@@ -1493,7 +1681,7 @@ function drawTables(){
   sol.els.forEach(function(el,i){
     const vis=(n>i);
     const L=elLen(el);
-    const phys=L*I.lambda;
+    const phys=physOf(el);
     const sup=(el.kind==="line")
       ? ("|\u0393| held at "+sig(el.cval,4))
       : (el.kind==="qw"
@@ -1509,20 +1697,20 @@ function drawTables(){
 
   let a="";
   if(showL){
-    a+='<div class="arith">\u03bb = c / (f \u221a\u03b5<sub>eff</sub>) = '+
-       sig(CLIGHT/1e6,4)+'\u00d710\u2076 / ('+fStr()+' \u00d7 \u221a'+
-       sig(I.eps,4)+') = <b>'+lenStr(I.lambda)+'</b></div>';
+    a+='<div class="arith">Each strip has its own guided wavelength, '+
+       '\u03bb<sub>g</sub> = c / (f \u221a\u03b5<sub>eff</sub>(f)) \u2014 see Microstrip lines.</div>';
     sol.els.forEach(function(el,i){
       const L=elLen(el);
       let line;
       if(el.kind==="line")
-        line=(S.topo==="ds"&&el.slot===1?"d\u2080 = ":"d = ")+L.toFixed(4)+" \u03bb \u00d7 "+lenStr(I.lambda)+
-             " = <b>"+lenStr(L*I.lambda)+"</b>";
+        line=(S.topo==="ds"&&el.slot===1?"d\u2080 = ":"d = ")+L.toFixed(4)+" \u03bb \u00d7 "+
+             lenStr((el.ms0||el.ms).lg)+" = "+physTxt(el);
       else if(el.kind==="qw"){
         const Rp=sol.z1.re*I.z0;
         line="Z\u209c = \u221a(Z\u2080 R\u2032) = \u221a("+sig(I.z0,4)+" \u00d7 "+
              sig(Rp,4)+") = <b>"+sig(el.zt*I.z0,4)+" \u03a9</b>, &nbsp;\u2113 = "+
-             "\u03bb/4 = <b>"+lenStr(L*I.lambda)+"</b>";
+             "\u03bb<sub>g</sub>/4 = "+physTxt(el)+" (lossless W = "+
+             sig((el.ms0||el.ms).W*1e3,3)+" mm)";
       }else{
         const law=el.shunt
           ? (I.opened ? "b = (Z\u2080/Z\u2080\u209b) tan \u03b2\u2113"
@@ -1530,7 +1718,7 @@ function drawTables(){
           : (I.opened ? "x = \u2212(Z\u2080\u209b/Z\u2080) cot \u03b2\u2113"
                       : "x = (Z\u2080\u209b/Z\u2080) tan \u03b2\u2113");
         line=law+" = "+ssig(el.v,4)+"  \u2192  \u2113 = "+L.toFixed(4)+
-             " \u03bb = <b>"+lenStr(L*I.lambda)+"</b>";
+             " \u03bb \u00d7 "+lenStr((el.ms0||el.ms).lg)+" = "+physTxt(el);
       }
       a+='<div class="arith">'+(i+1)+".&nbsp; "+line+"</div>";
     });
@@ -1602,7 +1790,7 @@ function drawPfoot(){
        v(n>i&&showZ,el.kind==="line"?"|\u0393| held"
          :(el.kind==="qw"?"Z\u209c = "+sig(el.zt*I.z0,4)+" \u03a9"
            :((el.shunt?"jb = ":"jx = ")+jf(el.v,4))))+
-       (showL?'<span class="comp">'+lenStr(L*I.lambda)+'</span>':v(false,""))+
+       (showL?'<span class="comp">'+lenStr(physOf(el))+'</span>':v(false,""))+
        '</span></div>';
   });
   $("pfoot").innerHTML=h;
@@ -1648,7 +1836,7 @@ try{
   const z=parseFloat(localStorage.getItem("tlStubTuner.chartZoom"));
   if(isFinite(z)&&z>=0.55&&z<=1)S.pzoom=z;
 }catch(e){}
-function redraw(){drawGrid();drawRings();drawOv();drawSch();
+function redraw(){drawPerf();drawLoadEq();drawGrid();drawRings();drawOv();drawSch();
   drawSols();drawTables();drawStage();drawPfoot();}
 
 /* ------------------------------ animation --------------------------------- */
@@ -1700,7 +1888,10 @@ function tsv(){
   const plain=s=>String(s).replace(/<[^>]*>/g,"").replace(/\u2212/g,"-");
   let L=[(I.dbl?"Double":"Single")+"-stub tuner  \u2014  ECE 4123/6423  Fall 2026"];
   L.push("Z0\t"+I.z0+" ohm\tZ0s\t"+I.z0s+" ohm");
-  L.push("f\t"+fStr()+"\teps_eff\t"+I.eps+"\tlambda\t"+plain(lenStr(I.lambda)));
+  L.push("f\t"+fStr()+"\tsubstrate\t"+I.sub.name+"\ter\t"+I.sub.er+"\th\t"+I.sub.h*1e3+
+    " mm\ttan d\t"+I.sub.tand+"\tt\t"+I.sub.t*1e6+" um");
+  if(I.par)L.push("load\tparallel R || jX\t"+plain(sig(I.r1*I.z0,6))+" ohm\t"+
+    plain(sig(I.x1*I.z0,6))+" ohm");
   L.push("stub\t"+(I.shunt?"shunt":"series")+" "+(I.opened?"open":"shorted")+
     "\t"+(I.atLoad?"at the load, then lambda/4 transformer"
       :(I.dbl?"double stub, spacing "+I.dsp+" lambda, d0 "+I.ds0+" lambda":"line, then stub")));
@@ -1713,7 +1904,7 @@ function tsv(){
         plain(cf(nd.z))+"\t"+plain(cf(nd.y))+"\t"+
         plain(cf(cmul(nd.z,C(I.z0))))+"\t"+plain(cf(cmul(nd.y,C(1/I.z0)))));
     });
-    L.push("");L.push("Section\tlambda\tdegrees\tsupplies\tphysical");
+    L.push("");L.push("Section\tlambda\tdegrees\tsupplies\tphysical\tW");
     sol.els.forEach(function(el,i){
       const Ln=elLen(el);
       L.push((i+1)+" "+plain(secName(el))+
@@ -1721,8 +1912,13 @@ function tsv(){
         (el.kind==="line"?"|G| held":(el.kind==="qw"
           ?"ZT = "+plain(sig(el.zt*I.z0,4))+" ohm"
           :plain((el.shunt?"jb = ":"jx = ")+jf(el.v,4))))+
-        "\t"+plain(lenStr(Ln*I.lambda)));
+        "\t"+plain(lenStr(physOf(el)))+"\t"+plain(sig(el.ms.W*1e3,4))+" mm");
     });
+    const pr=perfAt(I,sol,I.f,false), bd=MS.band(function(f){return perfAt(I,sol,f,false).G;},I.f);
+    L.push("");L.push("Return loss at f0\t"+(pr.G<1e-6?">120":plain(sig(-20*Math.log10(pr.G),4)))+
+      " dB\tInsertion loss\t"+plain(sig(-10*Math.log10(pr.GT),4))+" dB");
+    if(bd&&isFinite(bd[0])&&isFinite(bd[1]))L.push("-10 dB band\t"+plain(fFmt(bd[0]))+"\t"+
+      plain(fFmt(bd[1])));
   }
   return L.join("\n");
 }
@@ -1797,10 +1993,43 @@ function setUnits(u){
   S.units=u;
   Array.prototype.forEach.call($("segUnits").children,function(b){
     b.className=(b.getAttribute("data-u")===u)?"on":"";});
-  $("llo").innerHTML=(u==="norm")?"Load impedance z<sub>L</sub> (normalized)"
-    :"Load impedance Z<sub>L</sub> (\u03a9)";
+  loadLabels();
   recalc();
 }
+function loadLabels(){
+  const norm=S.units==="norm", par=S.lform==="par";
+  $("llo").innerHTML=(par?"Load R &#8741; jX ":(norm?"Load impedance z<sub>L</sub> ":
+    "Load impedance Z<sub>L</sub> "))+(norm?"(normalized)":"(&#937;)")+
+    (par?" &mdash; X = 0 for none":"");
+  $("lsep").innerHTML=par?"&#8741; j":"+ j";
+}
+/* switching form keeps the SAME load: convert the numbers in the fields */
+function setLoadForm(f){
+  if(f===S.lform)return;
+  const r=parseFloat($("rl").value), x=parseFloat($("xl").value);
+  if(isFinite(r)&&isFinite(x)&&r>0){
+    let a,b;
+    if(f==="par"){const m=r*r+x*x; a=m/r; b=Math.abs(x)<1e-12?0:m/x;}
+    else{const z=MS.parZ(r,x); a=z.re; b=z.im;}
+    $("rl").value=parseFloat(a.toPrecision(6)); $("xl").value=parseFloat(b.toPrecision(6));
+  }
+  S.lform=f;
+  Array.prototype.forEach.call($("segLoad").children,function(b){
+    b.className=(b.getAttribute("data-l")===f)?"on":"";});
+  loadLabels();
+  recalc();
+}
+function drawLoadEq(){
+  const I=inputs(), u=S.units==="norm"?1:I.z0, un=S.units==="norm"?"":" \u03a9";
+  if(!(I.zL.re>0)){$("leq").innerHTML="";return;}
+  if(I.par)$("leq").innerHTML="\u2261 series "+cf(cmul(I.zL,C(u)),4)+un;
+  else{const m=I.zL.re*I.zL.re+I.zL.im*I.zL.im;
+    $("leq").innerHTML="\u2261 parallel "+sig(m/I.zL.re*u,4)+un+" \u2225 "+
+      (Math.abs(I.zL.im)<1e-12?"no reactance":jf(m/I.zL.im*u,4)+un);}
+}
+Array.prototype.forEach.call($("segLoad").children,function(b){
+  b.onclick=function(){setLoadForm(b.getAttribute("data-l"));};});
+const SUBP=MS.mount($("subPanel"),function(){recalc();});
 function setSeg(id,key,val){
   S[key]=val;
   const attr={conn:"data-c",end:"data-e",topo:"data-t"}[key];
@@ -1854,7 +2083,7 @@ function topoText(){
       "readable together.";
   }
 }
-["z0","z0s","rl","xl","fr","eps","dsp","ds0"].forEach(function(id){
+["z0","z0s","rl","xl","fr","dsp","ds0"].forEach(function(id){
   $(id).addEventListener("input",recalc);
 });
 $("fu").addEventListener("change",recalc);
