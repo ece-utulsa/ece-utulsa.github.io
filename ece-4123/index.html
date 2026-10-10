@@ -155,8 +155,18 @@ main{max-width:1180px;margin:0 auto;padding:0 var(--gutter) 90px}
   transition:transform .16s ease,border-color .16s ease,background .16s ease;
 }
 .card-anim{border-left-color:var(--amber)}
-a.card:hover{transform:translateY(-2px);background:var(--panel-hi);border-color:var(--muted)}
-a.card:hover .card-go{color:var(--amber)}
+a.card:hover,.card-dl:hover{transform:translateY(-2px);background:var(--panel-hi);border-color:var(--muted)}
+a.card:hover .card-go,.card-dl:hover .card-go{color:var(--amber)}
+/* cards with a download: the whole card opens the tool, the download button sits above that link */
+.card-dl{position:relative}
+.card-main{color:inherit;text-decoration:none}
+.card-main::after{content:"";position:absolute;inset:0;border-radius:var(--radius)}
+.card-dlbtn{margin-left:auto;
+  position:relative;z-index:1;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--cyan);text-decoration:none;
+  border:1px solid var(--panel-hi);border-radius:var(--radius);padding:2px 7px;white-space:nowrap;
+}
+.card-dlbtn:hover{border-color:var(--cyan)}
 .card-kind{
   font-family:"IBM Plex Mono",monospace;
   font-size:11px;letter-spacing:.16em;text-transform:uppercase;
@@ -177,8 +187,9 @@ a.card:hover .card-go{color:var(--amber)}
   border:1px solid var(--panel-hi);border-radius:var(--radius);
   padding:2px 6px;
 }
-a.card:hover .tag{border-color:var(--muted)}
-.card-go{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted)}
+a.card:hover .tag,.card-dl:hover .tag{border-color:var(--muted)}
+.card-go{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted);white-space:nowrap}
+.card-dl .card-go{margin-left:0}
 
 /* unlinked entries: structure present, file not wired up yet */
 .card-todo{border-left-color:var(--muted);border-style:dashed;opacity:.62}
@@ -246,6 +257,8 @@ footer{
    group  : section heading (see GROUP_ORDER below)
    blurb  : one line, what it does for the student
    tags   : short labels for search/scan
+   download: true adds a "Download" button that saves the file (a standalone,
+             offline copy) instead of opening it
    ================================================================== */
 const TOOLS = [
   /* --- Maxwell's equations, four-part sequence ------------------------- */
@@ -298,9 +311,9 @@ const TOOLS = [
 
   /* --- matching networks, animated on the ZY chart ------------------- */
   { file:"L-Section Matching.html",
-    title:"L-Section Matching", kind:"animation", group:"Impedance & Matching",
-    blurb:"Two lumped elements, two moves on the ZY chart — every L-section solution from load to target.",
-    tags:["Smith","L-section","lumped"] },
+    title:"L-Section Matching (Hi-Lo Microstrip)", kind:"animation", group:"Impedance & Matching",
+    blurb:"Stepped-impedance microstrip L-sections on the ZY chart: trace widths from the substrate, tuned section lengths, dispersion and loss, and a return-loss sweep.",
+    tags:["Smith","L-section","microstrip"] },
 
   { file:"Pi and T Matching Networks.html",
     title:"Π and T Matching Networks", kind:"animation", group:"Impedance & Matching",
@@ -308,8 +321,8 @@ const TOOLS = [
     tags:["Smith","Π","T","Q","stubs"] },
 
   { file:"Transmission Line Matching.html",
-    title:"Single-Stub Matching", kind:"animation", group:"Impedance & Matching",
-    blurb:"A line section rotates the load onto the gateway circle, then a shunt or series stub brings it to centre.",
+    title:"Stub Matching", kind:"animation", group:"Impedance & Matching",
+    blurb:"A line section rotates the load onto the gateway circle and a shunt or series stub brings it to centre — or the stub sits at the load and a λ/4 transformer finishes the match. Double-stub mode shows the rotated circle and the forbidden region.",
     tags:["Smith","stub","lines"] },
 
   /* --- from Claude/Simulation Tools ------------------------------------ */
@@ -328,10 +341,10 @@ const TOOLS = [
     blurb:"Field cross-section of a microstrip line as substrate height, trace width, and \u03b5r change.",
     tags:["microstrip","\u03b5r","Z0"] },
 
-  { file:"Microstrip Circuit Designer v2.11.3.html",
+  { file:"Microstrip Circuit Designer v2.12.0.html",
     title:"Microstrip Circuit Designer", kind:"tool", group:"Design Tools",
-    blurb:"Lay out and analyze microstrip circuits \u2014 line widths, lengths, and response. v2.11.3.",
-    tags:["microstrip","layout","Z0"] },
+    blurb:"Lay out and analyze microstrip circuits \u2014 line widths, lengths, and response. v2.12.0.",
+    tags:["microstrip","layout","Z0"], download:true },
 
   { file:"Microstrip Patch Antenna Designer v1.4.0.html",
     title:"Microstrip Patch Antenna Designer", kind:"tool", group:"Design Tools",
@@ -427,6 +440,18 @@ function cardHTML(t){
       <div class="tags">${tags}</div>
       <span class="card-go">${t.file ? "Open →" : "Add file"}</span>
     </div>`;
+  if (t.file && t.download) {
+    const href = encodeURI(t.file);
+    return `<div class="${cls} card-dl">
+    <span class="card-kind">${kindLabel}</span>
+    <h3><a class="card-main" href="${href}">${t.title}</a></h3>
+    <p>${t.blurb || ""}</p>
+    <div class="card-foot">
+      <div class="tags">${tags}</div>
+      <a class="card-dlbtn" href="${href}" download title="Save a standalone copy that runs offline">Download \u2193</a>
+      <span class="card-go">Open \u2192</span>
+    </div></div>`;
+  }
   return t.file
     ? `<a class="${cls}" href="${encodeURI(t.file)}">${inner}</a>`
     : `<div class="${cls}">${inner}</div>`;

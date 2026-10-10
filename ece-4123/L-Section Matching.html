@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lumped Element L-Section Matching</title>
+<title>L-Section Matching</title>
 <style>
   :root{
     --bg:#f4f4f2; --panel:#ffffff; --ink:#141414; --rule:#cfcfca;
@@ -52,6 +52,7 @@
   .note{font-size:12px;line-height:1.45;color:#444;margin:8px 0 0;}
   .err{font-size:12.5px;line-height:1.45;color:#8c1c12;background:#fdecea;
     border:1px solid #e3a9a3;border-radius:4px;padding:7px 8px;margin:8px 0 0;}
+  .note{font-size:12px;line-height:1.45;color:#444;margin:8px 0 0;}
   .ok{font-size:12.5px;line-height:1.45;color:#14501f;background:#e8f5ea;
     border:1px solid #a5cfae;border-radius:4px;padding:7px 8px;margin:8px 0 0;}
   #stage{font-size:14px;font-weight:bold;margin:0 0 8px;}
@@ -67,6 +68,7 @@
   th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#555;
     border-bottom:1.5px solid #9a9a95;}
   td.n{font-variant-numeric:tabular-nums;}
+  table.perf td{white-space:normal;}
   td.dim{color:#b5b5b0;}
   tr.el td{background:#faf7f0;}
   .arith{font-size:12px;color:#333;line-height:1.5;margin:3px 0 0;
@@ -132,7 +134,7 @@
 <body>
 <header>
   <div class="t">L-Section Matching</div>
-  <div class="s">lumped elements &middot; ZY Smith Chart &middot; animated construction</div>
+  <div class="s"><span id="hsub">Hi-Lo microstrip</span> &middot; ZY Smith Chart &middot; animated construction</div>
   <button id="bPresent" style="padding:7px 13px;font-size:13px;font-weight:bold;
     border:2px solid var(--ink);border-radius:5px;background:var(--ink);color:#fff">
     Presentation view &nbsp;<span style="font-weight:normal;opacity:.7">P</span></button>
@@ -177,12 +179,18 @@
   <label class="f" id="lzo">Characteristic impedance Z&#8320; (&#937;)</label>
   <input type="text" id="z0" value="50">
 
+  <label class="f">Load form</label>
+  <div class="seg" id="segLoad">
+    <button data-l="ser" class="on">series R + jX</button>
+    <button data-l="par">parallel R &#8741; jX</button>
+  </div>
   <label class="f" id="llo">Load impedance Z<sub>L</sub> (&#937;)</label>
   <div class="row">
     <input type="text" id="rl" value="25">
-    <span class="unit">+ j</span>
+    <span class="unit" id="lsep">+ j</span>
     <input type="text" id="xl" value="-30">
   </div>
+  <div class="note" id="leq" style="margin-top:4px"></div>
 
   <label class="f">Frequency</label>
   <div class="row">
@@ -206,6 +214,23 @@
     </div>
   </div>
 
+  <h2>Microstrip</h2>
+  <div id="hlBox">
+    <div class="row" style="margin-top:2px">
+      <div style="flex:1"><label class="f">High Z<sub>h</sub> (&#937;) &mdash; narrow</label>
+        <input type="text" id="zh" value="100"></div>
+      <div style="flex:1"><label class="f">Low Z<sub>l</sub> (&#937;) &mdash; wide</label>
+        <input type="text" id="zlo" value="20"></div>
+    </div>
+    <div id="subPanel"></div>
+    <div class="note">Stepped-impedance (Hi-Lo) L-section. A short narrow (high-Z)
+      section supplies a series reactance +jx, &beta;&ell; &asymp; X/Z<sub>h</sub>; a
+      short wide (low-Z) section supplies a shunt susceptance +jb,
+      &beta;&ell; &asymp; B&middot;Z<sub>l</sub>. Only the solutions that need
+      +jx and +jb can be built this way. The chart plays the <b>tuned</b> lengths,
+      which land exactly; the dashed arcs are the ideal +jx / +jb moves the
+      sections stand in for.</div>
+  </div>
   <div id="msg"></div>
 
   <h2>Solutions</h2>
@@ -296,6 +321,14 @@
   <h2>Elements</h2>
   <table id="te"></table>
   <div id="arith"></div>
+  <table id="tms" class="perf" style="margin-top:8px"></table>
+  <div id="msw"></div>
+
+  <h2>Performance</h2>
+  <div id="perf"></div>
+  <svg id="sweep" viewBox="0 0 440 230" xmlns="http://www.w3.org/2000/svg"
+    font-family="Arial, Helvetica, sans-serif" style="margin-top:6px"></svg>
+  <div class="note" id="perfNote"></div>
 
   <h2>Export</h2>
   <div class="ctl">
@@ -305,6 +338,7 @@
 </div>
 
 </div>
+<script src="js/microstrip.js"></script>
 <script>
 "use strict";
 /* ============================================================================
@@ -381,7 +415,7 @@ function capStr(Cv){return unitStr(Cv,S.uC||C_UNITS[1]);}
 
 /* ---------- state ---------- */
 const S={
-  units:"phys", tgt:"z0", stage:0, sel:0, prog:1, anim:null,
+  units:"phys", lform:"ser", tgt:"z0", real:"hilo", stage:0, sel:0, prog:1, anim:null,
   playing:false, sols:[], err:"", info:"", arcs:[], nodes:[],
   speed:520, alab:"active", gz:true, gy:true, gc:true,
   pick:null, loadKey:"", uL:null, uC:null, present:false, pstrip:false, pzoom:1
@@ -396,12 +430,22 @@ function inputs(){
   const rl=num("rl",0), xl=num("xl",0);
   const rt=num("rt",z0), xt=num("xt",0);
   const norm=S.units==="norm";
-  const zL=norm?C(rl,xl):C(rl/z0,xl/z0);
+  /* the load as entered: series R + jX, or parallel R || jX (X = 0: none) */
+  const r1=norm?rl:rl/z0, x1=norm?xl:xl/z0, par=(S.lform==="par");
+  const zL=par?parZ(r1,x1):C(r1,x1);
   let zT=C(1,0);
   if(S.tgt==="cx")zT=norm?C(rt,xt):C(rt/z0,xt/z0);
-  return {z0:z0,f:f,w:2*Math.PI*f,zL:zL,zT:zT,norm:norm};
+  return {z0:z0,f:f,w:2*Math.PI*f,zL:zL,par:par,rp:r1,xp:x1,zT:zT,norm:norm,hilo:(S.real==="hilo"),
+          zh:num("zh",100),zlo:num("zlo",20),
+          sub:SUBP.get(),
+          };
 }
 
+/* R || jX; X = 0 is taken as "no reactance", not a short */
+function parZ(r,x){
+  if(Math.abs(x)<1e-12)return C(r,0);
+  return cdiv(C(0,r*x),C(r,x));
+}
 /* ---------- L-section engine (same algebra as the ZY Smith Chart tool) ------ */
 function secSeries(zA,zB){                    /* series element first */
   const yB=cinv(zB), t=zA.re/yB.re-zA.re*zA.re;
@@ -484,19 +528,22 @@ function synth(){
     good.push(o);
   });
   S.sols=good;
+  if(I.hilo)hiLo(I);
   /* one L unit and one C unit for every element on screen, then label them */
   const Ls=[],Cs=[];
   good.forEach(function(o){if(o.bad)return;o.els.forEach(function(e){
     if(e.L)Ls.push(e.L); if(e.Cv)Cs.push(e.Cv);});});
   S.uL=pickUnit(Ls,L_UNITS); S.uC=pickUnit(Cs,C_UNITS);
   good.forEach(function(o){if(o.bad)return;o.els.forEach(function(e){
-    e.comp=(e.L!==undefined)?indStr(e.L):capStr(e.Cv);});});
+    e.comp=(e.L!==undefined)?indStr(e.L):capStr(e.Cv);
+    if(e.th!==undefined)e.comp=lamStr(e.th)+" \u00b7 "+lenStr(e.len);
+  });});
   if(!good.filter(function(o){return !o.bad;}).length)
     S.err="No L-section solution exists for this load and target.";
   /* Default selection: series-first + root when it exists, else shunt-first +.
      A pick the student made is kept only while the problem is unchanged;
      a new load or target is a new problem, so it goes back to the default. */
-  const key=I.zL.re+","+I.zL.im+","+I.zT.re+","+I.zT.im;
+  const key=I.zL.re+","+I.zL.im+","+I.zT.re+","+I.zT.im+","+S.real;
   if(key!==S.loadKey){S.pick=null;S.loadKey=key;}
   let want=-1;
   if(S.pick)want=S.sols.findIndex(function(o){
@@ -506,6 +553,116 @@ function synth(){
   if(want<0)want=S.sols.findIndex(function(o){return !o.bad&&o.root===1;});
   if(want<0)want=S.sols.findIndex(function(o){return !o.bad;});
   S.sel=(want<0)?0:want;
+}
+
+/* ---------- Hi-Lo (stepped-impedance) microstrip -------------------------
+   A short line of impedance Zc and electrical length t is, to first order,
+   a series reactance Zc*t (a narrow, high-Z line: series L) or a shunt
+   susceptance t/Zc (a wide, low-Z line: shunt C).  So
+       series L :  t = X / Zh = x / zh        shunt C :  t = B Zl = b zl
+   Those lengths are only approximate: each line also carries a little of
+   the other kind of element.  The exact behaviour is a line's own law,
+       z_in = zc (z cos t + j zc sin t) / (zc cos t + j z sin t),
+   so the two lengths are then TUNED (Newton, from the first-order start)
+   until the pair lands exactly on the target.                           */
+/* ---------- microstrip: the shared model in js/microstrip.js ----------- */
+const CLIGHT=MS.CLIGHT;
+const msLine=MS.line, msSynth=MS.synth;
+
+/* complex hyperbolic functions for a lossy line, gl = alpha*l + j*beta*l */
+const ccosh=a=>C(Math.cosh(a.re)*Math.cos(a.im),Math.sinh(a.re)*Math.sin(a.im));
+const csinh=a=>C(Math.sinh(a.re)*Math.cos(a.im),Math.cosh(a.re)*Math.sin(a.im));
+/* line of normalized impedance zc, electrical length t (rad) and loss ab
+   nepers per radian:  z_in = zc (z ch + zc sh)/(zc ch + z sh)           */
+function lineZ(z,zc,t,ab){
+  const gl=C((ab||0)*t,t), ch=ccosh(gl), sh=csinh(gl);
+  return cmul(C(zc),cdiv(cadd(cmul(z,ch),cmul(C(zc),sh)),
+                         cadd(cmul(C(zc),ch),cmul(z,sh))));
+}
+function runLines(zL,els,ths){
+  let z=zL; els.forEach(function(e,i){z=lineZ(z,e.zc,ths[i],e.ab);}); return z;
+}
+function gmis(z,zT){                       /* |Gamma| of z against the target */
+  return cabs(cdiv(csub(z,zT),cadd(z,C(zT.re,-zT.im))));
+}
+function tune(zL,zT,els,t0){
+  if(els.length!==2)return null;           /* one length cannot fit two numbers */
+  let t=t0.slice();
+  for(let it=0;it<60;it++){
+    const f=csub(runLines(zL,els,t),zT);
+    if(cabs(f)<1e-12)break;
+    const h=1e-7, J=[];
+    for(let k=0;k<2;k++){const tt=t.slice();tt[k]+=h;
+      const d=csub(runLines(zL,els,tt),zT);
+      J.push([(d.re-f.re)/h,(d.im-f.im)/h]);}
+    const det=J[0][0]*J[1][1]-J[1][0]*J[0][1];
+    if(!isFinite(det)||Math.abs(det)<1e-14)return null;
+    let d0=-( J[1][1]*f.re-J[1][0]*f.im)/det;
+    let d1=-(-J[0][1]*f.re+J[0][0]*f.im)/det;
+    const mx=Math.max(Math.abs(d0),Math.abs(d1));
+    if(mx>0.2){d0*=0.2/mx;d1*=0.2/mx;}
+    t[0]+=d0; t[1]+=d1;
+  }
+  const ok=gmis(runLines(zL,els,t),zT)<1e-9&&t.every(function(v){
+    return v>0&&v<Math.PI;});
+  return ok?t:null;
+}
+function hiLo(I){
+  if(!(I.zh>0)||!(I.zlo>0)){S.err="Z<sub>h</sub> and Z<sub>l</sub> must be greater than zero.";
+    S.sols=[];return;}
+  const sub=I.sub;
+  if(!(sub.er>=1)||!(sub.h>0)){S.err="The substrate needs \u03b5<sub>r</sub> \u2265 1 and h &gt; 0.";
+    S.sols=[];return;}
+  /* the three strips: feed at Z0, the narrow and the wide section */
+  const Wf=msSynth(I.z0,sub), Wh=msSynth(I.zh,sub), Wl=msSynth(I.zlo,sub);
+  if(!isFinite(Wf)||!isFinite(Wh)||!isFinite(Wl)){
+    S.err="One of the line impedances cannot be made on this substrate (W/h would "+
+      "fall outside 0.005 \u2026 200). Choose Z<sub>h</sub>, Z<sub>l</sub> closer to Z\u2080.";
+    S.sols=[];return;}
+  S.ms={feed:msLine(Wf,sub,I.f),hi:msLine(Wh,sub,I.f),lo:msLine(Wl,sub,I.f)};
+  /* the lines as built: their impedance is what the width really gives */
+  const zh=S.ms.hi.Z0/I.z0, zl=S.ms.lo.Z0/I.z0;
+  S.sols=S.sols.map(function(o){
+    if(o.bad)return o;
+    const hp=o.els.filter(function(e){return e.v<0;});
+    if(hp.length)return {bad:true,order:o.name,
+      why:"needs "+hp.map(function(e){return e.kind==="s"?"a negative series reactance "+
+        "(jx = "+jf(e.v,4)+")":"a negative shunt susceptance (jb = "+jf(e.v,4)+")";})
+        .join(" and ")+". A Hi-Lo section only adds +jx (narrow) or +jb (wide); "+
+        "this solution needs stubs \u2014 see the Stub Matching tool."};
+    o.els.forEach(function(e){
+      e.ms=(e.kind==="s")?S.ms.hi:S.ms.lo;
+      e.zc=(e.kind==="s")?zh:zl;
+      e.ab=e.ms.alpha/e.ms.beta;              /* nepers per radian of line   */
+      e.th1=(e.kind==="s")?e.v/zh:e.v*zl;
+    });
+    const t1=o.els.map(function(e){return e.th1;});
+    o.mis1=gmis(runLines(I.zL,o.els,t1),I.zT);
+    /* start from the first-order lengths; if Newton wanders off, try a grid
+       of starts and keep the exact pair nearest the first-order one     */
+    let tt=tune(I.zL,I.zT,o.els,t1);
+    if(!tt&&o.els.length===2){
+      let best=Infinity;
+      for(let a=0.1;a<3.1;a+=0.25)for(let c=0.1;c<3.1;c+=0.25){
+        const t=tune(I.zL,I.zT,o.els,[a,c]);
+        if(!t)continue;
+        const d=Math.hypot(t[0]-t1[0],t[1]-t1[1]);
+        if(d<best){best=d;tt=t;}
+      }
+    }
+    o.tuned=!!tt;
+    o.els.forEach(function(e,i){e.th=tt?tt[i]:e.th1;e.len=e.th/e.ms.beta;});
+    o.long=o.els.some(function(e){return e.th>Math.PI/4;});
+    return o;
+  });
+}
+const secName=e=>e.kind==="s"?"hi-Z section":"lo-Z section";
+const lamStr=t=>(t/(2*Math.PI)).toFixed(4)+" \u03bb ("+sig(t*180/Math.PI,3)+"\u00b0)";
+function lenStr(m){
+  if(!isFinite(m)||m<=0)return"\u2014";
+  if(m<1e-3)return sig(m*1e6)+" \u00b5m";
+  if(m<1)return sig(m*1e3)+" mm";
+  return sig(m)+" m";
 }
 
 function mk(order,root,els,I){
@@ -537,7 +694,20 @@ function build(){
   S.nodes.push({z:z,y:cinv(z),label:"zₗ"});
   sol.els.forEach(function(e){
     const pts=[]; const N=64;
-    if(e.kind==="s"){
+    if(e.th!==undefined){
+      /* the real line: its own |G| circle, normalized to its own Zc */
+      const z0=z;
+      e.circle=(e.kind==="s")?"hi-Z line":"lo-Z line";
+      e.ride=[]; for(let i=0;i<=96;i++)e.ride.push(z2g(lineZ(z0,e.zc,Math.PI*i/96,e.ab)));
+      for(let i=0;i<=N;i++)pts.push(z2g(lineZ(z0,e.zc,e.th*i/N,e.ab)));
+      /* the ideal jx / jb move it stands in for, from the same start, dashed */
+      e.ghost=[];
+      if(e.kind==="s")for(let i=0;i<=N;i++)e.ghost.push(z2g(C(z0.re,z0.im+e.v*i/N)));
+      else{const y=cinv(z0);
+        for(let i=0;i<=N;i++)e.ghost.push(z2g(cinv(C(y.re,y.im+e.v*i/N))));}
+      e.cval=(e.kind==="s")?z0.re:cinv(z0).re;
+      z=lineZ(z0,e.zc,e.th,e.ab);
+    }else if(e.kind==="s"){
       e.circle="r"; e.cval=z.re; e.from=z.im; e.to=z.im+e.v;
       for(let i=0;i<=N;i++)pts.push(z2g(C(z.re,z.im+e.v*i/N)));
       z=C(z.re,z.im+e.v);
@@ -562,7 +732,7 @@ function arcsVisible(st){
   if(n===1)return st<=1?0:1;
   return 0;
 }
-const STAGE_NAME=["load","first move","second move","denormalize","components"];
+const STAGE_NAME=["load","first move","second move","denormalize","line lengths"];
 function nextStage(){
   let k=S.stage+1;
   while(k<=4&&stageSkipped(k))k++;
@@ -840,9 +1010,18 @@ function drawOv(){
   /* dashed riding circle of the active arc (the circle a compass would draw) */
   if(n>0){
     const el=S.arcs[A.idx].el;
-    const c=el.kind==="s"?rCirc(el.cval):gCirc(el.cval);
-    s+=ci(c[0],c[1],c[2],{c:el.kind==="s"?"#b02418":"#1b4f9c",w:1.6,d:"7 5",
-      op:S.prog<1?0.75:0.3});
+    if(el.ride){
+      s+=pth(poly(el.ride),{c:"#141414",w:1.6,d:"7 5",op:S.prog<1?0.75:0.3});
+    }else{
+      const c=el.kind==="s"?rCirc(el.cval):gCirc(el.cval);
+      s+=ci(c[0],c[1],c[2],{c:el.kind==="s"?"#b02418":"#1b4f9c",w:1.6,d:"7 5",
+        op:S.prog<1?0.75:0.3});
+    }
+  }
+  /* the ideal reactance move each section stands in for, thin and dashed */
+  for(let i=0;i<n;i++){
+    const g=S.arcs[i].el.ghost;
+    if(g)s+=pth(poly(g),{c:ARCC[i%ARCC.length],w:1.6*LWC(),d:"5 4",op:0.75});
   }
   /* Each move has its OWN colour and keeps it for good: move 1 amber, move 2
      violet.  The first arc must not fade when the second swings — both halves
@@ -879,7 +1058,10 @@ function drawOv(){
       const arc=S.arcs[i], el=arc.el;
       const pts=(i===n-1)?arc.pts.slice(0,Math.max(2,A.k+1)):arc.pts;
       const mid=pts[Math.floor(pts.length/2)];
-      const rc=(el.kind==="s")?rCirc(el.cval):gCirc(el.cval);
+      let rc;
+      if(el.ride){const a=P(el.ride[0]), b=P(el.ride[48]);
+        rc=[(a[0]+b[0])/2,(a[1]+b[1])/2];}
+      else rc=(el.kind==="s")?rCirc(el.cval):gCirc(el.cval);
       const pm=P(mid);
       let nx=pm[0]-rc[0], ny=pm[1]-rc[1];
       const nl=Math.hypot(nx,ny)||1; nx/=nl; ny/=nl;
@@ -895,16 +1077,24 @@ function drawOv(){
       /* the label takes the arc's colour too, so a finished move stays
          identifiable at a glance while the next one is swinging          */
       const lcol=ARCC[i%ARCC.length];   /* the label takes its arc's colour */
-      const t1=el.type+"   "+sym+ssig(el.v,4)+"  ·  along "+
+      let t1=el.type+"   "+sym+ssig(el.v,4)+"  ·  along "+
               el.circle+" = "+sig(el.cval,4);
-      const long=(t1.length>dir.length)?t1:dir;
+      let dir2=dir;
+      if(el.th!==undefined){
+        t1=(el.kind==="s"?"hi-Z line ":"lo-Z line ")+sig(el.zc*I.z0,4)+" \u03a9   "+
+           "\u03b2\u2113 = "+sig(el.th*180/Math.PI,4)+"\u00b0   (for "+
+           (el.kind==="s"?"jx = ":"jb = ")+jf(el.v,4)+")";
+        dir2="rides its own |\u0393| circle \u00b7 dashed = the ideal "+
+           (el.kind==="s"?"series jx":"shunt jb")+" move";
+      }
+      const long=(t1.length>dir2.length)?t1:dir2;
       const fsz=12*FSC();
       const lxc=fitX(lx,lan,long,fsz);
       let lyc=fitY(ly);
       lyc=fitY(lyc+dodge(boxOf(lxc,lyc,lan,long,fsz,2),PLACED));
       PLACED.push(boxOf(lxc,lyc,lan,long,fsz,2));
       s+=txh(lxc,lyc,t1,{s:12,a:lan,bold:true,c:lcol});
-      s+=txh(lxc,lyc+14*FSC(),dir,{s:11,a:lan,c:lcol});
+      s+=txh(lxc,lyc+14*FSC(),dir2,{s:11,a:lan,c:lcol});
     }
   }
   s+=cons(A.g);
@@ -959,24 +1149,6 @@ function row2(a,b){
     '</span><span style="font-variant-numeric:tabular-nums">'+b+'</span></div>';}
 
 /* ------------------------------ schematic --------------------------------- */
-function indH(x,y,w,col,lw){
-  const n=3, s=w/n; let d="M"+(x-w/2)+" "+y;
-  for(let i=0;i<n;i++){const x0=x-w/2+i*s;
-    d+=" A"+(s/2)+" "+(s/2)+" 0 0 1 "+(x0+s)+" "+y;}
-  return pth(d,{c:col,w:lw});
-}
-function capH(x,y,col,lw){
-  return ln(x-4,y-11,x-4,y+11,{c:col,w:lw})+ln(x+4,y-11,x+4,y+11,{c:col,w:lw});
-}
-function indV(x,y,h,col,lw){
-  const n=3, s=h/n; let d="M"+x+" "+(y-h/2);
-  for(let i=0;i<n;i++){const y0=y-h/2+i*s;
-    d+=" A"+(s/2)+" "+(s/2)+" 0 0 0 "+x+" "+(y0+s);}
-  return pth(d,{c:col,w:lw});
-}
-function capV(x,y,col,lw){
-  return ln(x-11,y-4,x+11,y-4,{c:col,w:lw})+ln(x-11,y+4,x+11,y+4,{c:col,w:lw});
-}
 function drawSch(){
   /* the schematic has its own box and its own scale: the presentation-view
      type bump is for the chart only, or its labels collide                */
@@ -996,73 +1168,239 @@ function drawSchInner(){
     $("sch").innerHTML=s;return;
   }
   const items=sol.els.slice().reverse();          /* source -> load order    */
-  const xs=items.length===2?[210,400]:[300];
-  const active=(function(){                       /* which element is moving */
-    if(S.stage<1||S.stage>2)return -1;            /* nothing moves after 2   */
+  drawHiLoLayout(I,sol,items,s);
+}
+/* Hi-Lo: a top view of the printed line -- feed, narrow and wide sections,
+   then the load -- with section lengths drawn to scale against each other */
+function drawHiLoLayout(I,sol,items,s){
+  /* drawn TO SCALE: one mm is the same number of pixels along and across */
+  const X0=52, X1=592, YC=112;
+  const active=(function(){
+    if(S.stage<1||S.stage>2)return -1;
     const n=arcsVisible(S.stage);
-    if(n<1)return -1;
-    return Math.min(n-1,sol.els.length-1);
+    return n<1?-1:Math.min(n-1,sol.els.length-1);
   })();
-  s+=ln(X0,BOT,X1,BOT,{c:"#141414",w:2});
-  /* ground hatch */
-  s+=ln(X0,BOT,X0,BOT+14,{c:"#141414",w:2});
-  s+=ln(X0-13,BOT+14,X0+13,BOT+14,{c:"#141414",w:2.4});
-  s+=ln(X0-8,BOT+19,X0+8,BOT+19,{c:"#141414",w:2});
-  s+=ln(X0-3,BOT+24,X0+3,BOT+24,{c:"#141414",w:2});
-  /* top wire with gaps where a series element sits */
-  let cuts=[];
-  items.forEach(function(e,i){if(e.kind==="s")cuts.push([xs[i]-26,xs[i]+26]);});
-  cuts.sort(function(a,b){return a[0]-b[0];});
-  let cur=X0;
-  cuts.forEach(function(c){s+=ln(cur,TOP,c[0],TOP,{c:"#141414",w:2});cur=c[1];});
-  s+=ln(cur,TOP,X1,TOP,{c:"#141414",w:2});
-  /* elements */
-  items.forEach(function(e,i){
-    const idx=sol.els.indexOf(e);                 /* 0 = nearest the load    */
-    const on=(idx===active);
+  const ms=S.ms;
+  const tot=items.reduce(function(a,e){return a+e.len;},0);
+  const feedL=Math.max(tot*0.18,ms.feed.W*1.5);
+  const Wmax=Math.max(ms.feed.W,ms.lo.W,ms.hi.W);
+  const k=Math.min(440/(tot+2*feedL),50/Wmax);          /* px per metre       */
+  let x=(X0+X1)/2-(tot*k)/2;
+  s+='<rect x="'+(X0-6)+'" y="36" width="'+(X1-X0+12)+'" height="162" rx="4" '+
+     'fill="#f3efe4" stroke="#cfc6ae"/>';
+  s+=tx(X1-4,190,"top view, to scale \u00b7 1 mm = "+sig(k*1e-3,3)+" px",
+    {s:10.5,c:"#8a7f62",a:"end"});
+  const strip=function(x0,x1,w,fill,st,sw){
+    const h=Math.max(1.2,w*k);
+    s+='<rect x="'+x0.toFixed(1)+'" y="'+(YC-h/2).toFixed(1)+'" width="'+
+       (x1-x0).toFixed(1)+'" height="'+h.toFixed(1)+'" fill="'+fill+'" stroke="'+(st||"none")+
+       '" stroke-width="'+(sw||0)+'"/>';
+  };
+  strip(Math.max(X0,x-feedL*k),x,ms.feed.W,"#c98b3a");
+  s+=tx(X0+2,190,"Z\u2080 feed  W = "+sig(ms.feed.W*1e3,3)+" mm",
+    {s:10.5,c:"#6b5a3a",a:"start"});
+  const top=YC-Math.max(ms.lo.W,ms.hi.W)*k/2;
+  items.forEach(function(e,ii){
+    const idx=sol.els.indexOf(e), on=(idx===active);
+    const x1=x+e.len*k;
+    /* two sections: labels spread outward from the junction between them */
+    const an=items.length<2?"middle":(ii===0?"end":"start");
+    strip(x,x1,e.ms.W,on?"#e8a23c":"#c98b3a",on?"#d98200":"#8a5a1a",on?2.4:1);
     const col=on?"#d98200":(e.kind==="s"?"#b02418":"#1b4f9c");
-    const lw=on?3.4:2.4;
-    const x=xs[i];
-    if(e.kind==="s"){
-      if(e.v>0)s+=indH(x,TOP,44,col,lw); else s+=capH(x,TOP,col,lw);
-      if(e.v<0){s+=ln(x-26,TOP,x-4,TOP,{c:"#141414",w:2});
-                s+=ln(x+4,TOP,x+26,TOP,{c:"#141414",w:2});}
-      s+=tx(x,TOP-30,(idx+1)+"  "+e.type,{s:12.5,bold:true,c:col});
-      if(S.stage>=4)s+=tx(x,TOP-16,e.comp,{s:13,bold:true,c:"#141414"});
-      else if(arcsVisible(S.stage)>idx)s+=tx(x,TOP-16,"j"+sig(e.v,4),{s:12,c:"#333"});
-    }else{
-      const my=(TOP+BOT)/2;
-      s+=ln(x,TOP,x,my-(e.v>0?4:18),{c:"#141414",w:2});
-      s+=ln(x,my+(e.v>0?4:18),x,BOT,{c:"#141414",w:2});
-      if(e.v>0)s+=capV(x,my,col,lw); else s+=indV(x,my,36,col,lw);
-      s+=tx(x+16,my-8,(idx+1)+"  "+e.type,{s:12.5,bold:true,c:col,a:"start"});
-      if(S.stage>=4)s+=tx(x+16,my+8,e.comp,{s:13,bold:true,c:"#141414",a:"start"});
-      else if(arcsVisible(S.stage)>idx)s+=tx(x+16,my+8,"j"+sig(e.v,4),{s:12,c:"#333",a:"start"});
-      s+=ci(x,TOP,3,{c:"#141414",w:0,f:"#141414"});
-    }
+    const xm=an==="middle"?(x+x1)/2:(an==="end"?x1-3:x+3);
+    s+=tx(xm,Math.min(top,YC-6)-24,(idx+1)+"  "+secName(e)+"  "+(e.kind==="s"?"jx ":"jb ")+jf(e.v,3),
+      {s:12,bold:true,c:col,a:an});
+    s+=tx(xm,Math.min(top,YC-6)-10,sig(e.zc*I.z0,4)+" \u03a9 \u00b7 W = "+
+      sig(e.ms.W*1e3,3)+" mm",{s:11,c:"#333",a:an});
+    const shown=arcsVisible(S.stage)>idx, bot=YC+Math.max(ms.lo.W,ms.hi.W)*k/2;
+    s+=tx(xm,Math.max(bot,YC+6)+14,shown?sig(e.th*180/Math.PI,3)+"\u00b0":"",
+      {s:12,c:"#333",a:an});
+    if(S.stage>=4)s+=tx(xm,Math.max(bot,YC+6)+29,"\u2113 = "+lenStr(e.len),
+      {s:12.5,bold:true,c:"#141414",a:an});
+    x=x1;
   });
-  /* load box */
-  s+='<rect x="'+X1+'" y="'+(TOP-22)+'" width="88" height="'+(BOT-TOP+44)+
-     '" rx="4" fill="#fdf1ef" stroke="#b02418" stroke-width="2.2"/>';
-  s+=tx(X1+44,TOP+14,"Zₗ",{s:16,bold:true,c:"#b02418"});
+  strip(x,Math.min(X1,x+feedL*k),ms.feed.W,"#c98b3a");
+  s+='<rect x="'+X1+'" y="'+(YC-44)+'" width="88" height="88" rx="4" '+
+     'fill="#fdf1ef" stroke="#b02418" stroke-width="2.2"/>';
+  s+=tx(X1+44,YC-18,"Z\u2097",{s:16,bold:true,c:"#b02418"});
   const zls=(S.units==="norm")?cf(I.zL,4)
     :(sig(I.zL.re*I.z0,4)+(I.zL.im<0?" "+MIN+" j":" + j")+sig(Math.abs(I.zL.im*I.z0),4));
   const zp=zls.split(" ");
-  s+=tx(X1+44,TOP+38,zp[0],{s:12.5,c:"#b02418"});
-  s+=tx(X1+44,TOP+54,zp.slice(1).join(""),{s:12.5,c:"#b02418"});
-  s+=tx(X1+44,TOP+72,S.units==="norm"?"(normalized)":"Ω",{s:11,c:"#8a6a66"});
-  /* input port */
-  s+=ci(X0,TOP,3.5,{c:"#141414",w:0,f:"#141414"});
-  s+='<path d="M'+(X0+12)+" "+(TOP-30)+"L"+(X0+34)+" "+(TOP-30)+
-     '" stroke="#1a7a35" stroke-width="2" marker-end="url(#ahKs)"/>';
-  s+=tx(X0+2,TOP-40,"Zᵢₙ = "+(S.tgt==="z0"?"Z₀":"Zₜ")+" = "+
-     sig(I.zT.re*I.z0,4)+(Math.abs(I.zT.im)>1e-9?
-     (I.zT.im<0?" "+MIN+" j":" + j")+sig(Math.abs(I.zT.im*I.z0),4):"")+" Ω",
-     {s:12,bold:true,c:"#1a7a35",a:"start"});
-  s='<defs><marker id="ahKs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" '+
-    'markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#1a7a35"/>'+
-    '</marker></defs>'+s;
+  s+=tx(X1+44,YC+4,zp[0],{s:12.5,c:"#b02418"});
+  s+=tx(X1+44,YC+20,zp.slice(1).join(""),{s:12.5,c:"#b02418"});
+  if(I.par){
+    const u=S.units==="norm"?1:I.z0;
+    s+=tx(X1+44,YC+36,"= "+sig(I.rp*u,3)+" \u2225 "+(Math.abs(I.xp)<1e-12?"R only":jf(I.xp*u,3)),
+      {s:10,c:"#8a6a66"});
+  }
   $("sch").innerHTML=s;
+}
+/* ---------- microstrip line table and layout warnings ---------- */
+function drawLinesTable(I){
+  if(!I.hilo||!S.ms||S.err){$("tms").innerHTML="";$("msw").innerHTML="";return;}
+  const ms=S.ms;
+  const dbcm=function(a){return sig(a*8.686/100,3);};      /* Np/m -> dB/cm */
+  let t='<tr><th>Line</th><th>Z\u2080</th><th>W</th><th>\u03b5<sub>eff</sub></th>'+
+        '<th>\u03bb<sub>g</sub></th><th>loss dB/cm</th></tr>';
+  [["feed",ms.feed],["hi-Z",ms.hi],["lo-Z",ms.lo]].forEach(function(q){
+    const m=q[1];
+    t+='<tr><td>'+q[0]+'</td><td class="n">'+sig(m.Z0,4)+' \u03a9</td><td class="n"><b>'+
+       sig(m.W*1e3,3)+' mm</b></td><td class="n">'+sig(m.ee,4)+
+       '<br><span style="color:#555">static '+sig(m.ee0,4)+'</span></td><td class="n">'+
+       lenStr(m.lg)+'</td><td class="n">'+dbcm(m.alpha)+
+       '<br><span style="color:#555">c '+dbcm(m.ac)+' \u00b7 d '+dbcm(m.ad)+'</span></td></tr>';
+  });
+  $("tms").innerHTML=t;
+  /* sanity checks a layout engineer would make -- none of them EM */
+  const w=[], sub=I.sub, fn=I.f*1e-9*sub.h*1e3;
+  [["hi-Z",ms.hi],["lo-Z",ms.lo],["feed",ms.feed]].forEach(function(q){
+    const m=q[1], u=m.W/sub.h;
+    if(m.W<1e-4)w.push(q[0]+" line is "+sig(m.W*1e3,3)+" mm wide \u2014 below the ~0.1 mm a "+
+      "typical PCB shop etches reliably.");
+    if(u<0.1||u>100)w.push(q[0]+" line has W/h = "+sig(u,3)+", outside the 0.1\u2013100 "+
+      "range the dispersion model was fitted to.");
+    if(m.W>m.lg/8)w.push(q[0]+" line is wider than \u03bb<sub>g</sub>/8 \u2014 it starts to "+
+      "behave as a patch, not a line; use a lower Z<sub>l</sub> substrate or a thinner board.");
+  });
+  if(fn>25)w.push("f\u00b7h = "+sig(fn,3)+" GHz\u00b7mm is beyond the dispersion model's "+
+    "25 GHz\u00b7mm limit.");
+  const sol=S.sols[S.sel];
+  if(sol&&!sol.bad&&sol.els)sol.els.forEach(function(e){
+    if(e.th>Math.PI/4)w.push((e.kind==="s"?"hi-Z":"lo-Z")+" section is "+
+      sig(e.th*180/Math.PI,3)+"\u00b0 long; the short-line picture holds below about 45\u00b0.");
+  });
+  $("msw").innerHTML=w.length?'<div class="err">'+w.join("<br>")+'</div>':"";
+}
+
+/* ---------- performance: the built network, frequency by frequency -------
+   Everything is cascaded as ABCD matrices (normalized to Z0) from the source
+   to the load, then
+       G_T = 4 Re(zs) Re(zl) / |A zl + B + zs (C zl + D)|^2
+   is the power reaching the load over the power the source has available.
+   The source is Z0 (or Z_T* for a complex target).  Across the sweep:
+     - the load keeps its R; its reactance is treated as a series L (X > 0)
+       or C (X < 0) fixed at f0 -- a load is rarely a constant impedance;
+     - each microstrip line is re-evaluated at every frequency: eps_eff(f)
+       from Kirschning-Jansen, conductor loss ~ sqrt(f) with roughness,
+       dielectric loss ~ f.                                               */
+const M2=(a,b,c,d)=>({A:a,B:b,C:c,D:d});
+function mmul(m,n){
+  return M2(cadd(cmul(m.A,n.A),cmul(m.B,n.C)),cadd(cmul(m.A,n.B),cmul(m.B,n.D)),
+            cadd(cmul(m.C,n.A),cmul(m.D,n.C)),cadd(cmul(m.C,n.B),cmul(m.D,n.D)));
+}
+const mSer=z=>M2(C(1),z,C(0),C(1));
+const mSh=y=>M2(C(1),C(0),y,C(1));
+/* the load across the sweep: its R holds, its reactance is an L (X > 0)
+   or a C (X < 0) fixed at f0 -- in series or in parallel with R        */
+function loadAt(I,f){
+  const r=f/I.f;
+  if(I.par){const x=I.xp; return parZ(I.rp, x>=0?x*r:x/r);}
+  const x=I.zL.im;
+  return C(I.zL.re, x>=0?x*r:x/r);
+}
+/* one microstrip section at frequency f; first = the first-order length */
+function elMat(I,e,f,first){
+  const m=msLine(e.ms.W,I.sub,f), zc=e.ms.Z0/I.z0;
+  const len=first?e.th1/e.ms.beta:e.len;
+  const gl=C(m.alpha*len,m.beta*len), ch=ccosh(gl), sh=csinh(gl);
+  return M2(ch,cmul(C(zc),sh),cmul(C(1/zc),sh),ch);
+}
+function perfAt(I,sol,f,ideal){
+  let M=M2(C(1),C(0),C(0),C(1));
+  sol.els.slice().reverse().forEach(function(e){M=mmul(M,elMat(I,e,f,ideal));});
+  const zl=loadAt(I,f), zs=C(I.zT.re,-I.zT.im);
+  const v1=cadd(cmul(M.A,zl),M.B), i1=cadd(cmul(M.C,zl),M.D);
+  const zin=cdiv(v1,i1);
+  const vs=cadd(v1,cmul(zs,i1));
+  const GT=4*zs.re*zl.re/Math.pow(cabs(vs),2);
+  const G=cabs(cdiv(csub(zin,I.zT),cadd(zin,C(I.zT.re,-I.zT.im))));
+  return {G:G,GT:GT,zin:zin};
+}
+const dB=v=>10*Math.log10(v);
+function fFmt(f){const u=parseFloat($("fu").value);return sig(f/Math.pow(10,u),4)+(u===9?" GHz":" MHz");}
+function band(I,sol,ideal){
+  /* walk out from f0 until |Gamma| rises past 0.316 (-10 dB) */
+  const g=function(f){return perfAt(I,sol,f,ideal).G;};
+  if(g(I.f)>0.3162)return null;
+  const edge=function(dir){
+    let a=I.f, step=I.f*0.002;
+    for(let k=0;k<2000;k++){const b=a+dir*step; if(b<=0)return NaN;
+      if(g(b)>0.3162){let lo=a,hi=b;for(let j=0;j<40;j++){const m=(lo+hi)/2;
+        if(g(m)>0.3162)hi=m;else lo=m;}return (lo+hi)/2;}
+      a=b; step*=1.02; if(a>I.f*20)return NaN;}
+    return NaN;
+  };
+  return [edge(-1),edge(1)];
+}
+function drawPerf(){
+  const I=inputs(), sol=S.sols[S.sel];
+  drawLinesTable(I);
+  if(!sol||sol.bad||S.err){$("perf").innerHTML="";$("sweep").innerHTML="";
+    $("perfNote").innerHTML="";return;}
+  const real=perfAt(I,sol,I.f,false);
+  const showRef=true;                  /* compare with the first-order lengths */
+  const ref=perfAt(I,sol,I.f,true);
+  const mm=-dB(1-real.G*real.G), il=-dB(real.GT);
+  const bw=band(I,sol,false), bwr=showRef?band(I,sol,true):null;
+  const bwStr=function(b){
+    if(!b)return "never below \u221210 dB";
+    if(!isFinite(b[0])||!isFinite(b[1]))return "below \u221210 dB past the sweep";
+    return fFmt(b[0]).replace(/ (GHz|MHz)/,"")+" \u2013 "+fFmt(b[1])+"<br>"+
+      sig((b[1]-b[0])/I.f*100,3)+"% fractional";
+  };
+  const rl=function(G){return G<1e-6?"&gt; 120 dB":sig(-20*Math.log10(G),3)+" dB";};
+  let h='<table class="perf"><tr><th>at f\u2080 = '+fFmt(I.f)+'</th><th>'+
+    'tuned lengths</th>'+(showRef?'<th>first-order lengths</th>':'')+'</tr>';
+  const row=function(n,a,b){h+='<tr><td>'+n+'</td><td class="n"><b>'+a+'</b></td>'+
+    (showRef?'<td class="n">'+b+'</td>':'')+'</tr>';};
+  row("Return loss",rl(real.G),rl(ref.G));
+  row("|\u0393<sub>in</sub>|",sig(real.G,3),sig(ref.G,3));
+  row("Mismatch loss",sig(mm,3)+" dB",sig(-dB(1-ref.G*ref.G),3)+" dB");
+  const ilr=-dB(ref.GT), mmr=-dB(1-ref.G*ref.G);
+  row("Dissipative loss",sig(Math.max(0,il-mm),3)+" dB",sig(Math.max(0,ilr-mmr),3)+" dB");
+  row("Insertion loss",sig(il,3)+" dB",sig(ilr,3)+" dB");
+  row("\u221210 dB band",bwStr(bw),showRef?bwStr(bwr):"");
+  h+='</table>';
+  $("perf").innerHTML=h;
+  drawSweep(I,sol,showRef);
+  const xr=I.par?I.xp:I.zL.im;
+  $("perfNote").innerHTML="Sweep: the load keeps R = "+sig((I.par?I.rp:I.zL.re)*I.z0,4)+
+    " \u03a9 "+(Math.abs(xr)<1e-12?"with no reactance":"and its reactance is "+
+    (I.par?"a parallel ":"a series ")+(xr>0?"L":"C")+" set at f\u2080")+". Source = "+
+    (S.tgt==="z0"?"Z\u2080":"Z<sub>T</sub>*")+". Each section is re-evaluated at every "+
+    "frequency (dispersion, skin-effect and dielectric loss); the feed lines are the "+
+    "reference planes. Dashed: the same sections cut to the first-order lengths. "+
+    "Step-junction parasitics are not modelled (EM).";
+}
+function drawSweep(I,sol,showRef){
+  const W=440,H=230,L=46,R=12,T=12,B=34, f0=I.f, fa=0.5*f0, fb=1.5*f0, N=160;
+  const xf=f=>L+(f-fa)/(fb-fa)*(W-L-R), yd=d=>T+Math.min(40,Math.max(0,-d))/40*(H-T-B);
+  let s='<rect x="'+L+'" y="'+T+'" width="'+(W-L-R)+'" height="'+(H-T-B)+
+    '" fill="#fff" stroke="#9a9a95"/>';
+  for(let d=0;d<=40;d+=10){const y=yd(-d);
+    s+=ln(L,y,W-R,y,{c:d===10?"#1a7a35":"#e2e2de",w:d===10?1.2:1,d:d===10?"5 4":null});
+    s+=tx(L-5,y,(d?MIN+d:"0"),{s:10,a:"end",c:"#555"});}
+  for(let k=0;k<=4;k++){const f=fa+k*(fb-fa)/4,x=xf(f);
+    s+=ln(x,T,x,H-B,{c:"#ececea"});
+    s+=tx(x,H-B+13,fFmt(f).replace(/ (GHz|MHz)/,""),{s:10,c:"#555"});}
+  s+=tx((L+W-R)/2,H-6,"frequency ("+(parseFloat($("fu").value)===9?"GHz":"MHz")+")",
+    {s:10.5,c:"#555"});
+  s+='<text x="12" y="'+((T+H-B)/2)+'" font-size="10.5" fill="#555" text-anchor="middle" '+
+     'transform="rotate(-90 12 '+((T+H-B)/2)+')">|S\u2081\u2081| (dB)</text>';
+  const curve=function(ideal){
+    let d="";
+    for(let i=0;i<=N;i++){const f=fa+(fb-fa)*i/N, G=perfAt(I,sol,f,ideal).G;
+      const db=20*Math.log10(Math.max(G,1e-6));
+      d+=(i?"L":"M")+xf(f).toFixed(1)+" "+yd(db).toFixed(1)+" ";}
+    return d;
+  };
+  if(showRef)s+=pth(curve(true),{c:"#8a8a85",w:1.6,d:"5 4"});
+  s+=pth(curve(false),{c:"#d98200",w:2.4});
+  s+=ln(xf(f0),T,xf(f0),H-B,{c:"#141414",w:0.8,d:"2 3"});
+  s+=tx(W-R-4,T+12,"tuned lengths",{s:10.5,bold:true,c:"#d98200",a:"end"});
+  if(showRef)s+=tx(W-R-4,T+26,"first-order lengths",{s:10.5,c:"#8a8a85",a:"end"});
+  s+=tx(L+4,yd(-10)-6,"\u221210 dB",{s:10,c:"#1a7a35",a:"start"});
+  $("sweep").innerHTML=s;
 }
 /* ------------------------------- panels ----------------------------------- */
 function fStr(){
@@ -1077,7 +1415,9 @@ function drawSols(){
       s+='<div class="sol no"><b>'+o.order+' — not available</b>'+o.why+'</div>';
       return;
     }
-    const prev=o.els.map(function(e){return e.type+" "+e.comp;}).join(" → ");
+    const prev=o.els.map(function(e){
+      return (e.kind==="s"?"hi-Z ":"lo-Z ")+sig(e.th*180/Math.PI,3)+"\u00b0 \u00b7 "+
+        lenStr(e.len);}).join(" → ");
     const nrm=o.els.map(function(e){
       return (e.kind==="s"?"jx = ":"jb = ")+jf(e.v,4);}).join(" → ");
     s+='<button class="sol'+(i===S.sel?" on":"")+'" data-i="'+i+'"><b>'+
@@ -1097,7 +1437,22 @@ function drawSols(){
   else if(S.info)m='<div class="ok">'+S.info+'</div>';
   else{
     const sol=S.sols[S.sel];
-    if(sol&&sol.degen){
+    if(sol&&!sol.bad){
+      const rl=function(g){return g<1e-9?"\u221e":sig(-20*Math.log10(g),3);};
+      m='<div class="'+(sol.tuned?"ok":"err")+'">First-order lengths (\u03b2\u2113 = '+
+        'X/Z<sub>h</sub>, B\u00b7Z<sub>l</sub>) leave |\u0393| = '+sig(sol.mis1,3)+
+        ' (return loss '+rl(sol.mis1)+' dB). '+
+        (sol.tuned?'The tuned lengths match exactly, and the chart plays those.'
+          :(sol.els.length<2?'A single line cannot be tuned to land exactly, so '+
+            'the chart plays the first-order length.'
+            :'No pair of lengths with these two line impedances lands exactly on the '+
+            'target, so the chart plays the first-order lengths \u2014 try a higher '+
+            'Z<sub>h</sub> or a lower Z<sub>l</sub>.'))+
+        (sol.long?' <b>A section is longer than 45\u00b0</b>, where the short-line '+
+          'picture starts to fail: a more extreme Z<sub>h</sub> or Z<sub>l</sub> '+
+          'shortens it.':'')+'</div>';
+    }
+    else if(sol&&sol.degen){
       /* Which circle the load already sits on follows the element that
          SURVIVED, not the order: a lone shunt element means the load is
          already on the g circle, a lone series element that it is on the
@@ -1133,37 +1488,35 @@ function drawTables(){
   S.nodes.forEach(function(nd,i){t+=nrow(names[i],nd.z,nd.y,(i<=n),showZ);});
   $("tn").innerHTML=t;
 
-  let e='<tr><th>El</th><th>Normalized</th><th>Denormalized</th><th>Component</th></tr>';
+  let e='<tr><th>El</th><th>Normalized</th><th>Denormalized</th><th>'+
+    'Section</th></tr>';
   sol.els.forEach(function(el,i){
     const vis=(n>i);
     const dn=el.kind==="s"?("X = "+ssig(el.X,4)+" Ω")
       :("B = "+ssig(el.B,4)+" S");
     const dn2=el.kind==="s"?"":("1/B = "+ssig(1/el.B,4)+" Ω");
-    e+='<tr class="el"><td>'+(i+1)+' '+el.type+'</td>'+
+    e+='<tr class="el"><td>'+(i+1)+' '+secName(el)+
+      '<br><span style="color:#555">'+sig(el.zc*I.z0,4)+' \u03a9</span></td>'+
       cell(vis,(el.kind==="s"?"jx = ":"jb = ")+jf(el.v,4))+
       cell(vis&&showZ,dn+(dn2?'<br><span style="color:#555">'+dn2+'</span>':''))+
-      cell(vis&&showC,'<b>'+el.comp+'</b>')+'</tr>';
+      cell(vis&&showC,lamStr(el.th)+'<br><b>'+lenStr(el.len)+'</b> \u00b7 W '+
+        sig(el.ms.W*1e3,3)+' mm')+'</tr>';
   });
   $("te").innerHTML=e;
+  drawLinesTable(I);
 
   let a="";
   if(showC){
-    const f=fStr();
     sol.els.forEach(function(el,i){
-      let line;
-      if(el.kind==="s"&&el.v>0)
-        line="L = x&middot;Z₀/ω = ("+sig(el.v,4)+")("+sig(I.z0,4)+
-          ") / (2π × "+f+") = <b>"+el.comp+"</b>";
-      else if(el.kind==="s")
-        line="C = −1/(x&middot;ω&middot;Z₀) = −1 / (("+sig(el.v,4)+
-          ")(2π × "+f+")("+sig(I.z0,4)+")) = <b>"+el.comp+"</b>";
-      else if(el.v>0)
-        line="C = b/(ω&middot;Z₀) = ("+sig(el.v,4)+") / (2π × "+f+
-          " × "+sig(I.z0,4)+") = <b>"+el.comp+"</b>";
-      else
-        line="L = −Z₀/(b&middot;ω) = −("+sig(I.z0,4)+") / (("+
-          sig(el.v,4)+")(2π × "+f+")) = <b>"+el.comp+"</b>";
-      a+='<div class="arith">'+(i+1)+".&nbsp; "+line+"</div>";
+      const first=el.kind==="s"
+        ?"\u03b2\u2113 \u2248 X/Z<sub>h</sub> = "+sig(el.X,4)+" / "+sig(el.zc*I.z0,4)
+        :"\u03b2\u2113 \u2248 B\u00b7Z<sub>l</sub> = "+sig(el.B,4)+" \u00d7 "+sig(el.zc*I.z0,4);
+      a+='<div class="arith">'+(i+1)+".&nbsp; "+first+" = "+
+         sig(el.th1*180/Math.PI,4)+"\u00b0"+
+         (sol.tuned?" &nbsp;\u2192&nbsp; tuned "+sig(el.th*180/Math.PI,4)+"\u00b0":"")+
+         "; &nbsp;\u03bb<sub>g</sub> = c/(f\u221a\u03b5<sub>eff</sub>) = "+lenStr(el.ms.lg)+
+         " with \u03b5<sub>eff</sub>(f\u2080) = "+sig(el.ms.ee,4)+
+         " &nbsp;\u2192&nbsp; \u2113 = <b>"+lenStr(el.len)+"</b></div>";
     });
   }
   $("arith").innerHTML=a;
@@ -1178,10 +1531,11 @@ function drawStage(){
   let extra="";
   if(sol&&!sol.bad&&S.stage>=1&&S.stage<=2&&arcsVisible(S.stage)>0){
     const el=sol.els[Math.min(arcsVisible(S.stage)-1,sol.els.length-1)];
-    extra=" — "+el.type;
+    extra=" — "+secName(el)+", "+(el.kind==="s"?"jx = ":"jb = ")+jf(el.v,4);
   }
   const txt="stage "+S.stage+" of 4 <span>&mdash; "+
-    STAGE_NAME[S.stage]+esc(extra)+"</span>"+
+    STAGE_NAME[S.stage]+
+    esc(extra)+"</span>"+
     (n===1?' <span>(stage 1 skipped)</span>':"");
   $("stage").innerHTML=txt; $("pstage").innerHTML=txt;
   $("pNext").disabled=(S.stage>=4)||!sol||sol.bad;
@@ -1222,7 +1576,7 @@ function drawPfoot(){
     const col=["#d98200","#7b2d8b"][i%2];
     h+='<div class="fr"><span class="lab"><span class="tagm" style="background:'+
        col+'">move '+(i+1)+'</span></span><span class="vals">'+
-       '<span class="val" style="color:#555">'+el.type+'</span>'+
+       '<span class="val" style="color:#555">'+secName(el)+'</span>'+
        v(n>i,(el.kind==="s"?"jx = ":"jb = ")+jf(el.v,4))+
        v(n>i&&showZ,el.kind==="s"?("X = "+ssig(el.X,4)+" \u03a9")
                                  :("B = "+ssig(el.B,4)+" S"))+
@@ -1277,7 +1631,7 @@ try{
   if(isFinite(z)&&z>=0.55&&z<=1)S.pzoom=z;
 }catch(e){}
 function redraw(){drawGrid();drawRings();drawOv();drawSch();
-  drawSols();drawTables();drawStage();drawPfoot();}
+  drawSols();drawTables();drawStage();drawPfoot();drawPerf();drawLoadEq();}
 
 /* ------------------------------ animation --------------------------------- */
 function stopAnim(){if(S.anim){cancelAnimationFrame(S.anim);S.anim=null;}}
@@ -1326,9 +1680,13 @@ function recalc(){stopAnim();S.playing=false;S.stage=0;S.prog=1;
 function tsv(){
   const I=inputs(), sol=S.sols[S.sel];
   const plain=s=>String(s).replace(/<[^>]*>/g,"").replace(/−/g,"-");
-  let L=["L-section matching  —  ECE 4123/6423  Fall 2026"];
+  let L=["Hi-Lo microstrip L-section matching  —  ECE 4123/6423  Fall 2026"];
   L.push("Z0\t"+I.z0+" ohm\tf\t"+fStr());
+  if(I.par)L.push("load\tparallel R || jX\t"+plain(sig(I.rp*I.z0,6))+" ohm\t"+
+    plain(sig(I.xp*I.z0,6))+" ohm");
   L.push("zL\t"+plain(cf(I.zL))+"\tyL\t"+plain(cf(cinv(I.zL))));
+  L.push("Hi-Lo microstrip\tZh\t"+I.zh+" ohm\tZl\t"+I.zlo+" ohm\ter\t"+
+    I.sub.er+"\th\t"+I.sub.h*1e3+" mm\ttan d\t"+I.sub.tand+"\tt\t"+I.sub.t*1e6+" um");
   if(sol&&!sol.bad){
     L.push("solution\t"+plain(sol.degen?"one element":sol.name));
     L.push("");L.push("Node\tz\ty\tZ (ohm)\tY (S)");
@@ -1337,12 +1695,19 @@ function tsv(){
         plain(cf(nd.z))+"\t"+plain(cf(nd.y))+"\t"+
         plain(cf(cmul(nd.z,C(I.z0))))+"\t"+plain(cf(cmul(nd.y,C(1/I.z0)))));
     });
-    L.push("");L.push("El\tNormalized\tDenormalized\tComponent");
+    L.push("");L.push("Section\tNormalized\tDenormalized\tLength\tZ\tW\tfirst-order");
     sol.els.forEach(function(el,i){
-      L.push((i+1)+" "+el.type+"\t"+plain((el.kind==="s"?"jx = ":"jb = ")+jf(el.v))+
+      L.push((i+1)+" "+secName(el)+"\t"+plain((el.kind==="s"?"jx = ":"jb = ")+jf(el.v))+
         "\t"+plain(el.kind==="s"?("X = "+ssig(el.X,4)+" ohm"):("B = "+ssig(el.B,4)+" S"))+
-        "\t"+plain(el.comp));
+        "\t"+plain(el.comp)+(el.th!==undefined?"\t"+
+          sig(el.zc*I.z0,4)+" ohm\tW "+plain(sig(el.ms.W*1e3,4))+" mm\tfirst-order "+
+          plain(sig(el.th1*180/Math.PI,4))+" deg":""));
     });
+    const pr=perfAt(I,sol,I.f,false), b=band(I,sol,false);
+    L.push("");L.push("Return loss at f0\t"+(pr.G<1e-6?">120":plain(sig(-20*Math.log10(pr.G),4)))+
+      " dB\tInsertion loss\t"+plain(sig(-dB(pr.GT),4))+" dB");
+    if(b&&isFinite(b[0])&&isFinite(b[1]))L.push("-10 dB band\t"+plain(fFmt(b[0]))+"\t"+
+      plain(fFmt(b[1])));
   }
   return L.join("\n");
 }
@@ -1387,7 +1752,7 @@ function exportPng(){
 /* Hand the PNG over: through the viewer's save prompt when the page is
    published, or as a plain download when the file is opened directly.   */
 function offerPng(cv){
-  const name="L_section_lumped_matching.png";
+  const name="L_section_microstrip_matching.png";
   const say=function(t){$("bPng").textContent=t;
     setTimeout(function(){$("bPng").textContent="Export PNG";},1800);};
   cv.toBlob(function(blob){
@@ -1417,9 +1782,40 @@ function setUnits(u){
   S.units=u;
   Array.prototype.forEach.call($("segUnits").children,function(b){
     b.className=(b.getAttribute("data-u")===u)?"on":"";});
-  $("llo").innerHTML=(u==="norm")?"Load impedance z<sub>L</sub> (normalized)"
-    :"Load impedance Z<sub>L</sub> (&#937;)";
+  loadLabels();
   recalc();
+}
+function loadLabels(){
+  const norm=S.units==="norm", par=S.lform==="par";
+  $("llo").innerHTML=(par?"Load R &#8741; jX ":(norm?"Load impedance z<sub>L</sub> ":"Load impedance Z<sub>L</sub> "))+
+    (norm?"(normalized)":"(&#937;)")+(par?" &mdash; X = 0 for none":"");
+  $("lsep").innerHTML=par?"&#8741; j":"+ j";
+}
+/* switching form keeps the SAME load: convert the numbers in the fields */
+function setLoadForm(f){
+  if(f===S.lform)return;
+  const r=parseFloat($("rl").value), x=parseFloat($("xl").value);
+  if(isFinite(r)&&isFinite(x)&&r>0){
+    let a,b;
+    if(f==="par"){const m=r*r+x*x; a=m/r; b=Math.abs(x)<1e-12?0:m/x;}
+    else{const z=parZ(r,x); a=z.re; b=z.im;}
+    $("rl").value=parseFloat(a.toPrecision(6)); $("xl").value=parseFloat(b.toPrecision(6));
+  }
+  S.lform=f;
+  Array.prototype.forEach.call($("segLoad").children,function(b){
+    b.className=(b.getAttribute("data-l")===f)?"on":"";});
+  loadLabels();
+  recalc();
+}
+Array.prototype.forEach.call($("segLoad").children,function(b){
+  b.onclick=function(){setLoadForm(b.getAttribute("data-l"));};});
+function drawLoadEq(){
+  const I=inputs(), u=S.units==="norm"?1:I.z0, un=S.units==="norm"?"":" \u03a9";
+  if(!(I.zL.re>0)){$("leq").innerHTML="";return;}
+  if(I.par)$("leq").innerHTML="\u2261 series "+cf(cmul(I.zL,C(u)),4)+un;
+  else{const m=I.zL.re*I.zL.re+I.zL.im*I.zL.im;
+    $("leq").innerHTML="\u2261 parallel "+sig(m/I.zL.re*u,4)+un+" \u2225 "+
+      (Math.abs(I.zL.im)<1e-12?"no reactance":jf(m/I.zL.im*u,4)+un);}
 }
 function setTgt(t){
   S.tgt=t;
@@ -1430,7 +1826,8 @@ function setTgt(t){
     $("rt").value=(S.units==="norm")?"1":String(z0);$("xt").value="0";}
   recalc();
 }
-["z0","rl","xl","fr","rt","xt"].forEach(function(id){
+const SUBP=MS.mount($("subPanel"),function(){recalc();});
+["z0","rl","xl","fr","rt","xt","zh","zlo"].forEach(function(id){
   $(id).addEventListener("input",recalc);
 });
 $("fu").addEventListener("change",recalc);
