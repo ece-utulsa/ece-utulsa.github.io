@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lumped Element L-Section Matching</title>
+<title>L-Section Matching</title>
 <style>
   :root{
     --bg:#f4f4f2; --panel:#ffffff; --ink:#141414; --rule:#cfcfca;
@@ -52,6 +52,7 @@
   .note{font-size:12px;line-height:1.45;color:#444;margin:8px 0 0;}
   .err{font-size:12.5px;line-height:1.45;color:#8c1c12;background:#fdecea;
     border:1px solid #e3a9a3;border-radius:4px;padding:7px 8px;margin:8px 0 0;}
+  .note{font-size:12px;line-height:1.45;color:#444;margin:8px 0 0;}
   .ok{font-size:12.5px;line-height:1.45;color:#14501f;background:#e8f5ea;
     border:1px solid #a5cfae;border-radius:4px;padding:7px 8px;margin:8px 0 0;}
   #stage{font-size:14px;font-weight:bold;margin:0 0 8px;}
@@ -132,7 +133,7 @@
 <body>
 <header>
   <div class="t">L-Section Matching</div>
-  <div class="s">lumped elements &middot; ZY Smith Chart &middot; animated construction</div>
+  <div class="s"><span id="hsub">lumped elements</span> &middot; ZY Smith Chart &middot; animated construction</div>
   <button id="bPresent" style="padding:7px 13px;font-size:13px;font-weight:bold;
     border:2px solid var(--ink);border-radius:5px;background:var(--ink);color:#fff">
     Presentation view &nbsp;<span style="font-weight:normal;opacity:.7">P</span></button>
@@ -204,6 +205,28 @@
       <span class="unit">+ j</span>
       <input type="text" id="xt" value="0">
     </div>
+  </div>
+
+  <h2>Realization</h2>
+  <div class="seg" id="segReal">
+    <button data-r="lumped" class="on">lumped L, C</button>
+    <button data-r="hilo">Hi-Lo microstrip</button>
+  </div>
+  <div id="hlBox" style="display:none">
+    <div class="row" style="margin-top:2px">
+      <div style="flex:1"><label class="f">High Z<sub>h</sub> (&#937;) &mdash; series L</label>
+        <input type="text" id="zh" value="100"></div>
+      <div style="flex:1"><label class="f">Low Z<sub>l</sub> (&#937;) &mdash; shunt C</label>
+        <input type="text" id="zlo" value="20"></div>
+    </div>
+    <label class="f">Effective permittivity &epsilon;<sub>eff</sub></label>
+    <input type="text" id="eps" value="1">
+    <div class="note">A short narrow (high-Z) line acts as a series inductor,
+      &beta;&ell; &asymp; X/Z<sub>h</sub>; a short wide (low-Z) line acts as a shunt
+      capacitor, &beta;&ell; &asymp; B&middot;Z<sub>l</sub>. Only the low-pass
+      solutions (series L, shunt C) can be built this way. The chart plays the
+      <b>tuned</b> lengths, which land exactly; the dashed arcs are the lumped
+      moves they replace.</div>
   </div>
 
   <div id="msg"></div>
@@ -381,7 +404,7 @@ function capStr(Cv){return unitStr(Cv,S.uC||C_UNITS[1]);}
 
 /* ---------- state ---------- */
 const S={
-  units:"phys", tgt:"z0", stage:0, sel:0, prog:1, anim:null,
+  units:"phys", tgt:"z0", real:"lumped", stage:0, sel:0, prog:1, anim:null,
   playing:false, sols:[], err:"", info:"", arcs:[], nodes:[],
   speed:520, alab:"active", gz:true, gy:true, gc:true,
   pick:null, loadKey:"", uL:null, uC:null, present:false, pstrip:false, pzoom:1
@@ -399,7 +422,10 @@ function inputs(){
   const zL=norm?C(rl,xl):C(rl/z0,xl/z0);
   let zT=C(1,0);
   if(S.tgt==="cx")zT=norm?C(rt,xt):C(rt/z0,xt/z0);
-  return {z0:z0,f:f,w:2*Math.PI*f,zL:zL,zT:zT,norm:norm};
+  const eps=Math.max(1e-6,num("eps",1));
+  return {z0:z0,f:f,w:2*Math.PI*f,zL:zL,zT:zT,norm:norm,hilo:(S.real==="hilo"),
+          zh:num("zh",100),zlo:num("zlo",20),eps:eps,
+          lambda:299792458/(f*Math.sqrt(eps))};
 }
 
 /* ---------- L-section engine (same algebra as the ZY Smith Chart tool) ------ */
@@ -484,19 +510,22 @@ function synth(){
     good.push(o);
   });
   S.sols=good;
+  if(I.hilo)hiLo(I);
   /* one L unit and one C unit for every element on screen, then label them */
   const Ls=[],Cs=[];
   good.forEach(function(o){if(o.bad)return;o.els.forEach(function(e){
     if(e.L)Ls.push(e.L); if(e.Cv)Cs.push(e.Cv);});});
   S.uL=pickUnit(Ls,L_UNITS); S.uC=pickUnit(Cs,C_UNITS);
   good.forEach(function(o){if(o.bad)return;o.els.forEach(function(e){
-    e.comp=(e.L!==undefined)?indStr(e.L):capStr(e.Cv);});});
+    e.comp=(e.L!==undefined)?indStr(e.L):capStr(e.Cv);
+    if(e.th!==undefined)e.comp=lamStr(e.th)+" \u00b7 "+lenStr(e.th/(2*Math.PI)*I.lambda);
+  });});
   if(!good.filter(function(o){return !o.bad;}).length)
     S.err="No L-section solution exists for this load and target.";
   /* Default selection: series-first + root when it exists, else shunt-first +.
      A pick the student made is kept only while the problem is unchanged;
      a new load or target is a new problem, so it goes back to the default. */
-  const key=I.zL.re+","+I.zL.im+","+I.zT.re+","+I.zT.im;
+  const key=I.zL.re+","+I.zL.im+","+I.zT.re+","+I.zT.im+","+S.real;
   if(key!==S.loadKey){S.pick=null;S.loadKey=key;}
   let want=-1;
   if(S.pick)want=S.sols.findIndex(function(o){
@@ -506,6 +535,92 @@ function synth(){
   if(want<0)want=S.sols.findIndex(function(o){return !o.bad&&o.root===1;});
   if(want<0)want=S.sols.findIndex(function(o){return !o.bad;});
   S.sel=(want<0)?0:want;
+}
+
+/* ---------- Hi-Lo (stepped-impedance) microstrip -------------------------
+   A short line of impedance Zc and electrical length t is, to first order,
+   a series reactance Zc*t (a narrow, high-Z line: series L) or a shunt
+   susceptance t/Zc (a wide, low-Z line: shunt C).  So
+       series L :  t = X / Zh = x / zh        shunt C :  t = B Zl = b zl
+   Those lengths are only approximate: each line also carries a little of
+   the other kind of element.  The exact behaviour is a line's own law,
+       z_in = zc (z cos t + j zc sin t) / (zc cos t + j z sin t),
+   so the two lengths are then TUNED (Newton, from the first-order start)
+   until the pair lands exactly on the target.                           */
+function lineZ(z,zc,t){
+  const c=Math.cos(t), s=Math.sin(t);
+  return cmul(C(zc),cdiv(C(z.re*c,z.im*c+zc*s),C(zc*c-z.im*s,z.re*s)));
+}
+function runLines(zL,els,ths){
+  let z=zL; els.forEach(function(e,i){z=lineZ(z,e.zc,ths[i]);}); return z;
+}
+function gmis(z,zT){                       /* |Gamma| of z against the target */
+  return cabs(cdiv(csub(z,zT),cadd(z,C(zT.re,-zT.im))));
+}
+function tune(zL,zT,els,t0){
+  if(els.length!==2)return null;           /* one length cannot fit two numbers */
+  let t=t0.slice();
+  for(let it=0;it<60;it++){
+    const f=csub(runLines(zL,els,t),zT);
+    if(cabs(f)<1e-12)break;
+    const h=1e-7, J=[];
+    for(let k=0;k<2;k++){const tt=t.slice();tt[k]+=h;
+      const d=csub(runLines(zL,els,tt),zT);
+      J.push([(d.re-f.re)/h,(d.im-f.im)/h]);}
+    const det=J[0][0]*J[1][1]-J[1][0]*J[0][1];
+    if(!isFinite(det)||Math.abs(det)<1e-14)return null;
+    let d0=-( J[1][1]*f.re-J[1][0]*f.im)/det;
+    let d1=-(-J[0][1]*f.re+J[0][0]*f.im)/det;
+    const mx=Math.max(Math.abs(d0),Math.abs(d1));
+    if(mx>0.2){d0*=0.2/mx;d1*=0.2/mx;}
+    t[0]+=d0; t[1]+=d1;
+  }
+  const ok=gmis(runLines(zL,els,t),zT)<1e-9&&t.every(function(v){
+    return v>0&&v<Math.PI;});
+  return ok?t:null;
+}
+function hiLo(I){
+  const zh=I.zh/I.z0, zl=I.zlo/I.z0;
+  if(!(I.zh>0)||!(I.zlo>0)){S.err="Z<sub>h</sub> and Z<sub>l</sub> must be greater than zero.";
+    S.sols=[];return;}
+  S.sols=S.sols.map(function(o){
+    if(o.bad)return o;
+    const hp=o.els.filter(function(e){return e.type==="series C"||e.type==="shunt L";});
+    if(hp.length)return {bad:true,order:o.name,
+      why:"needs a "+hp.map(function(e){return e.type;}).join(" and a ")+
+          " \u2014 a high-pass L-section. A Hi-Lo line only makes series L "+
+          "(narrow line) and shunt C (wide line); build this one with stubs or "+
+          "lumped parts."};
+    o.els.forEach(function(e){
+      e.zc=(e.kind==="s")?zh:zl;
+      e.th1=(e.kind==="s")?e.v/zh:e.v*zl;
+    });
+    const t1=o.els.map(function(e){return e.th1;});
+    o.mis1=gmis(runLines(I.zL,o.els,t1),I.zT);
+    /* start from the first-order lengths; if Newton wanders off, try a grid
+       of starts and keep the exact pair nearest the first-order one     */
+    let tt=tune(I.zL,I.zT,o.els,t1);
+    if(!tt&&o.els.length===2){
+      let best=Infinity;
+      for(let a=0.1;a<3.1;a+=0.25)for(let c=0.1;c<3.1;c+=0.25){
+        const t=tune(I.zL,I.zT,o.els,[a,c]);
+        if(!t)continue;
+        const d=Math.hypot(t[0]-t1[0],t[1]-t1[1]);
+        if(d<best){best=d;tt=t;}
+      }
+    }
+    o.tuned=!!tt;
+    o.els.forEach(function(e,i){e.th=tt?tt[i]:e.th1;});
+    o.long=o.els.some(function(e){return e.th>Math.PI/4;});
+    return o;
+  });
+}
+const lamStr=t=>(t/(2*Math.PI)).toFixed(4)+" \u03bb ("+sig(t*180/Math.PI,3)+"\u00b0)";
+function lenStr(m){
+  if(!isFinite(m)||m<=0)return"\u2014";
+  if(m<1e-3)return sig(m*1e6)+" \u00b5m";
+  if(m<1)return sig(m*1e3)+" mm";
+  return sig(m)+" m";
 }
 
 function mk(order,root,els,I){
@@ -537,7 +652,20 @@ function build(){
   S.nodes.push({z:z,y:cinv(z),label:"zₗ"});
   sol.els.forEach(function(e){
     const pts=[]; const N=64;
-    if(e.kind==="s"){
+    if(e.th!==undefined){
+      /* the real line: its own |G| circle, normalized to its own Zc */
+      const z0=z;
+      e.circle=(e.kind==="s")?"hi-Z line":"lo-Z line";
+      e.ride=[]; for(let i=0;i<=96;i++)e.ride.push(z2g(lineZ(z0,e.zc,Math.PI*i/96)));
+      for(let i=0;i<=N;i++)pts.push(z2g(lineZ(z0,e.zc,e.th*i/N)));
+      /* the lumped move it stands in for, from the same start, dashed */
+      e.ghost=[];
+      if(e.kind==="s")for(let i=0;i<=N;i++)e.ghost.push(z2g(C(z0.re,z0.im+e.v*i/N)));
+      else{const y=cinv(z0);
+        for(let i=0;i<=N;i++)e.ghost.push(z2g(cinv(C(y.re,y.im+e.v*i/N))));}
+      e.cval=(e.kind==="s")?z0.re:cinv(z0).re;
+      z=lineZ(z0,e.zc,e.th);
+    }else if(e.kind==="s"){
       e.circle="r"; e.cval=z.re; e.from=z.im; e.to=z.im+e.v;
       for(let i=0;i<=N;i++)pts.push(z2g(C(z.re,z.im+e.v*i/N)));
       z=C(z.re,z.im+e.v);
@@ -840,9 +968,18 @@ function drawOv(){
   /* dashed riding circle of the active arc (the circle a compass would draw) */
   if(n>0){
     const el=S.arcs[A.idx].el;
-    const c=el.kind==="s"?rCirc(el.cval):gCirc(el.cval);
-    s+=ci(c[0],c[1],c[2],{c:el.kind==="s"?"#b02418":"#1b4f9c",w:1.6,d:"7 5",
-      op:S.prog<1?0.75:0.3});
+    if(el.ride){
+      s+=pth(poly(el.ride),{c:"#141414",w:1.6,d:"7 5",op:S.prog<1?0.75:0.3});
+    }else{
+      const c=el.kind==="s"?rCirc(el.cval):gCirc(el.cval);
+      s+=ci(c[0],c[1],c[2],{c:el.kind==="s"?"#b02418":"#1b4f9c",w:1.6,d:"7 5",
+        op:S.prog<1?0.75:0.3});
+    }
+  }
+  /* Hi-Lo: the lumped move each line replaces, thin and dashed */
+  for(let i=0;i<n;i++){
+    const g=S.arcs[i].el.ghost;
+    if(g)s+=pth(poly(g),{c:ARCC[i%ARCC.length],w:1.6*LWC(),d:"5 4",op:0.75});
   }
   /* Each move has its OWN colour and keeps it for good: move 1 amber, move 2
      violet.  The first arc must not fade when the second swings — both halves
@@ -879,7 +1016,10 @@ function drawOv(){
       const arc=S.arcs[i], el=arc.el;
       const pts=(i===n-1)?arc.pts.slice(0,Math.max(2,A.k+1)):arc.pts;
       const mid=pts[Math.floor(pts.length/2)];
-      const rc=(el.kind==="s")?rCirc(el.cval):gCirc(el.cval);
+      let rc;
+      if(el.ride){const a=P(el.ride[0]), b=P(el.ride[48]);
+        rc=[(a[0]+b[0])/2,(a[1]+b[1])/2];}
+      else rc=(el.kind==="s")?rCirc(el.cval):gCirc(el.cval);
       const pm=P(mid);
       let nx=pm[0]-rc[0], ny=pm[1]-rc[1];
       const nl=Math.hypot(nx,ny)||1; nx/=nl; ny/=nl;
@@ -895,16 +1035,22 @@ function drawOv(){
       /* the label takes the arc's colour too, so a finished move stays
          identifiable at a glance while the next one is swinging          */
       const lcol=ARCC[i%ARCC.length];   /* the label takes its arc's colour */
-      const t1=el.type+"   "+sym+ssig(el.v,4)+"  ·  along "+
+      let t1=el.type+"   "+sym+ssig(el.v,4)+"  ·  along "+
               el.circle+" = "+sig(el.cval,4);
-      const long=(t1.length>dir.length)?t1:dir;
+      let dir2=dir;
+      if(el.th!==undefined){
+        t1=(el.kind==="s"?"hi-Z line ":"lo-Z line ")+sig(el.zc*I.z0,4)+" \u03a9   "+
+           "\u03b2\u2113 = "+sig(el.th*180/Math.PI,4)+"\u00b0   (for the "+el.type+")";
+        dir2="rides its own |\u0393| circle \u00b7 dashed = the lumped "+el.type;
+      }
+      const long=(t1.length>dir2.length)?t1:dir2;
       const fsz=12*FSC();
       const lxc=fitX(lx,lan,long,fsz);
       let lyc=fitY(ly);
       lyc=fitY(lyc+dodge(boxOf(lxc,lyc,lan,long,fsz,2),PLACED));
       PLACED.push(boxOf(lxc,lyc,lan,long,fsz,2));
       s+=txh(lxc,lyc,t1,{s:12,a:lan,bold:true,c:lcol});
-      s+=txh(lxc,lyc+14*FSC(),dir,{s:11,a:lan,c:lcol});
+      s+=txh(lxc,lyc+14*FSC(),dir2,{s:11,a:lan,c:lcol});
     }
   }
   s+=cons(A.g);
@@ -996,6 +1142,7 @@ function drawSchInner(){
     $("sch").innerHTML=s;return;
   }
   const items=sol.els.slice().reverse();          /* source -> load order    */
+  if(I.hilo){drawHiLoLayout(I,sol,items,s);return;}
   const xs=items.length===2?[210,400]:[300];
   const active=(function(){                       /* which element is moving */
     if(S.stage<1||S.stage>2)return -1;            /* nothing moves after 2   */
@@ -1064,6 +1211,55 @@ function drawSchInner(){
     '</marker></defs>'+s;
   $("sch").innerHTML=s;
 }
+/* Hi-Lo: a top view of the printed line -- feed, narrow and wide sections,
+   then the load -- with section lengths drawn to scale against each other */
+function drawHiLoLayout(I,sol,items,s){
+  const X0=52, X1=592, YC=112;
+  const Wz0=12, Wh=4, Wl=44;
+  const active=(function(){
+    if(S.stage<1||S.stage>2)return -1;
+    const n=arcsVisible(S.stage);
+    return n<1?-1:Math.min(n-1,sol.els.length-1);
+  })();
+  const tot=items.reduce(function(a,e){return a+e.th;},0);
+  const span=360, k=Math.min(span/Math.max(tot,1e-9),span/0.6);
+  let x=X0+60+(span-tot*k)/2;
+  s+='<rect x="'+(X0-6)+'" y="'+(YC-62)+'" width="'+(X1-X0+12)+'" height="124" rx="4" '+
+     'fill="#f3efe4" stroke="#cfc6ae"/>';
+  s+=tx(X1-4,YC+54,"top view \u00b7 copper on substrate",{s:10.5,c:"#8a7f62",a:"end"});
+  const strip=function(x0,x1,w,fill,st,sw){
+    s+='<rect x="'+x0.toFixed(1)+'" y="'+(YC-w/2).toFixed(1)+'" width="'+
+       (x1-x0).toFixed(1)+'" height="'+w+'" fill="'+fill+'" stroke="'+(st||"none")+
+       '" stroke-width="'+(sw||0)+'"/>';
+  };
+  strip(X0,x,Wz0,"#c98b3a");
+  s+=tx((X0+x)/2,YC+20,"Z\u2080 feed",{s:11,c:"#6b5a3a"});
+  items.forEach(function(e){
+    const idx=sol.els.indexOf(e), on=(idx===active);
+    const w=(e.kind==="s")?Wh:Wl, x1=x+e.th*k;
+    strip(x,x1,w,on?"#e8a23c":"#c98b3a",on?"#d98200":"#8a5a1a",on?2.4:1);
+    const col=on?"#d98200":(e.kind==="s"?"#b02418":"#1b4f9c");
+    const xm=(x+x1)/2;
+    s+=tx(xm,YC-Wl/2-30,(idx+1)+"  "+(e.kind==="s"?"hi-Z":"lo-Z")+" \u2192 "+e.type,
+      {s:12,bold:true,c:col});
+    s+=tx(xm,YC-Wl/2-14,"Z = "+sig(e.zc*I.z0,4)+" \u03a9",{s:11.5,c:"#333"});
+    const shown=arcsVisible(S.stage)>idx;
+    s+=tx(xm,YC+Wl/2+16,shown?sig(e.th*180/Math.PI,3)+"\u00b0":"",{s:12,c:"#333"});
+    if(S.stage>=4)s+=tx(xm,YC+Wl/2+32,lenStr(e.th/(2*Math.PI)*I.lambda),
+      {s:12.5,bold:true,c:"#141414"});
+    x=x1;
+  });
+  strip(x,X1,Wz0,"#c98b3a");
+  s+='<rect x="'+X1+'" y="'+(YC-44)+'" width="88" height="88" rx="4" '+
+     'fill="#fdf1ef" stroke="#b02418" stroke-width="2.2"/>';
+  s+=tx(X1+44,YC-18,"Z\u2097",{s:16,bold:true,c:"#b02418"});
+  const zls=(S.units==="norm")?cf(I.zL,4)
+    :(sig(I.zL.re*I.z0,4)+(I.zL.im<0?" "+MIN+" j":" + j")+sig(Math.abs(I.zL.im*I.z0),4));
+  const zp=zls.split(" ");
+  s+=tx(X1+44,YC+4,zp[0],{s:12.5,c:"#b02418"});
+  s+=tx(X1+44,YC+20,zp.slice(1).join(""),{s:12.5,c:"#b02418"});
+  $("sch").innerHTML=s;
+}
 /* ------------------------------- panels ----------------------------------- */
 function fStr(){
   const v=$("fr").value.trim();
@@ -1077,7 +1273,10 @@ function drawSols(){
       s+='<div class="sol no"><b>'+o.order+' — not available</b>'+o.why+'</div>';
       return;
     }
-    const prev=o.els.map(function(e){return e.type+" "+e.comp;}).join(" → ");
+    const prev=o.els.map(function(e){
+      return e.th!==undefined
+        ?(e.kind==="s"?"hi-Z ":"lo-Z ")+sig(e.th*180/Math.PI,3)+"\u00b0"
+        :e.type+" "+e.comp;}).join(" → ");
     const nrm=o.els.map(function(e){
       return (e.kind==="s"?"jx = ":"jb = ")+jf(e.v,4);}).join(" → ");
     s+='<button class="sol'+(i===S.sel?" on":"")+'" data-i="'+i+'"><b>'+
@@ -1097,7 +1296,22 @@ function drawSols(){
   else if(S.info)m='<div class="ok">'+S.info+'</div>';
   else{
     const sol=S.sols[S.sel];
-    if(sol&&sol.degen){
+    if(sol&&!sol.bad&&I.hilo){
+      const rl=function(g){return g<1e-9?"\u221e":sig(-20*Math.log10(g),3);};
+      m='<div class="'+(sol.tuned?"ok":"err")+'">First-order lengths (\u03b2\u2113 = '+
+        'X/Z<sub>h</sub>, B\u00b7Z<sub>l</sub>) leave |\u0393| = '+sig(sol.mis1,3)+
+        ' (return loss '+rl(sol.mis1)+' dB). '+
+        (sol.tuned?'The tuned lengths match exactly, and the chart plays those.'
+          :(sol.els.length<2?'A single line cannot be tuned to land exactly, so '+
+            'the chart plays the first-order length.'
+            :'No pair of lengths with these two line impedances lands exactly on the '+
+            'target, so the chart plays the first-order lengths \u2014 try a higher '+
+            'Z<sub>h</sub> or a lower Z<sub>l</sub>.'))+
+        (sol.long?' <b>A section is longer than 45\u00b0</b>, where the short-line '+
+          'picture starts to fail: a more extreme Z<sub>h</sub> or Z<sub>l</sub> '+
+          'shortens it.':'')+'</div>';
+    }
+    else if(sol&&sol.degen){
       /* Which circle the load already sits on follows the element that
          SURVIVED, not the order: a lone shunt element means the load is
          already on the g circle, a lone series element that it is on the
@@ -1133,21 +1347,40 @@ function drawTables(){
   S.nodes.forEach(function(nd,i){t+=nrow(names[i],nd.z,nd.y,(i<=n),showZ);});
   $("tn").innerHTML=t;
 
-  let e='<tr><th>El</th><th>Normalized</th><th>Denormalized</th><th>Component</th></tr>';
+  let e='<tr><th>El</th><th>Normalized</th><th>Denormalized</th><th>'+
+    (I.hilo?"Line":"Component")+'</th></tr>';
   sol.els.forEach(function(el,i){
     const vis=(n>i);
     const dn=el.kind==="s"?("X = "+ssig(el.X,4)+" Ω")
       :("B = "+ssig(el.B,4)+" S");
     const dn2=el.kind==="s"?"":("1/B = "+ssig(1/el.B,4)+" Ω");
-    e+='<tr class="el"><td>'+(i+1)+' '+el.type+'</td>'+
+    e+='<tr class="el"><td>'+(i+1)+' '+el.type+
+      (el.th!==undefined?'<br><span style="color:#555">'+(el.kind==="s"?"hi-Z ":"lo-Z ")+
+        sig(el.zc*I.z0,4)+' \u03a9</span>':'')+'</td>'+
       cell(vis,(el.kind==="s"?"jx = ":"jb = ")+jf(el.v,4))+
       cell(vis&&showZ,dn+(dn2?'<br><span style="color:#555">'+dn2+'</span>':''))+
-      cell(vis&&showC,'<b>'+el.comp+'</b>')+'</tr>';
+      cell(vis&&showC,el.th!==undefined
+        ?(lamStr(el.th)+'<br><b>'+lenStr(el.th/(2*Math.PI)*I.lambda)+'</b>')
+        :'<b>'+el.comp+'</b>')+'</tr>';
   });
   $("te").innerHTML=e;
 
   let a="";
-  if(showC){
+  if(showC&&I.hilo){
+    a+='<div class="arith">\u03bb = c / (f \u221a\u03b5<sub>eff</sub>) = '+
+       '299.8\u00d710\u2076 / ('+fStr()+' \u00d7 \u221a'+sig(I.eps,4)+') = <b>'+
+       lenStr(I.lambda)+'</b></div>';
+    sol.els.forEach(function(el,i){
+      const first=el.kind==="s"
+        ?"\u03b2\u2113 \u2248 X/Z<sub>h</sub> = "+sig(el.X,4)+" / "+sig(I.zh,4)
+        :"\u03b2\u2113 \u2248 B\u00b7Z<sub>l</sub> = "+sig(el.B,4)+" \u00d7 "+sig(I.zlo,4);
+      a+='<div class="arith">'+(i+1)+".&nbsp; "+first+" = "+
+         sig(el.th1*180/Math.PI,4)+"\u00b0"+
+         (sol.tuned?" &nbsp;\u2192&nbsp; tuned "+sig(el.th*180/Math.PI,4)+"\u00b0":"")+
+         " = "+(el.th/(2*Math.PI)).toFixed(4)+" \u03bb = <b>"+
+         lenStr(el.th/(2*Math.PI)*I.lambda)+"</b></div>";
+    });
+  }else if(showC){
     const f=fStr();
     sol.els.forEach(function(el,i){
       let line;
@@ -1178,10 +1411,12 @@ function drawStage(){
   let extra="";
   if(sol&&!sol.bad&&S.stage>=1&&S.stage<=2&&arcsVisible(S.stage)>0){
     const el=sol.els[Math.min(arcsVisible(S.stage)-1,sol.els.length-1)];
-    extra=" — "+el.type;
+    extra=" — "+(el.th!==undefined?(el.kind==="s"?"hi-Z line for the ":"lo-Z line for the "):"")+
+      el.type;
   }
   const txt="stage "+S.stage+" of 4 <span>&mdash; "+
-    STAGE_NAME[S.stage]+esc(extra)+"</span>"+
+    (S.stage===4&&S.real==="hilo"?"line lengths":STAGE_NAME[S.stage])+
+    esc(extra)+"</span>"+
     (n===1?' <span>(stage 1 skipped)</span>':"");
   $("stage").innerHTML=txt; $("pstage").innerHTML=txt;
   $("pNext").disabled=(S.stage>=4)||!sol||sol.bad;
@@ -1329,6 +1564,8 @@ function tsv(){
   let L=["L-section matching  —  ECE 4123/6423  Fall 2026"];
   L.push("Z0\t"+I.z0+" ohm\tf\t"+fStr());
   L.push("zL\t"+plain(cf(I.zL))+"\tyL\t"+plain(cf(cinv(I.zL))));
+  if(I.hilo)L.push("Hi-Lo microstrip\tZh\t"+I.zh+" ohm\tZl\t"+I.zlo+" ohm\teps_eff\t"+
+    I.eps+"\tlambda\t"+plain(lenStr(I.lambda)));
   if(sol&&!sol.bad){
     L.push("solution\t"+plain(sol.degen?"one element":sol.name));
     L.push("");L.push("Node\tz\ty\tZ (ohm)\tY (S)");
@@ -1341,7 +1578,8 @@ function tsv(){
     sol.els.forEach(function(el,i){
       L.push((i+1)+" "+el.type+"\t"+plain((el.kind==="s"?"jx = ":"jb = ")+jf(el.v))+
         "\t"+plain(el.kind==="s"?("X = "+ssig(el.X,4)+" ohm"):("B = "+ssig(el.B,4)+" S"))+
-        "\t"+plain(el.comp));
+        "\t"+plain(el.comp)+(el.th!==undefined?"\t"+(el.kind==="s"?"hi-Z ":"lo-Z ")+
+          sig(el.zc*I.z0,4)+" ohm\tfirst-order "+plain(sig(el.th1*180/Math.PI,4))+" deg":""));
     });
   }
   return L.join("\n");
@@ -1430,7 +1668,17 @@ function setTgt(t){
     $("rt").value=(S.units==="norm")?"1":String(z0);$("xt").value="0";}
   recalc();
 }
-["z0","rl","xl","fr","rt","xt"].forEach(function(id){
+function setReal(r){
+  S.real=r;
+  Array.prototype.forEach.call($("segReal").children,function(b){
+    b.className=(b.getAttribute("data-r")===r)?"on":"";});
+  $("hlBox").style.display=(r==="hilo")?"block":"none";
+  $("hsub").innerHTML=(r==="hilo")?"Hi-Lo microstrip lines":"lumped elements";
+  recalc();
+}
+Array.prototype.forEach.call($("segReal").children,function(b){
+  b.onclick=function(){setReal(b.getAttribute("data-r"));};});
+["z0","rl","xl","fr","rt","xt","zh","zlo","eps"].forEach(function(id){
   $(id).addEventListener("input",recalc);
 });
 $("fu").addEventListener("change",recalc);
