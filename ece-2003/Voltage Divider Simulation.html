@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <!--
   Voltage Divider Simulation
-  Version:   1.0.4
-  Released:  2026-09-29
+  Version:   1.1.0
+  Released:  2026-10-11
   Owner:     Design (EE Interactive Teaching Simulations)
   Changelog:
+    1.1.0 — Schematic: KVL drop brackets beside R1 and R2 (V_R1 + V_R2 = Vin, live values); every resistor labelled
+            with its own current (I, I2, IL) so the split at the node is readable with a load; Vout gauge moved to a
+            fixed corner overlay so the circuit is drawn ~30 % larger. FIX: panel titles were upper-cased whole, so
+            "9.8 mW" read "9.8 MW" and "kΩ" read "KΩ" — values now keep their case. Loading-panel notes moved off
+            the curve. Phone/tablet layout (stacked panels, no sideways scroll).
     1.0.4 — Preset buttons spaced 14 px below the R2 / wiper slider.
     1.0.3 — Layout (customer screenshot, 2026-09-29): schematic view widened left (x0 −0.9 → −2.3) so the Vin label
             is not clipped; first/last log-axis tick labels edge-aligned so "10 MΩ" and "10³" stay inside the panel;
@@ -136,6 +141,23 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border:1px solid var(
 .tg::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--mut);transition:.15s}
 .tg[aria-checked=true]{background:var(--acc);border-color:var(--acc)}.tg[aria-checked=true]::after{left:20px;background:var(--ontxt)}
 .twk .seg-btns{margin:0}
+@media (max-width:900px){
+  body{height:auto;min-height:100vh;overflow:auto}
+  .topnav{height:auto;flex-wrap:wrap;gap:6px;padding:8px 12px}
+  .topnav-right{flex-wrap:wrap;gap:6px}
+  .topnav-tabs button{padding:7px 11px}
+  .page.active{flex-direction:column}
+  .main{flex-direction:column;overflow:visible}
+  .sidebar{width:auto;min-width:0;border-right:none;border-top:1px solid var(--line);order:2;overflow:visible}
+  .content{overflow:visible}
+  .stage{grid-template-columns:1fr;flex:none}
+  .stage>.well{height:min(92vw,520px)}
+  .auxcol{grid-template-rows:none}
+  .auxcol .well{height:210px}
+  .readouts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scroll{padding:20px 16px 44px}
+  .twk{top:0}
+}
 </style>
 </head>
 <body>
@@ -385,7 +407,7 @@ let view = { s: 1, ox: 0, oy: 0 };
 function WX(x) { return view.ox + x * view.s; }
 function WY(y) { return view.oy - y * view.s; }
 // Vertical resistor between world y1 (top) and y2 (bottom) at world x; shaded top→bottom by potential, glowing by power share.
-function resistor(ctx, x, y1, y2, cTop, cBot, glow, label, value, side) {
+function resistor(ctx, x, y1, y2, cTop, cBot, glow, label, value, side, cur) {
   const cx = WX(x), py1 = WY(y1), py2 = WY(y2), len = py2 - py1, body = CKT.RLEN * view.s, lead = (len - body) / 2;
   const hw = CKT.RHALF * view.s, top = py1 + lead, bot = py2 - lead;
   const grad = ctx.createLinearGradient(0, py1, 0, py2); grad.addColorStop(0, cTop); grad.addColorStop(1, cBot);
@@ -403,6 +425,34 @@ function resistor(ctx, x, y1, y2, cTop, cBot, glow, label, value, side) {
   ctx.fillText(label, lx, (top + bot) / 2 - 0.15 * view.s);
   ctx.font = mono(Math.max(11, 0.22 * view.s), 500); ctx.fillStyle = COL.mut;
   ctx.fillText(value, lx, (top + bot) / 2 + 0.16 * view.s);
+  if (cur) { ctx.font = mono(Math.max(11, 0.21 * view.s), 700); ctx.fillStyle = COL.cur; subText(ctx, cur, lx, (top + bot) / 2 + 0.46 * view.s); }
+}
+// fillText with one subscript: "I_L = 37 µA" → I, subscript L, then the rest (subscript ends at the first space).
+function subText(ctx, s, x, y) {
+  const m = /^([^_]*)_(\S+)(.*)$/.exec(s);
+  if (!m) { ctx.fillText(s, x, y); return; }
+  const font = ctx.font, align = ctx.textAlign, px = parseFloat(/(\d+(?:\.\d+)?)px/.exec(font)[1]);
+  const small = font.replace(/\d+(?:\.\d+)?px/, (px * 0.72).toFixed(1) + 'px');
+  const w0 = ctx.measureText(m[1]).width, w2 = ctx.measureText(m[3]).width;
+  ctx.font = small; const w1 = ctx.measureText(m[2]).width; ctx.font = font;
+  let x0 = align === 'right' ? x - (w0 + w1 + w2) : align === 'center' ? x - (w0 + w1 + w2) / 2 : x;
+  ctx.textAlign = 'left';
+  ctx.fillText(m[1], x0, y);
+  ctx.font = small; ctx.fillText(m[2], x0 + w0, y + px * 0.28); ctx.font = font;
+  ctx.fillText(m[3], x0 + w0 + w1, y);
+  ctx.textAlign = align;
+}
+// KVL drop bracket beside a resistor: ticks at world y1 (higher potential) and y2, label + value to the right.
+function dropBracket(ctx, x, y1, y2, label, value, cHi, cLo) {
+  const px = WX(x), p1 = WY(y1), p2 = WY(y2), t = 0.12 * view.s;
+  const grad = ctx.createLinearGradient(0, p1, 0, p2); grad.addColorStop(0, cHi); grad.addColorStop(1, cLo);
+  ctx.save(); ctx.strokeStyle = grad; ctx.lineWidth = 1.6; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(px - t, p1); ctx.lineTo(px, p1); ctx.lineTo(px, p2); ctx.lineTo(px - t, p2); ctx.stroke(); ctx.restore();
+  ctx.font = mono(Math.max(10, 0.2 * view.s), 700); ctx.fillStyle = cHi; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('+', px - t - 0.02 * view.s - 8, p1 + 0.12 * view.s); ctx.fillStyle = cLo; ctx.fillText('−', px - t - 0.02 * view.s - 8, p2 - 0.12 * view.s);
+  const my = (p1 + p2) / 2;
+  ctx.font = mono(Math.max(11, 0.23 * view.s), 800); ctx.fillStyle = COL.txt; subText(ctx, label, px + 8, my - 0.15 * view.s);
+  ctx.font = mono(Math.max(11, 0.23 * view.s), 700); ctx.fillStyle = COL.mut; ctx.fillText(value, px + 8, my + 0.15 * view.s);
 }
 // Battery symbol (long plate = +, top) between world y0 (bottom) and y1 (top) at world x.
 function battery(ctx, x, y0, y1, cTop, cBot) {
@@ -471,8 +521,8 @@ function flowDots(ctx, pts, share, ph) {
   ctx.shadowBlur = 0;
 }
 // Analog meter: arc gauge for Vout / Vin with a needle, centred at world (cx, cy).
-function gauge(ctx, cx, cy, frac, label) {
-  const px = WX(cx), py = WY(cy), r = GAUGE_R * view.s, a0 = Math.PI * 1.15, a1 = Math.PI * 1.85;
+function gauge(ctx, px, py, r, frac, label) {
+  const a0 = Math.PI * 1.15, a1 = Math.PI * 1.85;
   ctx.save();
   ctx.fillStyle = COL.bg; ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(px, py, r + 8, 0, 7); ctx.fill(); ctx.stroke();
@@ -489,7 +539,7 @@ function gauge(ctx, cx, cy, frac, label) {
   ctx.strokeStyle = COL.acc; ctx.lineWidth = 2.5; ctx.shadowColor = COL.acc; ctx.shadowBlur = 8;
   ctx.beginPath(); ctx.moveTo(px - 10 * Math.cos(a), py - 10 * Math.sin(a)); ctx.lineTo(px + (r - 4) * Math.cos(a), py + (r - 4) * Math.sin(a)); ctx.stroke();
   ctx.shadowBlur = 0; ctx.fillStyle = COL.acc; ctx.beginPath(); ctx.arc(px, py, 4, 0, 7); ctx.fill();
-  ctx.fillStyle = COL.txt; ctx.font = mono(Math.max(11, 0.24 * view.s), 800); ctx.textAlign = 'center';
+  ctx.fillStyle = COL.txt; ctx.font = mono(Math.max(11, 0.3 * r), 800); ctx.textAlign = 'center';
   ctx.fillText(label, px, py + r * 0.55);
   ctx.fillStyle = COL.mut2; ctx.font = mono(9, 600); ctx.fillText('Vout / Vin', px, py + r * 0.55 + 14);
   ctx.restore();
@@ -498,7 +548,7 @@ function gauge(ctx, cx, cy, frac, label) {
 function drawCircuit(st) {
   const { ctx, w, h } = fit($('cvCkt'));
   ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
-  const V = CKT.VIEW, vx1 = TW.gauge ? V.x1 : V.x1 - 1.9, s = Math.min(w / (vx1 - V.x0), h / (V.y1 - V.y0));
+  const V = CKT.VIEW, vx1 = P.load ? 9.7 : 7.2, s = Math.min(w / (vx1 - V.x0), h / (V.y1 - V.y0));
   view = { s, ox: (w - (vx1 - V.x0) * s) / 2 - V.x0 * s, oy: (h + (V.y1 - V.y0) * s) / 2 + V.y0 * s };
   const cHi = potCol(st.Vin, st.Vin), cLo = potCol(0, st.Vin), cN = potCol(st.Vout, st.Vin);
   const Pmax = Math.max(st.P1, st.P2, st.PL, 1e-12), gl = p => Math.min(1, p / Pmax) * Math.min(1, Math.log10(1 + p / 1e-3) / 3);
@@ -512,16 +562,20 @@ function drawCircuit(st) {
   // elements
   battery(ctx, CKT.XS, CKT.YB, CKT.YT, cHi, cLo);
   const potMode = P.mode === 'pot';
-  resistor(ctx, CKT.XR, CKT.YT, CKT.YN, cHi, cN, gl(st.P1), potMode ? '(1−α)·Rpot' : 'R1', si(st.R1, 'Ω'), 'left');
-  resistor(ctx, CKT.XR, CKT.YN, CKT.YB, cN, cLo, gl(st.P2), potMode ? 'α·Rpot' : 'R2', si(st.R2, 'Ω'), 'left');
-  if (P.load) resistor(ctx, CKT.XT + 0.9, CKT.YN, CKT.YB, cN, cLo, gl(st.PL), 'RL', si(st.RL, 'Ω'), 'right');
+  resistor(ctx, CKT.XR, CKT.YT, CKT.YN, cHi, cN, gl(st.P1), potMode ? '(1−α)·Rpot' : 'R1', si(st.R1, 'Ω'), 'left', 'I = ' + si(st.I, 'A'));
+  resistor(ctx, CKT.XR, CKT.YN, CKT.YB, cN, cLo, gl(st.P2), potMode ? 'α·Rpot' : 'R2', si(st.R2, 'Ω'), 'left', 'I_2 = ' + si(st.I2, 'A'));
+  if (P.load) resistor(ctx, CKT.XT + 0.9, CKT.YN, CKT.YB, cN, cLo, gl(st.PL), 'RL', si(st.RL, 'Ω'), 'right', 'I_L = ' + si(st.IL, 'A'));
+  // KVL: the two drops add up to Vin
+  const bx = CKT.XR + 0.62;
+  dropBracket(ctx, bx, CKT.YT - 0.12, CKT.YN + 0.18, 'V_R1', si(st.Vin - st.Vout, 'V'), cHi, cN);
+  dropBracket(ctx, bx, CKT.YN - 0.18, CKT.YB + 0.12, 'V_R2', si(st.Vout, 'V'), cN, cLo);
   if (potMode) { arrow(ctx, CKT.XR + 0.75, CKT.YN, CKT.XR + CKT.RHALF + 0.12, CKT.YN, COL.acc, 2.5); }
   // node + terminals
   terminal(ctx, CKT.XR, CKT.YN, cN); terminal(ctx, CKT.XT, CKT.YN, cN); terminal(ctx, CKT.XT, CKT.YB, cLo);
   ctx.font = mono(Math.max(10, 0.2 * view.s), 500); ctx.fillStyle = COL.mut2; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
   ctx.fillText('node', WX(CKT.XR - 0.15), WY(CKT.YN + 0.1));
   // Vout arrow + label
-  const xa = P.load ? CKT.XA + 0.95 : CKT.XA;
+  const xa = P.load ? CKT.XT + 2.55 : CKT.XA;
   arrow(ctx, xa, 0.25, xa, CKT.YN - 0.25, cN, 2.5);
   ctx.font = mono(Math.max(13, 0.3 * view.s), 800); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillStyle = cN; ctx.shadowColor = cN; ctx.shadowBlur = 10;
@@ -541,7 +595,7 @@ function drawCircuit(st) {
     flowDots(ctx, loopR2, sh2, ph);
     if (P.load) flowDots(ctx, loopRL, shL, ph + 0.37);
   }
-  if (TW.gauge) gauge(ctx, CKT.XG + (P.load ? 0.6 : 0), 2.1, st.Vin > 0 ? st.Vout / st.Vin : 0, (st.Vin > 0 ? (100 * st.Vout / st.Vin).toFixed(1) : '0.0') + ' %');
+  if (TW.gauge && w >= 560) { const gr = Math.max(38, Math.min(64, w * 0.085)); gauge(ctx, w - gr - 22, h - gr - 34, gr, st.Vin > 0 ? st.Vout / st.Vin : 0, (st.Vin > 0 ? (100 * st.Vout / st.Vin).toFixed(1) : '0.0') + ' %'); }
   // potential legend
   if (TW.shading) {
     const lx = 14, ly = h - 16, lw = 110;
@@ -551,16 +605,20 @@ function drawCircuit(st) {
     ctx.fillText('0 V', lx, ly - 7); ctx.textAlign = 'right'; ctx.fillText(si(st.Vin, 'V'), lx + lw, ly - 7);
     ctx.textAlign = 'left'; ctx.fillText('wire potential', lx + lw + 8, ly + 3);
   }
-  ctx.font = mono(9, 500); ctx.fillStyle = COL.mut2; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-  ctx.fillText('flow speed ∝ log I (cue only) · glow ∝ I²R', w - 10, h - 6);
+  if (w >= 560) {
+    ctx.font = mono(9, 500); ctx.fillStyle = COL.mut2; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.fillText('flow speed ∝ log I (cue only) · glow ∝ I²R', w - 10, h - 6);
+  }
 }
 
 /* ═══ 7. AUX PANELS ═══ */
-function auxFrame(cv, title) {
+// Panel frame. The title is upper-cased; `detail` (values with SI prefixes, e.g. mW, kΩ) keeps its case.
+function auxFrame(cv, title, detail) {
   const { ctx, w, h } = fit(cv);
   ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
   ctx.font = sans(10, 800); ctx.fillStyle = COL.mut; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText(title.toUpperCase(), 10, 8);
+  const T = title.toUpperCase(); ctx.fillText(T, 10, 8);
+  if (detail) { const x = 10 + ctx.measureText(T).width + 10; ctx.font = mono(10, 600); ctx.fillStyle = COL.txt; ctx.fillText(detail, x, 8); }
   return { ctx, w, h, L: AUX_L, T: AUX_T, pw: w - AUX_L - AUX_R, ph: h - AUX_T - AUX_B };
 }
 function hGrid(ctx, x0, x1, y, lbl) {
@@ -598,7 +656,7 @@ function drawXfer(st) {
 }
 // Vout vs RL (log axis) for the present R1, R2: Vout = Vth·RL/(RL+Rth); Rth marker where Vout = Vth/2.
 function drawLoad(st) {
-  const f = auxFrame($('cvLoad'), 'Loading  Vout  vs  RL   (Vth = ' + si(st.Vth, 'V') + ', Rth = ' + si(st.Rth, 'Ω') + ')'), { ctx, L, T, pw, ph } = f;
+  const f = auxFrame($('cvLoad'), 'Loading  Vout  vs  RL', 'Vth = ' + si(st.Vth, 'V') + ' · Rth = ' + si(st.Rth, 'Ω')), { ctx, L, T, pw, ph } = f;
   if (ph < 20) return;
   const lo = RL_LOG_MIN, hi = RL_LOG_MAX, X = r => L + (Math.log10(r) - lo) / (hi - lo) * pw, top = Math.max(st.Vth, 1e-9), Y = v => T + (1 - v / top) * ph;
   for (const v of nice(0, top, 4)) hGrid(ctx, L, L + pw, Y(v), si(v, 'V', 2));
@@ -614,16 +672,16 @@ function drawLoad(st) {
   ctx.fillText('RL = Rth → Vth/2', Math.min(X(st.Rth) + 5, L + pw - 90), T + ph - 3);
   if (P.load) {
     marker(ctx, X(Math.max(Math.pow(10, lo), Math.min(Math.pow(10, hi), st.RL))), Y(st.Vout), potCol(st.Vout, st.Vin));
-    ctx.font = mono(10, 700); ctx.fillStyle = COL.txt; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-    ctx.fillText('drop ' + (100 * st.err).toFixed(1) + ' %', L + pw, T + 4);
+    ctx.font = mono(10, 700); ctx.fillStyle = COL.txt; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('drop ' + (100 * st.err).toFixed(1) + ' %', L + 6, T + 6);
   } else {
-    ctx.font = mono(10, 700); ctx.fillStyle = COL.mut; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-    ctx.fillText('connect RL to place the operating point', L + pw, T + 4);
+    ctx.font = mono(10, 700); ctx.fillStyle = COL.mut; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('connect RL to place', L + 6, T + 6); ctx.fillText('the operating point', L + 6, T + 20);
   }
 }
 // Power bars P1, P2, PL (+ total from the source) with values.
 function drawPow(st) {
-  const f = auxFrame($('cvPow'), 'Power  I²R   Σ = ' + si(st.Pt, 'W')), { ctx, L, T, pw, ph } = f;
+  const f = auxFrame($('cvPow'), 'Power  I²R', 'Σ = ' + si(st.Pt, 'W') + ' from the source'), { ctx, L, T, pw, ph } = f;
   if (ph < 20) return;
   const bars = [['R1', st.P1, COL.vhi], ['R2', st.P2, COL.vlo]];
   if (P.load) bars.push(['RL', st.PL, COL.good]);
@@ -738,7 +796,7 @@ const TUTORIAL = [
   ['eq', 'I = V<sub>in</sub> / (R<sub>1</sub> + R<sub>2</sub>)          V<sub>out</sub> = I · R<sub>2</sub> = V<sub>in</sub> · R<sub>2</sub> / (R<sub>1</sub> + R<sub>2</sub>)', 'The output depends only on the ratio R<sub>2</sub>/(R<sub>1</sub>+R<sub>2</sub>), never on the absolute values.'],
   ['p', 'Scaling both resistors by the same factor leaves V<sub>out</sub> unchanged and scales I and the dissipated power inversely. That is the whole design trade: small resistors waste power and heat up; large resistors make the output sensitive to whatever is connected to it (§3).'],
   ['h2', '2. What the picture shows'],
-  ['ul', ['Wire colour is the node potential: blue at 0 V, red at V<sub>in</sub>; the output wire sits at the blend that equals V<sub>out</sub>/V<sub>in</sub>.', 'Charge dots move at a speed that increases with I and split at the node in proportion to the branch currents (with a load connected). The speed map is logarithmic and a cue only.', 'Resistor glow scales with I²R relative to the hottest resistor; the pill turns red above ¼ W, the common rating of a small through-hole part.', 'The analog gauge is V<sub>out</sub>/V<sub>in</sub> in percent.']],
+  ['ul', ['Wire colour is the node potential: blue at 0 V, red at V<sub>in</sub>; the output wire sits at the blend that equals V<sub>out</sub>/V<sub>in</sub>.', 'Charge dots move at a speed that increases with I and split at the node in proportion to the branch currents (with a load connected). The speed map is logarithmic and a cue only.', 'Resistor glow scales with I²R relative to the hottest resistor; the pill turns red above ¼ W, the common rating of a small through-hole part.', 'The dashed brackets beside R<sub>1</sub> and R<sub>2</sub> give each voltage drop; they always add to V<sub>in</sub> (KVL). Each resistor is labelled with its own current — with a load, I = I<sub>2</sub> + I<sub>L</sub> at the node (KCL).', 'The analog gauge (bottom-right corner) is V<sub>out</sub>/V<sub>in</sub> in percent.']],
   ['h2', '3. Loading and the Thévenin equivalent'],
   ['p', 'Seen from the output terminals, the divider is a Thévenin source: open-circuit voltage V<sub>th</sub> = V<sub>in</sub>·R<sub>2</sub>/(R<sub>1</sub>+R<sub>2</sub>) and series resistance R<sub>th</sub> = R<sub>1</sub>∥R<sub>2</sub> (source shorted). A load R<sub>L</sub> then sees a second divider:'],
   ['eq', 'V<sub>out</sub> = V<sub>th</sub> · R<sub>L</sub> / (R<sub>L</sub> + R<sub>th</sub>)          relative drop = R<sub>th</sub> / (R<sub>L</sub> + R<sub>th</sub>)', 'R<sub>L</sub> = R<sub>th</sub> halves the output; R<sub>L</sub> = 10·R<sub>th</sub> drops it 9.1 %; R<sub>L</sub> = 100·R<sub>th</sub> drops it 0.99 %.'],
