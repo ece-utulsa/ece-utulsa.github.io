@@ -154,8 +154,18 @@ main{max-width:1180px;margin:0 auto;padding:0 var(--gutter) 90px}
   transition:transform .16s ease,border-color .16s ease,background .16s ease;
 }
 .card-tool{border-left-color:var(--amber)}
-a.card:hover{transform:translateY(-2px);background:var(--panel-hi);border-color:var(--muted)}
-a.card:hover .card-go{color:var(--phosphor)}
+a.card:hover,.card-dl:hover{transform:translateY(-2px);background:var(--panel-hi);border-color:var(--muted)}
+a.card:hover .card-go,.card-dl:hover .card-go{color:var(--phosphor)}
+/* cards with a download: the whole card opens the tool, the download button sits above that link */
+.card-dl{position:relative}
+.card-main{color:inherit;text-decoration:none}
+.card-main::after{content:"";position:absolute;inset:0;border-radius:var(--radius)}
+.card-dlbtn{margin-left:auto;
+  position:relative;z-index:1;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--phosphor);text-decoration:none;
+  border:1px solid var(--panel-hi);border-radius:var(--radius);padding:2px 7px;white-space:nowrap;
+}
+.card-dlbtn:hover{border-color:var(--phosphor)}
 .card-kind{
   font-family:"IBM Plex Mono",monospace;
   font-size:11px;letter-spacing:.16em;text-transform:uppercase;
@@ -177,7 +187,7 @@ a.card:hover .card-go{color:var(--phosphor)}
   padding:2px 6px;
 }
 a.card:hover .tag{border-color:var(--muted)}
-.card-go{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted)}
+.card-go{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted);white-space:nowrap}
 
 .card-todo{border-left-color:var(--muted);border-style:dashed;opacity:.62}
 .card-todo .card-kind{color:var(--muted)}
@@ -245,6 +255,8 @@ footer a{color:var(--phosphor)}
    kind   : "animation" | "tool"
    group  : section heading (see GROUP_ORDER below)
    blurb  : one line, what it does for the student
+   download: true adds a "Download" button that saves the file (a standalone,
+             offline copy); the rest of the card still opens it
    tags   : short labels for search/scan
 
    Animations and tools both live beside this page in ece-2003/;
@@ -323,7 +335,7 @@ const TOOLS = [
   { file:"Op-Amp_Circuit_Lab_v3.1.0.html",
     title:"Op-Amp Circuit Lab", kind:"tool", group:"Operational Amplifiers",
     blurb:"Nine op-amp circuits with live schematics: wires coloured by node voltage, moving current arrows, the virtual ground, a scope and an ideal or real (741, TL071…) op-amp. v3.1.0.",
-    tags:["op-amp","virtual ground","inverting","integrator","Schmitt"] },
+    tags:["op-amp","virtual ground","inverting","integrator","Schmitt"], download:true },
 
   /* --- AC steady state --------------------------------------------- */
   { file:"Impedance vs Resistance Fall2026.html",
@@ -493,6 +505,18 @@ function cardHTML(t){
       <div class="tags">${tags}</div>
       <span class="card-go">${t.file ? "Open →" : "Add file"}</span>
     </div>`;
+  if (t.file && t.download) {
+    const href = encodeURI(t.file);
+    return `<div class="${cls} card-dl">
+    <span class="card-kind">${kindLabel}</span>
+    <h3><a class="card-main" href="${href}">${t.title}</a></h3>
+    <p>${t.blurb || ""}</p>
+    <div class="card-foot">
+      <div class="tags">${tags}</div>
+      <a class="card-dlbtn" href="${href}" download title="Save a standalone copy that runs offline">Download \u2193</a>
+      <span class="card-go">Open \u2192</span>
+    </div></div>`;
+  }
   return t.file
     ? `<a class="${cls}" href="${encodeURI(t.file)}">${inner}</a>`
     : `<div class="${cls}">${inner}</div>`;
