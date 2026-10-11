@@ -2,13 +2,11 @@
 <html lang="en">
 <!--
   Multi-Scatterer TDR Range-Profile Explorer
-  Version: v1.4.0-dev  (WORKING COPY — adds animated pulse/echo view, resolution demo, hi-DPI plots, bug fixes; NOT a certified release)
-  Released: working copy (uncertified)
-  Status: Builds on the v1.1.0-interim working copy. The FR11 Guide page is STILL NOT INCLUDED
-          — blocked: tdr_guide_content_v2.md (PI-signed-off verbatim content) and the TDR Visual
-          design spec v0.2 were not supplied and are not on the connected Drive. The verbatim Guide
-          content cannot be fabricated. No final stamp.
-  Changelog (v1.4.0-dev pass — visuals + fixes):
+  Version: v1.4.0  (adds animated pulse/echo view, sweep comparison, resolution demo, hi-DPI plots, bug fixes)
+  Released: 2026-10-11 — published to the ECE 4123 tools page.
+  Status: The FR11 Guide page is not included; it awaits the signed-off tdr_guide_content_v2.md
+          and will be added in a later version.
+  Changelog (v1.4.0 — visuals + fixes):
     - Animated "pulse out, echoes back" scene above the range profile, on the same range axis. The outgoing pulse
       has spatial FWHM v/B (so its length IS the resolution story); each scatterer launches an echo of strength ρ;
       overlapping echoes add coherently (complex envelope at f_c). As echoes reach the instrument the range profile
@@ -116,7 +114,7 @@
 <body>
   <p class="course">EE-4123/6423 Radio Frequency Engineering</p>
   <h1>Multiple Scatterers — TDR Range Profile</h1>
-  <p class="sub">Circuit-level radar return |TDR response| vs. range &nbsp;·&nbsp; behavioral picture (reflection-coefficient strengths; no antenna gain or spreading)</p>
+  <p class="sub">Circuit-level radar return |TDR response| vs. range &nbsp;·&nbsp; behavioral picture (reflection-coefficient strengths; no antenna gain or spreading) &nbsp;·&nbsp; v1.4.0</p>
 
   <div class="wrap">
     <!-- LEFT COLUMN: signal + transform -->
