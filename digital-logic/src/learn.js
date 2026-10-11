@@ -1,10 +1,27 @@
 /* Digital Logic Breadboard — Tutorial + Experiments content and the truth-table checker UI. */
+/* ============================================================
+   TABLE OF CONTENTS
+   1. Constants    — 2-bit counter vector size, gates tabulated in the Tutorial
+   2. Helpers      — DOM builders h/p/b/i, gateTable, resultTable, upCount2, noParts
+   3. Tutorial     — the Tutorial page
+   4. Experiments  — EXPS card data and the Experiments page with its Check buttons
+   5. Export       — window.DLB.pages
+   ============================================================ */
 (function(){
 const { DEFS, checkVectors } = window.DLB;
+
+// ── CONSTANTS ─────────────────────────────────────────────────
+const COUNTER_STATES = 4;        // a 2-bit counter has 4 states; its checker steps through one full cycle
+const TUTORIAL_GATES = ['AND','OR','NOT','NAND','NOR','XOR','XNOR'];
+// ── END CONSTANTS ─────────────────────────────────────────────
+
+// ── HELPERS ───────────────────────────────────────────────────
+// Element with a class and children (strings become text nodes, never HTML).
 const h = (tag, cls, ...kids) => { const e = document.createElement(tag); if(cls) e.className = cls; kids.flat().forEach(k => e.append(k instanceof Node ? k : document.createTextNode(String(k)))); return e; };
+// Paragraph, bold and italic shorthands.
 const p = (...k) => h('p','',...k), b = t => h('b','',t), i = t => h('i','',t);
 
-/* Truth table for a gate def over all input combinations. */
+// Truth table for a gate def over all input combinations.
 function gateTable(type){
   const d = DEFS[type], n = d.ins.length, tb = h('table','tt'); tb.append(h('caption','',d.name));
   const tr = h('tr'); d.ins.forEach(x=>tr.append(h('th','',x))); d.outs.forEach(x=>tr.append(h('th','',x))); tb.append(tr);
@@ -12,6 +29,7 @@ function gateTable(type){
     inv.forEach(v=>r.append(h('td',v?'h':'l',v))); out.forEach(v=>r.append(h('td',v?'h':'l',v))); tb.append(r); }
   return tb;
 }
+// Checker result: inputs, then wanted and measured value for each output; mismatches marked.
 function resultTable(res){
   const tb = h('table','tt'); const ins = Object.keys(res.rows[0].in), outs = Object.keys(res.rows[0].want);
   const tr = h('tr'); ins.forEach(x=>tr.append(h('th','',x))); outs.forEach(x=>{ tr.append(h('th','',x+' want')); tr.append(h('th','',x+' got')); }); tb.append(tr);
@@ -19,14 +37,26 @@ function resultTable(res){
     outs.forEach(x=>{ row.append(h('td',r.want[x]?'h':'l',r.want[x])); row.append(h('td', r.got[x]===r.want[x] ? (r.got[x]?'h':'l') : 'bad', r.got[x])); }); tb.append(row); });
   return tb;
 }
+// Vectors for a 2-bit up-counter clocked by CK: one full cycle, each edge then the clock's return LOW.
+function upCount2(){
+  const v = []; let n = 0;
+  for(let e=0;e<COUNTER_STATES;e++){ const m = (n+1) % COUNTER_STATES;
+    v.push({in:{CK:1},out:{Q0:m&1,Q1:(m>>1)&1}}); n = m; v.push({in:{CK:0},out:{Q0:n&1,Q1:(n>>1)&1}}); }
+  return v;
+}
+// A rule that forbids packaged parts, so a "build it from gates" experiment is built from gates.
+function noParts(types){ return ckt => { const used = ckt.comps.filter(c => types.includes(c.type)); return used.length ? 'build it from gates \u2014 remove the '+[...new Set(used.map(c=>DEFS[c.type].name))].join(', ')+' part'+(used.length>1?'s':'')+'.' : null; }; }
+// ── END HELPERS ───────────────────────────────────────────────
 
+// ── TUTORIAL ──────────────────────────────────────────────────
+// The Tutorial page.
 function tutorial(){
   const w = h('div','wrap');
   w.append(h('h1','','Digital Logic ', b('Tutorial')),
     p('', h('span','lead','A digital signal takes one of two values: 0 (LOW) and 1 (HIGH). Every component on the board is a function from input bits to output bits — the simulator evaluates those functions literally, so what you see is the Boolean algebra, not an approximation of it.')));
   w.append(h('h2','','1 · Gates and truth tables'));
   w.append(p('A gate\u2019s behavior is fully specified by its ', b('truth table'), ': one row per input combination. The tables below are generated from the same functions the board uses.'));
-  const g = h('div','tt-grid'); ['AND','OR','NOT','NAND','NOR','XOR','XNOR'].forEach(t=>g.append(gateTable(t))); w.append(g);
+  const g = h('div','tt-grid'); TUTORIAL_GATES.forEach(t=>g.append(gateTable(t))); w.append(g);
   w.append(h('h2','','2 · Boolean algebra'));
   w.append(h('div','eq', 'Identity   A·1 = A    A+0 = A', h('br'), 'Null       A·0 = 0    A+1 = 1', h('br'), 'Idempotent A·A = A    A+A = A', h('br'), 'Complement A·A\u0304 = 0    A+A\u0304 = 1', h('br'), 'Distributive A·(B+C) = A·B + A·C    A+(B·C) = (A+B)·(A+C)', h('br'), i('De Morgan'), '  (A·B)\u0304 = A\u0304 + B\u0304     (A+B)\u0304 = A\u0304 · B\u0304'));
   w.append(p('De Morgan\u2019s laws are why ', b('NAND'), ' and ', b('NOR'), ' are each ', b('universal'), ': any Boolean function can be built from one of them alone. Experiment 1 asks you to prove the NOT case on the board.'));
@@ -38,7 +68,8 @@ function tutorial(){
   w.append(p('Tie T=1 on a T flip-flop (or Q\u0304 back to D on a D flip-flop) and it ', b('divides the clock by 2'), '. Chain ', b('Q\u0304'), ' of one stage into CK of the next and each stage divides again — a ', b('ripple counter'), ' that counts ', b('up'), '. The direction matters because the flip-flops are rising-edge: stage 1 must advance when stage 0 falls from 1 to 0 (the carry), and that falling edge of Q is a rising edge of Q\u0304. Chaining Q instead clocks stage 1 when stage 0 rises, which counts ', b('down'), '. The simulator propagates these edges stage by stage, so you can watch the carry ripple in the timing diagram. CTR 4 is a packaged 4-bit counter; REG 4 and SHIFT 4 load in parallel or serially on each edge.'));
   w.append(h('h2','','5 · Adders'));
   w.append(h('div','eq','Half adder   S = A \u2295 B      C = A·B', h('br'), 'Full adder   S = A \u2295 B \u2295 Cin      Cout = A·B + Cin·(A \u2295 B)'));
-  w.append(p('Chaining full adders Cout\u2192Cin builds a ripple-carry adder of any width. ADD 4 packages four of them with a carry-in, so two ADD 4 blocks cascade Cout\u2192Cin into an 8-bit adder (tie an unused Cin to 0 or GND). Wire the sum to a 7-SEG (inputs D0..D3, LSB at the top — same order as the counter and adder outputs, so the wires run straight) to read the result in hexadecimal.'));
+  w.append(p('Chaining full adders Cout\u2192Cin builds a ripple-carry adder of any width. ', b('ADD 4'), ' packages four of them and keeps a ', b('carry-in'), ' (Cin), like the 74LS283: two ADD 4 blocks cascade Cout\u2192Cin into an 8-bit adder. Tie an unused Cin to 0 or GND (an open Cin reads 0).'));
+  w.append(p('Wire the sum to a ', b('7-SEG'), ' (inputs D0..D3, LSB at the top — same order as the counter and adder outputs, so the wires run straight). The display decodes like a ', b('7448'), ' BCD-to-7-segment decoder: codes 0\u20139 show the decimal digits, and codes 10\u201315 show the 7448\u2019s non-digit patterns (15 is blank). It is a BCD display, so a sum above 9 does not appear as a hex letter: read it from the Cout and S3..S0 LEDs, or as the 7448 pattern.'));
   w.append(h('h2','','6 · Multiplexers and decoders'));
   w.append(p('A ', b('multiplexer'), ' is a data selector: the select bits pick which input reaches Y. MUX 2:1 passes I0 when S=0 and I1 when S=1; MUX 4:1 uses S1 S0 as a 2-bit number to pick I0\u2026I3. A ', b('decoder'), ' does the opposite job: it reads an n-bit address and raises exactly one of its 2\u207F outputs (only while EN=1). DEC 2:4 and DEC 3:8 have address bits A0 (LSB) upward.'));
   w.append(h('div','eq','MUX 2:1   Y = S\u0304·I0 + S·I1', h('br'), 'DEC 2:4   Y0 = A\u03041·A\u03040·EN   Y1 = A\u03041·A0·EN   Y2 = A1·A\u03040·EN   Y3 = A1·A0·EN'));
@@ -51,12 +82,15 @@ function tutorial(){
   w.append(h('h2','','9 · State machines'));
   w.append(p('A ', b('finite state machine'), ' is flip-flops that hold the state, next-state logic that computes the next state from the present state and the inputs, and output logic. In a ', b('Moore'), ' machine the outputs depend on the state only, so they change just after a clock edge. Design one in the usual steps: state diagram \u2192 state table \u2192 assign bits to states \u2192 next-state and output equations (K-maps) \u2192 build with D flip-flops, one per state bit. Experiment 13 is a sequence detector built this way.'));
   w.append(h('h2','','10 · Power and resistors'));
-w.append(p(b('VCC'),' is a constant 1 and ',b('GND'),' a constant 0 — the logic-level view of the supply rails. The ',b('R'),' part is an ideal series element: it passes the logic level unchanged, so VCC→R→input is a pull-up, GND→R→input a pull-down, and gate→R→LED the usual current-limited indicator. The simulator is two-valued, so no voltage drop, current, or resistance value is modeled; R documents the circuit’s intent rather than changing its logic. The ',b('LED'),' has an anode (A) and a cathode (K): it lights only when A is driven HIGH and K is driven LOW — normally K→GND, or K→a gate output for an active-low indicator. A disconnected cathode is an open circuit and the LED stays dark.'));
-w.append(h('h2','','11 · About the simulator'));
-  w.append(p('Gates are ', b('ideal'), ': zero propagation delay, no fan-out limit. An ', b('open'), ' (unwired) input reads 0 by convention and is drawn with a dashed stub and hollow ring; a PROBE on an open input shows OPEN rather than 0, and the Open-inputs readout counts them. The board iterates all gates to a fixed point after every change; a loop that never settles (e.g. a ring of an odd number of inverters) is flagged ', h('span','', 'UNSTABLE'), ' and each gate is marked ~. Flip-flops sample on the rising edge after the combinational logic has settled, then settle again — repeated until no further edge fires, which is what makes ripple counters work. Reset FFs, Import and reload restore state without firing an edge, even if a clock input is HIGH at that moment. Glitches and race conditions caused by real gate delays are therefore ', b('not'), ' modeled.'));
+  w.append(p(b('VCC'),' is a constant 1 and ',b('GND'),' a constant 0 — the logic-level view of the supply rails. The ',b('R'),' part is an ideal series element: it passes the logic level unchanged, so VCC→R→input is a pull-up, GND→R→input a pull-down, and gate→R→LED the usual current-limited indicator. The simulator is two-valued, so no voltage drop, current, or resistance value is modeled; R documents the circuit’s intent rather than changing its logic. The ',b('LED'),' has an anode (A) and a cathode (K): it lights only when A is driven HIGH and K is driven LOW — normally K→GND, or K→a gate output for an active-low indicator. A disconnected cathode is an open circuit and the LED stays dark.'));
+  w.append(h('h2','','11 · About the simulator'));
+  w.append(p('Gates are ', b('ideal'), ': zero propagation delay, no fan-out limit. An ', b('open'), ' (unwired) input reads 0 by convention and is drawn with a dashed stub and hollow ring; a PROBE on an open input shows OPEN rather than 0, and the Open-inputs readout counts them. The board iterates all gates to a fixed point after every change; a loop that never settles (e.g. a ring of an odd number of inverters) is flagged ', h('span','', 'UNSTABLE'), ' and each gate is marked ~. Flip-flops sample on the rising edge after the combinational logic has settled, then settle again — repeated until no further edge fires, which is what makes ripple counters work. Reset FFs, Import and reload restore state without firing an edge, even if a clock input is HIGH at that moment. Each input takes one wire: wiring a second driver to an input replaces the first, and the board says so (Undo brings it back). Signal labels (switches, buttons, clocks, probes, LEDs) are unique and never blank, so every trace, table column and checker name means one part. Glitches and race conditions caused by real gate delays are therefore ', b('not'), ' modeled.'));
   return w;
 }
+// ── END TUTORIAL ──────────────────────────────────────────────
 
+// ── EXPERIMENTS ───────────────────────────────────────────────
+// Card data: title, tag, goal text, checker vectors (null = no checker) and an optional circuit rule.
 const EXPS = [
   { t:'NOT from a NAND', tag:'Universal gates', goal:['Build an inverter using only a ', b('NAND'),' gate. Inputs: SWITCH ',b('A'),'. Output: PROBE ',b('Y'),' (or an LED with its cathode on GND). Hint: tie both NAND inputs to A.'],
     vec:[{in:{A:0},out:{Y:1}},{in:{A:1},out:{Y:0}}] },
@@ -71,8 +105,8 @@ const EXPS = [
   { t:'Divide-by-2', tag:'Sequential', goal:['Make a ',b('D FF'),' toggle on every clock edge (feed Q\u0304 back to D). Use SWITCH ',b('CK'),' as a manual clock; PROBE ',b('Q'),'. The checker pulses CK 0\u21921\u21920 and expects Q to alternate.'],
     vec:[{in:{CK:0},out:{Q:0}},{in:{CK:1},out:{Q:1}},{in:{CK:0},out:{Q:1}},{in:{CK:1},out:{Q:0}},{in:{CK:0},out:{Q:0}},{in:{CK:1},out:{Q:1}}] },
   { t:'2-bit ripple counter', tag:'Sequential', goal:['Chain two toggling flip-flops: SWITCH ',b('CK'),' clocks stage 0; its ',b('Q\u0304'),' clocks stage 1 (clocking from Q would count down — see Tutorial §4). PROBE ',b('Q0'),', PROBE ',b('Q1'),'. The checker expects an up-count 1, 2, 3, 0. Watch the carry ripple in the timing diagram.'],
-    vec:(()=>{const v=[];let n=0;for(let e=0;e<4;e++){v.push({in:{CK:1},out:{Q0:(n+1)&1,Q1:((n+1)>>1)&1}});n=(n+1)&3;v.push({in:{CK:0},out:{Q0:n&1,Q1:(n>>1)&1}});}return v;})() },
-  { t:'Hex to 7-segment', tag:'Display', goal:['Wire four switches ',b('D0'),'\u2026',b('D3'),' to a 7-SEG, then a 4-bit sum from ADD 4. No checker — count 0\u2026F on the display and confirm the hexadecimal digits (codes 10\u201315 show A\u2013F, not BCD blanking).'], vec:null },
+    vec:upCount2() },
+  { t:'BCD to 7-segment (7448)', tag:'Display \u00b7 not checked', goal:['Wire four switches ',b('D0'),'\u2026',b('D3'),' to a 7-SEG, then a 4-bit sum from ADD 4. No checker \u2014 step the code from 0 to 15 and compare the display with the 7448 function table: 0\u20139 are the decimal digits, 10\u201315 the decoder\u2019s non-digit patterns, and 15 is blank.'], vec:null },
   { t:'2:1 multiplexer from gates', tag:'Combinational', goal:['Build Y = S\u0304\u00b7I0 + S\u00b7I1 from AND, OR and NOT gates (not the MUX part). Inputs ',b('I0'),', ',b('I1'),', ',b('S'),'; PROBE ',b('Y'),'. Compare your circuit\u2019s ',b('Truth table'),' with the equation.'],
     rule: noParts(['MUX2','MUX4']),
     vec:[0,1,2,3,4,5,6,7].map(k=>{const s=k>>2&1,i1=k>>1&1,i0=k&1;return {in:{S:s,I1:i1,I0:i0},out:{Y:s?i1:i0}};}) },
@@ -87,12 +121,11 @@ const EXPS = [
       const ffs = ckt.comps.filter(c => DEFS[c.type].seq); if(ffs.length < 2) return 'use two flip-flops (found '+ffs.length+').';
       const bad = ffs.filter(f => !ckt.wires.some(w => w.to.c===f.id && w.to.pin===DEFS[f.type].seq.clk && w.from.c===ck.id));
       return bad.length ? bad.length+' flip-flop clock'+(bad.length>1?'s are':' is')+' not driven straight from CK \u2014 that is a ripple counter, not a synchronous one.' : null; },
-    vec:(()=>{const v=[];let n=0;for(let e=0;e<4;e++){v.push({in:{CK:1},out:{Q0:(n+1)&1,Q1:((n+1)>>1)&1}});n=(n+1)&3;v.push({in:{CK:0},out:{Q0:n&1,Q1:(n>>1)&1}});}return v;})() },
+    vec:upCount2() },
   { t:'Sequence detector (101)', tag:'State machine', goal:['Design a ',b('Moore'),' machine that sets ',b('Z'),' = 1 after the last three bits sampled from ',b('X'),' were 1, 0, 1 (overlapping: 10101 detects twice). Sample X on the rising edge of SWITCH ',b('CK'),'; PROBE ',b('Z'),'. Use D flip-flops for the state; Z must depend on the state only. Start: all flip-flops 0 = nothing seen yet.'],
     vec:(()=>{const xs=[1,0,1,0,1,1,0,1,0,0,1],v=[];let h=[0,0,0],z=0;xs.forEach(x=>{v.push({in:{X:x,CK:0},out:{Z:z}});h=[h[1],h[2],x];z=+(h[0]===1&&h[1]===0&&h[2]===1);v.push({in:{X:x,CK:1},out:{Z:z}});});return v;})() },
 ];
-/* a rule that forbids packaged parts, so a "build it from gates" experiment is built from gates */
-function noParts(types){ return ckt => { const used = ckt.comps.filter(c => types.includes(c.type)); return used.length ? 'build it from gates \u2014 remove the '+[...new Set(used.map(c=>DEFS[c.type].name))].join(', ')+' part'+(used.length>1?'s':'')+'.' : null; }; }
+// The Experiments page: one card per experiment, Check runs the vectors on a copy of the board.
 function experiments(ckt, gotoSim){
   const w = h('div','wrap');
   w.append(h('h1','','Guided ', b('Experiments')), p('', h('span','lead','Build each circuit on the Sim board using the exact SWITCH and PROBE labels named (double-click a component to rename it), then press Check. The checker runs on a copy of your board — flip-flops start from reset, the named switches start LOW, then the switches are driven through every vector in order and the probes are read. Your board is not changed.')));
@@ -104,6 +137,7 @@ function experiments(ckt, gotoSim){
     if(ex.vec){ const chk = h('button','btn','Check'); acts.append(chk);
       chk.onclick = ()=>{ const r = checkVectors(ckt, ex.vec); res.replaceChildren(); res.className = 'res '+(r.ok?'ok':'bad');
         if(r.missing.length){ res.append('Missing on board: '+r.missing.join(', ')); return; }
+        if(r.duplicates.length){ res.append('Two parts share a label: '+r.duplicates.join(', ')+'. Rename one so the checker knows which to use.'); return; }
         const why = ex.rule ? ex.rule(ckt) : null;
         if(why){ res.className = 'res bad'; res.append('FAIL \u2014 '+why); return; }
         res.append(r.ok ? 'PASS — all '+r.rows.length+' vectors match.' : 'FAIL — '+r.rows.filter(x=>!x.ok).length+' of '+r.rows.length+' vectors differ.', resultTable(r)); }; }
@@ -111,5 +145,9 @@ function experiments(ckt, gotoSim){
   });
   w.append(cards); return w;
 }
-window.DLB.pages = { tutorial, experiments }; window.DLB.EXPS = EXPS;
+// ── END EXPERIMENTS ───────────────────────────────────────────
+
+// ── EXPORT ────────────────────────────────────────────────────
+window.DLB.pages = { tutorial, experiments };
+// ── END EXPORT ────────────────────────────────────────────────
 })();

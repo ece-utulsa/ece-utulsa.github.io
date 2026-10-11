@@ -1,11 +1,44 @@
-/* Digital Logic Breadboard — component definitions.
+/* Digital Logic Breadboard — component definitions, part geometry and shared constants.
    Each def: name, cat, ins[], outs[], fn(inputs, state) -> outputs (combinational),
-   optional seq: {clk: pinIndex, next(inputs, state) -> newState}, optional draw(ctx,c,vals). */
+   optional init() -> state, optional seq: {clk: pinIndex, next(inputs, state) -> newState}. */
+/* ============================================================
+   TABLE OF CONTENTS
+   1. Constants        — grid, pin and body geometry, label and type lists
+   2. Helpers          — bit(), gate factory G()
+   3. Part definitions — DEFS table, LED colours, palette categories
+   4. Geometry         — body size, pin positions and directions
+   5. Theme cache      — CSS custom properties read once per theme change
+   6. Export           — window.DLB namespace
+   ============================================================ */
 (function(){
-const GRID = 20, PIN_LEN = 12, BODY_W = 80;
-const bit = v => v ? 1 : 0;
-const G = (name, ins, f, shape) => ({ name, cat:'Gates', ins, outs:['Y'], fn: i => [bit(f(i))], shape });
+// ── CONSTANTS ─────────────────────────────────────────────────
+const GRID = 20;                 // board grid pitch (px); every pin lands on it
+const PIN_LEN = 12;              // pin stub length outside the body (px)
+const BODY_W = 80;               // width of a block body (px)
+const SMALL_PART = 40;           // width and height of a small part (switch, LED, probe, ...)
+const MIN_SIDE_UNITS = 2;        // a body side is at least two grid units tall
+const QUARTER_TURNS = 4;         // rotations are 0..3 quarter turns clockwise
+const COUNT_MASK = 15;           // 4-bit counter wrap (0..15)
+const LABEL_MAX = 10;            // longest label Rename and Import accept (characters)
+// Parts whose labels name signals: they share one namespace so the timing diagram, truth table and checker
+// can tell every signal apart (CQ-DL-010).
+const SIGNAL_TYPES = ['SW','BTN','CLK','PROBE','LED'];
+// Parts whose level the user sets: Reset FFs leaves them alone.
+const MANUAL_INPUTS = ['SW','BTN','CLK'];
+const SMALL_TYPES = ['SW','BTN','HI','LO','LED','PROBE','CLK','VCC','GND','RES'];
+// CSS custom properties the canvases draw with (read into the theme cache).
+const THEME_VARS = ['--bg','--bg3','--inset','--line','--line2','--txt','--mut','--mut2','--acc','--hi','--red','--blue','--open','--mono'];
+// ── END CONSTANTS ─────────────────────────────────────────────
 
+// ── HELPERS ───────────────────────────────────────────────────
+// Truthy -> 1, falsy -> 0.
+const bit = v => v ? 1 : 0;
+// Gate definition from a name, input names and a Boolean function of the input array.
+const G = (name, ins, f, shape) => ({ name, cat:'Gates', ins, outs:['Y'], fn: i => [bit(f(i))], shape });
+// ── END HELPERS ───────────────────────────────────────────────
+
+// ── PART DEFINITIONS ──────────────────────────────────────────
+// stateMax: the largest value a numeric state field may take on Import (default 1, i.e. a bit).
 const DEFS = {
   AND:  G('AND', ['A','B'], i=>i[0]&&i[1], 'and'),
   OR:   G('OR',  ['A','B'], i=>i[0]||i[1], 'or'),
@@ -23,7 +56,7 @@ const DEFS = {
   NAND4:G('NAND4',['A','B','C','D'], i=>!(i[0]&&i[1]&&i[2]&&i[3]), 'nand'),
   NOR4: G('NOR4', ['A','B','C','D'], i=>!(i[0]||i[1]||i[2]||i[3]), 'nor'),
 
-  // v1.0: combinational building blocks. Select / address inputs are binary, LSB first (S0, A0).
+  // Combinational building blocks. Select / address inputs are binary, LSB first (S0, A0).
   MUX2:{ name:'MUX 2:1', cat:'Combinational', ins:['I0','I1','S'], outs:['Y'], fn:i=>[bit(i[2] ? i[1] : i[0])] },
   MUX4:{ name:'MUX 4:1', cat:'Combinational', ins:['I0','I1','I2','I3','S0','S1'], outs:['Y'], fn:i=>[bit(i[(i[4]?1:0) + (i[5]?2:0)])] },
   DEC2:{ name:'DEC 2:4', cat:'Combinational', ins:['A0','A1','EN'], outs:['Y0','Y1','Y2','Y3'],
@@ -58,38 +91,43 @@ const DEFS = {
          fn:(i,s)=>[s.q,bit(!s.q)], seq:{clk:1, next:(i,s)=>({q: i[0] ? bit(!s.q) : s.q})} },
   JKFF:{ name:'JK FF', cat:'Sequential', ins:['J','CK','K'], outs:['Q','Q̄'], init:()=>({q:0}),
          fn:(i,s)=>[s.q,bit(!s.q)], seq:{clk:1, next:(i,s)=>({q: i[0]&&i[2] ? bit(!s.q) : i[0] ? 1 : i[2] ? 0 : s.q})} },
-  CNT4:{ name:'CTR 4', cat:'Sequential', ins:['CK','RST'], outs:['Q0','Q1','Q2','Q3'], init:()=>({n:0}),
-         fn:(i,s)=>{ if(i[1]) s.n=0; return [s.n&1,(s.n>>1)&1,(s.n>>2)&1,(s.n>>3)&1]; }, seq:{clk:0, next:(i,s)=>({n: i[1]?0:(s.n+1)&15})} },
+  CNT4:{ name:'CTR 4', cat:'Sequential', ins:['CK','RST'], outs:['Q0','Q1','Q2','Q3'], init:()=>({n:0}), stateMax:{ n:COUNT_MASK },
+         fn:(i,s)=>{ if(i[1]) s.n=0; return [s.n&1,(s.n>>1)&1,(s.n>>2)&1,(s.n>>3)&1]; }, seq:{clk:0, next:(i,s)=>({n: i[1]?0:(s.n+1)&COUNT_MASK})} },
   // Up/down counter: counts up on each rising edge when UP = 1, down when UP = 0; RST clears it at once (asynchronous).
-  UDC4:{ name:'CTR U/D', cat:'Sequential', ins:['CK','UP','RST'], outs:['Q0','Q1','Q2','Q3'], init:()=>({n:0}),
+  UDC4:{ name:'CTR U/D', cat:'Sequential', ins:['CK','UP','RST'], outs:['Q0','Q1','Q2','Q3'], init:()=>({n:0}), stateMax:{ n:COUNT_MASK },
          fn:(i,s)=>{ if(i[2]) s.n=0; return [s.n&1,(s.n>>1)&1,(s.n>>2)&1,(s.n>>3)&1]; },
-         seq:{clk:0, next:(i,s)=>({n: i[2] ? 0 : (s.n + (i[1] ? 1 : 15)) & 15})} },
+         seq:{clk:0, next:(i,s)=>({n: i[2] ? 0 : (s.n + (i[1] ? 1 : COUNT_MASK)) & COUNT_MASK})} },
   REG4:{ name:'REG 4', cat:'Sequential', ins:['D0','D1','D2','D3','CK'], outs:['Q0','Q1','Q2','Q3'], init:()=>({v:[0,0,0,0]}),
-         fn:(i,s)=>s.v.slice(), seq:{clk:4, next:(i,s)=>({v:[bit(i[0]),bit(i[1]),bit(i[2]),bit(i[3])]})} },
+         fn:(i,s)=>s.v.slice(), seq:{clk:4, next:(i)=>({v:[bit(i[0]),bit(i[1]),bit(i[2]),bit(i[3])]})} },
   SHR4:{ name:'SHIFT 4', cat:'Sequential', ins:['SI','CK'], outs:['Q0','Q1','Q2','Q3'], init:()=>({v:[0,0,0,0]}),
          fn:(i,s)=>s.v.slice(), seq:{clk:1, next:(i,s)=>({v:[bit(i[0]),s.v[0],s.v[1],s.v[2]]})} },
 
   HA:  { name:'HALF ADD', cat:'Arithmetic', ins:['A','B'], outs:['S','C'], fn:i=>[bit(i[0]!==i[1]), bit(i[0]&&i[1])] },
   FA:  { name:'FULL ADD', cat:'Arithmetic', ins:['A','B','Cin'], outs:['S','Cout'], fn:i=>{const n=i[0]+i[1]+i[2];return [n&1,bit(n>1)];} },
   CMP: { name:'CMP 1', cat:'Arithmetic', ins:['A','B'], outs:['A<B','A=B','A>B'], fn:i=>[bit(i[0]<i[1]),bit(i[0]===i[1]),bit(i[0]>i[1])] },
-  // ADD 4: 4-bit ripple-carry adder with carry-in (74LS283 function) so blocks cascade Cout→Cin to any width (R-3).
+  // ADD 4: 4-bit ripple-carry adder with carry-in (74LS283 function), so blocks cascade Cout→Cin to any width.
+  // The carry-in is kept by principal ruling 2026-10-11 (supersedes the earlier no-carry-in scope).
   ADD4:{ name:'ADD 4', cat:'Arithmetic', ins:['A0','A1','A2','A3','B0','B1','B2','B3','Cin'], outs:['S0','S1','S2','S3','Cout'],
          fn:i=>{const a=i[0]|i[1]<<1|i[2]<<2|i[3]<<3, b=i[4]|i[5]<<1|i[6]<<2|i[7]<<3, s=a+b+(i[8]?1:0); return [s&1,(s>>1)&1,(s>>2)&1,(s>>3)&1,(s>>4)&1];} },
 };
 const LED_COLORS = { red:'#ff5d5d', green:'#3ddc84', amber:'#ffb02e', blue:'#5b9dff', white:'#e6ebf2' };
 const CATS = ['Inputs','Power','Gates','Combinational','Sequential','Arithmetic','Outputs'];
+// ── END PART DEFINITIONS ──────────────────────────────────────
 
-// Geometry: all pins land on the GRID so wires between on-grid parts run straight.
-// A side with m pins occupies (m+1) grid units if m is odd, (m+2) if even (one-unit gap at center); body height = tallest side.
-const sideUnits = m => m<=1 ? 2 : (m%2 ? m+1 : m+2);
+// ── GEOMETRY ──────────────────────────────────────────────────
+// All pins land on the GRID so wires between on-grid parts run straight.
+// A side with m pins occupies m+1 grid units if m is odd, m+2 if even (one-unit gap at center); body height = tallest side.
+const sideUnits = m => m<=1 ? MIN_SIDE_UNITS : (m%2 ? m+1 : m+2);
+// y of pin k of m on a side of height h (unrotated body coordinates).
 function sideY(m, k, h){ const c = h/2; if(m<=1) return c; if(m%2) return c + (k-(m-1)/2)*GRID; return k < m/2 ? c - (m/2-k)*GRID : c + (k-m/2+1)*GRID; }
+// Size of the unrotated body.
 function geom0(type){
   const d = DEFS[type], R = d.right||0;
-  const small = ['SW','BTN','HI','LO','LED','PROBE','CLK','VCC','GND','RES'].includes(type);
-  if(small) return { w:40, h:40 };
-  const units = Math.max(sideUnits(d.ins.length-R), sideUnits(d.outs.length+R), 2);
+  if(SMALL_TYPES.includes(type)) return { w:SMALL_PART, h:SMALL_PART };
+  const units = Math.max(sideUnits(d.ins.length-R), sideUnits(d.outs.length+R), MIN_SIDE_UNITS);
   return { w: BODY_W, h: units*GRID };
 }
+// Size of the body after rotation.
 function geom(type, rot){ const g = geom0(type); return (rot||0)%2 ? { w:g.h, h:g.w } : g; }
 // Pin position relative to the unrotated body's top-left corner. rot = 0..3 quarter turns CW.
 function localPin(c, side, idx){
@@ -99,18 +137,37 @@ function localPin(c, side, idx){
   else { m = d.outs.length; k = idx; rightSide = true; }
   return { x: rightSide ? w + PIN_LEN : -PIN_LEN, y: sideY(m, k, h) };
 }
+// Rotate a vector by r quarter turns clockwise.
+function turn(dx, dy, r){ for(let k=0;k<r;k++){ const t = dx; dx = -dy; dy = t; } return { dx, dy }; }
+// An LED is lit only with its anode driven HIGH and its cathode driven LOW.
 const ledLit = c => !!(c.drv && c.drv[0] && c.drv[1] && c.inv[0] && !c.inv[1]);
+// Board position of a pin tip.
 function pinPos(c, side, idx){
-  const { w, h } = geom0(c.type), W = geom(c.type, c.rot), lp = localPin(c, side, idx), r = (c.rot||0)%4;
-  let dx = lp.x - w/2, dy = lp.y - h/2;
-  for(let k=0;k<r;k++){ const t = dx; dx = -dy; dy = t; }
-  return { x: Math.round(c.x + W.w/2 + dx), y: Math.round(c.y + W.h/2 + dy) };
+  const { w, h } = geom0(c.type), W = geom(c.type, c.rot), lp = localPin(c, side, idx);
+  const v = turn(lp.x - w/2, lp.y - h/2, (c.rot||0)%QUARTER_TURNS);
+  return { x: Math.round(c.x + W.w/2 + v.dx), y: Math.round(c.y + W.h/2 + v.dy) };
 }
 // Unit vector pointing out of the body along the pin, after rotation.
 function pinDir(c, side, idx){
-  const lp = localPin(c, side, idx); let dx = lp.x < 0 ? -1 : 1, dy = 0;
-  for(let k=0;k<((c.rot||0)%4);k++){ const t = dx; dx = -dy; dy = t; }
-  return { dx, dy };
+  const lp = localPin(c, side, idx);
+  return turn(lp.x < 0 ? -1 : 1, 0, (c.rot||0)%QUARTER_TURNS);
 }
-window.DLB = Object.assign(window.DLB||{}, { DEFS, CATS, LED_COLORS, ledLit, GRID, PIN_LEN, geom, geom0, localPin, pinPos, pinDir });
+// ── END GEOMETRY ──────────────────────────────────────────────
+
+// ── THEME CACHE ───────────────────────────────────────────────
+// The canvases read colours from this object instead of calling getComputedStyle on every draw (CQ-DL-005).
+// refreshTheme() is called at startup and after every theme change.
+const theme = {};
+// Read every THEME_VARS property into the theme cache.
+function refreshTheme(){
+  const cs = getComputedStyle(document.documentElement);
+  for(const v of THEME_VARS) theme[v] = cs.getPropertyValue(v).trim();
+  if(!theme['--open']) theme['--open'] = theme['--acc'];
+}
+// ── END THEME CACHE ───────────────────────────────────────────
+
+// ── EXPORT ────────────────────────────────────────────────────
+window.DLB = Object.assign(window.DLB||{}, { DEFS, CATS, LED_COLORS, ledLit, GRID, QUARTER_TURNS, LABEL_MAX, SIGNAL_TYPES, MANUAL_INPUTS,
+  geom, geom0, localPin, pinPos, pinDir, theme, refreshTheme });
+// ── END EXPORT ────────────────────────────────────────────────
 })();

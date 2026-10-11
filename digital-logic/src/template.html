@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Digital Logic Breadboard v1.0.0</title>
-<!-- CSP intentionally omitted in the prototype (it blocks the preview tooling); add per ECE Security standard when promoted to a deliverable. -->
+<html lang="en"><head><meta charset="utf-8"><title>@@TOOL@@ @@VERSION@@</title>
+<meta name="version" content="@@VERSION@@">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
 <style>/* cyrillic-ext */
 @font-face {
   font-family: 'IBM Plex Mono';
@@ -229,11 +228,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .chip{background:rgba(9,12,17,.85);border:1px solid var(--line2);border-radius:5px;padding:4px 8px;font-size:11px;color:var(--mut)}
 .chip b{color:var(--acc);font-weight:600}
 .chip.bad{color:var(--red);border-color:var(--red)}
+.ovl{flex-wrap:wrap;max-width:calc(100% - 360px)}
 .readouts{position:absolute;right:12px;top:10px;display:flex;gap:8px;pointer-events:none}
 .ro{background:rgba(9,12,17,.85);border:1px solid var(--line2);border-radius:6px;padding:5px 10px;min-width:70px}
 .ro small{display:block;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2)}
 .ro b{font-size:18px;color:var(--acc);text-shadow:0 0 8px currentColor;font-weight:600}
+.ro b.warn{color:var(--open)}
+.chip.note{color:var(--txt);border-color:var(--open);max-width:520px;white-space:normal;line-height:1.5}
 .timing{height:0;border-top:1px solid var(--line);background:var(--bg2);transition:height .2s;overflow:hidden;position:relative}
+@media (prefers-reduced-motion:reduce){.timing{transition:none}}
 .timing.on{height:200px}
 #tdiag{display:block;width:100%;height:200px}
 .timing .tt{position:absolute;left:12px;top:6px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--acc);font-weight:600}
@@ -290,19 +293,22 @@ table.tt td.bad{color:var(--red);font-weight:600}
 .modal .mt{margin-top:12px;color:var(--txt);font-size:12px;line-height:1.8}
 .modal .mt b{color:var(--acc);font-weight:600}
 @media (pointer:coarse){ .pal button,.row button,.btn{padding:10px 6px} }
-#ledcol button:hover{border-color:var(--txt)!important}
+#ledcol button.swatch{flex:1;height:22px;padding:0;border:2px solid var(--line2);border-radius:5px}
+#ledcol button.swatch.cur,#ledcol button.swatch:hover{border-color:var(--txt)}
+.pal-cat{margin:6px 0 3px}
+.modal .mt .mt-vars{color:var(--mut)}
 </style>
 
 </head><body>
 <div class="app">
 <div class="nav"><div class="brand"><b>ECE</b> · Digital Logic Breadboard</div>
 <div class="tabs" role="tablist"><button class="on" data-pg="sim" role="tab">Sim</button><button data-pg="tut" role="tab">Tutorial</button><button data-pg="exp" role="tab">Experiments</button></div>
-<div class="sp"></div><span class="ver">v1.0.0</span><button class="btn" id="twk" style="flex:0;margin-left:12px">Tweaks</button></div>
+<div class="sp"></div><span class="ver">@@VERSION@@</span><button class="btn" id="twk" style="flex:0;margin-left:12px">Tweaks</button></div>
 
 <div class="page on" id="pg-sim" data-screen-label="Sim">
 <div class="side">
 <div class="sec"><h3>Clock</h3><div class="row"><button id="run">Run</button><button id="step">Step</button></div>
-<label class="sl">Frequency <b id="hzv">2 Hz</b></label><input type="range" id="hz" min="0.5" max="10" step="0.5" value="2" aria-label="Clock frequency">
+<label class="sl">Frequency <b id="hzv">2 Hz</b></label><input type="range" id="hz" aria-label="Clock frequency">
 <p class="hint">Place a CLOCK part to use it. Step toggles the clock once (half period).</p></div>
 <div class="sec"><h3>Board</h3><div class="row"><button id="undo" title="Undo (Ctrl+Z)">Undo</button><button id="redo" title="Redo (Ctrl+Y)">Redo</button><button id="del" class="danger" title="Delete the selection (Del)">Delete</button></div>
 <div class="row" style="margin-top:6px"><button id="rot">Rotate</button><button id="ren" title="Rename the selected part (double-click)">Rename</button><button id="tim">Timing</button></div>
@@ -313,7 +319,7 @@ table.tt td.bad{color:var(--red);font-weight:600}
 <div class="sec"><h3>How to</h3><p class="hint">Drag from a pin to a pin to wire. <b style="color:var(--mut)">Move a wire:</b> drag its middle segment. <b style="color:var(--mut)">Tee off:</b> click a wire, then drag the amber handle to an input — or drag from an input pin and drop it on any wire. Click a switch to toggle it; hold a button. Drag parts to move, or nudge the selected part with the arrow keys (<kbd>Shift</kbd> = 5 steps); <kbd>R</kbd> rotates the selected part (<kbd>Shift</kbd>+<kbd>R</kbd> counter-clockwise). Double-click to rename. <kbd>C</kbd> cycles a selected LED's color. <kbd>Del</kbd> removes the selection; right-click removes a part or wire. Drag empty board to pan, wheel to zoom. <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> undo and redo. <b style="color:var(--mut)">Touch:</b> drag with one finger, pinch with two to zoom, double-tap to rename, press and hold a part or wire to remove it.</p></div>
 </div>
 <div class="main"><div class="stage"><canvas id="board"></canvas>
-<div class="ovl"><div class="chip" id="armchip" hidden="">Placing <b></b></div><div class="chip bad" id="unst" hidden="">UNSTABLE — combinational loop did not settle</div></div>
+<div class="ovl"><div class="chip" id="armchip" hidden="">Placing <b></b></div><div class="chip bad" id="unst" hidden="">UNSTABLE — combinational loop did not settle</div><div class="chip note" id="note" role="status" hidden=""></div></div>
 <div class="readouts"><div class="ro"><small>Parts</small><b id="r-n">0</b></div><div class="ro"><small>Wires</small><b id="r-w">0</b></div><div class="ro"><small>Open inputs</small><b id="r-open">0</b></div><div class="ro"><small>Clock</small><b id="r-ck">—</b></div></div><div class="zoom"><button id="zout" title="Zoom out" aria-label="Zoom out">−</button><button id="zin" title="Zoom in" aria-label="Zoom in">+</button><button id="zfit" title="Fit the circuit in view">Fit</button></div></div>
 <div class="timing" id="timing"><span class="tt">Timing diagram</span><canvas id="tdiag"></canvas></div></div>
 </div>
@@ -325,7 +331,6 @@ table.tt td.bad{color:var(--red);font-weight:600}
 <label class="tog">Show grid <input type="checkbox" id="t-grid" checked=""></label>
 <label class="tog">Pin names on blocks <input type="checkbox" id="t-pins" checked=""></label>
 <label class="tog">Color wires by logic level <input type="checkbox" id="t-wire" checked=""></label></div>
-<style id="__om-edit-overrides"></style>
 <script src="defs.js"></script><script src="sim.js"></script><script src="board.js"></script><script src="timing.js"></script><script src="learn.js"></script>
 <script>
 /*@inline main.js*/</script>

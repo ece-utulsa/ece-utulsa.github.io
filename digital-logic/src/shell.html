@@ -1,8 +1,15 @@
 <!DOCTYPE html>
+<!--
+  @@TOOL@@
+  Version: @@VERSION@@
+  Released: @@RELEASED@@
+  Changelog: @@CHANGELOG@@
+  Owner Claude: Builder Claude
+-->
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Digital Logic Breadboard v1.0.0</title>
+  <title>@@TOOL@@ @@VERSION@@</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #faf9f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -47,13 +54,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         e.target.tagName, String(e.target.src || e.target.href || ''));
       return;
     }
+    // The detail goes to the console only; the page shows a plain message (SEC-DL-007).
+    console.error('[bundle] ' + (e.message || e.type) +
+      (e.filename ? ' (' + e.filename.slice(0, 60) + ':' + e.lineno + ')' : ''), e.error || '');
     var p = document.body || document.documentElement;
     var d = document.getElementById('__bundler_err') || p.appendChild(document.createElement('div'));
     d.id = '__bundler_err';
-    d.style.cssText = 'position:fixed;bottom:12px;left:12px;right:12px;font:12px/1.4 ui-monospace,monospace;background:#2a1215;color:#ff8a80;padding:10px 14px;border-radius:8px;border:1px solid #5c2b2e;z-index:99999;white-space:pre-wrap;max-height:40vh;overflow:auto';
-    d.textContent = (d.textContent ? d.textContent + String.fromCharCode(10) : '') +
-      '[bundle] ' + (e.message || e.type) +
-      (e.filename ? ' (' + e.filename.slice(0, 60) + ':' + e.lineno + ')' : '');
+    d.setAttribute('role', 'alert');
+    d.style.cssText = 'position:fixed;bottom:12px;left:12px;right:12px;font:12px/1.4 ui-monospace,monospace;background:#2a1215;color:#ff8a80;padding:10px 14px;border-radius:8px;border:1px solid #5c2b2e;z-index:99999';
+    d.textContent = 'Something went wrong in this tool. Reload the page; if it happens again, tell your instructor what you were doing.';
   }, true);
 
   try {
@@ -359,7 +368,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       window.Babel.transformScriptTags();
     }
   } catch (err) {
-    setStatus('Error unpacking: ' + err.message);
+    setStatus('Could not start the tool. Reload the page.');
     console.error('Bundle unpack error:', err);
   }
 });

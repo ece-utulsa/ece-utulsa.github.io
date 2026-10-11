@@ -1,234 +1,93 @@
 /* Digital Logic Breadboard — board canvas: drawing + pointer interaction.
-   v1.0: Pointer Events, so mouse, pen and touch all work (tablets, touch Chromebooks). A finger gets a larger pin
-   target; two fingers pan and pinch-zoom; a long press on a part or wire removes it (the touch right-click). */
+   Pointer Events, so mouse, pen and touch all work (tablets, touch Chromebooks). A finger gets a larger pin
+   target; two fingers pan and pinch-zoom; a long press on a part or wire removes it (the touch right-click).
+   Drawing is requested, not done at once: requestDraw() coalesces every request in a frame into one draw (CQ-DL-004). */
+/* ============================================================
+   TABLE OF CONTENTS
+   1. Constants        — view, gestures, zoom, routing, stroke widths, 7-segment patterns, part glyph geometry
+   2. Helpers          — rr, uprightText, distSeg, routePts
+   3. Board            — construction, draw scheduling, view (zoom/fit), selection and editing,
+                         pointer routing, mouse/pen logic, keyboard, drawing
+   4. Part glyphs      — drawGate, drawSeg and one draw function per part shape (SHAPES table)
+   5. Export           — window.DLB.Board
+   ============================================================ */
 (function(){
-const { DEFS, LED_COLORS, ledLit, GRID, PIN_LEN, geom, geom0, localPin, pinPos, pinDir } = window.DLB;
-const SEG = [0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f,0x77,0x7c,0x39,0x5e,0x79,0x71];
-const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const { DEFS, LED_COLORS, ledLit, GRID, LABEL_MAX, geom, geom0, localPin, pinPos, pinDir, theme } = window.DLB;
 
-class Board {
-  constructor(canvas, ckt){
-    this.cv = canvas; this.ctx = canvas.getContext('2d'); this.ckt = ckt;
-    this.view = { ox: 60, oy: 40, s: 1 }; this.armed = null; this.sel = null; this.hover = null;
-    this.drag = null; this.mouse = null; this.showGrid = true; this.showPinNames = true; this.wireColor = true;
-    this.onArm = ()=>{};
-    const ro = new ResizeObserver(()=>this.resize()); ro.observe(canvas.parentElement); this.resize();
-    this.touches = new Map(); this.pinch = null; this.hitR = 8; this.longT = null; this.lastTap = null;
-    canvas.style.touchAction = 'none';
-    canvas.addEventListener('pointerdown', e=>this.pdown(e)); window.addEventListener('pointermove', e=>this.pmove(e));
-    window.addEventListener('pointerup', e=>this.pup(e)); window.addEventListener('pointercancel', e=>this.pup(e, true)); canvas.addEventListener('dblclick', e=>this.dbl(e));
-    canvas.addEventListener('wheel', e=>this.wheel(e), { passive:false }); canvas.addEventListener('contextmenu', e=>e.preventDefault());
-    window.addEventListener('keydown', e=>this.key(e));
-    ckt.onChange(()=>this.draw());
-  }
-  resize(){ const r = this.cv.parentElement.getBoundingClientRect(); this.cv.width = Math.max(1, r.width*devicePixelRatio); this.cv.height = Math.max(1, r.height*devicePixelRatio); this.cv.style.height = r.height+'px'; this.draw(); }
-  world(e){ const r = this.cv.getBoundingClientRect(); return { x:(e.clientX-r.left-this.view.ox)/this.view.s, y:(e.clientY-r.top-this.view.oy)/this.view.s }; }
-  snap(v){ return Math.round(v/GRID)*GRID; }
-  /* ---- pointer routing: one pointer drives the mouse logic, a second one turns the gesture into pan + pinch ---- */
-  pdown(e){
-    if(e.pointerType === 'mouse'){ this.hitR = 8; this.down(e); return; }
-    this.hitR = 14; this.touches.set(e.pointerId, { x:e.clientX, y:e.clientY });
-    try { this.cv.setPointerCapture(e.pointerId); } catch(_){}
-    if(this.touches.size === 2){ this.cancelLong(); this.drag = null; const [a,b] = [...this.touches.values()];
-      this.pinch = { d: Math.hypot(a.x-b.x, a.y-b.y) || 1, cx:(a.x+b.x)/2, cy:(a.y+b.y)/2, s:this.view.s, ox:this.view.ox, oy:this.view.oy }; this.draw(); return; }
-    if(this.touches.size > 2) return;
-    // a double tap renames, like a double click -- except on switches and buttons, which students tap quickly
-    const now = performance.now(), lt = this.lastTap, tc = this.hitComp(this.world(e));
-    if(lt && now - lt.t < 350 && Math.hypot(lt.x-e.clientX, lt.y-e.clientY) < 24 && tc && !['SW','BTN'].includes(tc.type)){ this.lastTap = null; this.rename(tc); return; }
-    this.lastTap = { t: now, x: e.clientX, y: e.clientY };
-    this.down(e);
-    // long press (no movement) on a part or wire removes it
-    const p = this.world(e), sx = e.clientX, sy = e.clientY;
-    if(!this.armed && !this.hitPin(p) && (this.hitComp(p) || this.hitWire(p)))
-      this.longT = { t: setTimeout(()=>{ this.longT = null; this.drag = null; this.down({ button:2, clientX:sx, clientY:sy, shiftKey:false }); this.draw(); }, 650), x:sx, y:sy };
-  }
-  cancelLong(){ if(this.longT){ clearTimeout(this.longT.t); this.longT = null; } }
-  pmove(e){
-    if(e.pointerType === 'mouse'){ this.move(e); return; }
-    if(!this.touches.has(e.pointerId)) return;
-    this.touches.set(e.pointerId, { x:e.clientX, y:e.clientY });
-    if(this.longT && Math.hypot(e.clientX-this.longT.x, e.clientY-this.longT.y) > 10) this.cancelLong();
-    if(this.pinch && this.touches.size >= 2){ const [a,b] = [...this.touches.values()], P = this.pinch, r = this.cv.getBoundingClientRect();
-      const s = Math.min(2.5, Math.max(.4, P.s * Math.hypot(a.x-b.x, a.y-b.y) / P.d)), cx = (a.x+b.x)/2, cy = (a.y+b.y)/2;
-      const mx = P.cx - r.left, my = P.cy - r.top;
-      this.view.s = s; this.view.ox = mx - (mx-P.ox)*s/P.s + (cx-P.cx); this.view.oy = my - (my-P.oy)*s/P.s + (cy-P.cy); this.draw(); return; }
-    this.move(e);
-  }
-  pup(e, cancel){
-    if(e.pointerType === 'mouse'){ this.up(e); return; }
-    if(!this.touches.has(e.pointerId)) return;
-    this.touches.delete(e.pointerId); this.cancelLong();
-    if(this.pinch){ if(this.touches.size === 0) this.pinch = null; return; }
-    if(cancel){ this.drag = null; this.draw(); return; }
-    this.up(e);
-  }
-  zoomBy(k){ const r = this.cv.getBoundingClientRect(), mx = r.width/2, my = r.height/2, s = Math.min(2.5, Math.max(.4, this.view.s*k));
-    this.view.ox = mx - (mx-this.view.ox)*s/this.view.s; this.view.oy = my - (my-this.view.oy)*s/this.view.s; this.view.s = s; this.draw(); }
-  // Fit the whole circuit in view (or reset the view when the board is empty).
-  fit(){ const cs = this.ckt.comps; if(!cs.length){ this.view = { ox:60, oy:40, s:1 }; this.draw(); return; }
-    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; cs.forEach(c => { const g = geom(c.type,c.rot); x0=Math.min(x0,c.x-30); y0=Math.min(y0,c.y-30); x1=Math.max(x1,c.x+g.w+30); y1=Math.max(y1,c.y+g.h+40); });
-    const r = this.cv.getBoundingClientRect(), s = Math.min(2.5, Math.max(.4, Math.min(r.width/(x1-x0), r.height/(y1-y0))));
-    this.view = { s, ox: (r.width - (x1-x0)*s)/2 - x0*s, oy: (r.height - (y1-y0)*s)/2 - y0*s }; this.draw(); }
-  // Ask for a label; signal labels (switches, buttons, clocks, probes, LEDs) must be unique so the timing diagram,
-  // truth table and experiment checker can tell them apart.
-  rename(c){ if(!c || !c.type) return; const def = DEFS[c.type];
-    const v = prompt('Label for '+def.name+' (up to 10 characters)', c.label); if(v===null) return;
-    const t = v.trim().slice(0,10), sig = ['SW','BTN','CLK','PROBE','LED'];
-    if(t && sig.includes(c.type)){ const clash = this.ckt.comps.find(o => o!==c && sig.includes(o.type) && o.label===t);
-      if(clash){ alert('"'+t+'" is already the label of a '+DEFS[clash.type].name+'. Signal labels must be unique.'); return; } }
-    c.label = t; this.ckt.update(); }
-  arm(type){ this.armed = this.armed===type ? null : type; this.sel = null; this.onArm(this.armed); this.draw(); }
+// ── CONSTANTS ─────────────────────────────────────────────────
+const VIEW0 = { ox: 60, oy: 40, s: 1 };   // initial / empty-board view origin (px) and scale
+const HIT_R_MOUSE = 8, HIT_R_TOUCH = 14;   // pin hit radius (px) for a mouse and for a finger
+const DOUBLE_TAP_MS = 350, DOUBLE_TAP_PX = 24;   // a second tap this soon and this close renames
+const LONG_PRESS_MS = 650, LONG_PRESS_SLOP_PX = 10;   // hold this long without moving this far to remove
+const ZOOM_MIN = .4, ZOOM_MAX = 2.5, WHEEL_STEP = 1.1;   // view scale limits; one wheel notch
+const FIT_MARGIN = 30, FIT_MARGIN_BOTTOM = 40;   // space kept around the circuit by Fit (labels sit above parts)
+const WIRE_HIT_PX = 6;           // a click this close to a wire selects it
+const TEE_HIT_PX = 8, TEE_R = 5; // tee-off handle: hit radius and drawn radius
+const PLACE_OFFSET = 20;         // a placed part's corner sits this far up-left of the pointer (half a small part)
+const NUDGE_BIG = 5;             // Shift+arrow nudges this many grid steps
+const ROUTE_STUB = 12;           // a wire leaves a pin straight for this long before turning
+const ROUTE_FACING_MIN = 24;     // pins at least this far apart, facing each other, get a Z route
+const ROUTE_CLAMP = 8;           // a Z route's vertical run stays this far out from either pin
+const GRID_DOT = 1.5;            // grid dot size
+const WIRE_W_HI = 3, WIRE_W_LO = 2.2, WIRE_W_DRAG = 2;   // wire stroke widths
+const SEL_HALO_W = 6, SEL_HALO_ALPHA = .35;   // selected wire halo
+const ARMED_ALPHA = .45;         // ghost of the part being placed
+const STROKE = 2, THIN = 1.5;    // body / pin strokes, and fine strokes (markers, pin dots)
+const DASH_DRAG = [6,5], DASH_OPEN = [3,3], DASH_PROBE_OPEN = [4,3];
+const CORNER_R = 6;              // rounded body corner radius
+const PIN_DOT_R = 3.2, PIN_OPEN_R = 4, PIN_HOVER_R = 5;   // pin markers: driven, open, under the pointer
+const LABEL_GAP = 5;             // a part label sits this far above the body
+const FONT_LABEL = 12, FONT_SMALL = 9, FONT_PROBE = 20, FONT_OPEN = 10, FONT_CONST = 18, FONT_VCC = 10;
+const BLOCK_TITLE_Y = 5;         // block name offset from the top edge
+const CLK_MARK_H = 5, CLK_MARK_W = 6;   // ▷ clock-input marker on edge-triggered blocks
+const PIN_NAME_INSET = 4, PIN_NAME_INSET_CLK = 8;   // pin name offset from the body edge (past the ▷ on CK)
+const UNSTABLE_GAP = 2;          // ~ marker below a part when the board is UNSTABLE
+const INK_ON_LIT = '#0e1116', KNOB_ON = '#0b2e1a';   // dark ink on a lit LED / on a switch that is on
+// 7-segment patterns, bit 0..6 = segments a..g. 0-9 are the decimal digits; 10-15 are the 7448 decoder's
+// patterns (principal ruling 2026-10-11, replacing hex A-F): 10 ⊏-like (d e g), 11 (c d g), 12 (b f g),
+// 13 (a d f g), 14 (d e f g), 15 blank.
+const SEG_7448 = [0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f, 0x58,0x4c,0x62,0x69,0x78,0x00];
+// Segment rectangles [x, y, w, h] around the display centre, a..g, for segment length SEG_L and thickness SEG_T.
+const SEG_L = 14, SEG_T = 3;
+const SEG_RECTS = [[-SEG_L/2,-SEG_L-2,SEG_L,SEG_T],[SEG_L/2-1,-SEG_L-1,SEG_T,SEG_L],[SEG_L/2-1,1,SEG_T,SEG_L],[-SEG_L/2,SEG_L,SEG_L,SEG_T],
+                   [-SEG_L/2-2,1,SEG_T,SEG_L],[-SEG_L/2-2,-SEG_L-1,SEG_T,SEG_L],[-SEG_L/2,-1,SEG_L,SEG_T]];
+// Gate outline: AND nose radius as a fraction of body width; OR/XOR curve control; XOR back offset; bubble radius.
+const GATE = { andNose: .6, orCtrl: .7, backDepth: 16, xorGap: 8, bubbleR: 4, notInset: 2 };
+// Small-part glyphs, in body coordinates (the body is a SMALL_PART square, origin at its top-left corner).
+const SW_G = { track: { x: 8, y: 14, w: 24, h: 12 }, knobY: 20, knobOff: 14, knobOn: 26, knobR: 4 };
+const BTN_G = { c: 20, r: 9 };
+const CLK_WAVE = [[7,26],[13,26],[13,14],[20,14],[20,26],[27,26],[27,14],[33,14]];
+const VCC_G = { bar: 14, half: 12, text: 20 };
+const GND_G = { bars: [[10,12],[16,7],[22,3]] };   // [distance from the pin edge, half-length]
+const RES_G = { lead: 6, teeth: 6, amp: 6, pitch: 5 };
+const LED_G = { c: 20, r: 13, glow: 18, letterDx: 7, offAlpha: .35 };
+// Shapes drawn without pin names (their pins are obvious or unnamed).
+const NO_PIN_NAMES = ['and','nand','or','nor','xor','xnor','not','sw','btn','clk','const','led','probe','vcc','gnd','res'];
+const GATE_SHAPES = ['and','nand','or','nor','xor','xnor','not'];
+const TAP_RENAME_EXEMPT = ['SW','BTN'];   // students tap these quickly: a double tap toggles, never renames
+// ── END CONSTANTS ─────────────────────────────────────────────
 
-  hitPin(p){
-    for(const c of this.ckt.comps){ const d = DEFS[c.type];
-      for(let i=0;i<d.outs.length;i++){ const q = pinPos(c,'out',i); if(Math.hypot(q.x-p.x,q.y-p.y) < this.hitR) return { c, side:'out', pin:i }; }
-      for(let i=0;i<d.ins.length;i++){ const q = pinPos(c,'in',i); if(Math.hypot(q.x-p.x,q.y-p.y) < this.hitR) return { c, side:'in', pin:i }; } }
-    return null;
-  }
-  hitComp(p){ for(let k=this.ckt.comps.length-1;k>=0;k--){ const c=this.ckt.comps[k], g=geom(c.type,c.rot); if(p.x>=c.x&&p.x<=c.x+g.w&&p.y>=c.y&&p.y<=c.y+g.h) return c; } return null; }
-  hitWire(p){
-    for(const w of this.ckt.wires){ const pts = this.route(w); for(let i=0;i<pts.length-1;i++){ if(distSeg(p, pts[i], pts[i+1]) < 6) return { w, seg:i }; } } return null;
-  }
-  // Tee handle sits mid-way along the wire's adjustable segment.
-  teePos(w){ const pts = this.route(w), k = Math.floor((pts.length-2)/2); return { x:(pts[k].x+pts[k+1].x)/2, y:(pts[k].y+pts[k+1].y)/2 }; }
-  route(w){
-    const ca = this.ckt.comp(w.from.c), cb = this.ckt.comp(w.to.c);
-    const a = pinPos(ca,'out',w.from.pin), b = pinPos(cb,'in',w.to.pin);
-    const below = Math.max(ca.y+geom(ca.type,ca.rot).h, cb.y+geom(cb.type,cb.rot).h) + GRID;
-    return routePts(a,b,below,w,pinDir(ca,'out',w.from.pin),pinDir(cb,'in',w.to.pin));
-  }
-  down(e){
-    const p = this.world(e); this.mouse = p;
-    if(e.button === 2){ const c = this.hitComp(p); if(c){ this.ckt.remove(c); this.sel=null; } else { const hw=this.hitWire(p); if(hw) this.ckt.removeWire(hw.w); } return; }
-    if(this.armed){ const c = this.ckt.add(this.armed, this.snap(p.x)-20, this.snap(p.y)-20); this.sel = c; if(!e.shiftKey){ this.armed=null; this.onArm(null); } this.draw(); return; }
-    if(this.sel && !this.sel.type){ const t = this.teePos(this.sel); if(Math.hypot(t.x-p.x,t.y-p.y) < 8){ this.drag = { kind:'wire', from:{ c:this.ckt.comp(this.sel.from.c), side:'out', pin:this.sel.from.pin }, tee:true }; return; } }
-    const pin = this.hitPin(p);
-    if(pin){ this.drag = { kind:'wire', from:pin }; return; }
-    const c = this.hitComp(p);
-    if(c){ this.sel = c; this.drag = { kind:'comp', c, dx:p.x-c.x, dy:p.y-c.y, moved:false };
-      if(DEFS[c.type].press){ DEFS[c.type].press(c.state, true); this.ckt.update(); } this.draw(); return; }
-    const hw = this.hitWire(p); if(hw){ this.sel = hw.w; this.drag = { kind:'seg', w:hw.w, seg:hw.seg, n:this.route(hw.w).length, kindV: pinDir(this.ckt.comp(hw.w.from.c),'out',hw.w.from.pin).dy!==0 }; this.draw(); return; }
-    this.sel = null; this.drag = { kind:'pan', x:e.clientX, y:e.clientY, ox:this.view.ox, oy:this.view.oy }; this.draw();
-  }
-  move(e){
-    const p = this.world(e); this.mouse = p;
-    if(!this.drag){ const h = this.hitPin(p); if((h&&h.c)!==(this.hover&&this.hover.c) || (h&&h.pin)!==(this.hover&&this.hover.pin) || !!h!==!!this.hover){ this.hover=h; this.draw(); } else if(this.armed) this.draw(); return; }
-    const d = this.drag;
-    if(d.kind==='pan'){ this.view.ox = d.ox + e.clientX-d.x; this.view.oy = d.oy + e.clientY-d.y; }
-    else if(d.kind==='comp'){ const nx=this.snap(p.x-d.dx), ny=this.snap(p.y-d.dy); if(nx!==d.c.x||ny!==d.c.y){ d.c.x=nx; d.c.y=ny; d.moved=true; } }
-    else if(d.kind==='wire'){ this.hover = this.hitPin(p); }
-    else if(d.kind==='seg'){ const w = d.w, gx = this.snap(p.x), gy = this.snap(p.y);
-      if(d.n===4 || d.n===2){ w.mx = gx; }
-      else if(d.n===5){ if(d.kindV) w.my = gy; else w.mx = gx; }
-      else { if(d.seg===1) w.ax = gx; else if(d.seg===2) w.my = gy; else if(d.seg===3) w.bx = gx; } }
-    this.draw();
-  }
-  up(e){
-    const d = this.drag; this.drag = null; if(!d) return;
-    if(d.kind==='comp'){ const def = DEFS[d.c.type]; if(def.press){ def.press(d.c.state,false); this.ckt.update(); } else if(!d.moved && def.click){ def.click(d.c.state); this.ckt.update(); }
-      else if(d.moved) this.ckt.emit(); }   // v1.0: a moved part is saved (and undoable) like any other edit
-    if(d.kind==='seg'){ this.ckt.emit(); }
-    if(d.kind==='wire'){ const pw = this.world(e), t = this.hitPin(pw);
-      if(t && t.side !== d.from.side){ const o = d.from.side==='out'?d.from:t, i = d.from.side==='in'?d.from:t; this.ckt.connect({c:o.c.id,pin:o.pin},{c:i.c.id,pin:i.pin}); }
-      else if(!t && d.from.side==='in'){ const hw = this.hitWire(pw); if(hw) this.ckt.connect({c:hw.w.from.c,pin:hw.w.from.pin},{c:d.from.c.id,pin:d.from.pin}); } }
-    this.draw();
-  }
-  dbl(e){ const c = this.hitComp(this.world(e)); if(c) this.rename(c); }
-  wheel(e){ e.preventDefault(); const r=this.cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top; const k = e.deltaY<0?1.1:1/1.1; const s = Math.min(2.5, Math.max(.4, this.view.s*k));
-    this.view.ox = mx - (mx-this.view.ox)*s/this.view.s; this.view.oy = my - (my-this.view.oy)*s/this.view.s; this.view.s = s; this.draw(); }
-  key(e){ if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
-    if(!this.cv.offsetParent) return;   // v1.0: the board's keys act only while the Sim page is showing
-    if(e.ctrlKey || e.metaKey || e.altKey) return;
-    if((e.key==='Delete'||e.key==='Backspace') && this.sel){ if(this.sel.type) this.ckt.remove(this.sel); else this.ckt.removeWire(this.sel); this.sel=null; this.draw(); }
-    if((e.key==='r'||e.key==='R') && this.sel && this.sel.type){ this.ckt.rotate(this.sel, e.shiftKey?-1:1); }
-    if((e.key==='c'||e.key==='C') && this.sel && this.sel.type==='LED'){ const ks = Object.keys(LED_COLORS); this.ckt.setColor(this.sel, ks[(ks.indexOf(this.sel.color)+1)%ks.length]); }
-    if(e.key.startsWith('Arrow') && this.sel && this.sel.type){ e.preventDefault(); const st = e.shiftKey ? GRID*5 : GRID; const c = this.sel;
-      if(e.key==='ArrowUp') c.y -= st; else if(e.key==='ArrowDown') c.y += st; else if(e.key==='ArrowLeft') c.x -= st; else if(e.key==='ArrowRight') c.x += st; this.ckt.emit(); }
-    if(e.key==='Escape'){ this.armed=null; this.sel=null; this.onArm(null); this.draw(); } }
-
-  /* ---- drawing ---- */
-  draw(){
-    const ctx = this.ctx, W = this.cv.width/devicePixelRatio, H = this.cv.height/devicePixelRatio, v = this.view;
-    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); ctx.clearRect(0,0,W,H);
-    ctx.fillStyle = css('--inset'); ctx.fillRect(0,0,W,H);
-    ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
-    if(this.showGrid){ ctx.fillStyle = css('--line'); const x0=Math.floor(-v.ox/v.s/GRID)*GRID, y0=Math.floor(-v.oy/v.s/GRID)*GRID, x1=x0+W/v.s+GRID, y1=y0+H/v.s+GRID;
-      for(let x=x0;x<x1;x+=GRID) for(let y=y0;y<y1;y+=GRID) ctx.fillRect(x-.75,y-.75,1.5,1.5); }
-    const HI = css('--hi'), LO = css('--mut2'), TXT = css('--txt'), MUT = css('--mut'), ACC = css('--acc'), L2 = css('--line2'), OPEN = css('--open') || ACC;
-    ctx.lineJoin='round'; ctx.lineCap='round';
-    for(const w of this.ckt.wires){ const s = this.ckt.comp(w.from.c), val = s.out[w.from.pin]; const pts = this.route(w);
-      ctx.beginPath(); pts.forEach((q,i)=> i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));
-      if(w===this.sel){ ctx.strokeStyle = ACC; ctx.lineWidth = 6; ctx.globalAlpha=.35; ctx.stroke(); ctx.globalAlpha=1; }
-      ctx.strokeStyle = this.wireColor ? (val?HI:LO) : MUT; ctx.lineWidth = val?3:2.2; ctx.stroke(); }
-    if(this.sel && !this.sel.type && this.ckt.wires.includes(this.sel)){ const t = this.teePos(this.sel); ctx.beginPath(); ctx.arc(t.x,t.y,5,0,7); ctx.fillStyle = ACC; ctx.fill(); ctx.strokeStyle = css('--bg'); ctx.lineWidth = 1.5; ctx.stroke(); }
-    if(this.drag && this.drag.kind==='wire' && this.mouse){ const f=this.drag.from, a = pinPos(f.c,f.side,f.pin); ctx.setLineDash([6,5]); ctx.strokeStyle=ACC; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(this.mouse.x,this.mouse.y); ctx.stroke(); ctx.setLineDash([]); }
-    for(const c of this.ckt.comps) this.drawComp(ctx, c, { HI, LO, TXT, MUT, ACC, L2, OPEN });
-    if(this.armed && this.mouse){ ctx.globalAlpha=.45; this.drawComp(ctx, { type:this.armed, x:this.snap(this.mouse.x)-20, y:this.snap(this.mouse.y)-20, rot:DEFS[this.armed].rot0||0, label:'', state:DEFS[this.armed].init?DEFS[this.armed].init():{}, out:DEFS[this.armed].outs.map(()=>0), inv:DEFS[this.armed].ins.map(()=>0) }, { HI, LO, TXT, MUT, ACC, L2, OPEN }); ctx.globalAlpha=1; }
-  }
-  drawComp(ctx, c, C){
-    const d = DEFS[c.type], W = geom(c.type, c.rot), { w, h } = geom0(c.type), isSel = c===this.sel, mono = css('--mono');
-    ctx.save(); ctx.translate(c.x + W.w/2, c.y + W.h/2); ctx.rotate((c.rot||0) * Math.PI/2);
-    const x = -w/2, y = -h/2, lp = (side,i) => { const q = localPin(c,side,i); return { x:x+q.x, y:y+q.y }; };
-    for(let i=0;i<d.ins.length;i++){ const p = lp('in',i), driven = this.ckt.inputDriven(c,i); ctx.strokeStyle = driven ? (c.inv[i]?C.HI:C.LO) : C.OPEN; ctx.lineWidth=2; if(!driven) ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(x,p.y); ctx.stroke(); ctx.setLineDash([]); this.pinDot(ctx, p, c, 'in', i, C, driven); }
-    for(let i=0;i<d.outs.length;i++){ const p = lp('out',i); ctx.strokeStyle = c.out[i]?C.HI:C.LO; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x+w,p.y); ctx.lineTo(p.x,p.y); ctx.stroke(); this.pinDot(ctx, p, c, 'out', i, C, true); }
-    ctx.lineWidth = 2; ctx.strokeStyle = isSel ? C.ACC : C.TXT; ctx.fillStyle = css('--bg3');
-    const sh = d.shape, cy = y + h/2;
-    if(['and','nand','or','nor','xor','xnor','not'].includes(sh)) drawGate(ctx, sh, x, y, w, h, C, c.out[0]);
-    else if(sh==='sw'||sh==='btn') { rr(ctx,x,y,w,h,6); ctx.fill(); ctx.stroke(); const on = c.state.on; ctx.fillStyle = on?C.HI:css('--inset'); if(sh==='sw'){ rr(ctx,x+8,y+14,24,12,6); ctx.fill(); ctx.strokeStyle=C.L2; ctx.stroke(); ctx.fillStyle=on?'#0b2e1a':C.LO; ctx.beginPath(); ctx.arc(on?x+26:x+14,y+20,4,0,7); ctx.fill(); } else { ctx.beginPath(); ctx.arc(x+20,y+20,9,0,7); ctx.fill(); ctx.strokeStyle=C.L2; ctx.stroke(); } }
-    else if(sh==='clk'){ rr(ctx,x,y,w,h,6); ctx.fill(); ctx.stroke(); ctx.strokeStyle = c.out[0]?C.HI:C.MUT; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x+7,y+26); ctx.lineTo(x+13,y+26); ctx.lineTo(x+13,y+14); ctx.lineTo(x+20,y+14); ctx.lineTo(x+20,y+26); ctx.lineTo(x+27,y+26); ctx.lineTo(x+27,y+14); ctx.lineTo(x+33,y+14); ctx.stroke(); }
-    else if(sh==='const'){ rr(ctx,x,y,w,h,6); ctx.fill(); ctx.stroke(); ctx.fillStyle = c.out[0]?C.HI:C.MUT; ctx.font='bold 18px '+mono; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(d.name, x+w/2, cy+1); }
-    else if(sh==='vcc'){ ctx.strokeStyle = isSel?C.ACC:C.HI; ctx.beginPath(); ctx.moveTo(x+w,cy); ctx.lineTo(x+w-14,cy); ctx.moveTo(x+w-14,cy-12); ctx.lineTo(x+w-14,cy+12); ctx.stroke(); ctx.save(); ctx.translate(x+w-20,cy); ctx.rotate(-(c.rot||0)*Math.PI/2); ctx.fillStyle=C.HI; ctx.font='bold 10px '+mono; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('VCC',0,0); ctx.restore(); }
-    else if(sh==='gnd'){ ctx.strokeStyle = isSel?C.ACC:C.MUT; ctx.beginPath(); ctx.moveTo(x+w,cy); ctx.lineTo(x+w-10,cy); ctx.moveTo(x+w-10,cy-12); ctx.lineTo(x+w-10,cy+12); ctx.moveTo(x+w-16,cy-7); ctx.lineTo(x+w-16,cy+7); ctx.moveTo(x+w-22,cy-3); ctx.lineTo(x+w-22,cy+3); ctx.stroke(); }
-    else if(sh==='res'){ ctx.strokeStyle = isSel?C.ACC:C.TXT; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x,cy); ctx.lineTo(x+6,cy); let px=x+6; for(let k=0;k<6;k++){ ctx.lineTo(px+2.5, cy+(k%2?6:-6)); px+=5; ctx.lineTo(px, cy); } ctx.lineTo(x+w,cy); ctx.stroke(); }
-    else if(sh==='led'){ const on = ledLit(c), col = LED_COLORS[c.color] || LED_COLORS.red; ctx.beginPath(); ctx.arc(x+20,y+20,13,0,7); ctx.fillStyle = on?col:css('--inset'); if(on){ ctx.shadowColor=col; ctx.shadowBlur=18; } ctx.fill(); ctx.shadowBlur=0; if(!on){ ctx.globalAlpha=.35; ctx.fillStyle=col; ctx.fill(); ctx.globalAlpha=1; } ctx.strokeStyle = isSel?C.ACC:(on?col:C.L2); ctx.stroke();
-      ctx.save(); ctx.translate(x+20,y+20); ctx.rotate(-(c.rot||0)*Math.PI/2); ctx.fillStyle = on?'#0e1116':C.MUT; ctx.font='bold 9px '+mono; ctx.textBaseline='middle'; ctx.textAlign='center'; ctx.fillText('A', -7, 0); ctx.fillText('K', 7, 0); ctx.restore(); }
-    else if(sh==='probe'){ const open = !this.ckt.inputDriven(c,0); if(open) ctx.setLineDash([4,3]); rr(ctx,x,y,w,h,6); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); ctx.save(); ctx.translate(x+w/2,cy+1); ctx.rotate(-(c.rot||0)*Math.PI/2); ctx.textAlign='center'; ctx.textBaseline='middle';
-      if(open){ ctx.fillStyle = C.OPEN; ctx.font='bold 10px '+mono; ctx.fillText('OPEN', 0, 0); } else { ctx.fillStyle = c.inv[0]?C.HI:C.MUT; ctx.font='bold 20px '+mono; ctx.fillText(String(c.inv[0]), 0, 0); } ctx.restore(); }
-    else if(sh==='seg7'){ rr(ctx,x,y,w,h,6); ctx.fill(); ctx.stroke(); const n = c.inv[0]|c.inv[1]<<1|c.inv[2]<<2|c.inv[3]<<3; drawSeg(ctx, x+w/2, cy, SEG[n], C); }
-    else { rr(ctx,x,y,w,h,6); ctx.fill(); ctx.stroke(); ctx.fillStyle=C.MUT; ctx.font='600 9px '+mono; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(d.name, x+w/2, y+5);
-      if(d.seq){ const p = lp('in',d.seq.clk); ctx.strokeStyle=C.MUT; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(x,p.y-5); ctx.lineTo(x+6,p.y); ctx.lineTo(x,p.y+5); ctx.stroke(); } }
-    if(this.showPinNames && !['and','nand','or','nor','xor','xnor','not','sw','btn','clk','const','led','probe','vcc','gnd','res'].includes(sh)){
-      ctx.fillStyle=C.MUT; ctx.font='9px '+mono; ctx.textBaseline='middle';
-      d.ins.forEach((n,i)=>{ const p=lp('in',i); ctx.textAlign='left'; ctx.fillText(n, x+(d.seq&&d.seq.clk===i?8:4), p.y); });
-      d.outs.forEach((n,i)=>{ const p=lp('out',i); ctx.textAlign='right'; ctx.fillText(n, x+w-4, p.y); }); }
-    ctx.restore();
-    if(c.label){ ctx.fillStyle = C.ACC; ctx.font='600 12px '+mono; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(c.label, c.x+W.w/2, c.y-5); }
-    if(this.ckt.unstable && d.ins.length && d.outs.length){ ctx.fillStyle=css('--red'); ctx.font='9px '+mono; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText('~', c.x+W.w/2, c.y+W.h+2); }
-  }
-  // Pin marker. Driven: filled dot, HIGH/LOW colored. Open (undriven input): hollow amber ring — reads 0 by convention (R-1) but is visibly unconnected.
-  pinDot(ctx, p, c, side, i, C, driven){
-    const hov = this.hover && this.hover.c===c && this.hover.side===side && this.hover.pin===i;
-    ctx.beginPath(); ctx.arc(p.x,p.y,hov?5:driven?3.2:4,0,7);
-    const val = side==='in'?c.inv[i]:c.out[i];
-    ctx.fillStyle = hov ? C.ACC : driven ? (val?C.HI:css('--bg3')) : css('--inset'); ctx.fill();
-    ctx.strokeStyle = hov ? C.ACC : driven ? (val ? C.HI : C.MUT) : C.OPEN; ctx.lineWidth=1.5; ctx.stroke();
-  }
-}
+// ── HELPERS ───────────────────────────────────────────────────
+// Rounded-rectangle path.
 function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
-function drawGate(ctx, sh, x, y, w, h, C, out){
-  const inv = sh==='nand'||sh==='nor'||sh==='xnor'||sh==='not', bw = inv ? w-8 : w, cy = y+h/2;
-  ctx.beginPath();
-  if(sh==='and'||sh==='nand'){ const r = Math.min(h/2, bw*.6); ctx.moveTo(x,y); ctx.lineTo(x+bw-r,y); ctx.arc(x+bw-r,cy,r,-Math.PI/2,Math.PI/2); ctx.lineTo(x,y+h); ctx.closePath(); }
-  else if(sh==='not'){ ctx.moveTo(x,y+2); ctx.lineTo(x+bw,cy); ctx.lineTo(x,y+h-2); ctx.closePath(); }
-  else { const xo = (sh==='xor'||sh==='xnor') ? 8 : 0; ctx.moveTo(x+xo,y); ctx.quadraticCurveTo(x+bw*.7,y,x+bw,cy); ctx.quadraticCurveTo(x+bw*.7,y+h,x+xo,y+h); ctx.quadraticCurveTo(x+xo+16,cy,x+xo,y); ctx.closePath(); }
-  ctx.fill(); ctx.stroke();
-  if(sh==='xor'||sh==='xnor'){ ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x+16,cy,x,y+h); ctx.stroke(); }
-  if(inv){ ctx.beginPath(); ctx.arc(x+bw+4,cy,4,0,7); ctx.fillStyle = out?C.HI:css('--inset'); ctx.fill(); ctx.stroke(); }
+// Draw text upright at (x, y) inside a part rotated by rot quarter turns: paint(ctx) draws around the origin.
+function uprightText(ctx, x, y, rot, font, fill, paint){
+  ctx.save(); ctx.translate(x, y); ctx.rotate(-(rot||0)*Math.PI/2);
+  ctx.font = font; ctx.fillStyle = fill; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; paint(ctx); ctx.restore();
 }
-function drawSeg(ctx, cx, cy, m, C){
-  const L=14, t=3, segs=[[-L/2,-L-2,L,t],[L/2-1,-L-1,t,L],[L/2-1,1,t,L],[-L/2,L,L,t],[-L/2-2,1,t,L],[-L/2-2,-L-1,t,L],[-L/2,-1,L,t]];
-  segs.forEach((s,i)=>{ ctx.fillStyle = (m>>i)&1 ? C.HI : css('--inset'); ctx.fillRect(cx+s[0],cy+s[1],s[2],s[3]); });
-}
+// Distance from point p to segment ab.
+function distSeg(p,a,b){ const dx=b.x-a.x, dy=b.y-a.y, l2=dx*dx+dy*dy||1; let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l2; t=Math.max(0,Math.min(1,t)); return Math.hypot(p.x-(a.x+t*dx), p.y-(a.y+t*dy)); }
 /* Orthogonal route from output pin a to input pin b. da/db are the pins' outward directions.
    Both horizontal & facing: Z route (adjustable mx). Both horizontal, not facing: wrap below (ax/my/bx).
    One vertical: L route via a single adjustable run. Both vertical: U route via my. */
 function routePts(a,b,below,w,da,db){
   w = w || {}; da = da || {dx:1,dy:0}; db = db || {dx:-1,dy:0};
-  const S = 12;
-  const a1 = { x:a.x+da.dx*S, y:a.y+da.dy*S }, b1 = { x:b.x+db.dx*S, y:b.y+db.dy*S };
+  const a1 = { x:a.x+da.dx*ROUTE_STUB, y:a.y+da.dy*ROUTE_STUB }, b1 = { x:b.x+db.dx*ROUTE_STUB, y:b.y+db.dy*ROUTE_STUB };
   if(da.dy===0 && db.dy===0){
-    const facing = da.dx*(b.x-a.x) >= 24 && db.dx*(a.x-b.x) >= 24;
-    if(facing){ if(a.y===b.y) return [a,b]; let mx = w.mx ?? Math.round((a.x+b.x)/2); const lo = Math.min(a.x+da.dx*8, b.x+db.dx*8), hi = Math.max(a.x+da.dx*8, b.x+db.dx*8); mx = Math.max(lo, Math.min(hi, mx)); return [a,{x:mx,y:a.y},{x:mx,y:b.y},b]; }
+    const facing = da.dx*(b.x-a.x) >= ROUTE_FACING_MIN && db.dx*(a.x-b.x) >= ROUTE_FACING_MIN;
+    if(facing){ if(a.y===b.y) return [a,b]; let mx = w.mx ?? Math.round((a.x+b.x)/2);
+      const lo = Math.min(a.x+da.dx*ROUTE_CLAMP, b.x+db.dx*ROUTE_CLAMP), hi = Math.max(a.x+da.dx*ROUTE_CLAMP, b.x+db.dx*ROUTE_CLAMP);
+      mx = Math.max(lo, Math.min(hi, mx)); return [a,{x:mx,y:a.y},{x:mx,y:b.y},b]; }
     const my = w.my ?? Math.round(below/GRID)*GRID, ax = w.ax ?? a1.x, bx = w.bx ?? b1.x;
     return [a,{x:ax,y:a.y},{x:ax,y:my},{x:bx,y:my},{x:bx,y:b.y},b];
   }
@@ -237,6 +96,328 @@ function routePts(a,b,below,w,da,db){
   const my = w.my ?? Math.round((a1.y+b1.y)/2/GRID)*GRID;
   return [a,a1,{x:a1.x,y:my},{x:b1.x,y:my},b1,b];
 }
-function distSeg(p,a,b){ const dx=b.x-a.x, dy=b.y-a.y, l2=dx*dx+dy*dy||1; let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l2; t=Math.max(0,Math.min(1,t)); return Math.hypot(p.x-(a.x+t*dx), p.y-(a.y+t*dy)); }
-window.DLB.Board = Board;
+// Keep a view scale inside the zoom limits.
+const clampZoom = s => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s));
+// ── END HELPERS ───────────────────────────────────────────────
+
+// ── BOARD ─────────────────────────────────────────────────────
+class Board {
+  // Attach to a canvas and a circuit; every circuit change requests a draw.
+  constructor(canvas, ckt){
+    this.cv = canvas; this.ctx = canvas.getContext('2d'); this.ckt = ckt;
+    this.view = Object.assign({}, VIEW0); this.armed = null; this.sel = null; this.hover = null;
+    this.drag = null; this.mouse = null; this.showGrid = true; this.showPinNames = true; this.wireColor = true;
+    this.onArm = ()=>{}; this.onSelect = ()=>{}; this.onNotice = ()=>{};
+    this.frame = 0;          // pending requestAnimationFrame handle (0 = none)
+    this.touches = new Map(); this.pinch = null; this.hitR = HIT_R_MOUSE; this.longT = null; this.lastTap = null;
+    const ro = new ResizeObserver(()=>this.resize()); ro.observe(canvas.parentElement); this.resize();
+    canvas.style.touchAction = 'none';
+    canvas.addEventListener('pointerdown', e=>this.pdown(e)); window.addEventListener('pointermove', e=>this.pmove(e));
+    window.addEventListener('pointerup', e=>this.pup(e)); window.addEventListener('pointercancel', e=>this.pup(e, true)); canvas.addEventListener('dblclick', e=>this.dbl(e));
+    canvas.addEventListener('wheel', e=>this.wheel(e), { passive:false }); canvas.addEventListener('contextmenu', e=>e.preventDefault());
+    window.addEventListener('keydown', e=>this.key(e));
+    ckt.onChange(()=>this.requestDraw());
+  }
+
+  // ── Draw scheduling ──
+  // Ask for a redraw; all requests in one frame produce one draw. Skipped while the Sim page is hidden: showing it
+  // again resizes and redraws the board.
+  requestDraw(){ if(!this.frame) this.frame = requestAnimationFrame(()=>{ this.frame = 0; if(this.cv.offsetParent) this.draw(); }); }
+  // Match the canvas backing store to its box and draw at once.
+  resize(){ const r = this.cv.parentElement.getBoundingClientRect(); this.cv.width = Math.max(1, r.width*devicePixelRatio); this.cv.height = Math.max(1, r.height*devicePixelRatio); this.cv.style.height = r.height+'px'; this.draw(); }
+
+  // ── View ──
+  // Board coordinates of a pointer event.
+  world(e){ const r = this.cv.getBoundingClientRect(); return { x:(e.clientX-r.left-this.view.ox)/this.view.s, y:(e.clientY-r.top-this.view.oy)/this.view.s }; }
+  // Nearest grid line.
+  snap(v){ return Math.round(v/GRID)*GRID; }
+  // Set the scale to s (clamped), keeping the board point under canvas point (mx, my) fixed.
+  zoomAbout(mx, my, s){ s = clampZoom(s); this.view.ox = mx - (mx-this.view.ox)*s/this.view.s; this.view.oy = my - (my-this.view.oy)*s/this.view.s; this.view.s = s; this.requestDraw(); }
+  // Zoom about the canvas centre (− / + buttons).
+  zoomBy(k){ const r = this.cv.getBoundingClientRect(); this.zoomAbout(r.width/2, r.height/2, this.view.s*k); }
+  // Fit the whole circuit in view (or reset the view when the board is empty).
+  fit(){ const cs = this.ckt.comps; if(!cs.length){ this.view = Object.assign({}, VIEW0); this.requestDraw(); return; }
+    let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+    cs.forEach(c => { const g = geom(c.type,c.rot); x0=Math.min(x0,c.x-FIT_MARGIN); y0=Math.min(y0,c.y-FIT_MARGIN); x1=Math.max(x1,c.x+g.w+FIT_MARGIN); y1=Math.max(y1,c.y+g.h+FIT_MARGIN_BOTTOM); });
+    const r = this.cv.getBoundingClientRect(), s = clampZoom(Math.min(r.width/(x1-x0), r.height/(y1-y0)));
+    this.view = { s, ox: (r.width - (x1-x0)*s)/2 - x0*s, oy: (r.height - (y1-y0)*s)/2 - y0*s }; this.requestDraw(); }
+
+  // ── Selection and editing ──
+  // Select a part, a wire, or nothing.
+  select(x){ this.sel = x || null; this.onSelect(this.sel); this.requestDraw(); }
+  // Ask for a label. Signal labels (switches, buttons, clocks, probes, LEDs) must be unique and not blank, so the
+  // timing diagram, truth table and experiment checker can tell them apart.
+  rename(c){ if(!c || !c.type) return;
+    const v = prompt('Label for '+DEFS[c.type].name+' (up to '+LABEL_MAX+' characters)', c.label); if(v===null) return;
+    const why = this.ckt.setLabel(c, v.trim().slice(0,LABEL_MAX)); if(why) alert(why); }
+  // Arm a part type for placement (toggle).
+  arm(type){ this.armed = this.armed===type ? null : type; this.select(null); this.onArm(this.armed); }
+  // Remove a part or wire and clear the selection if it was selected.
+  removeItem(x){ if(!x) return; this.ckt.removeItem(x); if(this.sel === x) this.select(null); }
+  // Remove whatever is under board point p (right-click, long press).
+  removeAt(p){ const c = this.hitComp(p); if(c){ this.removeItem(c); return; } const hw = this.hitWire(p); if(hw) this.removeItem(hw.w); }
+  // Remove the selection (Delete key and button).
+  deleteSelection(){ this.removeItem(this.sel); }
+  // Wire an output to an input. An input has one driver, so an existing wire there is replaced: say so (DL-010).
+  wire(from, to){
+    const old = this.ckt.connect(from, to); if(!old) return;
+    const c = this.ckt.comp(to.c), name = c.label ? c.label : DEFS[c.type].name;
+    this.onNotice('Replaced the wire into '+name+' input '+DEFS[c.type].ins[to.pin]+' — one wire per input. Undo brings the old wire back.');
+  }
+
+  // ── Hit tests ──
+  // Pin under board point p.
+  hitPin(p){
+    for(const c of this.ckt.comps){ const d = DEFS[c.type];
+      for(let i=0;i<d.outs.length;i++){ const q = pinPos(c,'out',i); if(Math.hypot(q.x-p.x,q.y-p.y) < this.hitR) return { c, side:'out', pin:i }; }
+      for(let i=0;i<d.ins.length;i++){ const q = pinPos(c,'in',i); if(Math.hypot(q.x-p.x,q.y-p.y) < this.hitR) return { c, side:'in', pin:i }; } }
+    return null;
+  }
+  // Topmost part under board point p.
+  hitComp(p){ for(let k=this.ckt.comps.length-1;k>=0;k--){ const c=this.ckt.comps[k], g=geom(c.type,c.rot); if(p.x>=c.x&&p.x<=c.x+g.w&&p.y>=c.y&&p.y<=c.y+g.h) return c; } return null; }
+  // Wire segment under board point p.
+  hitWire(p){
+    for(const w of this.ckt.wires){ const pts = this.route(w); for(let i=0;i<pts.length-1;i++){ if(distSeg(p, pts[i], pts[i+1]) < WIRE_HIT_PX) return { w, seg:i }; } } return null;
+  }
+  // Tee handle sits mid-way along the wire's adjustable segment.
+  teePos(w){ const pts = this.route(w), k = Math.floor((pts.length-2)/2); return { x:(pts[k].x+pts[k+1].x)/2, y:(pts[k].y+pts[k+1].y)/2 }; }
+  // Route points of a wire.
+  route(w){
+    const ca = this.ckt.comp(w.from.c), cb = this.ckt.comp(w.to.c);
+    const a = pinPos(ca,'out',w.from.pin), b = pinPos(cb,'in',w.to.pin);
+    const below = Math.max(ca.y+geom(ca.type,ca.rot).h, cb.y+geom(cb.type,cb.rot).h) + GRID;
+    return routePts(a,b,below,w,pinDir(ca,'out',w.from.pin),pinDir(cb,'in',w.to.pin));
+  }
+
+  // ── Pointer routing: one pointer drives the mouse logic, a second one turns the gesture into pan + pinch ──
+  // Pointer down: mouse goes straight through; touch tracks fingers, double tap and long press.
+  pdown(e){
+    if(e.pointerType === 'mouse'){ this.hitR = HIT_R_MOUSE; this.down(e); return; }
+    this.hitR = HIT_R_TOUCH; this.touches.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    try { this.cv.setPointerCapture(e.pointerId); } catch(_){ /* pointer already gone */ }
+    if(this.touches.size === 2){ this.cancelLong(); this.drag = null; const [a,b] = [...this.touches.values()];
+      this.pinch = { d: Math.hypot(a.x-b.x, a.y-b.y) || 1, cx:(a.x+b.x)/2, cy:(a.y+b.y)/2, s:this.view.s, ox:this.view.ox, oy:this.view.oy }; this.requestDraw(); return; }
+    if(this.touches.size > 2) return;
+    const now = performance.now(), lt = this.lastTap, tc = this.hitComp(this.world(e));
+    if(lt && now - lt.t < DOUBLE_TAP_MS && Math.hypot(lt.x-e.clientX, lt.y-e.clientY) < DOUBLE_TAP_PX && tc && !TAP_RENAME_EXEMPT.includes(tc.type)){ this.lastTap = null; this.rename(tc); return; }
+    this.lastTap = { t: now, x: e.clientX, y: e.clientY };
+    this.down(e);
+    const p = this.world(e), sx = e.clientX, sy = e.clientY;
+    if(!this.armed && !this.hitPin(p) && (this.hitComp(p) || this.hitWire(p)))
+      this.longT = { t: setTimeout(()=>{ this.longT = null; this.drag = null; this.removeAt(p); }, LONG_PRESS_MS), x:sx, y:sy };
+  }
+  // Abandon a pending long press.
+  cancelLong(){ if(this.longT){ clearTimeout(this.longT.t); this.longT = null; } }
+  // Pointer move: mouse goes straight through; two fingers pinch-zoom and pan.
+  pmove(e){
+    if(e.pointerType === 'mouse'){ this.move(e); return; }
+    if(!this.touches.has(e.pointerId)) return;
+    this.touches.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if(this.longT && Math.hypot(e.clientX-this.longT.x, e.clientY-this.longT.y) > LONG_PRESS_SLOP_PX) this.cancelLong();
+    if(this.pinch && this.touches.size >= 2){ const [a,b] = [...this.touches.values()], P = this.pinch, r = this.cv.getBoundingClientRect();
+      const s = clampZoom(P.s * Math.hypot(a.x-b.x, a.y-b.y) / P.d), mx = P.cx - r.left, my = P.cy - r.top;
+      this.view.s = s; this.view.ox = mx - (mx-P.ox)*s/P.s + ((a.x+b.x)/2-P.cx); this.view.oy = my - (my-P.oy)*s/P.s + ((a.y+b.y)/2-P.cy); this.requestDraw(); return; }
+    this.move(e);
+  }
+  // Pointer up / cancel.
+  pup(e, cancel){
+    if(e.pointerType === 'mouse'){ this.up(e); return; }
+    if(!this.touches.has(e.pointerId)) return;
+    this.touches.delete(e.pointerId); this.cancelLong();
+    if(this.pinch){ if(this.touches.size === 0) this.pinch = null; return; }
+    if(cancel){ this.drag = null; this.requestDraw(); return; }
+    this.up(e);
+  }
+
+  // ── Mouse / pen logic ──
+  // Press: remove (right button), place an armed part, start a tee, a wire, a part drag, a segment drag or a pan.
+  down(e){
+    const p = this.world(e); this.mouse = p;
+    if(e.button === 2){ this.removeAt(p); return; }
+    if(this.armed){ const c = this.ckt.add(this.armed, this.snap(p.x)-PLACE_OFFSET, this.snap(p.y)-PLACE_OFFSET); this.select(c); if(!e.shiftKey){ this.armed=null; this.onArm(null); } return; }
+    if(this.sel && !this.sel.type){ const t = this.teePos(this.sel); if(Math.hypot(t.x-p.x,t.y-p.y) < TEE_HIT_PX){ this.drag = { kind:'wire', from:{ c:this.ckt.comp(this.sel.from.c), side:'out', pin:this.sel.from.pin } }; return; } }
+    const pin = this.hitPin(p);
+    if(pin){ this.drag = { kind:'wire', from:pin }; return; }
+    const c = this.hitComp(p);
+    if(c){ this.select(c); this.drag = { kind:'comp', c, dx:p.x-c.x, dy:p.y-c.y, moved:false };
+      if(DEFS[c.type].press){ DEFS[c.type].press(c.state, true); this.ckt.update(); } return; }
+    const hw = this.hitWire(p); if(hw){ this.select(hw.w); this.drag = { kind:'seg', w:hw.w, seg:hw.seg, n:this.route(hw.w).length, kindV: pinDir(this.ckt.comp(hw.w.from.c),'out',hw.w.from.pin).dy!==0, moved:false }; return; }
+    this.select(null); this.drag = { kind:'pan', x:e.clientX, y:e.clientY, ox:this.view.ox, oy:this.view.oy };
+  }
+  // Move: hover highlight over the board only (CQ-DL-016), or carry on the current drag.
+  move(e){
+    const d = this.drag;
+    if(!d){
+      if(e.target !== this.cv){ if(this.hover || this.mouse){ this.hover = null; this.mouse = null; if(this.armed) this.requestDraw(); } return; }
+      const p = this.world(e); this.mouse = p;
+      const h = this.hitPin(p);
+      if((h&&h.c)!==(this.hover&&this.hover.c) || (h&&h.pin)!==(this.hover&&this.hover.pin) || !!h!==!!this.hover){ this.hover=h; this.requestDraw(); }
+      else if(this.armed) this.requestDraw();
+      return;
+    }
+    const p = this.world(e); this.mouse = p;
+    if(d.kind==='pan'){ this.view.ox = d.ox + e.clientX-d.x; this.view.oy = d.oy + e.clientY-d.y; }
+    else if(d.kind==='comp'){ const nx=this.snap(p.x-d.dx), ny=this.snap(p.y-d.dy); if(nx!==d.c.x||ny!==d.c.y){ if(!d.moved) this.ckt.touch(); d.c.x=nx; d.c.y=ny; d.moved=true; } }
+    else if(d.kind==='wire'){ this.hover = this.hitPin(p); }
+    else if(d.kind==='seg'){ const w = d.w, gx = this.snap(p.x), gy = this.snap(p.y), before = [w.mx, w.my, w.ax, w.bx].join();
+      const set = (k, v) => { if(w[k] !== v){   // move one route offset; the first change opens the edit
+        if(!d.moved) this.ckt.touch(); d.moved = true; w[k] = v; } };
+      if(d.n===4 || d.n===2) set('mx', gx);
+      else if(d.n===5){ if(d.kindV) set('my', gy); else set('mx', gx); }
+      else { if(d.seg===1) set('ax', gx); else if(d.seg===2) set('my', gy); else if(d.seg===3) set('bx', gx); }
+      if(before === [w.mx, w.my, w.ax, w.bx].join()) return; }
+    this.requestDraw();
+  }
+  // Release: toggle / release a switch or button, commit a move, or finish a wire.
+  up(e){
+    const d = this.drag; this.drag = null; if(!d) return;
+    if(d.kind==='comp'){ const def = DEFS[d.c.type];
+      if(def.press){ def.press(d.c.state,false); this.ckt.update(); }
+      else if(!d.moved && def.click){ def.click(d.c.state); this.ckt.update(); }
+      if(d.moved) this.ckt.edited(); }   // a moved part is saved (and undoable) like any other edit
+    if(d.kind==='seg' && d.moved) this.ckt.edited();
+    if(d.kind==='wire'){ const pw = this.world(e), t = this.hitPin(pw);
+      if(t && t.side !== d.from.side){ const o = d.from.side==='out'?d.from:t, i = d.from.side==='in'?d.from:t; this.wire({c:o.c.id,pin:o.pin},{c:i.c.id,pin:i.pin}); }
+      else if(!t && d.from.side==='in'){ const hw = this.hitWire(pw); if(hw) this.wire({c:hw.w.from.c,pin:hw.w.from.pin},{c:d.from.c.id,pin:d.from.pin}); } }
+    this.requestDraw();
+  }
+  // Double click renames a part.
+  dbl(e){ const c = this.hitComp(this.world(e)); if(c) this.rename(c); }
+  // Wheel zooms about the pointer.
+  wheel(e){ e.preventDefault(); const r = this.cv.getBoundingClientRect(); this.zoomAbout(e.clientX-r.left, e.clientY-r.top, this.view.s*(e.deltaY<0 ? WHEEL_STEP : 1/WHEEL_STEP)); }
+
+  // ── Keyboard ──
+  // Board keys: Delete, R rotate, C LED colour, arrows nudge, Escape. Only while the Sim page shows.
+  key(e){ if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+    if(!this.cv.offsetParent) return;
+    if(e.ctrlKey || e.metaKey || e.altKey) return;
+    const c = this.sel && this.sel.type ? this.sel : null;
+    if((e.key==='Delete'||e.key==='Backspace') && this.sel) this.deleteSelection();
+    if((e.key==='r'||e.key==='R') && c) this.ckt.rotate(c, e.shiftKey?-1:1);
+    if((e.key==='c'||e.key==='C') && c && c.type==='LED'){ const ks = Object.keys(LED_COLORS); this.ckt.setColor(c, ks[(ks.indexOf(c.color)+1)%ks.length]); }
+    if(e.key.startsWith('Arrow') && c){ e.preventDefault(); const st = e.shiftKey ? GRID*NUDGE_BIG : GRID; this.ckt.touch();
+      if(e.key==='ArrowUp') c.y -= st; else if(e.key==='ArrowDown') c.y += st; else if(e.key==='ArrowLeft') c.x -= st; else if(e.key==='ArrowRight') c.x += st; this.ckt.edited(); }
+    if(e.key==='Escape'){ this.armed=null; this.onArm(null); this.select(null); } }
+
+  // ── Drawing ──
+  // Colours for this draw, from the theme cache.
+  palette(){ const t = theme; return { HI:t['--hi'], LO:t['--mut2'], TXT:t['--txt'], MUT:t['--mut'], ACC:t['--acc'], L2:t['--line2'], OPEN:t['--open'],
+    BG:t['--bg'], BG3:t['--bg3'], INSET:t['--inset'], LINE:t['--line'], RED:t['--red'], MONO:t['--mono'] }; }
+  // Draw the whole board: grid, wires, tee handle, wire being dragged, parts, part being placed.
+  draw(){
+    const ctx = this.ctx, W = this.cv.width/devicePixelRatio, H = this.cv.height/devicePixelRatio, v = this.view, C = this.palette();
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = C.INSET; ctx.fillRect(0,0,W,H);
+    ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+    if(this.showGrid){ ctx.fillStyle = C.LINE; const x0=Math.floor(-v.ox/v.s/GRID)*GRID, y0=Math.floor(-v.oy/v.s/GRID)*GRID, x1=x0+W/v.s+GRID, y1=y0+H/v.s+GRID;
+      for(let x=x0;x<x1;x+=GRID) for(let y=y0;y<y1;y+=GRID) ctx.fillRect(x-GRID_DOT/2,y-GRID_DOT/2,GRID_DOT,GRID_DOT); }
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    for(const w of this.ckt.wires){ const val = this.ckt.comp(w.from.c).out[w.from.pin], pts = this.route(w);
+      ctx.beginPath(); pts.forEach((q,i)=> i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));
+      if(w===this.sel){ ctx.strokeStyle = C.ACC; ctx.lineWidth = SEL_HALO_W; ctx.globalAlpha = SEL_HALO_ALPHA; ctx.stroke(); ctx.globalAlpha=1; }
+      ctx.strokeStyle = this.wireColor ? (val?C.HI:C.LO) : C.MUT; ctx.lineWidth = val?WIRE_W_HI:WIRE_W_LO; ctx.stroke(); }
+    if(this.sel && !this.sel.type && this.ckt.wires.includes(this.sel)){ const t = this.teePos(this.sel); ctx.beginPath(); ctx.arc(t.x,t.y,TEE_R,0,2*Math.PI); ctx.fillStyle = C.ACC; ctx.fill(); ctx.strokeStyle = C.BG; ctx.lineWidth = THIN; ctx.stroke(); }
+    if(this.drag && this.drag.kind==='wire' && this.mouse){ const f=this.drag.from, a = pinPos(f.c,f.side,f.pin); ctx.setLineDash(DASH_DRAG); ctx.strokeStyle=C.ACC; ctx.lineWidth=WIRE_W_DRAG; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(this.mouse.x,this.mouse.y); ctx.stroke(); ctx.setLineDash([]); }
+    for(const c of this.ckt.comps) this.drawComp(ctx, c, C);
+    if(this.armed && this.mouse){ const d = DEFS[this.armed]; ctx.globalAlpha = ARMED_ALPHA;
+      this.drawComp(ctx, { type:this.armed, x:this.snap(this.mouse.x)-PLACE_OFFSET, y:this.snap(this.mouse.y)-PLACE_OFFSET, rot:d.rot0||0, label:'', state:d.init?d.init():{}, out:d.outs.map(()=>0), inv:d.ins.map(()=>0) }, C, true);
+      ctx.globalAlpha=1; }
+  }
+  // Draw one part: pins, body glyph, pin names, label, UNSTABLE marker. ghost = the part being placed (not on the board).
+  drawComp(ctx, c, C, ghost){
+    const d = DEFS[c.type], W = geom(c.type, c.rot), { w, h } = geom0(c.type), isSel = c===this.sel;
+    ctx.save(); ctx.translate(c.x + W.w/2, c.y + W.h/2); ctx.rotate((c.rot||0) * Math.PI/2);
+    const x = -w/2, y = -h/2, lp = (side,i) => { const q = localPin(c,side,i); return { x:x+q.x, y:y+q.y }; };
+    for(let i=0;i<d.ins.length;i++){ const p = lp('in',i), driven = !ghost && this.ckt.inputDriven(c,i);
+      ctx.strokeStyle = driven ? (c.inv[i]?C.HI:C.LO) : C.OPEN; ctx.lineWidth=STROKE; if(!driven) ctx.setLineDash(DASH_OPEN);
+      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(x,p.y); ctx.stroke(); ctx.setLineDash([]); this.pinDot(ctx, p, c, 'in', i, C, driven); }
+    for(let i=0;i<d.outs.length;i++){ const p = lp('out',i); ctx.strokeStyle = c.out[i]?C.HI:C.LO; ctx.lineWidth=STROKE; ctx.beginPath(); ctx.moveTo(x+w,p.y); ctx.lineTo(p.x,p.y); ctx.stroke(); this.pinDot(ctx, p, c, 'out', i, C, true); }
+    ctx.lineWidth = STROKE; ctx.strokeStyle = isSel ? C.ACC : C.TXT; ctx.fillStyle = C.BG3;
+    const g = { x, y, w, h, cy: y + h/2, d, isSel, open: d.shape==='probe' && (ghost || !this.ckt.inputDriven(c,0)) };
+    (SHAPES[GATE_SHAPES.includes(d.shape) ? 'gate' : d.shape] || drawBlock)(ctx, c, g, C, lp);
+    if(this.showPinNames && !NO_PIN_NAMES.includes(d.shape)){
+      ctx.fillStyle=C.MUT; ctx.font=FONT_SMALL+'px '+C.MONO; ctx.textBaseline='middle';
+      d.ins.forEach((n,i)=>{ const p=lp('in',i); ctx.textAlign='left'; ctx.fillText(n, x+(d.seq&&d.seq.clk===i?PIN_NAME_INSET_CLK:PIN_NAME_INSET), p.y); });
+      d.outs.forEach((n,i)=>{ const p=lp('out',i); ctx.textAlign='right'; ctx.fillText(n, x+w-PIN_NAME_INSET, p.y); }); }
+    ctx.restore();
+    if(c.label){ ctx.fillStyle = C.ACC; ctx.font='600 '+FONT_LABEL+'px '+C.MONO; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(c.label, c.x+W.w/2, c.y-LABEL_GAP); }
+    if(!ghost && this.ckt.unstable && d.ins.length && d.outs.length){ ctx.fillStyle=C.RED; ctx.font=FONT_SMALL+'px '+C.MONO; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText('~', c.x+W.w/2, c.y+W.h+UNSTABLE_GAP); }
+  }
+  // Pin marker. Driven: filled dot, HIGH/LOW colored. Open (undriven input): hollow amber ring — reads 0 by convention (R-1) but is visibly unconnected.
+  pinDot(ctx, p, c, side, i, C, driven){
+    const hov = this.hover && this.hover.c===c && this.hover.side===side && this.hover.pin===i;
+    ctx.beginPath(); ctx.arc(p.x,p.y,hov?PIN_HOVER_R:driven?PIN_DOT_R:PIN_OPEN_R,0,2*Math.PI);
+    const val = side==='in'?c.inv[i]:c.out[i];
+    ctx.fillStyle = hov ? C.ACC : driven ? (val?C.HI:C.BG3) : C.INSET; ctx.fill();
+    ctx.strokeStyle = hov ? C.ACC : driven ? (val ? C.HI : C.MUT) : C.OPEN; ctx.lineWidth=THIN; ctx.stroke();
+  }
+}
+// ── END BOARD ─────────────────────────────────────────────────
+
+// ── PART GLYPHS ───────────────────────────────────────────────
+// Gate body: AND/NAND, OR/NOR, XOR/XNOR, NOT, with an output bubble on the inverting ones.
+function drawGate(ctx, sh, x, y, w, h, C, out){
+  const inv = sh==='nand'||sh==='nor'||sh==='xnor'||sh==='not', bw = inv ? w-2*GATE.bubbleR : w, cy = y+h/2;
+  ctx.beginPath();
+  if(sh==='and'||sh==='nand'){ const r = Math.min(h/2, bw*GATE.andNose); ctx.moveTo(x,y); ctx.lineTo(x+bw-r,y); ctx.arc(x+bw-r,cy,r,-Math.PI/2,Math.PI/2); ctx.lineTo(x,y+h); ctx.closePath(); }
+  else if(sh==='not'){ ctx.moveTo(x,y+GATE.notInset); ctx.lineTo(x+bw,cy); ctx.lineTo(x,y+h-GATE.notInset); ctx.closePath(); }
+  else { const xo = (sh==='xor'||sh==='xnor') ? GATE.xorGap : 0;
+    ctx.moveTo(x+xo,y); ctx.quadraticCurveTo(x+bw*GATE.orCtrl,y,x+bw,cy); ctx.quadraticCurveTo(x+bw*GATE.orCtrl,y+h,x+xo,y+h); ctx.quadraticCurveTo(x+xo+GATE.backDepth,cy,x+xo,y); ctx.closePath(); }
+  ctx.fill(); ctx.stroke();
+  if(sh==='xor'||sh==='xnor'){ ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x+GATE.backDepth,cy,x,y+h); ctx.stroke(); }
+  if(inv){ ctx.beginPath(); ctx.arc(x+bw+GATE.bubbleR,cy,GATE.bubbleR,0,2*Math.PI); ctx.fillStyle = out?C.HI:C.INSET; ctx.fill(); ctx.stroke(); }
+}
+// 7-segment digit centred at (cx, cy) for segment mask m.
+function drawSeg(ctx, cx, cy, m, C){
+  SEG_RECTS.forEach((s,i)=>{ ctx.fillStyle = (m>>i)&1 ? C.HI : C.INSET; ctx.fillRect(cx+s[0],cy+s[1],s[2],s[3]); });
+}
+// Rounded body outline, filled and stroked with the current styles.
+function body(ctx, g){ rr(ctx,g.x,g.y,g.w,g.h,CORNER_R); ctx.fill(); ctx.stroke(); }
+// Generic block: body, name at the top, ▷ on the clock input.
+function drawBlock(ctx, c, g, C, lp){
+  body(ctx, g); ctx.fillStyle=C.MUT; ctx.font='600 '+FONT_SMALL+'px '+C.MONO; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(g.d.name, g.x+g.w/2, g.y+BLOCK_TITLE_Y);
+  if(g.d.seq){ const p = lp('in',g.d.seq.clk); ctx.strokeStyle=C.MUT; ctx.lineWidth=THIN; ctx.beginPath(); ctx.moveTo(g.x,p.y-CLK_MARK_H); ctx.lineTo(g.x+CLK_MARK_W,p.y); ctx.lineTo(g.x,p.y+CLK_MARK_H); ctx.stroke(); }
+}
+// One draw function per part shape; anything not listed is a generic block.
+const SHAPES = {
+  // Logic gate.
+  gate(ctx, c, g, C){ drawGate(ctx, g.d.shape, g.x, g.y, g.w, g.h, C, c.out[0]); },
+  // Toggle switch: track with a knob left (off) or right (on).
+  sw(ctx, c, g, C){ body(ctx, g); const on = c.state.on, T = SW_G.track;
+    ctx.fillStyle = on?C.HI:C.INSET; rr(ctx,g.x+T.x,g.y+T.y,T.w,T.h,T.h/2); ctx.fill(); ctx.strokeStyle=C.L2; ctx.stroke();
+    ctx.fillStyle = on?KNOB_ON:C.LO; ctx.beginPath(); ctx.arc(g.x+(on?SW_G.knobOn:SW_G.knobOff),g.y+SW_G.knobY,SW_G.knobR,0,2*Math.PI); ctx.fill(); },
+  // Push button: round cap, lit while held.
+  btn(ctx, c, g, C){ body(ctx, g); ctx.fillStyle = c.state.on?C.HI:C.INSET; ctx.beginPath(); ctx.arc(g.x+BTN_G.c,g.y+BTN_G.c,BTN_G.r,0,2*Math.PI); ctx.fill(); ctx.strokeStyle=C.L2; ctx.stroke(); },
+  // Clock: square-wave icon, bright while the output is HIGH.
+  clk(ctx, c, g, C){ body(ctx, g); ctx.strokeStyle = c.out[0]?C.HI:C.MUT; ctx.lineWidth=STROKE; ctx.beginPath();
+    CLK_WAVE.forEach(([px,py],i) => i ? ctx.lineTo(g.x+px,g.y+py) : ctx.moveTo(g.x+px,g.y+py)); ctx.stroke(); },
+  // Constant 1 / 0.
+  const(ctx, c, g, C){ body(ctx, g); ctx.fillStyle = c.out[0]?C.HI:C.MUT; ctx.font='bold '+FONT_CONST+'px '+C.MONO; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(g.d.name, g.x+g.w/2, g.cy+1); },
+  // VCC rail: bar and upright label.
+  vcc(ctx, c, g, C){ const bx = g.x+g.w-VCC_G.bar; ctx.strokeStyle = g.isSel?C.ACC:C.HI; ctx.beginPath(); ctx.moveTo(g.x+g.w,g.cy); ctx.lineTo(bx,g.cy); ctx.moveTo(bx,g.cy-VCC_G.half); ctx.lineTo(bx,g.cy+VCC_G.half); ctx.stroke();
+    uprightText(ctx, g.x+g.w-VCC_G.text, g.cy, c.rot, 'bold '+FONT_VCC+'px '+C.MONO, C.HI, t => t.fillText('VCC',0,0)); },
+  // Ground: three shrinking bars.
+  gnd(ctx, c, g, C){ ctx.strokeStyle = g.isSel?C.ACC:C.MUT; ctx.beginPath(); ctx.moveTo(g.x+g.w,g.cy); ctx.lineTo(g.x+g.w-GND_G.bars[0][0],g.cy);
+    for(const [dx,half] of GND_G.bars){ ctx.moveTo(g.x+g.w-dx,g.cy-half); ctx.lineTo(g.x+g.w-dx,g.cy+half); } ctx.stroke(); },
+  // Resistor zigzag.
+  res(ctx, c, g, C){ ctx.strokeStyle = g.isSel?C.ACC:C.TXT; ctx.lineWidth=STROKE; ctx.beginPath(); ctx.moveTo(g.x,g.cy); ctx.lineTo(g.x+RES_G.lead,g.cy);
+    let px = g.x+RES_G.lead; for(let k=0;k<RES_G.teeth;k++){ ctx.lineTo(px+RES_G.pitch/2, g.cy+(k%2?RES_G.amp:-RES_G.amp)); px+=RES_G.pitch; ctx.lineTo(px, g.cy); }
+    ctx.lineTo(g.x+g.w,g.cy); ctx.stroke(); },
+  // LED: glowing disc when lit, A / K marks upright.
+  led(ctx, c, g, C){ const on = ledLit(c), col = LED_COLORS[c.color] || LED_COLORS.red, cx = g.x+LED_G.c, cy = g.y+LED_G.c;
+    ctx.beginPath(); ctx.arc(cx,cy,LED_G.r,0,2*Math.PI); ctx.fillStyle = on?col:C.INSET; if(on){ ctx.shadowColor=col; ctx.shadowBlur=LED_G.glow; } ctx.fill(); ctx.shadowBlur=0;
+    if(!on){ ctx.globalAlpha *= LED_G.offAlpha; ctx.fillStyle=col; ctx.fill(); ctx.globalAlpha /= LED_G.offAlpha; } ctx.strokeStyle = g.isSel?C.ACC:(on?col:C.L2); ctx.stroke();
+    uprightText(ctx, cx, cy, c.rot, 'bold '+FONT_SMALL+'px '+C.MONO, on?INK_ON_LIT:C.MUT, t => { t.fillText('A', -LED_G.letterDx, 0); t.fillText('K', LED_G.letterDx, 0); }); },
+  // Logic probe: 1 / 0, or OPEN with a dashed outline when its input has no wire (DL-006).
+  probe(ctx, c, g, C){ if(g.open) ctx.setLineDash(DASH_PROBE_OPEN); body(ctx, g); ctx.setLineDash([]);
+    if(g.open) uprightText(ctx, g.x+g.w/2, g.cy+1, c.rot, 'bold '+FONT_OPEN+'px '+C.MONO, C.OPEN, t => t.fillText('OPEN', 0, 0));
+    else uprightText(ctx, g.x+g.w/2, g.cy+1, c.rot, 'bold '+FONT_PROBE+'px '+C.MONO, c.inv[0]?C.HI:C.MUT, t => t.fillText(String(c.inv[0]), 0, 0)); },
+  // 7-segment display: 7448 patterns for the 4-bit code on D3..D0.
+  seg7(ctx, c, g, C){ body(ctx, g); drawSeg(ctx, g.x+g.w/2, g.cy, SEG_7448[c.inv[0]|c.inv[1]<<1|c.inv[2]<<2|c.inv[3]<<3], C); },
+};
+// ── END PART GLYPHS ───────────────────────────────────────────
+
+// ── EXPORT ────────────────────────────────────────────────────
+Object.assign(window.DLB, { Board, SEG_7448 });
+// ── END EXPORT ────────────────────────────────────────────────
 })();
