@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>@@TOOL@@ @@VERSION@@</title>
+<meta name="version" content="@@VERSION@@">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("0473769e-05be-4402-9ab3-295d46b5bf3c") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("d4c6ef05-d8d0-4332-bd4b-06746700fc98") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("2f9409f3-7944-4418-8670-e34593040c4c") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("597e6751-652b-4728-8bd1-c035c0def442") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("5631adb2-57be-488f-b15d-274154cc1adc") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("77493ab4-e754-459f-adcb-cff9dbdb10a8") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("caf87ad6-3c90-424a-b119-8287b521da8e") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("ce287251-4c34-4727-96e7-2c7129bd7b4d") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("4a325770-d9f6-4fc3-bbfc-4122601487bc") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("cd89e96f-aac0-4191-8dd4-e5abb5403997") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("5b7bbcd9-9f9d-4f01-aa2c-0f28ce4a1572") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("dc040768-15b7-476b-825b-46aa4d22c27f") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("78fd4155-8e0d-459a-8164-451027caeb3e") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("65d8820e-bd05-4937-9b1e-bbce4b042cda") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("c2136cb3-4393-4a99-9854-327b23f0368d") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("b78936bc-470f-498b-ad59-9bbe20686591") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("cec98460-0ed4-4eac-bb7c-b2cd1ae239ec") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("f9dcfb0c-719e-4511-b3ff-fe3d146f4544") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("04dde52a-5ede-49d5-8a3e-d4ddb8933a43") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("5a8835f1-4d23-4756-bcc2-2df92cf1cb99") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>:root{--bg:#0f1218;--bg2:#161b22;--bg3:#1c222b;--inset:#090c11;--line:#262d38;--line2:#333c49;--txt:#e6ebf2;--mut:#8b95a6;--mut2:#5d6675;--acc:#ffb02e;--acc-d:#c7801a;--hi:#3ddc84;--lo:#5d6675;--red:#ff5d5d;--blue:#5b9dff;--open:#c7801a;--mono:'IBM Plex Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:var(--mono);color:var(--txt);background:radial-gradient(1200px 600px at 50% -10%,#1a212b 0%,transparent 60%),var(--bg);font-size:13px;overflow:hidden}
+a{color:var(--acc)}a:hover{color:#ffd27a}
+button{font-family:var(--mono);cursor:pointer}
+.app{display:grid;grid-template-rows:48px 1fr;height:100vh}
+.nav{display:flex;align-items:center;gap:18px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;letter-spacing:1.4px;text-transform:uppercase;font-size:13px}
+.brand b{color:var(--acc)}
+.tabs{display:flex;gap:4px;margin-left:12px}
+.tabs button{background:transparent;border:1px solid transparent;color:var(--mut);padding:6px 12px;border-radius:6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.tabs button.on{color:var(--acc);background:var(--bg3);border-color:var(--line2)}
+.nav .sp{flex:1}
+.nav .ver{color:var(--mut2);font-size:11px}
+.page{min-height:0}
+.page:not(.on){display:none!important}
+.page.on{display:grid}
+#pg-sim{grid-template-columns:250px 1fr}
+.side{background:var(--bg2);border-right:1px solid var(--line);overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+.sec{background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:10px}
+.sec h3{margin:0 0 8px;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--acc);display:flex;align-items:center;gap:7px}
+.sec h3::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 6px var(--acc)}
+.pal{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.pal button{background:var(--inset);border:1px solid var(--line2);color:var(--txt);border-radius:5px;padding:7px 4px;font-size:11px;font-weight:600;letter-spacing:.3px}
+.pal button:hover{border-color:var(--acc);color:var(--acc)}
+.pal button.arm{background:linear-gradient(180deg,var(--acc),var(--acc-d));color:#1a1206;border-color:var(--acc);box-shadow:0 0 10px rgba(255,176,46,.45)}
+.row{display:flex;gap:6px;flex-wrap:wrap}
+.row button,.btn{background:var(--inset);border:1px solid var(--line2);color:var(--txt);border-radius:6px;padding:7px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;flex:1}
+.row button:hover,.btn:hover{border-color:var(--acc)}
+.row button.on,.btn.on{background:linear-gradient(180deg,var(--acc),var(--acc-d));color:#1a1206;border-color:var(--acc);box-shadow:0 0 10px rgba(255,176,46,.45)}
+.row button.danger:hover{border-color:var(--red);color:var(--red)}
+label.sl{display:block;color:var(--mut);font-size:11px;margin:6px 0 2px}
+label.sl b{color:var(--acc);float:right;font-weight:600}
+input[type=range]{width:100%;-webkit-appearance:none;height:4px;background:var(--inset);border-radius:2px;outline:none;margin:8px 0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--acc);box-shadow:0 0 6px var(--acc);cursor:pointer}
+.hint{color:var(--mut2);font-size:11px;line-height:1.5;margin:0}
+.hint kbd{color:var(--mut);border:1px solid var(--line2);border-radius:3px;padding:0 4px;font-size:10px}
+.main{display:grid;grid-template-rows:1fr auto;min-height:0;min-width:0}
+.stage{position:relative;min-height:0;overflow:hidden}
+#board{display:block;width:100%;height:100%;cursor:crosshair}
+.ovl{position:absolute;left:12px;top:10px;display:flex;gap:8px;pointer-events:none}
+.chip{background:rgba(9,12,17,.85);border:1px solid var(--line2);border-radius:5px;padding:4px 8px;font-size:11px;color:var(--mut)}
+.chip b{color:var(--acc);font-weight:600}
+.chip.bad{color:var(--red);border-color:var(--red)}
+.ovl{flex-wrap:wrap;max-width:calc(100% - 360px)}
+.readouts{position:absolute;right:12px;top:10px;display:flex;gap:8px;pointer-events:none}
+.ro{background:rgba(9,12,17,.85);border:1px solid var(--line2);border-radius:6px;padding:5px 10px;min-width:70px}
+.ro small{display:block;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2)}
+.ro b{font-size:18px;color:var(--acc);text-shadow:0 0 8px currentColor;font-weight:600}
+.ro b.warn{color:var(--open)}
+.chip.note{color:var(--txt);border-color:var(--open);max-width:520px;white-space:normal;line-height:1.5}
+.timing{height:0;border-top:1px solid var(--line);background:var(--bg2);transition:height .2s;overflow:hidden;position:relative}
+@media (prefers-reduced-motion:reduce){.timing{transition:none}}
+.timing.on{height:200px}
+#tdiag{display:block;width:100%;height:200px}
+.timing .tt{position:absolute;left:12px;top:6px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--acc);font-weight:600}
+.doc.on{overflow-y:auto;display:block;padding:28px 40px 60px}
+.doc .wrap{max-width:900px;margin:0 auto}
+.doc h1{font-size:22px;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 6px}
+.doc h1 b{color:var(--acc)}
+.doc h2{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--acc);margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.doc p,.doc li{color:var(--mut);line-height:1.65;font-size:13px;text-wrap:pretty}
+.doc p b,.doc li b{color:var(--txt);font-weight:600}
+.doc .lead{color:var(--txt)}
+.tt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+table.tt{border-collapse:collapse;background:var(--inset);border:1px solid var(--line2);border-radius:6px;width:100%;font-size:12px}
+table.tt caption{text-align:left;font-weight:600;color:var(--acc);padding:6px 8px;font-size:11px;letter-spacing:1px}
+table.tt th,table.tt td{padding:4px 8px;text-align:center;border-top:1px solid var(--line)}
+table.tt th{color:var(--mut2);font-size:10px;letter-spacing:1px}
+table.tt td.h{color:var(--hi);font-weight:600}
+table.tt td.l{color:var(--mut2)}
+table.tt td.bad{color:var(--red);font-weight:600}
+.eq{background:var(--inset);border:1px solid var(--line2);border-radius:6px;padding:10px 14px;color:var(--txt);font-size:13px;line-height:1.7;margin:10px 0}
+.eq i{color:var(--acc);font-style:normal}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:14px}
+.card{background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.card h3{margin:0;font-size:13px;color:var(--txt);display:flex;justify-content:space-between;align-items:center}
+.card h3 span{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);border:1px solid var(--line2);border-radius:4px;padding:2px 6px}
+.card .goal{color:var(--mut);font-size:12px;line-height:1.6;margin:0}
+.card .goal b{color:var(--acc);font-weight:600}
+.card .acts{display:flex;gap:6px}
+.card .acts button{flex:0 0 auto}
+.card .res{font-size:11px;color:var(--mut);min-height:14px}
+.card .res.ok{color:var(--hi)}.card .res.bad{color:var(--red)}
+.tweaks{position:fixed;right:14px;top:56px;width:230px;background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:12px;display:none;z-index:9;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.tweaks.on{display:block}
+.tweaks h4{margin:0 0 8px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut2)}
+.tweaks .row{margin-bottom:10px}
+.tweaks .tog{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mut);padding:5px 0}
+.tweaks input[type=checkbox]{accent-color:var(--acc)}
+#file{display:none}
+.zoom{position:absolute;right:12px;bottom:12px;display:flex;gap:4px}
+.zoom button{background:rgba(9,12,17,.85);border:1px solid var(--line2);color:var(--txt);border-radius:6px;min-width:34px;height:30px;font-size:13px;font-weight:600}
+.zoom button:hover{border-color:var(--acc)}
+.row button:disabled{opacity:.35;cursor:default;border-color:var(--line2)}
+.modal{position:fixed;inset:0;background:rgba(3,5,8,.72);display:none;align-items:center;justify-content:center;z-index:20;padding:20px}
+.modal.on{display:flex}
+.modal .box{background:var(--bg2);border:1px solid var(--line2);border-radius:10px;max-width:min(900px,96vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+.modal .hd{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.modal .hd h3{margin:0;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--acc);flex:1}
+.modal .hd button{flex:0 0 auto}
+.modal .bd{padding:14px 16px;overflow:auto}
+.modal .note{color:var(--mut);font-size:12px;line-height:1.6;margin:0 0 10px}
+.modal .note.warn{color:var(--open)}
+.modal table.tt{width:auto;min-width:240px}
+.modal table.tt th.sep,.modal table.tt td.sep{border-left:2px solid var(--line2)}
+.modal .mt{margin-top:12px;color:var(--txt);font-size:12px;line-height:1.8}
+.modal .mt b{color:var(--acc);font-weight:600}
+@media (pointer:coarse){ .pal button,.row button,.btn{padding:10px 6px} }
+#ledcol button.swatch{flex:1;height:22px;padding:0;border:2px solid var(--line2);border-radius:5px}
+#ledcol button.swatch.cur,#ledcol button.swatch:hover{border-color:var(--txt)}
+.pal-cat{margin:6px 0 3px}
+.modal .mt .mt-vars{color:var(--mut)}
+</style>
+
+</head><body>
+<div class="app">
+<div class="nav"><div class="brand"><b>ECE</b> · Digital Logic Breadboard</div>
+<div class="tabs" role="tablist"><button class="on" data-pg="sim" role="tab">Sim</button><button data-pg="tut" role="tab">Tutorial</button><button data-pg="exp" role="tab">Experiments</button></div>
+<div class="sp"></div><span class="ver">@@VERSION@@</span><button class="btn" id="twk" style="flex:0;margin-left:12px">Tweaks</button></div>
+
+<div class="page on" id="pg-sim" data-screen-label="Sim">
+<div class="side">
+<div class="sec"><h3>Clock</h3><div class="row"><button id="run">Run</button><button id="step">Step</button></div>
+<label class="sl">Frequency <b id="hzv">2 Hz</b></label><input type="range" id="hz" aria-label="Clock frequency">
+<p class="hint">Place a CLOCK part to use it. Step toggles the clock once (half period).</p></div>
+<div class="sec"><h3>Board</h3><div class="row"><button id="undo" title="Undo (Ctrl+Z)">Undo</button><button id="redo" title="Redo (Ctrl+Y)">Redo</button><button id="del" class="danger" title="Delete the selection (Del)">Delete</button></div>
+<div class="row" style="margin-top:6px"><button id="rot">Rotate</button><button id="ren" title="Rename the selected part (double-click)">Rename</button><button id="tim">Timing</button></div>
+<div class="row" style="margin-top:6px"><button id="ttb" title="Tabulate every switch combination">Truth table</button><button id="rst">Reset FFs</button></div>
+<div class="row" style="margin-top:6px"><button id="exp">Export</button><button id="imp">Import</button><button id="clr" class="danger">Clear</button></div><label class="sl" style="margin-top:8px">LED color <b id="ledsel">select an LED</b></label><div class="row" id="ledcol"></div><input type="file" id="file" accept=".json,application/json"></div>
+<div class="sec"><h3>Components</h3><div id="palette"></div><p class="hint" style="margin-top:8px">Click a part, then click the board. <kbd>Shift</kbd>-click places several.</p></div>
+<div class="sec"><h3>Demos</h3><div class="row" id="demos"></div><p class="hint" style="margin-top:6px">Loading a demo replaces the board.</p></div>
+<div class="sec"><h3>How to</h3><p class="hint">Drag from a pin to a pin to wire. <b style="color:var(--mut)">Move a wire:</b> drag its middle segment. <b style="color:var(--mut)">Tee off:</b> click a wire, then drag the amber handle to an input — or drag from an input pin and drop it on any wire. Click a switch to toggle it; hold a button. Drag parts to move, or nudge the selected part with the arrow keys (<kbd>Shift</kbd> = 5 steps); <kbd>R</kbd> rotates the selected part (<kbd>Shift</kbd>+<kbd>R</kbd> counter-clockwise). Double-click to rename. <kbd>C</kbd> cycles a selected LED's color. <kbd>Del</kbd> removes the selection; right-click removes a part or wire. Drag empty board to pan, wheel to zoom. <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> undo and redo. <b style="color:var(--mut)">Touch:</b> drag with one finger, pinch with two to zoom, double-tap to rename, press and hold a part or wire to remove it.</p></div>
+</div>
+<div class="main"><div class="stage"><canvas id="board"></canvas>
+<div class="ovl"><div class="chip" id="armchip" hidden="">Placing <b></b></div><div class="chip bad" id="unst" hidden="">UNSTABLE — combinational loop did not settle</div><div class="chip note" id="note" role="status" hidden=""></div></div>
+<div class="readouts"><div class="ro"><small>Parts</small><b id="r-n">0</b></div><div class="ro"><small>Wires</small><b id="r-w">0</b></div><div class="ro"><small>Open inputs</small><b id="r-open">0</b></div><div class="ro"><small>Clock</small><b id="r-ck">—</b></div></div><div class="zoom"><button id="zout" title="Zoom out" aria-label="Zoom out">−</button><button id="zin" title="Zoom in" aria-label="Zoom in">+</button><button id="zfit" title="Fit the circuit in view">Fit</button></div></div>
+<div class="timing" id="timing"><span class="tt">Timing diagram</span><canvas id="tdiag"></canvas></div></div>
+</div>
+<div class="page doc" id="pg-tut" data-screen-label="Tutorial"></div>
+<div class="page doc" id="pg-exp" data-screen-label="Experiments"></div>
+</div>
+<div class="modal" id="ttm" role="dialog" aria-modal="true" aria-label="Truth table"><div class="box"><div class="hd"><h3>Truth table of the board</h3><button class="btn" id="ttcopy">Copy CSV</button><button class="btn" id="ttclose">Close</button></div><div class="bd" id="ttbody"></div></div></div>
+<div class="tweaks" id="tweaks"><h4>Background</h4><div class="row" id="themes"></div>
+<label class="tog">Show grid <input type="checkbox" id="t-grid" checked=""></label>
+<label class="tog">Pin names on blocks <input type="checkbox" id="t-pins" checked=""></label>
+<label class="tog">Color wires by logic level <input type="checkbox" id="t-wire" checked=""></label></div>
+<script src="defs.js"></script><script src="sim.js"></script><script src="board.js"></script><script src="timing.js"></script><script src="learn.js"></script>
+<script>
+/*@inline main.js*/</script>
+
+</body></html>
