@@ -7,17 +7,17 @@
    3. Setup          — circuit, board, timing diagram, board notices
    4. Demos          — DEMOS table (layout data) and loadDemo
    5. Undo / redo    — snapshot before each edit, one step per edit or batch
-   6. Palette        — component buttons
+   6. Palette        — component buttons, and the Subsystems list
    7. Readouts       — part / wire / open-input / clock readouts and debounced saving
    8. Clock          — Run / Step and the frequency slider
-   9. Board actions  — LED colour, demos, rotate, reset, clear, undo, delete, rename, zoom, keys
+   9. Board actions  — LED colour, demos, rotate, reset, clear, undo, delete, rename, subsystems, zoom, keys
    10. Truth table   — modal, Σm lists, Copy CSV
    11. Files         — export, import, timing panel
    12. Pages         — Sim / Tutorial / Experiments
    13. Tweaks        — background theme and display toggles
    ============================================================ */
 (function(){
-const { DEFS, CATS, LED_COLORS, Circuit, Board, Timing, pages, truthTable, TT_MAX_IN, refreshTheme } = window.DLB;
+const { DEFS, CATS, LED_COLORS, SUB_PREFIX, Circuit, Board, Timing, pages, truthTable, TT_MAX_IN, refreshTheme } = window.DLB;
 
 // ── CONSTANTS ─────────────────────────────────────────────────
 const HZ_DEFAULT = 2, HZ_MIN = 0.5, HZ_MAX = 10, HZ_STEP = 0.5;   // clock frequency slider (Hz)
@@ -70,8 +70,14 @@ const ckt = new Circuit(), board = new Board($('#board'), ckt), timing = new Tim
 let noteT = 0;
 // Show a notice on the board for NOTICE_MS (replaced wire, relabelled parts).
 function notice(t){ const n = $('#note'); n.textContent = t; n.hidden = false; clearTimeout(noteT); noteT = setTimeout(() => { n.hidden = true; }, NOTICE_MS); }
-// Tell the student which blank or duplicate signal labels a loaded board needed changed (boards saved by v1.0.0).
-function relabelNotice(what, res){ if(res.relabelled.length) notice(what+'. Signal labels must be unique and not blank, so '+res.relabelled.length+' were changed: '+res.relabelled.join('; ')+'.'); }
+// Tell the student what a loaded board needed changed: blank or duplicate signal labels (boards saved by v1.0.0) and
+// wires into the old LED cathode (boards saved before v1.2.0, when the LED had two pins).
+function relabelNotice(what, res){
+  const t = [];
+  if(res.relabelled.length) t.push('Signal labels must be unique and not blank, so '+res.relabelled.length+' were changed: '+res.relabelled.join('; ')+'.');
+  if(res.ledWires) t.push('LEDs now have one input, so '+res.ledWires+' wire'+(res.ledWires>1?'s':'')+' into an LED cathode (K) '+(res.ledWires>1?'were':'was')+' removed.');
+  if(t.length) notice(what+'. '+t.join(' '));
+}
 // ── END SETUP ─────────────────────────────────────────────────
 
 // ── DEMOS ─────────────────────────────────────────────────────
@@ -85,36 +91,31 @@ const DEMOS = {
   'Binary counter': { clock:true, build(){
     const K = ckt.add('CLK',40,140), R = named(ckt.add('SW',40,220), 'RST'), C = ckt.add('CNT4',160,120), S = ckt.add('SEG7',360,120);
     W(K,0,C,0); W(R,0,C,1); for(let i=0;i<4;i++) W(C,i,S,i);
-    const xs = [460,400,340,280], L = [];
-    for(let i=0;i<4;i++){ const l = named(ckt.add('LED',xs[i],300), 'Q'+i); l.rot = 1; l.color = ['red','amber','green','blue'][i]; L.push(l); W(C,i,l,0); }
-    const G = ckt.add('GND',560,380); G.rot = 2; L.forEach(l => W(G,0,l,1)); } },
+    const xs = [460,400,340,280];
+    for(let i=0;i<4;i++){ const l = named(ckt.add('LED',xs[i],300), 'Q'+i); l.rot = 1; l.color = ['red','amber','green','blue'][i]; W(C,i,l,0); } } },
   'LED chaser': { clock:true, build(){
     const K = ckt.add('CLK',40,380), R = ckt.add('SHR4',160,320), N = ckt.add('NOT',160,520); N.rot = 2;
     W(K,0,R,1); W(R,3,N,0,{my:480}); W(N,0,R,0,{my:440});
-    const xs = [460,400,340,280], L = [];
-    for(let i=0;i<4;i++){ const l = named(ckt.add('LED',xs[i],480), 'Q'+i); l.rot = 1; l.color = ['red','amber','green','blue'][i]; L.push(l); W(R,i,l,0); }
-    const G = ckt.add('GND',560,560); G.rot = 2; L.forEach(l => W(G,0,l,1)); } },
+    const xs = [460,400,340,280];
+    for(let i=0;i<4;i++){ const l = named(ckt.add('LED',xs[i],480), 'Q'+i); l.rot = 1; l.color = ['red','amber','green','blue'][i]; W(R,i,l,0); } } },
   'Half adder': { build(){
     const A = ckt.add('SW',40,100), B = ckt.add('SW',40,180), X = ckt.add('XOR',160,80), N = ckt.add('AND',160,200);
     W(A,0,X,0,{mx:120}); W(A,0,N,0,{mx:110}); W(B,0,X,1,{mx:130}); W(B,0,N,1,{mx:120});
     const S = named(ckt.add('LED',300,100), 'S'), C = named(ckt.add('LED',300,220), 'C'); S.color='green'; C.color='red';
-    W(X,0,S,0); W(N,0,C,0);
-    const G = ckt.add('GND',420,160); G.rot = 2; W(G,0,S,1,{mx:380}); W(G,0,C,1,{mx:380}); } },
+    W(X,0,S,0); W(N,0,C,0); } },
   '4-bit adder': { build(){
     const AD = ckt.add('ADD4',200,100), S = ckt.add('SEG7',400,140);
     for(let i=0;i<4;i++){ const s = named(ckt.add('SW',140-40*i,20), 'A'+i); s.rot = 1; W(s,0,AD,i); }
     for(let i=0;i<4;i++){ const s = named(ckt.add('SW',20+40*i,340), 'B'+i); s.rot = 3; W(s,0,AD,4+i); }
     const Z = ckt.add('LO',100,260); W(Z,0,AD,8);
     W(AD,0,S,0); W(AD,1,S,1); W(AD,2,S,2,{mx:360}); W(AD,3,S,3,{mx:330});
-    const C = named(ckt.add('LED',400,280), 'Cout'); C.color='red'; W(AD,4,C,0,{mx:310});
-    const G = ckt.add('GND',500,280); G.rot = 2; W(G,0,C,1); } },
+    const C = named(ckt.add('LED',400,280), 'Cout'); C.color='red'; W(AD,4,C,0,{mx:310}); } },
   'SR latch': { build(){
     const S = ckt.add('SW',40,240), R = ckt.add('SW',40,80), N1 = ckt.add('NOR',160,80), N2 = ckt.add('NOR',160,200); named(S,'S'); named(R,'R');
     W(R,0,N1,0); W(S,0,N2,1);
     W(N1,0,N2,0,{ax:264,my:190,bx:136}); W(N2,0,N1,1,{ax:276,my:170,bx:124});
     const Q = named(ckt.add('LED',320,100), 'Q'), QB = named(ckt.add('LED',320,220), 'Q̄'); Q.color='green'; QB.color='amber';
-    W(N1,0,Q,0); W(N2,0,QB,0);
-    const G = ckt.add('GND',440,160); G.rot = 2; W(G,0,Q,1,{mx:400}); W(G,0,QB,1,{mx:400}); } },
+    W(N1,0,Q,0); W(N2,0,QB,0); } },
 };
 // Replace the board with a demo: one undo step, one redraw (CQ-DL-004).
 function loadDemo(name){ const d = DEMOS[name]; if(!d) return; setRun(false);
@@ -152,8 +153,23 @@ CATS.forEach(cat => { const hd = document.createElement('div'); hd.className='hi
   const grid = document.createElement('div'); grid.className='pal';
   Object.keys(DEFS).filter(k=>DEFS[k].cat===cat).forEach(k => { const b = document.createElement('button'); b.textContent = DEFS[k].name; b.dataset.t = k; b.onclick = ()=>board.arm(k); grid.append(b); });
   pal.append(grid); });
+// Subsystems: one button per definition in the board's library, rebuilt when the library changes. × removes one.
+const subHd = document.createElement('div'), subGrid = document.createElement('div'); let subsShown = null;
+subHd.className = 'hint pal-cat'; subHd.textContent = 'Subsystems'; subGrid.className = 'pal'; pal.append(subHd, subGrid);
+// Rebuild the Subsystems list if the library changed.
+function syncSubs(){
+  if(ckt.subs === subsShown) return; subsShown = ckt.subs;
+  subGrid.replaceChildren(); subHd.hidden = !ckt.subs.size;
+  for(const name of ckt.subs.keys()){ const t = SUB_PREFIX + name, row = document.createElement('div'), b = document.createElement('button'), x = document.createElement('button');
+    row.className = 'sub'; b.textContent = name; b.title = name+' — '+DEFS[t].ins.length+' in, '+DEFS[t].outs.length+' out'; b.dataset.t = t; b.onclick = () => board.arm(t);
+    x.className = 'x'; x.textContent = '×'; x.title = 'Remove '+name+' from the list'; x.setAttribute('aria-label', x.title);
+    x.onclick = () => { const why = ckt.deleteSub(name); if(why) alert(why); };
+    row.append(b, x); subGrid.append(row); }
+  board.onArm(board.armed && DEFS[board.armed] ? board.armed : null);
+}
+ckt.onChange(syncSubs);
 // Highlight the armed part's button and show the "Placing" chip.
-board.onArm = t => { pal.querySelectorAll('button').forEach(b => b.classList.toggle('arm', b.dataset.t===t)); $('#armchip').hidden = !t; if(t) $('#armchip b').textContent = DEFS[t].name; };
+board.onArm = t => { pal.querySelectorAll('button').forEach(b => b.classList.toggle('arm', !!t && b.dataset.t===t)); $('#armchip').hidden = !t; if(t) $('#armchip b').textContent = DEFS[t].name; };
 // ── END PALETTE ───────────────────────────────────────────────
 
 // ── READOUTS ──────────────────────────────────────────────────
@@ -209,6 +225,17 @@ $('#clr').onclick = ()=>{ if(confirm('Clear the board? (Undo brings it back.)'))
 $('#undo').onclick = undo; $('#redo').onclick = redo;
 $('#del').onclick = ()=>board.deleteSelection();
 $('#ren').onclick = ()=>{ if(board.sel && board.sel.type) board.rename(board.sel); };
+// Make subsystem: box the circuit, name it, collapse it into one block (one undo step).
+board.onArea = on => { $('#areachip').hidden = !on; $('#mksub').classList.toggle('on', on); };
+$('#mksub').onclick = ()=>{ if(board.areaCb){ board.pickArea(null); return; }
+  board.pickArea(parts => {
+    if(!parts.length){ notice('No parts inside the box. Press Make subsystem and drag a box around the circuit.'); return; }
+    let name = '', why = null;
+    do { const v = prompt((why ? why+'\n\n' : '')+'Name for the subsystem ('+parts.length+' part'+(parts.length>1?'s':'')+', up to 10 characters)', name); if(v === null) return; name = v.trim(); why = ckt.subNameProblem(name); } while(why);
+    const r = ckt.makeSubsystem(name, parts); if(r.error){ alert(r.error); return; }
+    board.select(r.comp); const d = DEFS[r.comp.type];
+    notice('Made subsystem '+name+': inputs '+(d.ins.join(', ') || 'none')+'; outputs '+(d.outs.join(', ') || 'none')+'. Place more copies from Components › Subsystems; Ungroup opens it again.'); }); };
+$('#ungrp').onclick = ()=>{ const c = board.sel; if(!c || !c.type || !DEFS[c.type].sub){ notice('Select a subsystem block to ungroup.'); return; } ckt.ungroup(c); board.select(null); };
 $('#zin').onclick = ()=>board.zoomBy(ZOOM_STEP); $('#zout').onclick = ()=>board.zoomBy(1/ZOOM_STEP); $('#zfit').onclick = ()=>board.fit();
 // Ctrl+Z undo, Ctrl+Y / Ctrl+Shift+Z redo, on the Sim page only.
 window.addEventListener('keydown', e => {

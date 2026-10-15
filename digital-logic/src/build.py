@@ -28,10 +28,10 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = 'v1.1.0'
-RELEASED = '2026-10-11'
-CHANGELOG = ('Gate fixes CQ-DL-001..024, SEC-DL-001/002/004-007/010; '
-             '7-SEG codes 10-15 show 7448 patterns; ADD 4 carry-in documented')
+VERSION = 'v1.2.0'
+RELEASED = '2026-10-15'
+CHANGELOG = ('Customer revisions: MUX select bits on top; selected wire can be dragged (tee handle beside it); '
+             '7-SEG exposes all segments (BCD display kept as BCD 7-SEG); subsystems; one-pin LED')
 TOOL = 'Digital Logic Breadboard'
 # ── END RELEASE ───────────────────────────────────────────────────────
 
