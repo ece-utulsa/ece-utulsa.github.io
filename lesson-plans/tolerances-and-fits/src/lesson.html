@@ -1,0 +1,1419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tolerances &amp; Fits — @@EDITION@@ edition</title>
+<style>
+/* Layout: single reading column of drawing-sheet sections; 3D viewers and the student workbench sit in bordered sheets */
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#16202A; --muted:#536170; --rule:#D2D9DF;
+  --metal:#AEB9C2; --metal-edge:#7E8B96;
+  --hole:#2765A0; --shaft:#B05C17; --ok:#25764A; --warn:#9E7300; --bad:#AE322A;
+  --accent:#2765A0; --tint:#E8EEF3;
+  --pA:#8794A0; --pB:#B05C17; --pC:#2B8580; --pD:#2765A0; --pE:#B88A26;
+  --display:"Avenir Next Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11171C; --surface:#182128; --ink:#E2E8EC; --muted:#9AA8B3; --rule:#2B3741;
+  --metal:#5A6874; --metal-edge:#8796A2;
+  --hole:#6EA6DA; --shaft:#E39A57; --ok:#5DBF86; --warn:#E2B746; --bad:#E86D63;
+  --accent:#6EA6DA; --tint:#1F2A33; color-scheme:dark;
+  --pA:#7F8E9A; --pB:#E39A57; --pC:#4FB3AC; --pD:#6EA6DA; --pE:#E0B85A }}
+:root[data-theme="dark"]{
+  --bg:#11171C; --surface:#182128; --ink:#E2E8EC; --muted:#9AA8B3; --rule:#2B3741;
+  --metal:#5A6874; --metal-edge:#8796A2;
+  --hole:#6EA6DA; --shaft:#E39A57; --ok:#5DBF86; --warn:#E2B746; --bad:#E86D63;
+  --accent:#6EA6DA; --tint:#1F2A33; color-scheme:dark;
+  --pA:#7F8E9A; --pB:#E39A57; --pC:#4FB3AC; --pD:#6EA6DA; --pE:#E0B85A }
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);margin:0}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.2rem,5vw,3.3rem);letter-spacing:.01em}
+h2{font-size:1.9rem;display:flex;gap:.5em;align-items:baseline;flex-wrap:wrap}
+h2 .n{font-family:var(--mono);font-size:.95rem;color:var(--accent);font-weight:600}
+h3{font-size:1.3rem}
+p{margin:0;max-width:70ch}
+.mono,code{font-family:var(--mono);font-variant-numeric:tabular-nums}
+code{font-size:.9em}
+.eyebrow{font:600 .78rem/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)} .small{font-size:.9rem}
+header.top{display:grid;gap:12px;padding-bottom:22px;border-bottom:2px solid var(--ink)}
+header.top .meta{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.92rem;color:var(--muted)}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+section{display:grid;gap:16px;padding-block:34px;border-bottom:1px solid var(--rule);scroll-margin-top:60px}
+[hidden]{display:none!important}
+/* section bar: one section at a time (default) or the whole lesson as one page */
+.lnav{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--rule);display:flex;gap:6px;align-items:center;padding:8px 0}
+.lnav .tabsrow{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin;padding:2px}
+.lnav .tabsrow button{white-space:nowrap;font-size:.82rem;padding:6px 9px}
+.lnav .tabsrow button[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.lnav>button{flex:0 0 auto;padding:6px 10px}
+.pager{display:none;justify-content:space-between;align-items:center;gap:10px;padding-top:10px;flex-wrap:wrap}
+body.paged .pager{display:flex}
+.pager .nextbtn{font-size:1.05rem;padding:12px 18px;margin-left:auto}
+body.paged section{border-bottom:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.grid2>*,.grid3>*{min-width:0}
+.sheet{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:18px;display:grid;gap:14px;min-width:0}
+ul,ol{margin:0;padding-left:1.25em;display:grid;gap:4px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font:600 .78rem/1.2 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+td.t{font-family:var(--mono);white-space:nowrap;font-variant-numeric:tabular-nums}
+dl.terms{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}
+dl.terms dt{font-weight:700} dl.terms dd{margin:0}
+
+/* edition badge: the Teacher file carries the plan and answer keys; the Student file is built without them */
+.edition{font:600 .78rem/1 var(--body);letter-spacing:.1em;text-transform:uppercase;padding:7px 10px;border-radius:4px;border:1px solid var(--ink)}
+.edition.teacher-ed{background:var(--ink);color:var(--surface)}
+
+.dim{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:1.15rem}
+.dim .devs{display:inline-grid;font-size:.7em;line-height:1.05}
+.dimbox{font-family:var(--mono);font-size:1.15rem}
+.chip{display:inline-block;font:600 .75rem/1 var(--body);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:3px;border:1px solid currentColor;white-space:nowrap}
+.c-ok{color:var(--ok)} .c-warn{color:var(--warn)} .c-bad{color:var(--bad)} .c-hole{color:var(--hole)} .c-shaft{color:var(--shaft)}
+
+.inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+fieldset{border:1px solid var(--rule);border-radius:6px;padding:12px 14px 14px;margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;min-width:0}
+fieldset.hole{border-top:4px solid var(--hole)} fieldset.shaft{border-top:4px solid var(--shaft)}
+legend{font:600 1.05rem var(--display);padding:0 6px}
+label{display:grid;gap:4px;font-size:.8rem;color:var(--muted);min-width:0}
+input[type=number],input[type=text],select,textarea{width:100%;font:500 1rem var(--mono);padding:7px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--bg);color:var(--ink)}
+select,textarea{font-family:var(--body)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input:focus-visible,button:focus-visible,summary:focus-visible,select:focus-visible,textarea:focus-visible,canvas:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:600 .9rem var(--body);padding:8px 12px;border-radius:4px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+button.primary,button[aria-pressed="true"].seg{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button.primary:hover:not(:disabled),button[aria-pressed="true"].seg:hover{color:var(--surface);filter:brightness(1.08)}
+.btns .sep{width:1px;align-self:stretch;background:var(--rule);margin:0 4px}
+
+.feat{border:1px solid var(--rule);border-radius:6px;padding:12px 14px;display:grid;gap:8px;background:var(--surface)}
+.feat.hole{border-left:4px solid var(--hole)} .feat.shaft{border-left:4px solid var(--shaft)}
+.feat-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;font-weight:700}
+.feat dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:0;font-size:.92rem}
+.feat dt{color:var(--muted)} .feat dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.result{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kv{border:1px solid var(--rule);border-radius:6px;padding:10px 12px;display:grid;gap:2px;background:var(--surface)}
+.kv .k{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.kv .v{font:600 1.25rem var(--mono);font-variant-numeric:tabular-nums}
+.verdict{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.verdict .big{font:700 1.6rem var(--display)}
+
+/* 3D viewers */
+.v3d{position:relative;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:var(--surface)}
+.v3d canvas{display:block;width:100%;height:clamp(260px,52vw,440px);touch-action:none;cursor:grab}
+.v3d canvas:active{cursor:grabbing}
+.v3d .hint{position:absolute;left:10px;bottom:8px;font-size:.75rem;color:var(--muted);pointer-events:none}
+.v3d .tag{position:absolute;right:10px;top:8px;font:600 .75rem var(--mono);color:var(--muted);pointer-events:none}
+.v3d .fail{position:absolute;inset:0;display:grid;place-items:center;padding:20px;text-align:center;color:var(--muted)}
+.status{font-size:.98rem;min-height:1.5em}
+.tally{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}
+.tally b{font-family:var(--mono)}
+.measure{font-family:var(--mono);font-size:1.05rem;display:flex;gap:16px;flex-wrap:wrap}
+
+figure{margin:0;display:grid;gap:6px;min-width:0}
+figcaption{font-size:.85rem;color:var(--muted)}
+svg{display:block;width:100%;height:auto;max-width:100%}
+svg text{font-family:var(--mono);font-size:11px;fill:var(--ink)}
+svg .lbl{font-family:var(--body);font-size:12px;font-weight:600}
+.housing{fill:var(--metal);stroke:var(--metal-edge);stroke-width:1.2}
+.tab{fill:var(--shaft);fill-opacity:.85;stroke:var(--shaft);stroke-width:1.2}
+.gapz{fill:var(--ok);fill-opacity:.45} .intz{fill:var(--bad);fill-opacity:.7}
+.zh{fill:var(--hole);fill-opacity:.2;stroke:var(--hole);stroke-width:1.5}
+.zs{fill:var(--shaft);fill-opacity:.2;stroke:var(--shaft);stroke-width:1.5}
+.zline{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:5 4}
+.axis{stroke:var(--muted);stroke-width:1}
+.bar-ok{fill:var(--ok);fill-opacity:.7} .bar-bad{fill:var(--bad);fill-opacity:.75}
+.lim{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:4 3}
+
+details{border:1px solid var(--rule);border-radius:6px;background:var(--surface)}
+summary{cursor:pointer;padding:12px 14px;font-weight:700}
+details>div{padding:0 14px 14px;display:grid;gap:10px}
+.note{border-left:3px solid var(--accent);background:var(--tint);padding:10px 14px;border-radius:0 6px 6px 0;font-size:.95rem}
+.stack-in{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+
+/* workbench */
+.bench{display:grid;gap:16px;max-width:760px}
+.problem{border:1px dashed var(--metal-edge);border-radius:6px;padding:12px 14px;background:var(--tint);display:grid;gap:6px}
+.steps{display:grid;gap:0}
+.step{display:grid;grid-template-columns:28px minmax(0,1fr) 128px auto;gap:6px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule)}
+.step:last-child{border-bottom:0}
+.step .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--rule);display:grid;place-items:center;font:600 .72rem var(--mono);color:var(--muted)}
+.step.ok .dot{border-color:var(--ok);background:var(--ok);color:var(--surface)}
+.step.no .dot{border-color:var(--bad);color:var(--bad)}
+.step .q{font-size:.95rem}
+.step .fb{grid-column:2/-1;font-size:.88rem}
+.step .fb:empty{display:none}
+@media (max-width:520px){.step{grid-template-columns:28px minmax(0,1fr) auto}.step .q{grid-column:2/-1}.step input,.step select{grid-column:2}}
+.score{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:.92rem}
+.score b{font-family:var(--mono);font-size:1.1rem}
+/* puzzle cube */
+.sw{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px;border:1px solid var(--rule)}
+.pz-legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.92rem}
+.pzgrid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.pzgrid{grid-template-columns:1fr}}
+label.chk{display:flex;align-items:center;gap:6px;font-size:.92rem;color:var(--ink)}
+.checks{list-style:none;padding:0;display:grid;gap:6px;font-size:.95rem}
+.checks li::before{content:'✗';color:var(--bad);font-weight:700;margin-right:8px}
+.checks li.ok::before{content:'✓';color:var(--ok)}
+#pzTolTbl input{width:92px}
+#pzTolTbl td{vertical-align:middle}
+.zgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.zgrid{grid-template-columns:1fr}}
+.qgrid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+@media (max-width:560px){.qgrid{grid-template-columns:1fr}}
+button.okbtn:not(:disabled){border-color:var(--ok);color:var(--ok)} button.badbtn:not(:disabled){border-color:var(--bad);color:var(--bad)}
+.drag{cursor:grab;touch-action:none} .drag:active{cursor:grabbing}
+.hdl{fill:var(--surface);stroke:var(--ink);stroke-width:1.5} .drag:focus-visible .hdl,.hdl.on{stroke:var(--accent);stroke-width:3}
+svg:focus-visible,svg g:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.exit{gap:14px}.exit .ans{border-left:3px solid var(--ok);padding-left:10px;margin-top:6px}
+/* drawings that must stay large enough to drag: scroll sideways inside the card on a phone */
+.wide{overflow-x:auto}.wide>svg{min-width:580px}
+.labead{fill:none;stroke:var(--shaft);stroke-linejoin:round;stroke-linecap:round;stroke-width:7;stroke-opacity:.85}
+.lalayer{fill:var(--metal);stroke:var(--metal-edge)} .latab{fill:var(--shaft);fill-opacity:.85;stroke:var(--shaft)}
+.lacard{border:1px solid var(--rule);border-radius:6px;padding:10px;background:var(--surface)}
+.zones4{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+@media (max-width:520px){fieldset{grid-template-columns:1fr 1fr 1fr}h2{font-size:1.6rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="toprow">
+    <span class="eyebrow">Engineering &amp; Manufacturing · Tolerances</span>
+    <span class="edition @@EDCLASS@@">@@EDITION@@ edition</span>
+  </div>
+  <h1>Tolerances, Fits &amp; Stack-ups</h1>
+  <p>No machine makes a part exactly the size on the drawing. So how much can a part be off and still work? Learn to read a tolerance, measure parts like a quality inspector, predict whether two blocks will fit together, and find out why a 3D-printed "0.75-inch tab" won't go into a "0.75-inch slot". Then put it all together on a five-piece puzzle cube.</p>
+  <div class="meta"><span>About 90 minutes</span><span>All sizes in inches (in)</span><span>@@VERSION@@</span><!--T--><span>Materials: calipers (0.001 in), a printed slot block and tabs, this page projected</span><!--/T--></div>
+</header>
+<nav class="lnav" id="lnav" aria-label="Lesson sections"></nav>
+
+<!--T-->
+<section id="plan">
+  <h2><span class="n">00</span>Teacher plan</h2>
+  <div class="note small"><strong>Moving around.</strong> The page shows one section at a time: use the section bar at the top, or the Next button at the bottom of each section. <strong>Show all</strong> (top right) switches to one long page. The page remembers where each computer left off.</div>
+  <div class="note small"><strong>Two files.</strong> This Teacher edition has the plan, agenda and answer keys. Give students the <strong>Student edition</strong> file: the same activities, with the plan and answer keys left out of the file entirely. Both open by double-clicking, work offline, and need no account. Sections marked <span class="chip c-warn">Challenge</span> are extension material for faster students or a second day.</div>
+  <div class="grid2">
+    <div class="sheet">
+      <h3>Learning objectives</h3>
+      <p class="small muted">By the end, students can:</p>
+      <ol>
+        <li>Read a tolerance written three ways and find its largest and smallest allowed sizes.</li>
+        <li>Decide whether a measured part is in tolerance.</li>
+        <li>Predict whether two parts fit together with a gap, need a push, or never go together (clearance, transition, interference).</li>
+        <li>Explain why small errors in several parts add up in an assembly.</li>
+        <li>Choose a gap to design into 3D-printed parts that must fit together.</li>
+      </ol>
+    </div>
+    <div class="sheet">
+      <h3>The activities</h3>
+      <ul class="small">
+        <li><strong>§01 Tolerance band:</strong> drag the limits on a ruler and watch the same tolerance written three ways. "Match the drawing" gives practice targets.</li>
+        <li><strong>§02 Quality inspector:</strong> a 10-part game. Measure each part with the caliper and accept or reject it against its drawing. It keeps score of bad parts shipped and good parts scrapped.</li>
+        <li><strong>§03–04 Fits:</strong> the 3D tab-and-slot model, "print a pair and predict", and a diagram where students drag the tab's tolerance zone to make each kind of fit.</li>
+        <li><strong>§05–06 Stack-ups and practice:</strong> spacer blocks in a pocket, random builds, and step-by-step practice problems with hints.</li>
+        <li><strong>§07–08 3D printing and the puzzle cube:</strong> the printer adds its own tolerance; students tolerance a five-piece cube so it always goes together.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="sheet">
+    <h3>Agenda</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Time</th><th>Segment</th><th>Activity</th></tr></thead>
+      <tbody>
+        <tr><td class="t">0–8</td><td>Hook</td><td>Pass around a printed slot block and a tab, both modeled at 0.750 in. They don't go together. Ask why. In §03, choose "Naïve 3D print" and print a few pairs in 3D.</td></tr>
+        <tr><td class="t">8–18</td><td>Reading a tolerance</td><td>The three formats (§01). Students drag the band tool and do three "Match the drawing" targets.</td></tr>
+        <tr><td class="t">18–30</td><td>Quality inspector</td><td>Students play one round of 10 parts (§02), then a second round to beat their score. Debrief: which mistake is worse, shipping a bad part or scrapping a good one?</td></tr>
+        <tr><td class="t">30–45</td><td>Fits</td><td>Presets in the 3D viewer; students predict before each assembly (§03). Then drag the tab zone to make all three fits (§04).</td></tr>
+        <tr><td class="t">45–55</td><td>Stack-up</td><td>Spacer blocks in a pocket: smallest gap, largest gap, random builds (§05).</td></tr>
+        <tr><td class="t">55–65</td><td>Practice</td><td>Fit problem on the workbench, then a random one each (§06).</td></tr>
+        <tr><td class="t">65–72</td><td>3D printing</td><td>The printer is a tolerance; choose a printed gap with the predictor (§07).</td></tr>
+        <tr><td class="t">72–85</td><td>Puzzle cube</td><td>Pairs make the cube always assemble (§08). Faster pairs take the Challenge: widest tolerances that still pass.</td></tr>
+        <tr><td class="t">85–90</td><td>Exit ticket</td><td>Three questions on paper (§09).</td></tr>
+        <tr><td class="t">HW</td><td>Lab</td><td>Print a clearance test coupon to measure your printer, then print the puzzle cube with your chosen tolerances and report which joints, if any, jam.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="sheet small">
+    <h3>Key terms</h3>
+    <dl class="terms">
+      <dt>Basic size</dt><dd>The size on the drawing that the tolerance is measured from.</dd>
+      <dt>Deviation</dt><dd>How far above (+) or below (−) the basic size a part may be.</dd>
+      <dt>Limits</dt><dd>The largest and smallest allowed sizes.</dd>
+      <dt>Tolerance</dt><dd>Largest allowed size − smallest allowed size. Always positive.</dd>
+      <dt>Hole / shaft</dt><dd>The opening, and the part that goes into it (here: the slot and the tab).</dd>
+      <dt>MMC</dt><dd>Maximum material condition: the tightest version of a part (smallest hole, largest shaft).</dd>
+      <dt>LMC</dt><dd>Least material condition: the loosest version (largest hole, smallest shaft).</dd>
+      <dt>Allowance</dt><dd>The gap in the tightest case: smallest hole − largest shaft.</dd>
+    </dl>
+  </div>
+</section>
+<!--/T-->
+
+<section id="notation">
+  <h2><span class="n">01</span>Reading a tolerance</h2>
+  <p>A drawing gives a <strong>basic size</strong> and how far a real part may be above or below it. Any size between the two <strong>limits</strong> is good. The <strong>tolerance</strong> is the width of that band. The same band can be written three ways.</p>
+  <div class="grid3">
+    <div class="sheet">
+      <span class="eyebrow">Unilateral (one way)</span>
+      <div><span class="dim">0.750<span class="devs"><span>+0.004</span><span>−0.000</span></span></span></div>
+      <p class="small">Allowed to grow in one direction only. Good parts: 0.750 to 0.754.</p>
+      <p class="small muted">Common on holes and slots, so the opening is never smaller than 0.750.</p>
+    </div>
+    <div class="sheet">
+      <span class="eyebrow">Bilateral (both ways)</span>
+      <div class="dimbox">0.740 ±0.002</div>
+      <div><span class="dim">0.740<span class="devs"><span>+0.002</span><span>−0.004</span></span></span></div>
+      <p class="small">Allowed above and below. Equal (±): 0.738 to 0.742. Unequal: 0.736 to 0.742.</p>
+      <p class="small muted">Common when the target is the middle of the band.</p>
+    </div>
+    <div class="sheet">
+      <span class="eyebrow">Limit</span>
+      <div class="dimbox" style="display:inline-grid;line-height:1.1">0.754<br>0.750</div>
+      <p class="small">Just the two limits, larger on top. No math needed on the shop floor.</p>
+      <p class="small muted">Same part as the unilateral example. Tolerance = 0.754 − 0.750 = 0.004.</p>
+    </div>
+  </div>
+
+  <div class="sheet">
+    <h3>Tolerance band tool</h3>
+    <p class="small">Drag the two handles (or click one and use the arrow keys; each step is 0.001 in). The band shows every size that passes. All three ways of writing it update as you drag.</p>
+    <div class="btns"><label for="bBasic" style="max-width:160px">Basic size (in)<input id="bBasic" type="number" step="0.125" value="0.750"></label></div>
+    <div class="wide"><svg id="bandSVG" viewBox="0 0 640 178" role="group" aria-label="Tolerance band on a ruler. Drag the upper and lower limit handles."></svg></div>
+    <div class="grid3" id="bandOut"></div>
+    <div class="problem" id="bandGame">
+      <div class="btns"><strong>Match the drawing</strong><button class="primary" id="bNew">New target</button><button id="bCheck" disabled>Check</button><span class="tally" id="bScore"></span></div>
+      <div id="bTarget" class="small">Press New target. Then drag the band to match the drawing.</div>
+    </div>
+  </div>
+</section>
+
+<section id="inspect">
+  <h2><span class="n">02</span>Quality inspector</h2>
+  <p>You inspect parts as they come off the machine. For each part: read its drawing, close the caliper jaw on the part to measure it, then <strong>Accept</strong> it if the size is between the limits or <strong>Reject</strong> it if not. A size exactly on a limit passes. Ten parts per round.</p>
+  <div class="sheet">
+    <div class="btns"><button class="primary" id="qStart">Start a round</button><label class="chk"><input type="checkbox" id="qEasy"> Only ± tolerances (easier)</label><span class="tally" id="qBest"></span></div>
+    <div class="qgrid">
+      <div class="problem" id="qOrder"><span class="eyebrow">Work order</span><div id="qDwg" class="muted small">Press Start a round.</div></div>
+      <div class="tally" id="qProg"></div>
+    </div>
+    <div class="wide"><svg id="qSVG" viewBox="0 0 660 250" role="group" aria-label="Caliper and part on a conveyor. Drag the sliding jaw to measure."></svg></div>
+    <div class="btns"><button id="qClose" disabled>Close the jaw</button><span class="sep"></span><button id="qAcc" class="okbtn" disabled>Accept ✓</button><button id="qRej" class="badbtn" disabled>Reject ✗</button></div>
+    <div class="status" id="qMsg"></div>
+    <div id="qSum"></div>
+  </div>
+  <!--T--><div class="note small"><strong>Debrief.</strong> A rejected good part costs the price of one part. An accepted bad part can cost far more: a jammed assembly, a warranty return, a recall. That is why inspectors measure carefully near the limits, and why designers ask for tolerances no tighter than needed.</div><!--/T-->
+</section>
+
+<section id="explorer">
+  <h2><span class="n">03</span>Fit explorer: a tab in a slot</h2>
+  <p>A tab (the "shaft") has to go into a slot (the "hole"). Each one has its own tolerance. Pick a preset or type your own sizes. Drag the 3D model to turn it; scroll or pinch to zoom. Size differences are exaggerated so a 0.002 in gap is visible.</p>
+  <div class="sheet">
+    <div class="btns" role="group" aria-label="Presets">
+      <button data-p="sample" class="seg" aria-pressed="true">Sample problem A</button>
+      <button data-p="clear" class="seg" aria-pressed="false">Clearance</button>
+      <button data-p="trans" class="seg" aria-pressed="false">Transition</button>
+      <button data-p="inter" class="seg" aria-pressed="false">Interference</button>
+      <button data-p="print" class="seg" aria-pressed="false">Naïve 3D print</button>
+    </div>
+    <div class="inputs">
+      <fieldset class="hole"><legend>Slot width (hole)</legend>
+        <label for="hn">Basic<input id="hn" type="number" step="0.001"></label>
+        <label for="hu">Upper dev<input id="hu" type="number" step="0.001"></label>
+        <label for="hl">Lower dev<input id="hl" type="number" step="0.001"></label>
+      </fieldset>
+      <fieldset class="shaft"><legend>Tab width (shaft)</legend>
+        <label for="sn">Basic<input id="sn" type="number" step="0.001"></label>
+        <label for="su">Upper dev<input id="su" type="number" step="0.001"></label>
+        <label for="sl">Lower dev<input id="sl" type="number" step="0.001"></label>
+      </fieldset>
+    </div>
+    <div class="verdict" id="verdict"></div>
+
+    <div class="btns" role="group" aria-label="3D controls">
+      <button class="seg" data-case="tight" aria-pressed="true">Tightest (MMC)</button>
+      <button class="seg" data-case="loose" aria-pressed="false">Loosest (LMC)</button>
+      <span class="sep"></span>
+      <button id="btnAssemble">Assemble</button>
+      <button id="btnPress">Press in</button>
+      <span class="sep"></span>
+      <button data-view="iso">3D</button><button data-view="front">Section</button><button data-view="top">Top</button>
+    </div>
+    <div class="v3d"><canvas id="cv1" tabindex="0" aria-label="3D tab and slot model. Drag to rotate."></canvas><span class="tag" id="exTag"></span><span class="hint">Drag to rotate · scroll to zoom</span></div>
+    <div class="status" id="st1"></div>
+
+    <div class="sheet" style="background:var(--tint);border-style:dashed">
+      <h3>Print a pair, then predict</h3>
+      <p class="small">Each print lands at a random size inside its tolerance band. Read the caliper measurements, decide whether the tab will slide in, then watch it assemble. Try it with the Transition and Naïve 3D print presets.</p>
+      <div class="btns"><button class="primary" id="btnPrint">Print a pair</button><button id="pSlide" disabled>It slides in</button><button id="pPress" disabled>It needs a press</button><button id="btnReset">Reset tally</button></div>
+      <div class="measure" id="meas"></div>
+      <div class="tally" id="tally"></div>
+    </div>
+
+    <div class="grid2" id="feats"></div>
+    <div class="result" id="results"></div>
+    <div class="grid3">
+      <figure><svg id="tightSVG" viewBox="0 0 300 200" role="img" aria-label="Tightest case section"></svg><figcaption id="tightCap"></figcaption></figure>
+      <figure><svg id="looseSVG" viewBox="0 0 300 200" role="img" aria-label="Loosest case section"></svg><figcaption>Largest slot with smallest tab.</figcaption></figure>
+      <figure><svg id="zoneSVG" viewBox="0 0 320 210" role="img" aria-label="Tolerance zone diagram"></svg><figcaption id="zoneCap"></figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="fits">
+  <h2><span class="n">04</span>Clearance, transition, interference</h2>
+  <p>Whether two parts fit depends on where their two tolerance bands sit. Draw both bands on one scale, measured from the basic size, and you can see the answer. Below, the slot's band is fixed. <strong>Drag the tab's band</strong> up and down, or drag its top and bottom edges to make it wider or narrower.</p>
+  <div class="sheet">
+    <div class="zgrid">
+      <div style="display:grid;gap:8px;min-width:0">
+        <svg id="dzSVG" viewBox="0 0 400 320" role="group" aria-label="Tolerance zones. Drag the tab zone; arrow keys move it, Shift+arrow keys resize it." tabindex="0"></svg>
+        <p class="small muted">Keyboard: click the diagram, then arrow keys move the tab band 0.001 in; Shift + arrow keys make it wider or narrower.</p>
+      </div>
+      <div style="display:grid;gap:12px;align-content:start;min-width:0">
+        <div class="verdict" id="dzVerdict"></div>
+        <div class="small" id="dzDims"></div>
+        <div><span class="eyebrow">Goals</span><ul class="checks" id="dzGoals"></ul></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><figure><svg id="dzTight" viewBox="0 0 300 200" role="img" aria-label="Tightest case"></svg></figure><figure><svg id="dzLoose" viewBox="0 0 300 200" role="img" aria-label="Loosest case"></svg></figure></div>
+        <div class="btns"><button id="dz3D">Try these sizes in 3D</button><button id="dzReset">Reset</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="tbl sheet"><table>
+    <thead><tr><th>Fit</th><th>The bands</th><th>What happens</th><th>Examples</th></tr></thead>
+    <tbody>
+      <tr><td class="c-ok"><strong>Clearance</strong></td><td>Slot band entirely above the tab band</td><td>Always a gap. Parts slide or turn.</td><td>Drawer runner, removable lid, sliding tab.</td></tr>
+      <tr><td class="c-warn"><strong>Transition</strong></td><td>Bands overlap</td><td>Some pairs slip in, some need a push.</td><td>Locating pins, a gear on a shaft.</td></tr>
+      <tr><td class="c-bad"><strong>Interference</strong></td><td>Tab band entirely above the slot band</td><td>Always too tight. Pressed or heated together.</td><td>Press-fit bearing, LEGO-style snap peg.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="stack">
+  <h2><span class="n">05</span>Stacking tolerances</h2>
+  <p>Three blocks sit end to end in a pocket. Each block can be a little big or a little small, and every one of those errors ends up in the gap at the end. Too small a gap and the blocks won't fit; too big and they rattle. The <strong>worst case</strong> puts every part at its worst at the same time: the smallest gap uses the largest blocks in the smallest pocket. Try the buttons, then build random assemblies and count how many work.</p>
+  <p class="small muted"><span class="chip c-warn">Challenge</span> &nbsp;RSS (root-sum-square) is a statistics shortcut: errors are random and rarely all go the same way, so the real spread is usually narrower than the worst case. The histogram shows 2,000 random builds.</p>
+  <div class="sheet">
+    <div class="stack-in">
+      <fieldset class="shaft"><legend>Block A</legend>
+        <label for="an">Basic<input id="an" type="number" step="0.001" value="1.000"></label>
+        <label for="au">Upper<input id="au" type="number" step="0.001" value="0.004"></label>
+        <label for="al">Lower<input id="al" type="number" step="0.001" value="-0.004"></label>
+      </fieldset>
+      <fieldset class="shaft"><legend>Block B</legend>
+        <label for="bn">Basic<input id="bn" type="number" step="0.001" value="0.625"></label>
+        <label for="bu">Upper<input id="bu" type="number" step="0.001" value="0.004"></label>
+        <label for="bl">Lower<input id="bl" type="number" step="0.001" value="-0.004"></label>
+      </fieldset>
+      <fieldset class="shaft"><legend>Block C</legend>
+        <label for="cn">Basic<input id="cn" type="number" step="0.001" value="0.375"></label>
+        <label for="cu">Upper<input id="cu" type="number" step="0.001" value="0.002"></label>
+        <label for="cl">Lower<input id="cl" type="number" step="0.001" value="-0.002"></label>
+      </fieldset>
+      <fieldset class="hole"><legend>Pocket length</legend>
+        <label for="pn">Basic<input id="pn" type="number" step="0.001" value="2.020"></label>
+        <label for="pu">Upper<input id="pu" type="number" step="0.001" value="0.008"></label>
+        <label for="pl">Lower<input id="pl" type="number" step="0.001" value="0.000"></label>
+      </fieldset>
+    </div>
+    <div class="btns">
+      <label for="gmax" style="max-width:220px">Max allowed gap (rattle limit)<input id="gmax" type="number" step="0.002" value="0.028"></label>
+      <button data-s="orig">Sample B: original pocket</button>
+      <button data-s="fix">Sample B: revised pocket</button>
+    </div>
+    <div class="btns" role="group" aria-label="Stack 3D controls">
+      <button class="seg" data-scase="nom" aria-pressed="true">Basic sizes</button>
+      <button class="seg" data-scase="min" aria-pressed="false">Smallest gap</button>
+      <button class="seg" data-scase="max" aria-pressed="false">Largest gap</button>
+      <span class="sep"></span>
+      <button class="primary" id="btnBuild">Build a random assembly</button>
+      <button id="btnBuild20">Build 20</button>
+      <span class="sep"></span>
+      <button data-view2="iso">3D</button><button data-view2="top">Top</button>
+    </div>
+    <div class="v3d"><canvas id="cv2" tabindex="0" aria-label="3D spacer stack in a pocket. Drag to rotate."></canvas><span class="tag">End gap exaggerated ×10</span><span class="hint">Drag to rotate · scroll to zoom</span></div>
+    <div class="status" id="st2"></div>
+    <div class="tally" id="tally2"></div>
+    <div class="tbl"><table id="stackTbl"></table></div>
+    <figure><svg id="histSVG" viewBox="0 0 640 200" role="img" aria-label="Simulated gap histogram"></svg><figcaption id="histCap"></figcaption></figure>
+  </div>
+</section>
+
+<section id="bench">
+  <h2><span class="n">06</span>Practice problems</h2>
+  <p>Work the problem one step at a time. Each answer is checked as you go, with a hint aimed at the mistake you made. After three tries the answer is shown so you can keep going. Answers within ±0.0005 in count.</p>
+  <div class="bench">
+    <div class="sheet">
+      <div class="btns" role="group" aria-label="Problem type">
+        <button class="seg" data-mode="fit" aria-pressed="true">Fit problem</button>
+        <button class="seg" data-mode="stack" aria-pressed="false">Stack-up problem (Challenge)</button>
+        <span class="sep"></span>
+        <button id="btnNew">New random problem</button>
+        <button id="btnSampleP">Sample problem</button>
+      </div>
+      <div class="problem" id="probText"></div>
+      <div class="steps" id="steps"></div>
+      <div class="btns"><button id="btnShow3D">See this problem in 3D</button></div>
+      <div class="score" id="score"></div>
+    </div>
+  </div>
+
+  <!--T--><div style="display:grid;gap:12px">
+    <h3>Answer key: sample problem</h3>
+    <details>
+      <summary>Part A: slot 0.750 +0.008/−0.000, tab 0.738 ±0.004</summary>
+      <div class="small">
+        <p>Slot: unilateral; tab: equal bilateral. Slot 0.758 / 0.750; tab 0.742 / 0.734.</p>
+        <p>Allowance = 0.750 − 0.742 = <strong>0.008</strong>. Max clearance = 0.758 − 0.734 = <strong>0.024</strong>. <span class="c-ok"><strong>Clearance fit.</strong></span> Fit tolerance 0.016 = 0.008 + 0.008.</p>
+        <p>Follow-up: if the tab is modeled at 0.750 and the printer holds ±0.006 on both parts, slot and tab both print 0.744–0.756. Clearance runs −0.012 to +0.012: <span class="c-warn"><strong>transition</strong></span>; about half the pairs need force, and undersized printed slots make it worse.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Part B: blocks 1.000 ±0.004, 0.625 ±0.004, 0.375 ±0.002 in pocket 2.020 +0.008/−0.000, rattle limit 0.028</summary>
+      <div class="small">
+        <p>Blocks sum 1.990 to 2.010; pocket 2.020 to 2.028. Gap<sub>min</sub> = 2.020 − 2.010 = <strong>0.010</strong>; gap<sub>max</sub> = 2.028 − 1.990 = <strong>0.038</strong>.</p>
+        <p>RSS (Challenge): mean gap 2.024 − 2.000 = 0.024; ±√(0.004² + 0.004² + 0.004² + 0.002²) = ±0.0072 → 0.017 to 0.031.</p>
+        <p>Always fits, but rattles (0.038 &gt; 0.028). Revise the pocket to <code>2.012 +0.004/−0.000</code>: gap 0.002 to 0.026, meets both under worst case.</p>
+      </div>
+    </details>
+  </div><!--/T-->
+</section>
+
+<section id="print">
+  <h2><span class="n">07</span>What this means for 3D printing</h2>
+  <div class="grid2">
+    <div class="sheet small">
+      <h3>The printer is a tolerance</h3>
+      <p>A CAD model has no tolerance; the process supplies one. Each printed part lands somewhere inside a band around its modeled size, and mating parts printed on the same machine both carry that band. If you model the tab and slot at the same size, you have designed a transition fit at best.</p>
+      <ul>
+        <li><strong>Holes and slots print undersize.</strong> Extruded perimeters squish into the opening, and curves are faceted into polygons.</li>
+        <li><strong>First-layer flare</strong> ("elephant's foot") widens the bottom of a part and blocks entry into a slot.</li>
+        <li><strong>XY and Z differ.</strong> Z is quantized to layer height; XY depends on extrusion width and flow calibration.</li>
+        <li><strong>Shrinkage</strong> scales with size and material, so large parts drift more than small ones.</li>
+      </ul>
+      <p>Design rule: <strong>model the clearance in CAD</strong> (slot larger than tab), then verify it with a test coupon on your own printer.</p>
+    </div>
+    <div class="sheet small">
+      <h3>Starting clearances for FDM</h3>
+      <p class="muted">Total gap between slot and tab (both sides combined), modeled in CAD. Common starting points for a calibrated printer with a standard nozzle; resin printers need roughly half.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Intended fit</th><th>Modeled gap (in)</th><th>Class</th></tr></thead>
+        <tbody>
+          <tr><td>Press / permanent</td><td class="t">0.000 – 0.004</td><td class="c-bad">Interference</td></tr>
+          <tr><td>Snug, removable</td><td class="t">0.006 – 0.010</td><td class="c-warn">Transition</td></tr>
+          <tr><td>Sliding</td><td class="t">0.012 – 0.016</td><td class="c-ok">Clearance</td></tr>
+          <tr><td>Free / loose</td><td class="t">0.020 +</td><td class="c-ok">Clearance</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted">Typical accuracy: FDM about ±0.004–0.010 in, resin about ±0.002–0.004 in, SLS about ±0.004–0.012 in. Treat as order-of-magnitude; measure your own machine.</p>
+    </div>
+  </div>
+  <div class="sheet">
+    <h3>Watch it print</h3>
+    <p class="small">A 3D printer builds a part one thin layer at a time, squeezing out a bead of melted plastic. Press <strong>Play</strong> on each view and watch where the plastic ends up compared with the drawing (blue dashed line). Then change the settings.</p>
+    <div class="grid3">
+      <label for="laN"><span>Flat sides on the round hole: <b class="mono" id="laNv"></b></span><input id="laN" type="range" min="8" max="64" step="4" value="16"></label>
+      <label for="laS"><span>Bead squish into openings: <b class="mono" id="laSv"></b> in</span><input id="laS" type="range" min="0" max="0.006" step="0.001" value="0.002"></label>
+      <label for="laF"><span>First-layer flare ("elephant's foot"): <b class="mono" id="laFv"></b> in</span><input id="laF" type="range" min="0" max="0.012" step="0.001" value="0.006"></label>
+    </div>
+    <div class="grid2">
+      <figure class="lacard"><div class="btns"><strong>Top view: one layer</strong><button class="primary" id="laPlayA">▶ Play</button></div>
+        <svg id="laTop" viewBox="0 0 320 300" role="img" aria-label="Top view of one printed layer of a block with a round hole"></svg>
+        <figcaption id="laCapA"></figcaption></figure>
+      <figure class="lacard"><div class="btns"><strong>Side view: layer by layer</strong><button class="primary" id="laPlayB">▶ Play</button>
+          <label for="laG" style="flex:1;min-width:150px"><span>Gap drawn in CAD: <b class="mono" id="laGv"></b> in</span><input id="laG" type="range" min="0" max="0.032" step="0.002" value="0.008"></label></div>
+        <svg id="laSide" viewBox="0 0 320 300" role="img" aria-label="Side section of a printed slot built layer by layer, and a printed tab dropping into it"></svg>
+        <figcaption id="laCapB"></figcaption></figure>
+    </div>
+    <div class="note small"><strong>What you just saw.</strong> (1) A round hole is saved as a shape with flat sides, so the printed hole is smaller than the circle. (2) The bead squishes a little into every opening. (3) The first layer is pressed onto the bed and spreads out, so the bottom of a slot is narrower still, and the bottom of a tab is wider. <strong>Fixes:</strong> draw the gap in CAD, add a small chamfer on bottom edges, and test on your own printer.</div>
+  </div>
+
+  <div class="sheet">
+    <h3>Printed fit predictor</h3>
+    <p class="small">Slot modeled at 0.750 in. Set the modeled gap, the printer's accuracy (±, applied to both parts), and how much printed slots run undersize.</p>
+    <div class="grid3">
+      <label for="pg"><span>Modeled gap: <b class="mono" id="pgv"></b> in</span><input id="pg" type="range" min="-0.008" max="0.032" step="0.002" value="0.012"></label>
+      <label for="pt"><span>Printer accuracy: <b class="mono">±<span id="ptv"></span></b> in</span><input id="pt" type="range" min="0.001" max="0.012" step="0.001" value="0.004"></label>
+      <label for="pb"><span>Slot undersize bias: <b class="mono" id="pbv"></b> in</span><input id="pb" type="range" min="0" max="0.010" step="0.001" value="0.003"></label>
+    </div>
+    <div class="verdict" id="pverdict"></div>
+    <div class="btns"><button id="btnP3D" class="primary">Print these in the 3D viewer</button></div>
+    <figure><svg id="pZone" viewBox="0 0 320 210" role="img" aria-label="Printed tolerance zones" style="max-width:420px"></svg><figcaption>Zones relative to the modeled slot size. The slot zone is pulled down by the undersize bias.</figcaption></figure>
+    <div class="note small"><strong>Lab (homework):</strong> Print one 0.500 in wide tab and a bar with slots modeled at 0.500, 0.504, 0.508 … 0.524. Record which slot gives a press, snug and sliding fit. Measure five tabs with calipers and estimate your ± accuracy as 3 × standard deviation.</div>
+  </div>
+</section>
+
+<section id="puzzle">
+  <h2><span class="n">08</span>Puzzle cube challenge</h2>
+  <p>Five 3D-printed pieces make a 3 × 3 × 3 cube of 27 small cubes, each 0.750 in on a side (2.250 in overall). Every piece is 4 to 6 small cubes. They drop in from above in order A → E. Wherever a piece drops into, or over, an opening in another piece, there is a joint, and this cube has four. Your job: set the tolerances so the cube <strong>always</strong> goes together but no joint is sloppy. Assemble it, print random cubes, and see which joint jams. Use "Explode" and "See-through" to look inside.</p>
+  <div class="sheet">
+    <div class="pz-legend" id="pzLegend"></div>
+    <div class="btns" role="group" aria-label="Tolerance presets">
+      <span class="eyebrow">Start from</span>
+      <button class="seg" data-pz="zero" aria-pressed="false">All basic size</button>
+      <button class="seg" data-pz="hole" aria-pressed="true">Hole basis</button>
+      <button class="seg" data-pz="bil" aria-pressed="false">±0.004 everywhere</button>
+      <button class="seg" data-pz="print" aria-pressed="false">Hole basis, printed</button>
+      <button class="seg" data-pz="comp" aria-pressed="false">Compensated for printer</button>
+    </div>
+    <div class="pzgrid">
+      <div style="display:grid;gap:10px;min-width:0">
+        <div class="btns" role="group" aria-label="Puzzle 3D controls">
+          <button class="seg" data-pzcase="tight" aria-pressed="true">Tightest</button>
+          <button class="seg" data-pzcase="loose" aria-pressed="false">Loosest</button>
+          <span class="sep"></span>
+          <button id="pzAssemble">Assemble</button>
+          <button class="primary" id="pzPrintOne">Print a cube</button>
+          <button id="pzPrint50">Print 50</button>
+          <span class="sep"></span>
+          <button data-view3="iso">3D</button><button data-view3="front">Front</button><button data-view3="top">Top</button>
+        </div>
+        <div class="v3d"><canvas id="cv3" tabindex="0" aria-label="3D five-piece puzzle cube. Drag to rotate."></canvas><span class="tag">Bands mark joints: green fits, amber loose, red jams</span><span class="hint">Drag to rotate · scroll to zoom</span></div>
+        <div class="btns">
+          <label for="pzExp" style="flex:1;min-width:180px">Explode<input id="pzExp" type="range" min="0" max="1" step="0.001" value="0"></label>
+          <label class="chk"><input type="checkbox" id="pzSee"> See-through</label>
+        </div>
+        <div class="status" id="st3"></div>
+        <div class="tally" id="tally3"></div>
+      </div>
+      <div class="sheet" id="pzSide" style="background:var(--tint)"></div>
+    </div>
+
+    <h3>Tolerances</h3>
+    <p class="small muted">Outer deviations apply to every outside size of a piece (posts, stem, tab). Opening deviations apply to the gap a piece leaves between two of its cubes (A's U, B's top ends, D's and E's arches). Enter signed values in inches.</p>
+    <div class="tbl"><table id="pzTolTbl"></table></div>
+    <div class="btns" style="align-items:end">
+      <label class="chk"><input type="checkbox" id="pzPrint"> 3D printed</label>
+      <label for="pzP" style="width:150px">Printer accuracy ± (in)<input id="pzP" type="number" step="0.001" min="0" value="0.004"></label>
+      <label for="pzB" style="width:150px">Openings print undersize (in)<input id="pzB" type="number" step="0.001" value="0.004"></label>
+      <label for="pzLim" style="width:150px">Max play per joint (in)<input id="pzLim" type="number" step="0.002" min="0" value="0.024"></label>
+    </div>
+
+    <h3>Joints</h3>
+    <div class="tbl"><table id="pzJTbl"></table></div>
+    <div class="zones4" id="pzZones"></div>
+  </div>
+
+  <!--T--><details>
+    <summary>Answer key: puzzle cube</summary>
+    <div class="small">
+      <p><strong>The design.</strong> 27 cubes of 0.750 in, five pieces of 4 to 6 cubes, dropped in order A → E. Layers from the bottom, back row first: <code>CCC / ABA / AAA</code>, then <code>DCD / BBB / EAE</code>, then <code>DDD / BEB / EEE</code>.</p>
+      <p><strong>Joints.</strong> Each joint is one cube (0.750 in) between two cubes of another piece, so each is a single slot-and-tab fit. J1: B's stem into A's U. J2: D's arch over C's post. J3: E's arch over A's post. J4: E's tab between B's top ends. B and E each appear twice: once as the opening and once as the part that goes in.</p>
+      <p><strong>All basic size:</strong> every joint is line-to-line (0.000). It works on paper only; any real variation jams it.</p>
+      <p><strong>Hole basis</strong> (openings +0.008/−0.000, pieces +0.000/−0.004): every joint 0.000 to +0.012. Always assembles; budget 0.048 of a possible 0.096.</p>
+      <p><strong>±0.004 everywhere:</strong> every joint −0.008 to +0.008, a transition fit. Each joint works about half the time, so only about 6% of cubes go together (0.5⁴).</p>
+      <p><strong>Hole basis, printed</strong> (printer ±0.006, openings print 0.004 undersize): every joint −0.016 to +0.020. About 1 cube in 5 assembles.</p>
+      <p><strong>Compensated</strong> (openings +0.018/+0.016, pieces +0.000/−0.002, printer ±0.004, 0.004 undersize): every joint +0.004 to +0.024. Always assembles, and the play is right at the 0.024 limit.</p>
+      <p><strong>Debrief.</strong> A joint's clearance band = opening band + inner band (+ 4 × printer ± when printed). With zero allowance and play exactly at the limit L, each joint allows L of tolerance (L − 4p printed), so every best answer has the same budget, 4L (0.096 in at L = 0.024). The design choice is how to split each joint's L between its two pieces: give the wider tolerance to the feature that is harder to make.</p>
+    </div>
+  </details><!--/T-->
+</section>
+
+<section id="exit">
+  <h2><span class="n">09</span>Exit ticket</h2>
+  <p>Answer on paper. Show the largest and smallest sizes you used.</p>
+  <ol class="exit">
+    <li><p>A hole is <code>0.500 +0.002/−0.000</code> and a pin is <code>0.501 ±0.001</code>. Is it a clearance, transition or interference fit?</p>
+      <!--T--><p class="small ans">Hole 0.500 to 0.502; pin 0.500 to 0.502. Tightest gap 0.500 − 0.502 = −0.002; loosest 0.502 − 0.500 = +0.002. One negative, one positive: <span class="c-warn"><strong>transition</strong></span>.</p><!--/T--></li>
+    <li><p>Five blocks, each <code>0.400 ±0.002</code>, are stacked. What are the longest and the shortest the stack can be?</p>
+      <!--T--><p class="small ans">Longest 5 × 0.402 = <strong>2.010</strong>; shortest 5 × 0.398 = <strong>1.990</strong>. The stack's tolerance is 0.020, five times one block's 0.004. (Challenge: RSS gives ±0.002·√5 = ±0.0045.)</p><!--/T--></li>
+    <li><p>Your printer holds ±0.005 in and printed slots come out 0.004 in too small. What gap should you draw between tab and slot so the tab always slides in? (Hint: use the printed fit predictor.)</p>
+      <!--T--><p class="small ans">Tightest gap = drawn gap − 0.004 − 2 × 0.005 ≥ 0, so draw at least <strong>0.014 in</strong>.</p><!--/T--></li>
+  </ol>
+</section>
+
+</div>
+
+<script>/*@@THREE@@*/</script>
+<script>
+const $=id=>document.getElementById(id);
+const M='−',E=5e-9;
+const fmt=(x,d=3)=>{if(Math.abs(x)<E)x=0;return (x<0?M:'')+Math.abs(x).toFixed(d)};
+const sfmt=(x,d=3)=>{if(Math.abs(x)<E)x=0;return (x>0?'+':x<0?M:'')+Math.abs(x).toFixed(d)};
+const dev=(x,up)=>Math.abs(x)<E?(up?'+':M)+'0.000':(x>0?'+':M)+Math.abs(x).toFixed(3);
+const num=id=>{const v=parseFloat(String($(id).value).replace(/−/g,'-'));return isFinite(v)?v:0};
+const rd2=x=>Math.round(x*1000)/1000;   // round to 0.001 in
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* ---------- shared math ---------- */
+function tolType(u,l){
+  if(Math.abs(u)<E&&Math.abs(l)<E) return 'No tolerance';
+  if(u>E&&l<-E) return Math.abs(u+l)<E?'Bilateral (equal)':'Bilateral (unequal)';
+  if(Math.abs(u)<E||Math.abs(l)<E) return 'Unilateral';
+  return 'Offset (same-sign)';
+}
+function dimHTML(n,u,l){
+  if(u>E&&Math.abs(u+l)<E) return `<span class="dimbox">${n.toFixed(3)} ±${u.toFixed(3)}</span>`;
+  return `<span class="dim">${n.toFixed(3)}<span class="devs"><span>${dev(u,true)}</span><span>${dev(l,false)}</span></span></span>`;
+}
+const dimText=(n,u,l)=>(u>E&&Math.abs(u+l)<E)?`${n.toFixed(3)} ±${u.toFixed(3)}`:`${n.toFixed(3)} ${dev(u,true)}/${dev(l,false)}`;
+function featHTML(name,cls,n,u,l,mmcIsMin){
+  const max=n+u,min=n+l,mean=(max+min)/2,half=(max-min)/2;
+  return `<div class="feat ${cls}"><div class="feat-h"><span>${name}</span><span class="chip c-${cls}">${tolType(u,l)}</span></div>
+  <div>${dimHTML(n,u,l)}</div>
+  <dl><dt>Limit</dt><dd>${fmt(max)} / ${fmt(min)}</dd><dt>Equal bilateral</dt><dd>${fmt(mean,3)} ±${fmt(half,3)}</dd>
+  <dt>Tolerance</dt><dd>${fmt(max-min)}</dd><dt>MMC / LMC</dt><dd>${fmt(mmcIsMin?min:max)} / ${fmt(mmcIsMin?max:min)}</dd></dl></div>`;
+}
+function classify(minC,maxC){
+  if(minC>=-E) return {name:'Clearance fit',c:'c-ok',k:'Clearance'};
+  if(maxC<=E) return {name:'Interference fit',c:'c-bad',k:'Interference'};
+  return {name:'Transition fit',c:'c-warn',k:'Transition'};
+}
+const gapWord=v=>v>=-E?`clearance ${fmt(Math.max(v,0))}`:`interference ${fmt(-v)}`;
+function erf(x){const s=Math.sign(x);x=Math.abs(x);const t=1/(1+.3275911*x);return s*(1-((((1.061405429*t-1.453152027)*t+1.421413741)*t-.284496736)*t+.254829592)*t*Math.exp(-x*x))}
+const Phi=z=>.5*(1+erf(z/Math.SQRT2));
+function gaussR(){let u=0;while(u===0)u=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*Math.random())}
+function sampleIn(min,max){const m=(min+max)/2,s=(max-min)/6;if(s<E)return m;for(let i=0;i<30;i++){const v=m+gaussR()*s;if(v>=min&&v<=max)return v}return m}
+
+/* ---------- 2D drawings ---------- */
+function blockSVG(svg,hw,sw,basic,k,title){
+  const cx=150,base=130,ws=base+(hw-basic)*k,wt=base+(sw-basic)*k;
+  const L=cx-ws/2,R=cx+ws/2,tl=cx-wt/2,tr=cx+wt/2,yT=95,yB=150;
+  let s=`<text class="lbl" x="150" y="16" text-anchor="middle">${title}</text>`;
+  s+=`<polygon class="housing" points="14,${yT} ${L},${yT} ${L},${yB} ${R},${yB} ${R},${yT} 286,${yT} 286,182 14,182"/>`;
+  s+=`<rect class="tab" x="${tl}" y="36" width="${wt}" height="${yB-36}"/>`;
+  if(wt>ws+0.01) s+=`<rect class="intz" x="${tl}" y="${yT}" width="${L-tl}" height="${yB-yT}"/><rect class="intz" x="${R}" y="${yT}" width="${tr-R}" height="${yB-yT}"/>`;
+  else if(ws>wt+0.01) s+=`<rect class="gapz" x="${L}" y="${yT}" width="${tl-L}" height="${yB-yT}"/><rect class="gapz" x="${tr}" y="${yT}" width="${R-tr}" height="${yB-yT}"/>`;
+  s+=`<text x="${cx}" y="62" text-anchor="middle" style="fill:var(--surface);font-weight:600">tab ${fmt(sw)}</text><text x="${cx}" y="172" text-anchor="middle">slot ${fmt(hw)}</text>`;
+  const g=hw-sw;s+=`<text x="${cx}" y="196" text-anchor="middle" class="lbl" style="fill:var(${g>=-E?'--ok':'--bad'})">${gapWord(g)}</text>`;
+  svg.innerHTML=s;
+}
+function exagK(vals,basic,px){const m=Math.max(...vals.map(v=>Math.abs(v-basic)));return m>1e-6?Math.min(px/m,4000):0}
+function zoneSVG(svg,H,S,basic,lh='slot',ls='tab'){
+  const top=20,bot=188,d=[H.min,H.max,S.min,S.max,basic].map(v=>v-basic);
+  let lo=Math.min(...d),hi=Math.max(...d);const sp=Math.max(hi-lo,0.02);lo-=sp*.14;hi+=sp*.14;
+  const y=v=>bot-((v-basic)-lo)/(hi-lo)*(bot-top);
+  let s=`<line class="axis" x1="46" y1="${top-6}" x2="46" y2="${bot+4}"/><line class="zline" x1="40" y1="${y(basic)}" x2="300" y2="${y(basic)}"/><text x="36" y="${y(basic)+4}" text-anchor="end">0</text>`;
+  s+=`<rect class="zh" x="96" y="${y(H.max)}" width="66" height="${Math.max(y(H.min)-y(H.max),1.5)}"/><rect class="zs" x="182" y="${y(S.max)}" width="66" height="${Math.max(y(S.min)-y(S.max),1.5)}"/>`;
+  s+=`<text x="92" y="${y(H.max)+4}" text-anchor="end">${fmt(H.max)}</text><text x="92" y="${y(H.min)+4}" text-anchor="end">${fmt(H.min)}</text>`;
+  s+=`<text x="252" y="${y(S.max)+4}">${fmt(S.max)}</text><text x="252" y="${y(S.min)+4}">${fmt(S.min)}</text>`;
+  s+=`<text class="lbl" x="129" y="${bot+18}" text-anchor="middle" style="fill:var(--hole)">${lh}</text><text class="lbl" x="215" y="${bot+18}" text-anchor="middle" style="fill:var(--shaft)">${ls}</text>`;
+  svg.innerHTML=s;
+}
+
+/* ---------- 3D viewer ---------- */
+const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#888';
+class View3D{
+  constructor(canvas,home){
+    this.c=canvas;this.home=home;Object.assign(this,home);
+    this.r=new THREE.WebGLRenderer({canvas,antialias:true});
+    this.r.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+    this.scene=new THREE.Scene();this.cam=new THREE.PerspectiveCamera(32,1.6,1,3000);
+    this.scene.add(new THREE.HemisphereLight(0xffffff,0x556677,0.8));
+    const d=new THREE.DirectionalLight(0xffffff,0.7);d.position.set(50,90,70);this.scene.add(d);
+    const d2=new THREE.DirectionalLight(0xffffff,0.25);d2.position.set(-60,30,-40);this.scene.add(d2);
+    this.g=new THREE.Group();this.scene.add(this.g);this.anims=[];this.dirty=true;
+    let drag=null;
+    canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});
+    canvas.addEventListener('pointermove',e=>{if(!drag)return;this.theta-=(e.clientX-drag.x)*.008;this.phi=Math.min(1.62,Math.max(.06,this.phi-(e.clientY-drag.y)*.008));drag={x:e.clientX,y:e.clientY};this.dirty=true});
+    const end=()=>drag=null;canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);
+    canvas.addEventListener('wheel',e=>{e.preventDefault();this.dist=Math.min(this.home.dist*2.5,Math.max(this.home.dist*.35,this.dist*(e.deltaY>0?1.08:.92)));this.dirty=true},{passive:false});
+    canvas.addEventListener('keydown',e=>{const k={ArrowLeft:[.1,0],ArrowRight:[-.1,0],ArrowUp:[0,-.1],ArrowDown:[0,.1]}[e.key];if(k){e.preventDefault();this.theta+=k[0];this.phi=Math.min(1.62,Math.max(.06,this.phi+k[1]));this.dirty=true}});
+    new ResizeObserver(()=>this.resize()).observe(canvas);
+    const loop=t=>{this.tick(t);requestAnimationFrame(loop)};requestAnimationFrame(loop);
+  }
+  resize(){const w=this.c.clientWidth,h=this.c.clientHeight;if(!w||!h)return;this.r.setSize(w,h,false);this.cam.aspect=w/h;this.cam.updateProjectionMatrix();this.dirty=true}
+  tick(t){
+    if(this.anims.length){const a=this.anims[0];if(a.t0==null)a.t0=t;const p=Math.min(1,(t-a.t0)/a.dur);a.fn(p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2);if(p>=1){this.anims.shift();a.done&&a.done()}this.dirty=true}
+    if(!this.dirty)return;
+    const tg=this.target;this.cam.position.set(tg[0]+this.dist*Math.sin(this.phi)*Math.sin(this.theta),tg[1]+this.dist*Math.cos(this.phi),tg[2]+this.dist*Math.sin(this.phi)*Math.cos(this.theta));
+    this.cam.lookAt(tg[0],tg[1],tg[2]);this.r.render(this.scene,this.cam);this.dirty=false;
+  }
+  anim(dur,fn,done){if(reduced||dur<=0){fn(1);done&&done();this.dirty=true;return}this.anims.push({dur,fn,done,t0:null})}
+  clear(){this.anims.length=0;this.g.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()});while(this.g.children.length)this.g.remove(this.g.children[0]);this.scene.background=new THREE.Color(tok('--surface'));this.edge=new THREE.Color(tok('--ink'));this.dirty=true}
+  box(w,h,d,x,y,z,color,o={}){
+    const geo=new THREE.BoxGeometry(Math.max(w,.01),Math.max(h,.01),Math.max(d,.01));
+    const mat=new THREE.MeshStandardMaterial({color:new THREE.Color(color),roughness:.65,metalness:.08,transparent:o.op!=null,opacity:o.op??1,depthWrite:o.op==null,polygonOffset:true,polygonOffsetFactor:o.pof??1,polygonOffsetUnits:1});
+    const m=new THREE.Mesh(geo,mat);m.position.set(x,y+h/2,z);
+    if(o.edges!==false){m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:this.edge,transparent:true,opacity:o.op!=null?.25:.5})))}
+    (o.parent||this.g).add(m);this.dirty=true;return m;
+  }
+  view(n,v){const p=v[n]||this.home;this.theta=p.theta;this.phi=p.phi;this.dist=p.dist??this.home.dist;this.dirty=true}
+}
+let V1=null,V2=null,V3=null;
+const has3D=typeof THREE!=='undefined';
+function fail3D(id){const c=$(id);c.insertAdjacentHTML('afterend','<div class="fail">The 3D viewer could not start in this browser. The 2D section views below show the same fits.</div>')}
+
+/* ---------- Fit explorer + 3D ---------- */
+const presets={sample:[.75,.008,0,.738,.004,-.004],clear:[.75,.004,0,.746,.002,-.002],trans:[.75,.002,0,.75,.001,-.001],inter:[.75,.002,0,.754,.001,-.001],print:[.75,.006,-.006,.75,.006,-.006]};
+let cur=null;
+const f3={case:'tight',pair:null,pressed:false,inserted:true};
+const VIEWS1={iso:{theta:.62,phi:1.0,dist:150},front:{theta:0,phi:1.5708,dist:120},top:{theta:0,phi:.06,dist:140}};
+function setFitVals(v,tag){['hn','hu','hl','sn','su','sl'].forEach((id,i)=>$(id).value=v[i].toFixed(3));
+  document.querySelectorAll('[data-p]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===tag));
+  f3.case='tight';f3.pair=null;f3.pressed=false;f3.inserted=true;resetGame();fit();}
+function readFit(){
+  let hn=num('hn'),hu=num('hu'),hl=num('hl'),sn=num('sn'),su=num('su'),sl=num('sl');
+  if(hl>hu)[hu,hl]=[hl,hu];if(sl>su)[su,sl]=[sl,su];
+  return {hn,hu,hl,sn,su,sl,H:{min:hn+hl,max:hn+hu},S:{min:sn+sl,max:sn+su}};
+}
+function fit(){
+  cur=readFit();const {hn,hu,hl,sn,su,sl,H,S}=cur;
+  const maxC=H.max-S.min,minC=H.min-S.max,cl=classify(minC,maxC);
+  $('feats').innerHTML=featHTML('Slot (hole)','hole',hn,hu,hl,true)+featHTML('Tab (shaft)','shaft',sn,su,sl,false);
+  $('verdict').innerHTML=`<span class="big ${cl.c}">${cl.name}</span><span class="muted small">${minC>=-E?'Every pair goes together with a gap.':maxC<=E?'Every pair overlaps; assembly needs force or heat.':'Some pairs slide in, some need force.'} Clearance ranges ${sfmt(minC)} to ${sfmt(maxC)} in.</span>`;
+  const kv=(k,v,c='')=>`<div class="kv"><span class="k">${k}</span><span class="v ${c}">${v}</span></div>`;
+  $('results').innerHTML=kv('Allowance (Hmin − Smax)',sfmt(minC),minC<0?'c-bad':'')+kv('Max clearance (Hmax − Smin)',sfmt(maxC),maxC<0?'c-bad':'')+kv('Fit tolerance',fmt(maxC-minC))+kv('Hole tol + shaft tol',fmt((hu-hl)+(su-sl)));
+  const k=exagK([H.min,H.max,S.min,S.max],hn,42),ex=k?Math.round(k/(130/hn)):1;
+  blockSVG($('tightSVG'),H.min,S.max,hn,k,'Tightest: both at MMC');blockSVG($('looseSVG'),H.max,S.min,hn,k,'Loosest: both at LMC');
+  $('tightCap').textContent=`Smallest slot with largest tab. Deviations exaggerated about ×${ex}.`;
+  zoneSVG($('zoneSVG'),H,S,hn);$('zoneCap').textContent=`Tolerance zones measured from basic size ${fmt(hn)} (dashed line).`;
+  build3DFit('instant');
+}
+function caseSizes(){const {H,S}=cur;if(f3.case==='pair'&&f3.pair)return [f3.pair.h,f3.pair.s];return f3.case==='loose'?[H.max,S.min]:[H.min,S.max]}
+function build3DFit(action){
+  document.querySelectorAll('[data-case]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.case===f3.case));
+  const [hw,sw]=caseSizes(),g=hw-sw,fits=g>=-E;
+  $('btnPress').disabled=fits||f3.pressed;
+  const caseName={tight:'Tightest case: smallest slot, largest tab',loose:'Loosest case: largest slot, smallest tab',pair:'Printed pair'}[f3.case];
+  const msg=fits?`<span class="c-ok"><strong>Slides in.</strong></span> ${caseName}: slot ${fmt(hw,3)}, tab ${fmt(sw,3)}, clearance ${fmt(g,3)} in (${fmt(g/2,4)} per side).`
+    :f3.pressed?`<span class="c-bad"><strong>Pressed in.</strong></span> ${caseName}: ${fmt(-g,3)} in of interference (red) is squeezed out of the tab or slot walls.`
+    :`<span class="c-bad"><strong>Won't go in.</strong></span> ${caseName}: tab is ${fmt(-g,3)} in wider than the slot. It sits on top until pressed.`;
+  if(!V1){$('st1').innerHTML=msg;return}
+  const v=V1;v.clear();
+  const {H,S,hn}=cur,dmax=Math.max(...[H.min,H.max,S.min,S.max].map(x=>Math.abs(x-hn)),1e-6);
+  const k=Math.min(3/dmax,4000),ws=20+(hw-hn)*k,wt=20+(sw-hn)*k;   // model: basic width drawn as 20 units
+  $('exTag').textContent=`Width deviations exaggerated ×${Math.round(k)}`;
+  const W=64,Lz=40,bh=8,wh=10,metal=tok('--metal');
+  v.box(W,bh,Lz,0,0,0,metal);
+  const lw=W/2-ws/2;v.box(lw,wh,Lz,-(W/2+ws/2)/2,bh,0,metal);v.box(lw,wh,Lz,(W/2+ws/2)/2,bh,0,metal);
+  const TH=24,TL=32,tab=v.box(wt,TH,TL,0,0,0,tok('--shaft'),{pof:-1});
+  const target=(fits||f3.pressed)?bh:bh+wh,start=bh+wh+16;
+  const place=b=>{tab.position.y=b+TH/2};
+  const after=()=>{
+    if(fits&&ws-wt>.05){const gw=(ws-wt)/2;[-1,1].forEach(sg=>v.box(gw,wh,Lz-.4,sg*(wt/2+gw/2),bh,0,tok('--ok'),{op:.5,edges:false}))}
+    if(!fits&&f3.pressed){const ow=(wt-ws)/2;[-1,1].forEach(sg=>v.box(ow+.2,wh+.2,TL+.3,sg*(ws/2+ow/2),bh-.1,0,tok('--bad'),{op:.85,edges:false,pof:-2}))}
+    $('st1').innerHTML=msg;
+  };
+  if(action==='hover'){place(start);$('st1').innerHTML='Tab printed. Will it slide in?';return}
+  if(action==='instant'||!f3.inserted){place(f3.inserted?target:start);if(f3.inserted)after();else $('st1').innerHTML='';return}
+  const from=f3.pressed&&!fits?bh+wh:start;place(from);$('st1').innerHTML='Assembling…';
+  v.anim(f3.pressed&&!fits?700:900,p=>place(from+(target-from)*p),after);
+}
+function assemble(){f3.inserted=true;f3.pressed=false;build3DFit('animate')}
+['hn','hu','hl','sn','su','sl'].forEach(id=>$(id).addEventListener('input',()=>{document.querySelectorAll('[data-p]').forEach(b=>b.setAttribute('aria-pressed','false'));f3.pair=f3.case==='pair'?null:f3.pair;if(f3.case==='pair')f3.case='tight';resetGame();fit()}));
+document.querySelectorAll('[data-p]').forEach(b=>b.addEventListener('click',()=>setFitVals(presets[b.dataset.p],b.dataset.p)));
+document.querySelectorAll('[data-case]').forEach(b=>b.addEventListener('click',()=>{f3.case=b.dataset.case;f3.pressed=false;f3.inserted=true;build3DFit('animate')}));
+$('btnAssemble').onclick=assemble;
+$('btnPress').onclick=()=>{f3.pressed=true;f3.inserted=true;build3DFit('animate')};
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>V1&&V1.view(b.dataset.view,VIEWS1)));
+
+/* print-a-pair game */
+const game={n:0,fit:0,right:0,awaiting:false};
+function resetGame(){game.n=game.fit=game.right=0;game.awaiting=false;$('btnPrint').disabled=false;$('meas').innerHTML='';$('pSlide').disabled=$('pPress').disabled=true;renderTally()}
+function renderTally(){$('tally').innerHTML=game.n?`<span>Pairs printed <b>${game.n}</b></span><span>Slid in <b>${game.fit}</b> (${Math.round(100*game.fit/game.n)}%)</span><span>Your predictions right <b>${game.right}/${game.n}</b></span>`:'<span class="muted">No pairs printed yet.</span>'}
+$('btnPrint').onclick=()=>{
+  const {H,S}=cur;const h=sampleIn(H.min,H.max),s=sampleIn(S.min,S.max);
+  f3.case='pair';f3.pair={h,s};f3.pressed=false;f3.inserted=false;game.awaiting=true;
+  $('meas').innerHTML=`<span class="c-hole">Slot measures ${fmt(h,3)}</span><span class="c-shaft">Tab measures ${fmt(s,3)}</span>`;
+  $('pSlide').disabled=$('pPress').disabled=false;$('btnPrint').disabled=true;
+  build3DFit('hover');
+};
+function predict(slides){
+  if(!game.awaiting)return;game.awaiting=false;const g=f3.pair.h-f3.pair.s,fits=g>=-E;
+  game.n++;if(fits)game.fit++;if(fits===slides)game.right++;
+  $('pSlide').disabled=$('pPress').disabled=true;$('btnPrint').disabled=false;
+  f3.inserted=true;f3.pressed=!fits;
+  build3DFit('animate');
+  $('meas').insertAdjacentHTML('beforeend',`<span class="${fits===slides?'c-ok':'c-bad'}"><strong>${fits===slides?'Correct':'Not this time'}</strong>: ${fits?'clearance':'interference'} ${fmt(Math.abs(g),3)}</span>`);
+  renderTally();
+}
+$('pSlide').onclick=()=>predict(true);$('pPress').onclick=()=>predict(false);$('btnReset').onclick=resetGame;
+
+/* ---------- shared: SVG pointer helpers ---------- */
+// Point in an SVG's own coordinates from a pointer event.
+function svgPt(svg,e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
+// Make an SVG draggable: down(pt, target) starts a drag (return false to ignore), move(pt) follows, up() ends.
+function dragSVG(svg,down,move,up){
+  let on=false;
+  svg.addEventListener('pointerdown',e=>{if(down(svgPt(svg,e),e.target)===false)return;on=true;svg.setPointerCapture(e.pointerId);e.preventDefault()});
+  svg.addEventListener('pointermove',e=>{if(on)move(svgPt(svg,e))});
+  const end=()=>{if(on){on=false;up&&up()}};svg.addEventListener('pointerup',end);svg.addEventListener('pointercancel',end);
+}
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+
+/* ---------- §01 tolerance band tool ---------- */
+const BAND_R=.012,BX0=40,BX1=600;                    // ruler shows basic ± BAND_R in across x BX0..BX1
+const band={basic:.75,up:.004,lo:0,sel:'up',target:null,matched:0,tries:0};
+const bX=dv=>BX0+(dv+BAND_R)/(2*BAND_R)*(BX1-BX0);
+const bDev=x=>rd2(clamp(((x-BX0)/(BX1-BX0))*2*BAND_R-BAND_R,-BAND_R,BAND_R));
+// Set one limit (as a deviation from basic), keeping upper ≥ lower.
+function bandSet(h,dv){dv=rd2(clamp(dv,-BAND_R,BAND_R));if(h==='up')band.up=Math.max(dv,band.lo);else band.lo=Math.min(dv,band.up);drawBand()}
+function drawBand(){
+  const svg=$('bandSVG'),B=band.basic,Y=75;let h='';
+  for(let i=-12;i<=12;i++){const x=bX(i/1000),big=i%4===0,mid=i%2===0;
+    h+=`<line x1="${x}" y1="${Y}" x2="${x}" y2="${Y-(big?14:mid?9:5)}" style="stroke:var(--muted);stroke-width:${big?1.4:1}"/>`;
+    if(big)h+=`<text x="${x}" y="${Y+16}" text-anchor="middle" style="fill:var(--muted)">${fmt(B+i/1000)}</text>`}
+  h+=`<line class="axis" x1="${BX0}" y1="${Y}" x2="${BX1}" y2="${Y}"/>`;
+  h+=`<rect x="${bX(band.lo)}" y="${Y-30}" width="${Math.max(bX(band.up)-bX(band.lo),2)}" height="30" style="fill:var(--ok);fill-opacity:.28;stroke:var(--ok)"/>`;
+  h+=`<line class="zline" x1="${bX(0)}" y1="${Y-40}" x2="${bX(0)}" y2="${Y+4}"/><text x="${bX(0)}" y="${Y-44}" text-anchor="middle" class="lbl">basic ${fmt(B)}</text>`;
+  if(Math.abs(band.up-band.lo)>E)h+=`<text x="${(bX(band.up)+bX(band.lo))/2}" y="${Y-11}" text-anchor="middle" class="lbl" style="fill:var(--ok)">good parts</text>`;
+  [['up',band.up,'upper limit',-1],['lo',band.lo,'lower limit',1]].forEach(([k,dv,lab,sg])=>{const x=bX(dv),y=Y+30+(sg>0?18:0),on=band.sel===k;
+    h+=`<g class="drag" data-h="${k}" tabindex="0" role="slider" aria-label="${lab}" aria-valuetext="${fmt(B+dv)} inches"><line x1="${x}" y1="${Y-30}" x2="${x}" y2="${Y}" style="stroke:var(--ink);stroke-width:1.5"/><line x1="${x}" y1="${Y+20}" x2="${x}" y2="${y-8}" style="stroke:var(--ink);stroke-width:1.5"/>
+      <rect class="hdl${on?' on':''}" x="${x-34}" y="${y-8}" width="68" height="22" rx="4" data-h="${k}"/><text x="${x}" y="${y+7}" text-anchor="middle" data-h="${k}" style="font-weight:600">${fmt(B+dv)}</text>
+      <text x="${x}" y="${y+28}" text-anchor="middle" class="lbl" data-h="${k}" style="fill:var(--muted);font-size:11px">${lab}</text></g>`});
+  svg.innerHTML=h;
+  svg.querySelectorAll('g[data-h]').forEach(g=>{g.addEventListener('focus',()=>{if(band.sel!==g.dataset.h){band.sel=g.dataset.h;svg.querySelectorAll('.hdl').forEach(r=>r.classList.toggle('on',r.dataset.h===band.sel))}});
+    g.addEventListener('keydown',e=>{const st=e.shiftKey?.004:.001,d={ArrowRight:st,ArrowUp:st,ArrowLeft:-st,ArrowDown:-st}[e.key];if(d==null)return;e.preventDefault();const k=g.dataset.h;bandSet(k,band[k]+d);svg.querySelector(`g[data-h="${k}"]`).focus()})});
+  const u=band.up,l=band.lo,mid=(u+l)/2,half=(u-l)/2,t=tolType(u,l);
+  $('bandOut').innerHTML=`<div class="kv"><span class="k">Plus / minus · ${t}</span><span class="v">${dimHTML(B,u,l)}</span></div>
+    <div class="kv"><span class="k">Limits</span><span class="v" style="display:inline-grid;line-height:1.15">${fmt(B+u)}<br>${fmt(B+l)}</span></div>
+    <div class="kv"><span class="k">Centred ±  ·  tolerance ${fmt(u-l)}</span><span class="v">${fmt(B+mid)} ±${fmt(half)}</span></div>`;
+  $('bCheck').disabled=!band.target;
+}
+dragSVG($('bandSVG'),(pt,t)=>{const k=t.dataset&&t.dataset.h||(Math.abs(pt.x-bX(band.up))<Math.abs(pt.x-bX(band.lo))?'up':'lo');band.sel=k;bandSet(k,bDev(pt.x))},pt=>bandSet(band.sel,bDev(pt.x)));
+$('bBasic').addEventListener('input',()=>{const v=parseFloat($('bBasic').value);if(isFinite(v)&&v>0&&v<1000){band.basic=v;drawBand()}});
+// A target drawing: basic size and limits, shown in one of the three formats.
+$('bNew').onclick=()=>{
+  const B=pick([.25,.375,.5,.625,.75,1]),f=pick(['uniU','uniL','pm','unequal','limit']),t=pick([.002,.004,.006,.008,.010]),h=t/2;
+  const [u,l]={uniU:[t,0],uniL:[0,-t],pm:[h,-h],unequal:[h,-t],limit:pick([[t,0],[h,-h],[0,-t]])}[f];
+  band.target={B,u,l,f};band.basic=B;$('bBasic').value=B.toFixed(3);band.up=.002;band.lo=-.002;
+  $('bTarget').innerHTML=`Drawing says: <strong class="mono">${f==='limit'?`<span style="display:inline-grid;line-height:1.1;vertical-align:middle">${fmt(B+u)}<br>${fmt(B+l)}</span> (limit)`:dimHTML(B,u,l)}</strong>. Drag the band to match, then press Check.`;
+  drawBand()};
+$('bCheck').onclick=()=>{const T=band.target;if(!T)return;band.tries++;
+  const ok=near(band.up,T.u)&&near(band.lo,T.l);
+  if(ok){band.matched++;band.target=null;$('bTarget').innerHTML=`<span class="c-ok"><strong>Matched!</strong></span> Good parts are ${fmt(T.B+T.l)} to ${fmt(T.B+T.u)}, a tolerance of ${fmt(T.u-T.l)}. Press New target for another.`}
+  else{const msg=[];if(!near(band.up,T.u))msg.push(`upper limit should be ${band.up>T.u?'lower':'higher'}`);if(!near(band.lo,T.l))msg.push(`lower limit should be ${band.lo>T.l?'lower':'higher'}`);
+    $('bTarget').insertAdjacentHTML('beforeend',`<div class="c-bad">Not yet: the ${msg.join(', and the ')}.</div>`)}
+  $('bScore').innerHTML=`<span>Matched <b>${band.matched}</b></span><span>Checks <b>${band.tries}</b></span>`;drawBand()};
+
+/* ---------- §02 quality inspector ---------- */
+const QK=170,QJ0=70,QMAX=2.5,QY=112,QH=58,QN=10;    // px per inch, fixed-jaw face x, widest jaw opening (in), part top y and height, parts per round
+const PART_NAMES=['Spacer','Slider','Key','Gauge block','Bracket','Bushing','Shim','Rail'];
+const qs={round:null,i:0,part:null,gap:QMAX,off:0,state:'idle',best:store.get('tol.qBest',null)};
+// One part: its drawing (basic, deviations, how it is written) and its true width.
+function qPart(easy){
+  const B=pick([.25,.375,.5,.625,.75,1,1.25,1.5,1.75,2]),h=pick([.001,.002,.003,.005]),t=2*h,f=easy?'pm':pick(['pm','pm','uniU','uniL','unequal','limit']);
+  const [u,l]={pm:[h,-h],uniU:[t,0],uniL:[0,-t],unequal:[h,-t],limit:pick([[h,-h],[t,0]])}[f];
+  const lo=B+l,hi=B+u,r=Math.random();let w;
+  if(r<.5)w=lo+Math.random()*(hi-lo);else if(r<.6)w=pick([lo,hi]);else w=Math.random()<.5?hi+pick([.001,.002,.003,.004,.006]):lo-pick([.001,.002,.003,.004,.006]);
+  return {name:pick(PART_NAMES),B,u,l,f,lo:rd2(lo),hi:rd2(hi),w:rd2(w)};
+}
+const qDwgHTML=P=>P.f==='limit'?`<span class="dimbox" style="display:inline-grid;line-height:1.1;vertical-align:middle">${fmt(P.hi)}<br>${fmt(P.lo)}</span>`:dimHTML(P.B,P.u,P.l);
+function qDraw(){
+  const svg=$('qSVG'),P=qs.part,jx=QJ0+qs.gap*QK,c=tok('--metal'),ce=tok('--metal-edge');let h='';
+  h+=`<rect x="0" y="${QY+QH}" width="660" height="16" style="fill:var(--tint);stroke:var(--rule)"/>`;   // conveyor
+  for(let x=-((qs.off*.5)%24);x<660;x+=24)h+=`<line x1="${x}" y1="${QY+QH+3}" x2="${x+10}" y2="${QY+QH+13}" style="stroke:var(--rule);stroke-width:2"/>`;
+  if(P){const px=QJ0+qs.off,col=qs.state==='acc'?'var(--ok)':qs.state==='rej'?'var(--bad)':ce;
+    h+=`<g transform="translate(0,${qs.drop||0})"><rect x="${px}" y="${QY}" width="${P.w*QK}" height="${QH}" rx="2" style="fill:${c};stroke:${col};stroke-width:${qs.state==='acc'||qs.state==='rej'?3:1.2}"/>
+      <text x="${px+P.w*QK/2}" y="${QY+QH/2+4}" text-anchor="middle" class="lbl">${P.name}</text></g>`}
+  // beam with inch scale
+  h+=`<rect x="30" y="22" width="620" height="22" rx="2" style="fill:var(--surface);stroke:${ce}"/>`;   // beam, ticks every 0.05 in
+  for(let m=0;m<=60;m++){const x=QJ0+m*.05*QK;if(x>646)break;h+=`<line x1="${x}" y1="22" x2="${x}" y2="${22+(m%20===0?12:m%2===0?8:5)}" style="stroke:var(--ink);stroke-width:${m%20===0?1.3:.8}"/>`;if(m%10===0)h+=`<text x="${x+2}" y="41" style="font-size:9px">${m/20}</text>`}
+  // fixed jaw
+  h+=`<path d="M30 22 H${QJ0} V${QY+QH} H${QJ0-14} V44 H30 Z" style="fill:${c};stroke:${ce}"/>`;
+  // sliding jaw + display
+  const touching=P&&Math.abs(qs.gap-P.w)<1e-6&&qs.off===0;
+  h+=`<g class="drag" id="qJaw" tabindex="0" role="slider" aria-label="Caliper sliding jaw" aria-valuetext="${qs.gap.toFixed(3)} inches">
+    <path d="M${jx} 14 H${jx+150} V52 H${jx+14} V${QY+QH} H${jx} Z" style="fill:${c};stroke:${touching?'var(--ok)':ce};stroke-width:${touching?2.5:1}"/>
+    <rect x="${jx+30}" y="18" width="104" height="30" rx="3" style="fill:#1b2a22;stroke:${ce}"/>
+    <text x="${jx+128}" y="39" text-anchor="end" style="fill:#8ff0b0;font-size:17px;font-weight:600">${qs.gap.toFixed(3)}</text><text x="${jx+34}" y="28" style="fill:#8ff0b0;font-size:8px">in</text>
+    <text x="${jx+80}" y="66" text-anchor="middle" class="lbl" style="fill:var(--muted);font-size:10px">${touching?'measuring':'drag ◀ ▶'}</text></g>`;
+  svg.innerHTML=h;
+  const jaw=$('qJaw');jaw.addEventListener('keydown',e=>{const d={ArrowLeft:-1,ArrowRight:1,ArrowDown:-1,ArrowUp:1}[e.key];if(d==null)return;e.preventDefault();qMove(qs.gap+d*(e.shiftKey?.2:.02));$('qJaw').focus()});
+}
+// Move the jaw: it stops on the part.
+function qMove(g){if(qs.state!=='measure'&&qs.state!=='ready')return;const P=qs.part;g=clamp(g,P?P.w:0,QMAX);qs.gap=g;
+  const touch=P&&Math.abs(g-P.w)<1e-6;if(touch&&qs.state==='measure')qs.state='ready';if(!touch&&qs.state==='ready')qs.state='measure';
+  $('qAcc').disabled=$('qRej').disabled=qs.state!=='ready';$('qMsg').innerHTML=qs.state==='ready'?'Jaw closed on the part. Read the display, compare it with the drawing, then Accept or Reject.':'Close the jaw on the part.';qDraw()}
+// Press on the jaw to drag it; press anywhere else on the picture and the jaw face jumps to the pointer.
+dragSVG($('qSVG'),(pt,t)=>{if(qs.state!=='measure'&&qs.state!=='ready')return false;qs.grab=t.closest&&t.closest('#qJaw')?pt.x-(QJ0+qs.gap*QK):0;qMove((pt.x-qs.grab-QJ0)/QK)},pt=>qMove((pt.x-qs.grab-QJ0)/QK));
+// Animate f(p) for p 0..1 over ms milliseconds, then done().
+function tween(ms,f,done){if(reduced){f(1);done&&done();return}const t0=performance.now();const step=t=>{const p=Math.min(1,(t-t0)/ms);f(p);if(p<1)requestAnimationFrame(step);else done&&done()};requestAnimationFrame(step)}
+function qNext(){
+  const R=qs.round;if(qs.i>=QN){qEnd();return}
+  qs.part=R.parts[qs.i];qs.state='arrive';qs.gap=QMAX;qs.drop=0;$('qAcc').disabled=$('qRej').disabled=true;$('qStart').disabled=true;$('qClose').disabled=true;
+  $('qDwg').innerHTML=`<div style="font-size:1.05rem"><strong>${qs.part.name}</strong>, width ${qDwgHTML(qs.part)}</div><div class="muted small">Part ${qs.i+1} of ${QN}</div>`;
+  $('qMsg').textContent='Part arriving…';
+  tween(650,p=>{qs.off=Math.round((1-p)*(1-p)*560);qDraw()},()=>{qs.off=0;qs.state='measure';$('qClose').disabled=false;$('qMsg').textContent='Close the jaw on the part: drag the sliding jaw left (or press Close the jaw).';qDraw()});
+  qProg();
+}
+function qProg(){const R=qs.round;if(!R)return;const ok=R.log.filter(x=>x.ok).length;$('qProg').innerHTML=`<span>Part <b>${Math.min(qs.i+1,QN)}/${QN}</b></span><span class="c-ok">Correct <b>${ok}</b></span><span class="c-bad">Mistakes <b>${R.log.length-ok}</b></span>`}
+function qDecide(accept){
+  if(qs.state!=='ready')return;const P=qs.part,good=P.w>=P.lo-E&&P.w<=P.hi+E,ok=accept===good;
+  qs.round.log.push({P,accept,good,ok});qs.state=accept?'acc':'rej';$('qAcc').disabled=$('qRej').disabled=$('qClose').disabled=true;
+  const where=P.w>P.hi+E?`above the upper limit ${fmt(P.hi)}`:P.w<P.lo-E?`below the lower limit ${fmt(P.lo)}`:Math.abs(P.w-P.hi)<E||Math.abs(P.w-P.lo)<E?`exactly on a limit, which still passes (${fmt(P.lo)} to ${fmt(P.hi)})`:`inside the limits ${fmt(P.lo)} to ${fmt(P.hi)}`;
+  $('qMsg').innerHTML=(ok?`<span class="c-ok"><strong>Correct.</strong></span> `:`<span class="c-bad"><strong>${accept?'Bad part shipped!':'Good part scrapped!'}</strong></span> `)+`${fmt(P.w)} is ${where}, so it should be ${good?'accepted':'rejected'}.`;
+  qs.i++;qProg();
+  tween(600,p=>{if(accept)qs.off=Math.round(p*p*600);else qs.drop=Math.round(p*p*90);qDraw()},()=>{$('qStart').disabled=false;$('qStart').textContent=qs.i>=QN?'See results':'Next part';$('qStart').focus()});
+}
+function qEnd(){
+  const R=qs.round,L=R.log,ok=L.filter(x=>x.ok).length,shipped=L.filter(x=>x.accept&&!x.good).length,scrapped=L.filter(x=>!x.accept&&x.good).length,secs=Math.round((performance.now()-R.t0)/1000);
+  const better=!qs.best||ok>qs.best.ok||(ok===qs.best.ok&&secs<qs.best.secs);if(better){qs.best={ok,secs};store.set('tol.qBest',qs.best)}
+  qs.part=null;qs.state='idle';qs.round=null;qDraw();
+  $('qDwg').innerHTML='<span class="muted">Round over. Start another to beat your score.</span>';$('qStart').textContent='Start a round';$('qClose').disabled=true;$('qMsg').innerHTML='';
+  $('qSum').innerHTML=`<div class="result"><div class="kv"><span class="k">Score</span><span class="v ${ok===QN?'c-ok':''}">${ok} / ${QN}</span></div><div class="kv"><span class="k">Bad parts shipped</span><span class="v ${shipped?'c-bad':''}">${shipped}</span></div><div class="kv"><span class="k">Good parts scrapped</span><span class="v ${scrapped?'c-warn':''}">${scrapped}</span></div><div class="kv"><span class="k">Time</span><span class="v">${secs} s</span></div></div>
+    ${better?'<p class="c-ok small"><strong>New best score!</strong></p>':''}<details><summary>Review every part</summary><div><div class="tbl"><table><thead><tr><th>#</th><th>Drawing</th><th>Limits</th><th>Measured</th><th>You</th><th>Should be</th></tr></thead><tbody>${L.map((x,i)=>`<tr><td>${i+1}</td><td>${qDwgHTML(x.P)}</td><td class="t">${fmt(x.P.lo)}–${fmt(x.P.hi)}</td><td class="t">${fmt(x.P.w)}</td><td class="${x.ok?'c-ok':'c-bad'}">${x.accept?'Accept':'Reject'}</td><td>${x.good?'Accept':'Reject'}</td></tr>`).join('')}</tbody></table></div></div></details>`;
+  qBest();
+}
+function qBest(){$('qBest').innerHTML=qs.best?`<span>Your best: <b>${qs.best.ok}/${QN}</b> in <b>${qs.best.secs} s</b></span>`:''}
+$('qStart').onclick=()=>{if(!qs.round){const easy=$('qEasy').checked;qs.round={parts:Array.from({length:QN},()=>qPart(easy)),log:[],t0:performance.now()};qs.i=0;$('qSum').innerHTML=''}qNext()};
+$('qClose').onclick=()=>{if(qs.part&&(qs.state==='measure'||qs.state==='ready')){const from=qs.gap;tween(400,p=>qMove(from+(qs.part.w-from)*p))}};
+$('qAcc').onclick=()=>qDecide(true);$('qRej').onclick=()=>qDecide(false);
+qBest();
+
+/* ---------- §04 drag the tab zone ---------- */
+const DZ={top:22,bot:286,lo:-.010,hi:.010,sx:[110,200],tx:[232,322]};   // y range for deviations lo..hi; slot and tab columns
+const dzSlot={u:.004,l:0};
+const dz={lo:-.006,hi:-.002,done:{},mode:null};   // tab band edges as deviations from basic (in)
+const dzY=v=>DZ.bot-(v-DZ.lo)/(DZ.hi-DZ.lo)*(DZ.bot-DZ.top),dzV=y=>DZ.lo+(DZ.bot-y)/(DZ.bot-DZ.top)*(DZ.hi-DZ.lo);
+// Set the tab band's edges, snapped to 0.001 in, at least 0.002 wide and inside the scale.
+function dzSet(lo,hi){lo=rd2(lo);hi=rd2(hi);if(hi-lo<.002-E)return;if(lo<DZ.lo||hi>DZ.hi)return;dz.lo=lo;dz.hi=hi;dzDraw()}
+function dzDraw(){
+  const svg=$('dzSVG'),B=.75,H={min:B+dzSlot.l,max:B+dzSlot.u},S={min:B+dz.lo,max:B+dz.hi},minC=H.min-S.max,maxC=H.max-S.min,cl=classify(minC,maxC);
+  let h=`<line class="axis" x1="70" y1="${DZ.top-6}" x2="70" y2="${DZ.bot+4}"/>`;
+  for(let v=-.010;v<=.01001;v+=.002){const y=dzY(v);h+=`<line x1="64" y1="${y}" x2="70" y2="${y}" style="stroke:var(--muted)"/><text x="60" y="${y+4}" text-anchor="end" style="fill:var(--muted)">${fmt(B+v)}</text>`}
+  h+=`<line class="zline" x1="70" y1="${dzY(0)}" x2="390" y2="${dzY(0)}"/><text x="388" y="${dzY(0)-5}" text-anchor="end" class="lbl" style="fill:var(--muted)">basic 0.750</text>`;
+  const ov=[Math.max(H.min,S.min),Math.min(H.max,S.max)];
+  if(ov[1]>ov[0]+E)h+=`<rect x="${DZ.sx[0]}" y="${dzY(ov[1]-B)}" width="${DZ.tx[1]-DZ.sx[0]}" height="${dzY(ov[0]-B)-dzY(ov[1]-B)}" style="fill:var(--warn);fill-opacity:.22"/>`;
+  h+=`<rect class="zh" x="${DZ.sx[0]}" y="${dzY(dzSlot.u)}" width="${DZ.sx[1]-DZ.sx[0]}" height="${dzY(dzSlot.l)-dzY(dzSlot.u)}"/>`;
+  const ty=dzY(dz.hi),by=dzY(dz.lo);
+  h+=`<g class="drag"><rect class="zs" data-z="move" x="${DZ.tx[0]}" y="${ty}" width="${DZ.tx[1]-DZ.tx[0]}" height="${by-ty}" style="fill-opacity:.4"/>
+    <text x="${(DZ.tx[0]+DZ.tx[1])/2}" y="${(ty+by)/2+4}" text-anchor="middle" data-z="move" class="lbl" style="fill:var(--shaft)">drag</text>
+    <rect class="hdl" data-z="top" x="${DZ.tx[0]+25}" y="${ty-6}" width="40" height="12" rx="3" style="cursor:ns-resize"/><rect class="hdl" data-z="bot" x="${DZ.tx[0]+25}" y="${by-6}" width="40" height="12" rx="3" style="cursor:ns-resize"/></g>`;
+  h+=`<text x="${DZ.sx[0]-4}" y="${dzY(dzSlot.u)+4}" text-anchor="end" style="font-size:10px">${fmt(H.max)}</text><text x="${DZ.sx[0]-4}" y="${dzY(dzSlot.l)+4}" text-anchor="end" style="font-size:10px">${fmt(H.min)}</text>`;
+  h+=`<text x="${DZ.tx[1]+6}" y="${ty+4}">${fmt(S.max)}</text><text x="${DZ.tx[1]+6}" y="${by+4}">${fmt(S.min)}</text>`;
+  h+=`<text class="lbl" x="${(DZ.sx[0]+DZ.sx[1])/2}" y="${DZ.bot+24}" text-anchor="middle" style="fill:var(--hole)">slot</text><text class="lbl" x="${(DZ.tx[0]+DZ.tx[1])/2}" y="${DZ.bot+24}" text-anchor="middle" style="fill:var(--shaft)">tab</text>`;
+  svg.innerHTML=h;
+  dz.done[cl.k]=true;
+  $('dzVerdict').innerHTML=`<span class="big ${cl.c}">${cl.name}</span><span class="small muted">${minC>=-E?'The smallest slot still clears the largest tab.':maxC<=E?'Even the largest slot is smaller than the smallest tab.':'The bands overlap (amber): it depends which tab meets which slot.'}</span>`;
+  $('dzDims').innerHTML=`Slot <strong class="c-hole">${dimHTML(B,dzSlot.u,dzSlot.l)}</strong> &nbsp; Tab <strong class="c-shaft">${dimHTML(B,dz.hi,dz.lo)}</strong><br>Gap from <strong class="mono">${sfmt(minC)}</strong> (tightest) to <strong class="mono">${sfmt(maxC)}</strong> (loosest) in. A negative gap means the tab is too big.`;
+  const all=CLASSES.every(k=>dz.done[k]);
+  $('dzGoals').innerHTML=CLASSES.map(k=>`<li class="${dz.done[k]?'ok':''}">Make a${k==='Interference'?'n':''} ${k.toLowerCase()} fit</li>`).join('')+(all?'<li class="ok"><strong>All three made!</strong> Now find the exact tab position where clearance turns into transition.</li>':'');
+  const k=exagK([H.min,H.max,S.min,S.max],B,42);blockSVG($('dzTight'),H.min,S.max,B,k,'Tightest case');blockSVG($('dzLoose'),H.max,S.min,B,k,'Loosest case');
+}
+dragSVG($('dzSVG'),(pt,t)=>{const z=t.dataset&&t.dataset.z;if(!z)return false;dz.mode=z;dz.grab=dzV(pt.y)-dz.lo},pt=>{const v=dzV(pt.y),w=dz.hi-dz.lo;
+  if(dz.mode==='move'){const lo=clamp(rd2(v-dz.grab),DZ.lo,DZ.hi-w);dzSet(lo,lo+w)}else if(dz.mode==='top')dzSet(dz.lo,clamp(v,dz.lo+.002,DZ.hi));else dzSet(clamp(v,DZ.lo,dz.hi-.002),dz.hi)});
+$('dzSVG').addEventListener('keydown',e=>{const d={ArrowUp:.001,ArrowDown:-.001}[e.key];if(d==null)return;e.preventDefault();if(e.shiftKey)dzSet(dz.lo-d,dz.hi+d);else dzSet(dz.lo+d,dz.hi+d)});
+$('dzReset').onclick=()=>{dz.done={};dzSet(-.006,-.002)};
+$('dz3D').onclick=()=>{setFitVals([.75,dzSlot.u,dzSlot.l,.75,dz.hi,dz.lo],'');goTo('explorer');f3.inserted=false;build3DFit('instant');setTimeout(assemble,350)};
+
+/* ---------- stack-up ---------- */
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gaussS(r){let u=0;while(u===0)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r())}
+const s3={case:'nom',sizes:null,builds:0,ok:0,tight:0,rattle:0};
+function readStack(){
+  const blocks=['a','b','c'].map(c=>{let n=num(c+'n'),u=num(c+'u'),l=num(c+'l');if(l>u)[u,l]=[l,u];return{n,u,l,max:n+u,min:n+l,mean:n+(u+l)/2,half:(u-l)/2}});
+  let pn=num('pn'),pu=num('pu'),pl=num('pl');if(pl>pu)[pu,pl]=[pl,pu];
+  return {blocks,P:{n:pn,u:pu,l:pl,max:pn+pu,min:pn+pl,mean:pn+(pu+pl)/2,half:(pu-pl)/2},gmax:num('gmax')};
+}
+function setStack(p){
+  $('pn').value=(p==='fix'?2.012:2.020).toFixed(3);$('pu').value=(p==='fix'?.004:.008).toFixed(3);$('pl').value='0.000';
+  [['a',1,.004,-.004],['b',.625,.004,-.004],['c',.375,.002,-.002]].forEach(([c,n,u,l])=>{$(c+'n').value=n.toFixed(3);$(c+'u').value=u.toFixed(3);$(c+'l').value=l.toFixed(3)});
+  $('gmax').value='0.028';resetBuilds();stack();
+}
+function resetBuilds(){s3.builds=s3.ok=s3.tight=s3.rattle=0;s3.sizes=null;s3.case='nom';$('tally2').innerHTML=''}
+function stack(){
+  const {blocks,P,gmax}=readStack();
+  const sMax=blocks.reduce((a,b)=>a+b.max,0),sMin=blocks.reduce((a,b)=>a+b.min,0);
+  const wcMin=P.min-sMax,wcMax=P.max-sMin,mean=P.mean-blocks.reduce((a,b)=>a+b.mean,0);
+  const rss=Math.sqrt(P.half**2+blocks.reduce((a,b)=>a+b.half**2,0));
+  const cell=(v,bad)=>`<td class="t ${bad?'c-bad':''}">${fmt(v)}</td>`;
+  const verdict=(lo,hi)=>`<td>${lo<-E?'<span class="c-bad">Some won\'t fit</span>':hi>gmax+E?'<span class="c-bad">Some rattle</span>':'<span class="c-ok">Meets both</span>'}</td>`;
+  const r=rng(7),N=2000,g=[];let bad=0;
+  for(let i=0;i<N;i++){let v=P.mean+gaussS(r)*P.half/3;blocks.forEach(b=>v-=b.mean+gaussS(r)*b.half/3);g.push(v);if(v<0||v>gmax)bad++}
+  const so=[...g].sort((a,b)=>a-b),gMinS=so[0],gMaxS=so[N-1];
+  $('stackTbl').innerHTML=`<thead><tr><th>Method</th><th>Gap min</th><th>Gap max</th><th>Tolerance on gap</th><th>Result</th></tr></thead><tbody>
+   <tr><td>Nominal (basic sizes)</td><td class="t" colspan="2">${fmt(P.n-blocks.reduce((a,b)=>a+b.n,0))}</td><td class="t">—</td><td class="muted">Basic only</td></tr>
+   <tr><td>Worst case (Σ tol)</td>${cell(wcMin,wcMin<-E)}${cell(wcMax,wcMax>gmax+E)}<td class="t">±${fmt((wcMax-wcMin)/2,3)}</td>${verdict(wcMin,wcMax)}</tr>
+   <tr><td>RSS (√Σ tol²)</td>${cell(mean-rss,mean-rss<-E)}${cell(mean+rss,mean+rss>gmax+E)}<td class="t">±${fmt(rss,3)}</td>${verdict(mean-rss,mean+rss)}</tr>
+   <tr><td>Simulated, ${N} builds</td>${cell(gMinS,gMinS<-E)}${cell(gMaxS,gMaxS>gmax+E)}<td class="t">—</td><td>${bad?`<span class="c-bad">${(100*bad/N).toFixed(1)}% rejected</span>`:'<span class="c-ok">0 rejected</span>'}</td></tr></tbody>`;
+  const lo=Math.min(gMinS,0,wcMin)-.02,hi=Math.max(gMaxS,gmax,wcMax)+.02,B=48,bins=new Array(B).fill(0),bw=(hi-lo)/B;
+  g.forEach(v=>bins[Math.min(B-1,Math.max(0,Math.floor((v-lo)/bw)))]++);
+  const mx=Math.max(...bins),L=40,R=620,T=14,Bo=168,xs=v=>L+(v-lo)/(hi-lo)*(R-L);
+  let h=`<line class="axis" x1="${L}" y1="${Bo}" x2="${R}" y2="${Bo}"/>`;
+  bins.forEach((c,i)=>{const v=lo+(i+.5)*bw,bh=c/mx*(Bo-T);h+=`<rect class="${v<0||v>gmax?'bar-bad':'bar-ok'}" x="${xs(lo+i*bw)+.5}" y="${Bo-bh}" width="${Math.max((R-L)/B-1,1)}" height="${bh}"/>`});
+  [[0,'0 (won\'t fit)'],[gmax,'rattle limit']].forEach(([v,t])=>{h+=`<line class="lim" x1="${xs(v)}" y1="${T}" x2="${xs(v)}" y2="${Bo}"/><text x="${xs(v)+4}" y="${T+10}">${t}</text>`});
+  h+=`<line x1="${xs(wcMin)}" y1="${Bo+8}" x2="${xs(wcMax)}" y2="${Bo+8}" style="stroke:var(--ink);stroke-width:2"/><text x="${xs(wcMin)}" y="${Bo+24}">WC ${fmt(wcMin)}</text><text x="${xs(wcMax)}" y="${Bo+24}" text-anchor="end">${fmt(wcMax)}</text>`;
+  $('histSVG').innerHTML=h;
+  $('histCap').textContent=`End gap over ${N} simulated builds, each size normally distributed with tolerance = 3σ. Red bars fall outside 0 to ${fmt(gmax)}. The black bar under the axis is the worst-case range.`;
+  build3DStack('instant');
+}
+function stackSizes(){
+  const {blocks,P}=readStack();
+  if(s3.case==='rand'&&s3.sizes)return s3.sizes;
+  if(s3.case==='min')return {b:blocks.map(b=>b.max),p:P.min};
+  if(s3.case==='max')return {b:blocks.map(b=>b.min),p:P.max};
+  return {b:blocks.map(b=>b.n),p:P.n};
+}
+function build3DStack(action){
+  document.querySelectorAll('[data-scase]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.scase===s3.case));
+  const {gmax}=readStack(),sz=stackSizes(),gapIn=sz.p-sz.b.reduce((a,b)=>a+b,0);
+  const label={nom:'Basic sizes',min:'Smallest gap: smallest pocket, largest blocks',max:'Largest gap: largest pocket, smallest blocks',rand:'Random build'}[s3.case];
+  const state=gapIn<-E?`<span class="c-bad"><strong>Won't fit.</strong></span> Blocks are ${fmt(-gapIn,3)} in too long for the pocket.`:gapIn>gmax+E?`<span class="c-warn"><strong>Fits but rattles.</strong></span> Gap ${fmt(gapIn,3)} in exceeds the ${fmt(gmax)} limit.`:`<span class="c-ok"><strong>Good.</strong></span> Gap ${fmt(gapIn,3)} in.`;
+  const msg=`${state} ${label}: A ${fmt(sz.b[0],3)}, B ${fmt(sz.b[1],3)}, C ${fmt(sz.b[2],3)}, pocket ${fmt(sz.p,3)}.`;
+  if(!V2){$('st2').innerHTML=msg;return}
+  const v=V2;v.clear();
+  // model units = inches × SC, so the scene keeps its size; the end gap is drawn ×ex
+  const SC=25.4,ex=10,bw=sz.b.map(x=>x*SC),sum=bw.reduce((a,b)=>a+b,0),gap=gapIn*SC,inner=sum+gap*ex,wall=5,D=16,BH=12,PH=9,x0=-Math.max(inner,sum)/2,metal=tok('--metal');
+  const len=Math.max(inner,sum)+2*wall;
+  v.box(len+(inner<sum?0:0),5,D+2*wall,x0-wall+len/2,0,0,metal);
+  v.box(wall,PH,D+2*wall,x0-wall/2,5,0,metal);
+  v.box(wall,PH,D+2*wall,x0+inner+wall/2,5,0,metal);
+  v.box(len,PH,wall,x0-wall+len/2,5,-(D/2+wall/2),metal);
+  v.box(len,PH,wall,x0-wall+len/2,5,D/2+wall/2,metal,{op:.3});
+  const shades=[1,.82,.64],base=new THREE.Color(tok('--shaft'));
+  let x=x0;const meshes=[];
+  bw.forEach((w,i)=>{const c=base.clone().multiplyScalar(shades[i]);const m=v.box(w,BH,D-1,x+w/2,5,0,'#'+c.getHexString(),{pof:-1});m.userData={y:5+BH/2};meshes.push(m);x+=w});
+  const after=()=>{
+    if(gap>E)v.box(gap*ex,PH,D-1,x0+sum+gap*ex/2,5,0,tok(gapIn>gmax+E?'--warn':'--ok'),{op:.5,edges:false});
+    else if(gap<-E)v.box(-gap*ex,PH+.3,D-.6,x0+inner-gap*ex/2,5-.1,0,tok('--bad'),{op:.85,edges:false,pof:-2});
+    $('st2').innerHTML=msg;
+  };
+  if(action==='instant'){after();return}
+  $('st2').innerHTML='Placing blocks…';
+  meshes.forEach(m=>m.position.y=m.userData.y+30);
+  meshes.forEach((m,i)=>v.anim(380,p=>m.position.y=m.userData.y+30*(1-p),i===meshes.length-1?after:null));
+}
+function randomBuild(){
+  const {blocks,P,gmax}=readStack();
+  const b=blocks.map(x=>sampleIn(x.min,x.max)),p=sampleIn(P.min,P.max),gap=p-b.reduce((a,c)=>a+c,0);
+  s3.builds++;if(gap<-E)s3.tight++;else if(gap>gmax+E)s3.rattle++;else s3.ok++;
+  return {b,p};
+}
+function renderTally2(){$('tally2').innerHTML=s3.builds?`<span>Built <b>${s3.builds}</b></span><span class="c-ok">Good <b>${s3.ok}</b></span><span class="c-bad">Won't fit <b>${s3.tight}</b></span><span class="c-warn">Rattle <b>${s3.rattle}</b></span>`:''}
+$('btnBuild').onclick=()=>{s3.sizes=randomBuild();s3.case='rand';renderTally2();build3DStack('animate')};
+$('btnBuild20').onclick=()=>{for(let i=0;i<20;i++)s3.sizes=randomBuild();s3.case='rand';renderTally2();build3DStack('animate')};
+document.querySelectorAll('[data-scase]').forEach(b=>b.addEventListener('click',()=>{s3.case=b.dataset.scase;build3DStack('animate')}));
+['an','au','al','bn','bu','bl','cn','cu','cl','pn','pu','pl','gmax'].forEach(id=>$(id).addEventListener('input',()=>{resetBuilds();stack()}));
+document.querySelectorAll('[data-s]').forEach(b=>b.addEventListener('click',()=>setStack(b.dataset.s)));
+const VIEWS2={iso:{theta:.5,phi:.95,dist:150},top:{theta:0,phi:.06,dist:130}};
+document.querySelectorAll('[data-view2]').forEach(b=>b.addEventListener('click',()=>V2&&V2.view(b.dataset.view2,VIEWS2)));
+
+/* ---------- printed fit predictor ---------- */
+let pcur=null;
+function pfit(){
+  const gp=+$('pg').value,t=+$('pt').value,b=+$('pb').value,basic=.75;
+  $('pgv').textContent=fmt(gp);$('ptv').textContent=fmt(t);$('pbv').textContent=fmt(b);
+  const H={min:basic-b-t,max:basic-b+t},S={min:basic-gp-t,max:basic-gp+t};
+  const minC=H.min-S.max,maxC=H.max-S.min,cl=classify(minC,maxC),m=gp-b,sig=Math.SQRT2*t/3,p=sig>0?Phi(m/sig):(m>=0?1:0);
+  pcur={gp,t,b};
+  $('pverdict').innerHTML=`<span class="big ${cl.c}">${cl.name}</span><span class="small">Printed clearance ${sfmt(minC)} to ${sfmt(maxC)} in. About <strong>${(100*p).toFixed(p>.995||p<.005?1:0)}%</strong> of printed pairs slide together without force (accuracy taken as 3σ).</span>`;
+  zoneSVG($('pZone'),H,S,basic);
+}
+['pg','pt','pb'].forEach(id=>$(id).addEventListener('input',pfit));
+$('btnP3D').onclick=()=>{const {gp,t,b}=pcur;setFitVals([rd2(.75-b),t,-t,rd2(.75-gp),t,-t],'');goTo('explorer')};
+
+/* ---------- §07 layer-by-layer print animation ---------- */
+const LA={R:.25,S:224,K:6,bead:7,cx:160,cy:150,blk:1.07,NL:8,LH:17,base:268,W:.75,SK:40,SP:160};
+// R hole radius (in), S px/in, K exaggeration of top-view errors, bead drawn width (px), block size (in);
+// side view: NL layers of LH px, bed at y=base, slot W in drawn SP px/in with side-to-side errors ×SK.
+const la={playingA:false,playingB:false};
+const laVals=()=>({N:+$('laN').value,sq:+$('laS').value,fl:+$('laF').value,g:+$('laG').value});
+// Printed hole edge radius (in) at angle th: a polygon with N flat sides through the circle, minus the bead squish.
+const laHoleR=(th,N,sq)=>{const a=2*Math.PI/N,t=((th%a)+a)%a-a/2;return LA.R*Math.cos(Math.PI/N)/Math.cos(t)-sq};
+const laPx=r=>LA.R*LA.S-LA.K*LA.S*(LA.R-r);       // exaggerated display radius
+function laTopSVG(p,show){
+  const {cx,cy,S,bead}=LA,h=LA.blk*S/2,x0=cx-h,y0=cy-h,N=p.N;let pts=[],edge=[];
+  for(let i=0;i<=360;i++){const th=i/360*2*Math.PI,r=laPx(laHoleR(th,N,p.sq));edge.push([cx+r*Math.cos(th),cy+r*Math.sin(th)]);pts.push([cx+(r+bead/2)*Math.cos(th),cy+(r+bead/2)*Math.sin(th)])}
+  const d=a=>'M'+a.map(q=>q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' L')+' Z';
+  const b2=bead/2,outer=`M${x0+b2} ${y0+b2} H${x0+2*h-b2} V${y0+2*h-b2} H${x0+b2} Z`;
+  let inf='';for(let k=-2*h;k<=2*h;k+=14)inf+=`M${x0+k} ${y0} L${x0+k+2*h} ${y0+2*h} `;
+  return `<defs><clipPath id="laClip"><path clip-rule="evenodd" d="M${x0+bead} ${y0+bead} H${x0+2*h-bead} V${y0+2*h-bead} H${x0+bead} Z ${d(edge.map(([x,y])=>[cx+(x-cx)*(1+bead/Math.hypot(x-cx,y-cy)),cy+(y-cy)*(1+bead/Math.hypot(x-cx,y-cy))]))}"/></clipPath></defs>
+    <rect x="${x0}" y="${y0}" width="${2*h}" height="${2*h}" style="fill:none;stroke:var(--hole);stroke-dasharray:5 4"/>
+    <circle cx="${cx}" cy="${cy}" r="${LA.R*S}" style="fill:none;stroke:var(--hole);stroke-width:1.5;stroke-dasharray:5 4"/>
+    <path id="laP1" d="${outer}" class="labead"/><path id="laP2" d="${d(pts)}" class="labead"/>
+    <g clip-path="url(#laClip)"><path id="laP3" d="${inf}" class="labead" style="stroke-width:${bead*.8}"/></g>
+    <circle id="laNoz" r="6" cx="-20" cy="-20" style="fill:var(--bad);stroke:var(--surface);stroke-width:2"/>
+    ${show?`<line x1="${cx-LA.R*S}" y1="${cy}" x2="${cx+LA.R*S}" y2="${cy}" style="stroke:var(--hole);stroke-width:1"/><text x="${cx}" y="${cy-6}" text-anchor="middle" style="fill:var(--hole)">drawn Ø${fmt(2*LA.R)}</text>
+      <circle cx="${cx}" cy="${cy}" r="${laPx(LA.R*Math.cos(Math.PI/N)-p.sq)}" style="fill:var(--ok);fill-opacity:.18;stroke:var(--ok);stroke-width:1.5"/><text x="${cx}" y="${cy+16}" text-anchor="middle" style="fill:var(--ok);font-weight:600">pin Ø${fmt(2*(LA.R*Math.cos(Math.PI/N)-p.sq))}</text>`:''}
+    <text x="${cx}" y="292" text-anchor="middle" style="fill:var(--muted);font-size:10px">errors around the hole exaggerated ×${LA.K}</text>`;
+}
+// Reveal a path from 0 to p (0..1) and park the nozzle at its tip.
+function laReveal(id,p){const e=$(id),L=e.getTotalLength();e.style.strokeDasharray=L;e.style.strokeDashoffset=L*(1-p);const q=e.getPointAtLength(L*p);const n=$('laNoz');if(n){n.setAttribute('cx',q.x);n.setAttribute('cy',q.y)}}
+function laDrawTop(anim){
+  const p=laVals();$('laTop').innerHTML=laTopSVG(p,!anim);
+  const pin=2*(LA.R*Math.cos(Math.PI/p.N)-p.sq);
+  $('laCapA').innerHTML=`Drawn hole Ø${fmt(2*LA.R)} in. The largest pin that fits the printed hole is about <strong class="c-bad">Ø${fmt(pin)}</strong>: ${fmt(2*LA.R*(1-Math.cos(Math.PI/p.N)))} in lost to the ${p.N} flat sides and ${fmt(2*p.sq)} in to the squish.`;
+}
+function laPlayA(){if(la.playingA)return;la.playingA=true;laDrawTop(true);['laP1','laP2','laP3'].forEach(id=>laReveal(id,0));
+  const seq=[['laP1',1100],['laP2',1500],['laP3',1600]];let k=0;
+  const next=()=>{if(k>=seq.length){la.playingA=false;laDrawTop(false);return}const [id,ms]=seq[k++];tween(ms,t=>laReveal(id,t),next)};next()}
+// Opening and tab widths (in) at layer i: squish narrows openings and widens parts; the first layer flares more.
+const laSlotW=(i,p)=>LA.W-2*p.sq-(i===0?2*p.fl:0), laTabW=(j,p)=>LA.W-p.g+2*p.sq+(j===0?2*p.fl:0);
+const laWpx=w=>LA.W*LA.SP+LA.SK*LA.SP*(w-LA.W);
+// How far the tab gets: layers of slot it sits above (0 = fully seated, NL = stuck on top).
+function laSeat(p){for(let d=0;d<=LA.NL;d++){let ok=true;for(let j=0;j<LA.NL-d;j++){if(laTabW(j,p)>laSlotW(d+j,p)+E)ok=false}if(ok)return d}return LA.NL}
+function laSideSVG(p,built,tabY,show){
+  const {cx,NL,LH,base}=LA;let h=`<rect x="10" y="${base}" width="300" height="10" style="fill:var(--tint);stroke:var(--rule)"/><text x="16" y="${base+8}" style="font-size:8px;fill:var(--muted)">print bed</text>`;
+  const dw=laWpx(LA.W)/2;h+=`<line x1="${cx-dw}" y1="${base-NL*LH-14}" x2="${cx-dw}" y2="${base}" style="stroke:var(--hole);stroke-dasharray:5 4"/><line x1="${cx+dw}" y1="${base-NL*LH-14}" x2="${cx+dw}" y2="${base}" style="stroke:var(--hole);stroke-dasharray:5 4"/>`;
+  for(let i=0;i<built;i++){const y=base-(i+1)*LH,w=laWpx(laSlotW(i,p))/2;
+    h+=`<rect x="14" y="${y+1}" width="${cx-w-14}" height="${LH-2}" rx="${LH/2-1}" class="lalayer"/><rect x="${cx+w}" y="${y+1}" width="${306-cx-w}" height="${LH-2}" rx="${LH/2-1}" class="lalayer"/>`}
+  if(tabY!=null){for(let j=0;j<NL;j++){const y=tabY-(j+1)*LH,w=laWpx(laTabW(j,p))/2;h+=`<rect x="${cx-w}" y="${y+1}" width="${2*w}" height="${LH-2}" rx="${LH/2-1}" class="latab"/>`}}
+  if(show){const d=laSeat(p);if(d>0){const y=base-d*LH;h+=`<rect x="${cx-laWpx(laTabW(0,p))/2-3}" y="${y-3}" width="${laWpx(laTabW(0,p))+6}" height="6" style="fill:var(--bad)"/>`}}
+  h+=`<text x="${cx}" y="294" text-anchor="middle" style="fill:var(--muted);font-size:10px">widths exaggerated ×${LA.SK} · layers drawn taller</text>`;
+  return h;
+}
+function laDrawSide(){const p=laVals(),d=laSeat(p);$('laSide').innerHTML=laSideSVG(p,LA.NL,LA.base-d*LA.LH,true);
+  const top=laSlotW(1,p),bot=laSlotW(0,p),tab=laTabW(1,p),tabB=laTabW(0,p);
+  $('laCapB').innerHTML=`Slot prints <strong>${fmt(top)}</strong> wide (only <strong>${fmt(bot)}</strong> at the first layer). Tab prints <strong>${fmt(tab)}</strong> (<strong>${fmt(tabB)}</strong> at its first layer). `+
+    (d===0?'<span class="c-ok"><strong>It seats all the way down.</strong></span>':d>=LA.NL?'<span class="c-bad"><strong>It won\'t even start:</strong></span> the tab\'s flared bottom is wider than the slot.':`<span class="c-warn"><strong>It sticks ${d} layer${d>1?'s':''} high</strong></span> on the slot's flared first layer and rocks.`)}
+function laPlayB(){if(la.playingB)return;la.playingB=true;const p=laVals(),d=laSeat(p),{NL,LH,base}=LA;let k=0;$('laCapB').textContent='Printing the slot…';
+  const layer=()=>{if(k<NL){k++;$('laSide').innerHTML=laSideSVG(p,k,null,false);setTimeout(layer,reduced?0:260);return}
+    const y0=base-NL*LH-20,y1=base-d*LH;$('laCapB').textContent='Now the printed tab drops in…';
+    tween(1100,t=>{$('laSide').innerHTML=laSideSVG(p,NL,y0+(y1-y0)*t*t,false)},()=>{la.playingB=false;laDrawSide()})};layer()}
+function laAll(){const p=laVals();$('laNv').textContent=p.N;$('laSv').textContent=fmt(p.sq);$('laFv').textContent=fmt(p.fl);$('laGv').textContent=fmt(p.g);if(!la.playingA)laDrawTop(false);if(!la.playingB)laDrawSide()}
+['laN','laS','laF','laG'].forEach(id=>$(id).addEventListener('input',laAll));
+$('laPlayA').onclick=laPlayA;$('laPlayB').onclick=laPlayB;
+
+/* ---------- puzzle cube ---------- */
+const PZ_ORDER=['A','B','C','D','E'];
+const PZ_NAME={A:'Base',B:'Cross',C:'Back rail',D:'Back arch',E:'Front arch'};
+const PZ_U=.75;                     // every cube is 0.750 in on a side; the cube is 3 × 3 × 3 = 27 cubes
+// The five pieces as cells [x, y, z] of the 3 × 3 × 3 grid (x left→right, y front→back, z bottom→top), in drop order.
+// Layers, back row first:  top    D D D | B E B | E E E
+//                          middle D C D | B B B | E A E
+//                          bottom C C C | A B A | A A A
+const PZ_VOX=(()=>{const L=[['CCC','ABA','AAA'],['DCD','BBB','EAE'],['DDD','BEB','EEE']],v={A:[],B:[],C:[],D:[],E:[]};
+  L.forEach((rows,z)=>rows.forEach((row,r)=>[...row].forEach((p,x)=>v[p].push([x,2-r,z]))));return v})();
+// Features that form joints. An opening is the 0.750 in gap between two cubes of one piece; a width is one cube of a piece.
+const PZ_FEAT={oA:{p:'A',basic:PZ_U,open:true,label:'U opening'},oB:{p:'B',basic:PZ_U,open:true,label:'gap between its top ends'},
+  oD:{p:'D',basic:PZ_U,open:true,label:'arch opening'},oE:{p:'E',basic:PZ_U,open:true,label:'arch opening'},
+  Ax:{p:'A',basic:PZ_U,label:'post width'},Bx:{p:'B',basic:PZ_U,label:'stem width'},Cx:{p:'C',basic:PZ_U,label:'post width'},Ex:{p:'E',basic:PZ_U,label:'tab width'}};
+// Joints: the host's opening must clear the inner width. cell: where the inner cube sits; jam: the piece that won't seat.
+const PZ_J=[
+  {id:'J1',host:'A',inner:['Bx'],jam:'B',cell:[1,1,0],desc:'B\'s stem drops into A\'s U'},
+  {id:'J2',host:'D',inner:['Cx'],jam:'D',cell:[1,2,1],desc:'D\'s arch drops over C\'s post'},
+  {id:'J3',host:'E',inner:['Ax'],jam:'E',cell:[1,0,1],desc:'E\'s arch drops over A\'s post'},
+  {id:'J4',host:'B',inner:['Ex'],jam:'E',cell:[1,1,2],desc:'E\'s tab drops between B\'s top ends'}];
+const PZ_PRESETS={zero:{ext:[0,0],open:[0,0],print:false},hole:{ext:[0,-.004],open:[.008,0],print:false},bil:{ext:[.004,-.004],open:[.004,-.004],print:false},
+  print:{ext:[0,-.004],open:[.008,0],print:true,p:.006,b:.004},comp:{ext:[0,-.002],open:[.018,.016],print:true,p:.004,b:.004}};
+const PZ_EXP={A:0,B:16,C:32,D:48,E:64};   // explode lift per piece (model units; one cube = 10)
+const pz={case:'tight',rand:null,builds:0,ok:0,jam:0,loose:0,see:false,groups:{},place:null};
+$('pzLegend').innerHTML=PZ_ORDER.map(p=>`<span><span class="sw" style="background:var(--p${p})"></span><b>${p}</b> ${PZ_NAME[p]} · ${PZ_VOX[p].length} cubes</span>`).join('');
+(function(){
+  let h='<thead><tr><th>Piece</th><th>Outer upper</th><th>Outer lower</th><th>Opening upper</th><th>Opening lower</th><th>Features in joints</th></tr></thead><tbody>';
+  PZ_ORDER.forEach(p=>{const op=!!PZ_FEAT['o'+p];
+    const feats=Object.values(PZ_FEAT).filter(f=>f.p===p).map(f=>`${f.label} ${f.basic.toFixed(3)}`).join('; ')||'None (outside of cube only)';
+    const inp=(k,lab)=>`<input id="pz_${p}_${k}" type="number" step="0.001" aria-label="${p} ${lab}">`;
+    h+=`<tr><td style="white-space:nowrap"><span class="sw" style="background:var(--p${p})"></span><strong>${p}</strong> ${PZ_NAME[p]}</td><td>${inp('eu','outer upper deviation')}</td><td>${inp('el','outer lower deviation')}</td>${op?`<td>${inp('iu','opening upper deviation')}</td><td>${inp('il','opening lower deviation')}</td>`:'<td class="muted">—</td><td class="muted">—</td>'}<td class="small">${feats}</td></tr>`});
+  $('pzTolTbl').innerHTML=h+'</tbody>';
+})();
+function pzRead(){
+  const c={};PZ_ORDER.forEach(p=>{let eu=num(`pz_${p}_eu`),el=num(`pz_${p}_el`);if(el>eu)[eu,el]=[el,eu];c[p]={eu,el};
+    if($(`pz_${p}_iu`)){let iu=num(`pz_${p}_iu`),il=num(`pz_${p}_il`);if(il>iu)[iu,il]=[il,iu];c[p].iu=iu;c[p].il=il}});
+  const pr=$('pzPrint').checked;$('pzP').disabled=$('pzB').disabled=!pr;
+  return {c,print:pr,p:pr?Math.max(0,num('pzP')):0,b:pr?num('pzB'):0,lim:Math.max(0,num('pzLim'))};
+}
+function pzRanges(S){const R={};for(const [k,f] of Object.entries(PZ_FEAT)){const t=S.c[f.p];
+  R[k]=f.open?{min:f.basic+t.il-S.b-S.p,max:f.basic+t.iu-S.b+S.p}:{min:f.basic+t.el-S.p,max:f.basic+t.eu+S.p}}return R}
+function pzJoint(j,R){const O=R['o'+j.host],I={min:j.inner.reduce((a,f)=>a+R[f].min,0),max:j.inner.reduce((a,f)=>a+R[f].max,0)};return {O,I,minC:O.min-I.max,maxC:O.max-I.min}}
+const pzClr=(j,s)=>s['o'+j.host]-j.inner.reduce((a,f)=>a+s[f],0);
+function pzSample(R){const s={};for(const k in R)s[k]=sampleIn(R[k].min,R[k].max);return s}
+function pzCaseSizes(R){if(pz.case==='rand'&&pz.rand)return pz.rand;const s={};for(const k in R){const o=PZ_FEAT[k].open;s[k]=pz.case==='loose'?(o?R[k].max:R[k].min):(o?R[k].min:R[k].max)}return s}
+function pzOutcome(s){const fails=PZ_J.filter(j=>pzClr(j,s)<-E);return {fails,jam:PZ_ORDER.find(p=>fails.some(j=>j.jam===p))||null,loose:PZ_J.filter(j=>pzClr(j,s)>pz.S.lim+E)}}
+function pzMsg(s){
+  const o=pzOutcome(s),lab={tight:'Tightest case (openings smallest, pieces largest)',loose:'Loosest case (openings largest, pieces smallest)',rand:'Printed cube'}[pz.case];
+  if(o.jam)return `<span class="c-bad"><strong>Piece ${o.jam} won't seat.</strong></span> ${lab}: `+o.fails.map(j=>`${j.id} (${j.desc}) has ${fmt(-pzClr(j,s),3)} in interference`).join('; ')+'.';
+  if(o.loose.length)return `<span class="c-warn"><strong>Assembles, but rattles.</strong></span> ${lab}: `+o.loose.map(j=>`${j.id} has ${fmt(pzClr(j,s),3)} in of play`).join('; ')+` (limit ${fmt(pz.S.lim)}).`;
+  return `<span class="c-ok"><strong>Assembles.</strong></span> ${lab}: largest play ${fmt(Math.max(...PZ_J.map(j=>pzClr(j,s))),3)} in.`;
+}
+function sampTrunc(r,min,max){const m=(min+max)/2,s=(max-min)/6;if(s<E)return m;for(let i=0;i<20;i++){const v=m+gaussS(r)*s;if(v>=min&&v<=max)return v}return m}
+function pzCalc(action){
+  const S=pz.S=pzRead(),R=pz.R=pzRanges(S),res=PZ_J.map(j=>({j,...pzJoint(j,R)}));
+  const r=rng(11),N=4000,jf=PZ_J.map(()=>0);let all=0;
+  for(let i=0;i<N;i++){const s={};for(const k in R)s[k]=sampTrunc(r,R[k].min,R[k].max);let ok=true;PZ_J.forEach((j,ix)=>{if(pzClr(j,s)>=-E)jf[ix]++;else ok=false});if(ok)all++}
+  const pct=x=>(100*x/N).toFixed(x===N||x===0?0:1)+'%';
+  const wcAll=res.every(x=>x.minC>=-E),never=res.some(x=>x.maxC<-E),playOK=res.every(x=>x.maxC<=S.lim+E);
+  const worst=res.reduce((a,b)=>b.maxC>a.maxC?b:a);
+  // Budget: total width of the tolerance bands on every feature in a joint. Each joint's clearance band is its two
+  // feature bands plus 4 × printer ± (both features, both sides), so at best each joint gets L − 4p.
+  const budget=Object.values(PZ_FEAT).reduce((a,f)=>a+(f.open?S.c[f.p].iu-S.c[f.p].il:S.c[f.p].eu-S.c[f.p].el),0),best=PZ_J.length*Math.max(0,S.lim-4*S.p);
+  const head=never?['Never assembles','c-bad']:wcAll?['Always assembles','c-ok']:[`${pct(all)} of cubes assemble`,'c-warn'];
+  $('pzSide').innerHTML=`<span class="eyebrow">Result, worst case${S.print?' with printer error':''}</span>
+    <div class="${head[1]}" style="font:700 1.8rem/1.1 var(--display)">${head[0]}</div>
+    <p class="small muted">Simulated: ${pct(all)} of 4,000 printed cubes go together.</p>
+    <h3>Design challenge <span class="chip c-warn" style="vertical-align:middle">Challenge</span></h3>
+    <ul class="checks"><li class="${wcAll?'ok':''}">Assembles every time</li><li class="${playOK?'ok':''}">No joint has more than ${fmt(S.lim)} in of play <span class="muted small">(largest: ${worst.j.id}, ${fmt(worst.maxC)})</span></li></ul>
+    <div class="kv"><span class="k">Tolerance budget (wider = cheaper)</span><span class="v">${fmt(budget)} in</span></div>
+    <p class="small muted">Sum of the tolerance bands on the eight features that form joints. Meet both checks with the largest budget you can. Best possible with these settings: ${fmt(best)} in.</p>`;
+  $('pzJTbl').innerHTML=`<thead><tr><th>Joint</th><th>What slides into what</th><th>Opening</th><th>Inside it</th><th>Clearance</th><th>Fit</th><th>Play</th><th>Prints that fit</th></tr></thead><tbody>`+
+    res.map((x,i)=>{const c=classify(x.minC,x.maxC);return `<tr><td><b>${x.j.id}</b></td><td>${x.j.desc}</td><td class="t">${fmt(x.O.min)}–${fmt(x.O.max)}</td><td class="t">${fmt(x.I.min)}–${fmt(x.I.max)}</td><td class="t">${sfmt(x.minC)} to ${sfmt(x.maxC)}</td><td class="${c.c}">${c.k}</td><td class="${x.maxC<=S.lim+E?'c-ok':'c-bad'}">${x.maxC<=S.lim+E?'OK':'Too loose'}</td><td class="t">${pct(jf[i])}</td></tr>`}).join('')+'</tbody>';
+  $('pzZones').innerHTML=res.map((x,i)=>`<figure><svg id="pzZ${i}" viewBox="0 0 320 210" role="img" aria-label="${x.j.id} tolerance zones"></svg><figcaption><b>${x.j.id}</b>: ${x.j.desc}</figcaption></figure>`).join('');
+  res.forEach((x,i)=>zoneSVG($('pzZ'+i),x.O,x.I,PZ_U,'opening','inside'));
+  build3DPuzzle(action);
+}
+function build3DPuzzle(action){
+  document.querySelectorAll('[data-pzcase]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pzcase===pz.case));
+  const s=pzCaseSizes(pz.R),o=pzOutcome(s),msg=pzMsg(s),ji=o.jam?PZ_ORDER.indexOf(o.jam):99;
+  pz.rest={};PZ_ORDER.forEach((p,i)=>pz.rest[p]=i<ji?0:i===ji?7:PZ_EXP[p]);
+  if(!V3){$('st3').innerHTML=msg;return}
+  const v=V3;v.clear();pz.groups={};
+  PZ_ORDER.forEach(p=>{const g=new THREE.Group();v.g.add(g);pz.groups[p]=g;const col=tok('--p'+p);
+    PZ_VOX[p].forEach(([x,y,z])=>v.box(9.7,9.7,9.7,x*10-10,z*10+.15,y*10-10,col,{parent:g,op:pz.see?.35:null}))});
+  const mk=new THREE.Group();v.g.add(mk);
+  PZ_J.forEach(j=>{const c=pzClr(j,s),col=tok(c<-E?'--bad':c>pz.S.lim+E?'--warn':'--ok'),oo={parent:mk,op:.9,edges:false,pof:-3};
+    const [cx,cy,cz]=j.cell;[-5,5].forEach(d=>v.box(1.2,10.6,10.6,cx*10-10+d,cz*10-.15,cy*10-10,col,oo))});   // both side faces of the inner cube
+  // e = explode 0..1. The camera frames the pieces wherever they are (exploded, or waiting above a jam).
+  const place=e=>{PZ_ORDER.forEach(p=>pz.groups[p].position.y=e*PZ_EXP[p]+(1-e)*pz.rest[p]);mk.visible=e<.01;
+    const top=Math.max(...PZ_ORDER.map(p=>pz.groups[p].position.y))+30;v.target=[0,top/2,0];v.dist=v.home.dist*Math.max(1,.5+top/60);v.dirty=true};
+  pz.place=place;
+  if(action!=='animate'){place(+$('pzExp').value);$('st3').innerHTML=msg;return}
+  $('pzExp').value=0;PZ_ORDER.forEach(p=>pz.groups[p].position.y=PZ_EXP[p]);mk.visible=false;$('st3').innerHTML='Assembling…';
+  const seq=PZ_ORDER.filter((p,i)=>i>0&&i<=ji);
+  seq.forEach((p,k)=>{const g=pz.groups[p],from=PZ_EXP[p],to=pz.rest[p];v.anim(450,t=>g.position.y=from+(to-from)*t,k===seq.length-1?()=>{place(0);$('st3').innerHTML=msg}:null)});
+}
+function pzReset(){pz.builds=pz.ok=pz.jam=pz.loose=0;pz.rand=null;if(pz.case==='rand')pz.case='tight';$('tally3').innerHTML=''}
+function pzTally(){$('tally3').innerHTML=pz.builds?`<span>Cubes printed <b>${pz.builds}</b></span><span class="c-ok">Assembled <b>${pz.ok}</b></span><span class="c-warn">Rattle <b>${pz.loose}</b></span><span class="c-bad">Jammed <b>${pz.jam}</b></span>`:''}
+function pzAdd(s){const o=pzOutcome(s);pz.builds++;if(o.jam)pz.jam++;else if(o.loose.length)pz.loose++;else pz.ok++}
+function pzSet(k){const P=PZ_PRESETS[k];
+  PZ_ORDER.forEach(p=>{$(`pz_${p}_eu`).value=P.ext[0].toFixed(3);$(`pz_${p}_el`).value=P.ext[1].toFixed(3);if($(`pz_${p}_iu`)){$(`pz_${p}_iu`).value=P.open[0].toFixed(3);$(`pz_${p}_il`).value=P.open[1].toFixed(3)}});
+  $('pzPrint').checked=P.print;if(P.print){$('pzP').value=P.p.toFixed(3);$('pzB').value=P.b.toFixed(3)}
+  document.querySelectorAll('[data-pz]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pz===k));
+  pz.case='tight';pzReset();
+}
+document.querySelectorAll('[data-pz]').forEach(b=>b.addEventListener('click',()=>{pzSet(b.dataset.pz);pzCalc('animate')}));
+document.querySelectorAll('#pzTolTbl input,#pzPrint,#pzP,#pzB,#pzLim').forEach(el=>el.addEventListener(el.type==='checkbox'?'change':'input',()=>{document.querySelectorAll('[data-pz]').forEach(b=>b.setAttribute('aria-pressed','false'));pzReset();pzCalc('instant')}));
+document.querySelectorAll('[data-pzcase]').forEach(b=>b.addEventListener('click',()=>{pz.case=b.dataset.pzcase;build3DPuzzle('animate')}));
+$('pzAssemble').onclick=()=>build3DPuzzle('animate');
+$('pzPrintOne').onclick=()=>{pz.rand=pzSample(pz.R);pz.case='rand';pzAdd(pz.rand);pzTally();build3DPuzzle('animate')};
+$('pzPrint50').onclick=()=>{for(let i=0;i<50;i++){pz.rand=pzSample(pz.R);pzAdd(pz.rand)}pz.case='rand';pzTally();build3DPuzzle('animate')};
+$('pzExp').addEventListener('input',()=>{if(V3)V3.anims.length=0;pz.place&&pz.place(+$('pzExp').value)});
+$('pzSee').addEventListener('change',()=>{pz.see=$('pzSee').checked;build3DPuzzle('instant')});
+const VIEWS3={iso:{theta:.75,phi:1.0,dist:170},front:{theta:0,phi:1.5708,dist:150},top:{theta:0,phi:.06,dist:160}};
+document.querySelectorAll('[data-view3]').forEach(b=>b.addEventListener('click',()=>V3&&V3.view(b.dataset.view3,VIEWS3)));
+
+/* ---------- workbench ---------- */
+const SAMPLE_FIT={hn:.75,hu:.008,hl:0,sn:.738,su:.004,sl:-.004};
+const SAMPLE_STACK={b:[[1,.004,-.004],[.625,.004,-.004],[.375,.002,-.002]],p:[2.020,.008,0],gmax:.028};
+const wb=store.get('tol.bench.in',null)||{mode:'fit',fit:SAMPLE_FIT,stack:SAMPLE_STACK,att:{},score:{first:0,done:0,problems:0},sample:{fit:true,stack:true}};
+const near=(a,b)=>Math.abs(a-b)<=0.0005+1e-9;   // answers count within ±0.0005 in
+function fitKey(p){const H={min:p.hn+p.hl,max:p.hn+p.hu},S={min:p.sn+p.sl,max:p.sn+p.su};const allow=H.min-S.max,maxc=H.max-S.min;
+  return {H,S,allow,maxc,cls:classify(allow,maxc).k,ht:tolType(p.hu,p.hl),st:tolType(p.su,p.sl)}}
+function stackKey(q){const bl=q.b.map(([n,u,l])=>({n,max:n+u,min:n+l,mean:n+(u+l)/2,half:(u-l)/2})),[pn,pu,pl]=q.p,P={max:pn+pu,min:pn+pl,mean:pn+(pu+pl)/2,half:(pu-pl)/2};
+  const sMax=bl.reduce((a,b)=>a+b.max,0),sMin=bl.reduce((a,b)=>a+b.min,0),sNom=bl.reduce((a,b)=>a+b.n,0);
+  const rss=Math.sqrt(P.half**2+bl.reduce((a,b)=>a+b.half**2,0)),wc=P.half+bl.reduce((a,b)=>a+b.half,0);
+  const gmin=P.min-sMax,gmax=P.max-sMin;
+  return {P,sMax,sMin,sNom,gmin,gmax,rss,wc,nom:pn-sNom,meets:(gmin>=-E&&gmax<=q.gmax+E)?'Yes':'No'}}
+const TYPES=['Unilateral','Bilateral (equal)','Bilateral (unequal)'],CLASSES=['Clearance','Transition','Interference'];
+const FIT_STEPS=[
+  {id:'ht',q:'Slot tolerance type',sel:TYPES,ans:k=>k.ht,hint:(v,k,p)=>k.ht==='Unilateral'?'One of the slot\'s deviations is zero, so all its variation is in one direction.':'The slot varies both above and below its basic size. Compare the sizes of the + and − deviations.'},
+  {id:'hmax',q:'Slot upper limit',ans:k=>k.H.max,hint:(v,k,p)=>near(v,k.H.min)?'That\'s the lower limit. Upper limit = basic + upper deviation.':near(v,p.hn)?'That\'s the basic size. Add the upper deviation.':'Upper limit = basic size + upper deviation.'},
+  {id:'hmin',q:'Slot lower limit',ans:k=>k.H.min,hint:(v,k,p)=>near(v,k.H.max)?'That\'s the upper limit. Lower limit = basic + lower deviation (a negative or zero number).':'Lower limit = basic size + lower deviation. A deviation of −0.00 leaves the basic size unchanged.'},
+  {id:'st',q:'Tab tolerance type',sel:TYPES,ans:k=>k.st,hint:(v,k)=>k.st==='Unilateral'?'One of the tab\'s deviations is zero.':k.st==='Bilateral (equal)'?'The tab varies by the same amount both ways (±).':'The tab varies both ways, but by different amounts.'},
+  {id:'smax',q:'Tab upper limit',ans:k=>k.S.max,hint:(v,k,p)=>near(v,k.S.min)?'That\'s the lower limit of the tab.':'Upper limit = tab basic + tab upper deviation.'},
+  {id:'smin',q:'Tab lower limit',ans:k=>k.S.min,hint:(v,k,p)=>near(v,k.S.max)?'That\'s the upper limit of the tab.':'Lower limit = tab basic + tab lower deviation.'},
+  {id:'allow',q:'Allowance (tightest fit, signed)',ans:k=>k.allow,hint:(v,k)=>near(v,k.maxc)?'That\'s the loosest case. Allowance pairs the smallest slot with the largest tab (both at MMC).':near(v,-k.allow)?'Check the sign: slot minus tab. A negative result means interference.':(near(v,k.H.max-k.S.max)||near(v,k.H.min-k.S.min))?'You mixed an MMC with an LMC. Use the smallest slot and the largest tab.':'Allowance = slot lower limit − tab upper limit.'},
+  {id:'maxc',q:'Maximum clearance (loosest, signed)',ans:k=>k.maxc,hint:(v,k)=>near(v,k.allow)?'That\'s the tightest case. Max clearance pairs the largest slot with the smallest tab (both at LMC).':near(v,-k.maxc)?'Check the sign: slot minus tab.':'Max clearance = slot upper limit − tab lower limit.'},
+  {id:'cls',q:'Fit class',sel:CLASSES,ans:k=>k.cls,hint:(v,k)=>'Look at the signs of your allowance and maximum clearance. Both ≥ 0: clearance. Both ≤ 0: interference. One of each: transition.'}
+];
+const STACK_STEPS=[
+  {id:'gmin',q:'Worst-case minimum gap',ans:k=>k.gmin,hint:(v,k)=>near(v,k.gmax)?'That\'s the largest gap. The smallest gap uses the smallest pocket and the largest blocks.':near(v,k.nom)?'That\'s the gap at basic sizes. Apply the tolerances.':near(v,k.P.max-k.sMax)||near(v,k.P.min-k.sMin)?'Both ends must be at their worst together: smallest pocket and largest blocks.':'Gap min = pocket lower limit − (sum of block upper limits).'},
+  {id:'gmax',q:'Worst-case maximum gap',ans:k=>k.gmax,hint:(v,k)=>near(v,k.gmin)?'That\'s the smallest gap. The largest gap uses the largest pocket and the smallest blocks.':'Gap max = pocket upper limit − (sum of block lower limits).'},
+  {id:'rss',q:'RSS tolerance on the gap (±)',ans:k=>k.rss,hint:(v,k)=>near(v,k.wc)?'That\'s the worst-case ± (a plain sum). RSS squares each ± tolerance, adds them, then takes the square root.':near(v,k.rss**2)?'Don\'t forget the square root.':'Write each part as ± half its tolerance band (pocket included). RSS = √(Σ t²).'},
+  {id:'meets',q:'Under worst case, does it always fit AND stay under the rattle limit?',sel:['Yes','No'],ans:k=>k.meets,hint:(v,k)=>'Check both: minimum gap ≥ 0 and maximum gap ≤ the rattle limit.'}
+];
+function randFit(){
+  const hn=pick([.25,.375,.5,.625,.75,1,1.25]),t=pick([.002,.004,.006,.008,.010]),slotStyle=pick(['uni','uni','uni','bil']);
+  const hu=slotStyle==='uni'?t:rd2(t/2),hl=slotStyle==='uni'?0:-rd2(t/2);
+  const st=pick([.001,.002,.003,.004]),style=pick(['bil','bil','uni','unequal']);
+  let su,sl;if(style==='bil'){su=st;sl=-st}else if(style==='uni'){su=0;sl=-rd2(2*st)}else{su=st;sl=-rd2(2*st)}
+  const off=pick([-.012,-.010,-.008,-.006,-.004,-.002,0,.001,.002,.003,.005]);
+  return {hn,hu,hl,sn:rd2(hn+off),su,sl};
+}
+function randStack(){
+  const b=[0,1,2].map(()=>{const n=pick([.25,.375,.5,.625,.75,1,1.25]),t=pick([.001,.002,.003,.004]);return pick([0,1])?[n,t,-t]:[n,t,-2*t]});
+  const sum=b.reduce((a,c)=>a+c[0],0),pu=pick([.002,.004,.006,.008]);
+  return {b,p:[rd2(sum+pick([.004,.008,.012,.016,.020])),pu,0],gmax:pick([.016,.020,.024,.028,.032])};
+}
+function probHTML(){
+  if(wb.mode==='fit'){const p=wb.fit;return `<span class="eyebrow">${wb.sample.fit?'Sample problem A':'Random problem'}</span><p>A tab block must fit in a slot. Slot width <strong class="c-hole">${dimHTML(p.hn,p.hu,p.hl)}</strong>, tab width <strong class="c-shaft">${dimHTML(p.sn,p.su,p.sl)}</strong>.</p>`}
+  const q=wb.stack;return `<span class="eyebrow">${wb.sample.stack?'Sample problem B':'Random problem'}</span><p>Three blocks sit end to end in a pocket. Block A <code>${dimText(...q.b[0])}</code>, Block B <code>${dimText(...q.b[1])}</code>, Block C <code>${dimText(...q.b[2])}</code>. Pocket <code class="c-hole">${dimText(...q.p)}</code>. The blocks must always fit, and the end gap must not exceed <strong>${fmt(q.gmax)}</strong> in.</p>`;
+}
+const curSteps=()=>wb.mode==='fit'?FIT_STEPS:STACK_STEPS;
+const curKey=()=>wb.mode==='fit'?fitKey(wb.fit):stackKey(wb.stack);
+function attKey(id){return wb.mode+':'+id}
+function renderBench(){
+  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===wb.mode));
+  $('probText').innerHTML=probHTML();
+  const k=curKey(),p=wb.mode==='fit'?wb.fit:wb.stack;
+  $('steps').innerHTML=curSteps().map((s,i)=>{const a=wb.att[attKey(s.id)]||{tries:[],ok:false};const last=a.tries.length?a.tries[a.tries.length-1]:'';
+    const ctrl=s.sel?`<select id="in_${s.id}" aria-label="${s.q}"><option value="">Choose…</option>${s.sel.map(o=>`<option${o===last?' selected':''}>${o}</option>`).join('')}</select>`:`<input id="in_${s.id}" type="number" step="0.001" inputmode="decimal" aria-label="${s.q}" value="${last}">`;
+    return `<div class="step ${a.ok?'ok':a.tries.length?'no':''}" data-step="${s.id}"><span class="dot">${a.ok?'✓':i+1}</span><span class="q">${s.q}</span>${ctrl}<button data-check="${s.id}">Check</button><div class="fb" id="fb_${s.id}">${a.ok?`<span class="c-ok">Correct${s.sel?'':': '+fmt(s.ans(k),3)}</span>`:a.fb||''}</div></div>`}).join('');
+  document.querySelectorAll('[data-check]').forEach(b=>b.addEventListener('click',()=>check(b.dataset.check)));
+  document.querySelectorAll('.step input,.step select').forEach(el=>el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();check(el.id.slice(3))}}));
+  const sc=wb.score,all=curSteps().every(s=>(wb.att[attKey(s.id)]||{}).ok);
+  $('score').innerHTML=`<span>Steps right on first try <b>${sc.first}</b></span><span>Steps completed <b>${sc.done}</b></span><span>Problems finished <b>${sc.problems}</b></span>${all?'<span class="c-ok"><strong>Problem complete.</strong> Try a new random one.</span>':''}`;
+  store.set('tol.bench.in',wb);
+}
+function check(id){
+  const s=curSteps().find(x=>x.id===id),el=$('in_'+id),k=curKey(),p=wb.mode==='fit'?wb.fit:wb.stack;
+  const a=wb.att[attKey(id)]||(wb.att[attKey(id)]={tries:[],ok:false});if(a.ok)return;
+  let raw=el.value;if(raw===''){$('fb_'+id).innerHTML='<span class="muted">Enter an answer first.</span>';return}
+  let ok;if(s.sel){ok=raw===s.ans(k)}else{const v=parseFloat(String(raw).replace(/−/g,'-'));if(!isFinite(v)){$('fb_'+id).innerHTML='<span class="muted">Enter a number, e.g. 0.008 or −0.002.</span>';return}raw=v;ok=near(v,s.ans(k))}
+  a.tries.push(raw);
+  if(ok){a.ok=true;a.fb='';wb.score.done++;if(a.tries.length===1)wb.score.first++;if(curSteps().every(x=>(wb.att[attKey(x.id)]||{}).ok))wb.score.problems++}
+  else a.fb=`<span class="c-bad">Not yet.</span> ${s.hint(raw,k,p)}${a.tries.length>=3?` <span class="muted">(Answer: ${s.sel?s.ans(k):fmt(s.ans(k),3)})</span>`:''}`;
+  renderBench();
+  if(ok){const nx=document.querySelector('.step:not(.ok) input,.step:not(.ok) select');nx&&nx.focus()}
+}
+function clearAtt(){Object.keys(wb.att).forEach(k=>{if(k.startsWith(wb.mode+':'))delete wb.att[k]})}
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{wb.mode=b.dataset.mode;renderBench()}));
+$('btnNew').onclick=()=>{if(wb.mode==='fit'){wb.fit=randFit();wb.sample.fit=false}else{wb.stack=randStack();wb.sample.stack=false}clearAtt();renderBench()};
+$('btnSampleP').onclick=()=>{if(wb.mode==='fit'){wb.fit=SAMPLE_FIT;wb.sample.fit=true}else{wb.stack=SAMPLE_STACK;wb.sample.stack=true}clearAtt();renderBench()};
+$('btnShow3D').onclick=()=>{
+  if(wb.mode==='fit'){const p=wb.fit;setFitVals([p.hn,p.hu,p.hl,p.sn,p.su,p.sl],wb.sample.fit?'sample':'');goTo('explorer')}
+  else{const q=wb.stack;['a','b','c'].forEach((c,i)=>{$(c+'n').value=q.b[i][0].toFixed(3);$(c+'u').value=q.b[i][1].toFixed(3);$(c+'l').value=q.b[i][2].toFixed(3)});$('pn').value=q.p[0].toFixed(3);$('pu').value=q.p[1].toFixed(3);$('pl').value=q.p[2].toFixed(3);$('gmax').value=q.gmax.toFixed(3);resetBuilds();stack();goTo('stack')}
+};
+
+/* ---------- one section at a time ---------- */
+const SHORT={plan:'Plan',notation:'Reading',inspect:'Inspector',explorer:'Fit explorer',fits:'Fits',stack:'Stack-ups',bench:'Practice',print:'3D printing',puzzle:'Puzzle cube',exit:'Exit ticket'};
+const SECS=[...document.querySelectorAll('.wrap > section')];
+const nav={paged:store.get('tol.paged',true)!==false,cur:null};
+const secName=s=>s.querySelector('h2 .n').textContent+' '+(SHORT[s.id]||s.id);
+$('lnav').innerHTML=`<button id="navBack" aria-label="Previous section">◀</button><div class="tabsrow">${SECS.map(s=>`<button data-go="${s.id}">${secName(s)}</button>`).join('')}</div><button id="navNext" aria-label="Next section">▶</button><button id="navMode"></button>`;
+SECS.forEach((s,i)=>{const d=document.createElement('div');d.className='pager';
+  d.innerHTML=(i>0?`<button data-go="${SECS[i-1].id}">◀ ${secName(SECS[i-1])}</button>`:'')+(i<SECS.length-1?`<button class="primary nextbtn" data-go="${SECS[i+1].id}">Next: ${secName(SECS[i+1])} ▶</button>`:'<span class="muted small">End of the lesson.</span>');s.append(d)});
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>goTo(b.dataset.go)));
+// Show section id: alone (one at a time) or scrolled to (show all). noscroll: leave the page where it is.
+function goTo(id,noscroll){
+  const i=SECS.findIndex(s=>s.id===id);if(i<0)return;nav.cur=id;store.set('tol.sec',id);
+  document.body.classList.toggle('paged',nav.paged);
+  SECS.forEach(s=>s.hidden=nav.paged&&s.id!==id);
+  document.querySelector('header.top').hidden=nav.paged&&i>0;
+  navMark(id);$('navBack').disabled=i===0;$('navNext').disabled=i===SECS.length-1;
+  $('navMode').textContent=nav.paged?'Show all':'One at a time';$('navMode').title=nav.paged?'Show the whole lesson as one long page':'Show one section at a time';
+  if(noscroll)return;if(nav.paged)window.scrollTo(0,0);else $(id).scrollIntoView();
+}
+// Highlight a section's button in the bar and bring it into view there.
+function navMark(id){document.querySelectorAll('#lnav [data-go]').forEach(b=>b.setAttribute('aria-current',b.dataset.go===id));
+  const row=document.querySelector('#lnav .tabsrow'),b=row.querySelector(`[data-go="${id}"]`);if(b)row.scrollLeft=b.offsetLeft-row.clientWidth/2+b.offsetWidth/2}
+const step=d=>{const i=SECS.findIndex(s=>s.id===nav.cur)+d;if(i>=0&&i<SECS.length)goTo(SECS[i].id)};
+$('navBack').onclick=()=>step(-1);$('navNext').onclick=()=>step(1);
+$('navMode').onclick=()=>{nav.paged=!nav.paged;store.set('tol.paged',nav.paged);goTo(nav.cur)};
+// Show all: the bar follows the section being read.
+{const io=new IntersectionObserver(es=>{if(nav.paged)return;const v=es.find(e=>e.isIntersecting);if(v){nav.cur=v.target.id;navMark(v.target.id);store.set('tol.sec',v.target.id)}},{rootMargin:'-70px 0px -60% 0px'});
+  SECS.forEach(s=>io.observe(s))}
+{const saved=store.get('tol.sec',null);goTo(SECS.some(s=>s.id===saved)?saved:SECS[0].id,true)}
+
+/* ---------- boot ---------- */
+if(has3D){
+  try{V1=new View3D($('cv1'),{theta:.62,phi:1.0,dist:150,target:[0,12,0]});}catch(e){V1=null;fail3D('cv1')}
+  try{V2=new View3D($('cv2'),{theta:.5,phi:.95,dist:150,target:[0,6,0]});}catch(e){V2=null;fail3D('cv2')}
+  try{V3=new View3D($('cv3'),{theta:.75,phi:1.0,dist:170,target:[0,15,0]});}catch(e){V3=null;fail3D('cv3')}
+}else{fail3D('cv1');fail3D('cv2');fail3D('cv3')}
+setFitVals(presets.sample,'sample');stack();pfit();renderBench();renderTally();
+drawBand();qDraw();dzDraw();laAll();
+pzSet('hole');pzCalc('instant');
+const rebuild=()=>{build3DFit('instant');build3DStack('instant');build3DPuzzle('instant')};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',rebuild);
+new MutationObserver(rebuild).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+</script>
+
+</body>
+</html>

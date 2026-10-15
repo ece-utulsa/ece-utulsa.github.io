@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CNC Machining Center — @@EDITION@@ edition</title>
+<style>
+/* Layout: a reading column of lesson sections; one shared "machine deck" (3D machine + control rail) moves into the
+   section being shown. Light shop-floor look: dark ink on pale grey, machine-teal accent. */
+:root{
+  color-scheme:light;
+  --bg:#EEF1F4; --surface:#FFFFFF; --ink:#17202A; --muted:#566370; --rule:#D3DAE1; --tint:#E6EBF0;
+  --accent:#0B7285; --accent-soft:#D5EEF1; --ok:#2B8A3E; --warn:#C27500; --bad:#C92A2A; --blue:#1971C2;
+  --display:"Avenir Next Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 64px}
+h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.1rem,5vw,3.2rem)}
+h2{font-size:1.85rem;display:flex;gap:.5em;align-items:baseline;flex-wrap:wrap}
+h2 .n{font-family:var(--mono);font-size:.95rem;color:var(--accent);font-weight:600}
+h3{font-size:1.25rem}
+p{margin:0;max-width:72ch}
+code,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font:600 .78rem/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)} .small{font-size:.9rem}
+header.top{display:grid;gap:12px;padding-bottom:20px;border-bottom:2px solid var(--ink)}
+header.top .meta{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.92rem;color:var(--muted)}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.edition{font:600 .78rem/1 var(--body);letter-spacing:.1em;text-transform:uppercase;padding:7px 10px;border-radius:4px;border:1px solid var(--ink)}
+.edition.teacher-ed{background:var(--ink);color:var(--surface)}
+section{display:grid;gap:16px;padding-block:30px;border-bottom:1px solid var(--rule);scroll-margin-top:60px}
+[hidden]{display:none!important}
+/* section bar: one section at a time (default) or the whole lesson as one page */
+.lnav{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--rule);display:flex;gap:6px;align-items:center;padding:8px 0}
+.lnav .tabsrow{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin;padding:2px}
+.lnav .tabsrow button{white-space:nowrap;font-size:.82rem;padding:6px 9px}
+.lnav .tabsrow button[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.lnav>button{flex:0 0 auto;padding:6px 10px}
+.pager{display:none;justify-content:space-between;align-items:center;gap:10px;padding-top:10px;flex-wrap:wrap}
+body.paged .pager{display:flex}
+.pager .nextbtn{font-size:1.05rem;padding:12px 18px;margin-left:auto}
+body.paged section{border-bottom:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.grid2>*,.grid3>*{min-width:0}
+.sheet{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;display:grid;gap:12px;min-width:0}
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;font-size:.95rem}
+.note.blue{border-color:var(--blue);background:#E7F0FA}
+ul,ol{margin:0;padding-left:1.25em;display:grid;gap:4px}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font:600 .76rem/1.2 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+td.t{font-family:var(--mono);white-space:nowrap}
+.tbl{overflow-x:auto}
+dl.terms{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0} dl.terms dt{font-weight:700} dl.terms dd{margin:0}
+.chip{display:inline-block;font:700 .72rem/1 var(--body);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
+.c-ok{color:var(--ok)} .c-warn{color:var(--warn)} .c-bad{color:var(--bad)}
+button{font:600 .9rem var(--body);padding:8px 12px;border-radius:6px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover:not(:disabled){color:#fff;filter:brightness(1.07)}
+button[aria-pressed="true"].seg{background:var(--ink);border-color:var(--ink);color:#fff}
+.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btns .sep{width:1px;align-self:stretch;background:var(--rule);margin:0 4px}
+label{display:grid;gap:4px;font-size:.82rem;color:var(--muted);min-width:0}
+label.tog{display:inline-flex;gap:6px;align-items:center;font-size:.9rem;color:var(--ink);cursor:pointer}
+input[type=number],input[type=text],select,textarea{font:500 .95rem var(--mono);padding:6px 7px;border:1px solid var(--rule);border-radius:5px;background:var(--bg);color:var(--ink);width:100%}
+select{font-family:var(--body)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.kbd,kbd{font:500 .8rem var(--mono);border:1px solid var(--rule);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff;color:var(--ink)}
+
+
+/* ---------- machine deck ---------- */
+.deck{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:stretch}
+@media (max-width:900px){.deck{grid-template-columns:1fr}}
+.view{position:relative;height:min(66vh,620px);min-height:360px;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:#DDE3E8}
+#c{display:block;width:100%;height:100%;touch-action:none;outline:none}
+.hud{position:absolute;display:flex;gap:6px;align-items:center;pointer-events:none}
+.hud>*{pointer-events:auto}
+.hud.tl{top:10px;left:10px;flex-wrap:wrap;max-width:60%}
+.hud.tr{top:10px;right:10px}
+.hud.br{bottom:10px;right:10px;font-family:var(--mono);font-size:12px;background:rgba(255,255,255,.92);border:1px solid var(--rule);border-radius:6px;padding:4px 8px}
+.hud.bl{bottom:10px;left:10px}
+.hchip{font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase;background:var(--ink);color:#fff;border-radius:5px;padding:3px 8px}
+.phase{background:rgba(255,255,255,.94);border:1px solid var(--rule);border-radius:5px;padding:3px 8px;font-weight:600;font-size:13px}
+.vseg{display:inline-flex;background:rgba(255,255,255,.95);border:1px solid var(--rule);border-radius:7px;padding:2px;flex-wrap:wrap}
+.vseg button{font:700 12px var(--display);letter-spacing:.04em;text-transform:uppercase;border:0;background:transparent;color:var(--muted);padding:5px 8px;border-radius:5px}
+.vseg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.flash{position:absolute;inset:0;border:6px solid var(--bad);border-radius:10px;opacity:0;pointer-events:none;transition:opacity .4s}
+.flash.on{opacity:1;transition:none}
+.banner{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(23,32,42,.9);color:#fff;border-radius:10px;padding:14px 20px;font:700 1.05rem var(--body);text-align:center;max-width:80%;pointer-events:none}
+.banner.bad{background:rgba(201,42,42,.92)} .banner.good{background:rgba(43,138,62,.92)}
+@media (max-width:600px){.hud.tr{top:42px;left:10px;right:auto}}
+.rail{display:flex;flex-direction:column;gap:10px;min-width:0;height:min(66vh,620px);min-height:360px}
+@media (max-width:900px){.rail{height:auto}}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+.card h4{font:700 12px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0}
+.rtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;border-bottom:1px solid var(--rule);padding-bottom:6px}
+.rtabs button{border:0;background:transparent;padding:5px 2px;font:700 12px var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-radius:5px}
+.rtabs button[aria-pressed="true"]{background:var(--tint);color:var(--ink)}
+.rbody{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.dro{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;background:#17202A;color:#8CF0A4;border-radius:8px;padding:8px 12px;font:600 1.05rem var(--mono);font-variant-numeric:tabular-nums}
+.dro span{color:#9AA8B5;font-size:.8rem;align-self:center}
+.dro b{text-align:right;font-weight:600}
+.minis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 10px;margin:0}
+.minis dt{font:700 10.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.minis dd{margin:0;font:500 13.5px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gauge{display:grid;gap:3px}
+.gauge i{display:block;height:10px;background:var(--tint);border-radius:5px;overflow:hidden;position:relative}
+.gauge i b{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ok);border-radius:5px}
+.gauge i::after{content:"";position:absolute;left:80%;top:0;bottom:0;border-left:2px dashed rgba(23,32,42,.35)}
+.ops{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.ops li{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:center;font-size:13.5px;color:var(--muted);padding:2px 0}
+.ops li::before{content:"";width:12px;height:12px;border-radius:50%;border:2px solid var(--rule);justify-self:center}
+.ops li.active{color:var(--ink);font-weight:700} .ops li.active::before{border-color:var(--accent);background:var(--accent-soft)}
+.ops li.done{color:var(--ink)} .ops li.done::before{border-color:var(--ok);background:var(--ok)}
+.ops li.bad{color:var(--bad)} .ops li.bad::before{border-color:var(--bad);background:var(--bad)}
+pre.gcode{position:relative;margin:0;background:#17202A;color:#D6DDE3;border-radius:8px;padding:8px 0;font:12.5px/1.55 var(--mono);overflow:auto;flex:1;min-height:180px;white-space:pre}
+pre.gcode div{padding:0 10px}
+pre.gcode .ln{color:#6C7A88;display:inline-block;width:3.2em}
+pre.gcode .cm{color:#8CA0B3}
+pre.gcode .on{background:#0B7285;color:#fff}
+pre.gcode .on .ln,pre.gcode .on .cm{color:#E3F6F8}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:12.5px}
+.log li{display:grid;grid-template-columns:52px 1fr;gap:6px}
+.log time{font-family:var(--mono);color:var(--muted)}
+.log li.bad{color:var(--bad)} .log li.good{color:var(--ok)}
+.jog{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.jog button{padding:9px 0;font:700 13px var(--mono)}
+.jog .x{color:#C92A2A}.jog .y{color:#2B8A3E}.jog .z{color:#1971C2}
+.go{background:var(--ok)!important;border-color:var(--ok)!important;color:#fff!important}
+/* ---------- drawing, plan, inspection ---------- */
+.parts{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.parts button{display:grid;gap:4px;justify-items:center;padding:10px;text-align:center}
+.parts button svg{width:100%;height:70px}
+.parts button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;color:var(--ink)}
+.parts small{font-weight:500;color:var(--muted)}
+.dwg svg{display:block;width:100%;height:auto;background:#FBFCFD;border:1px solid var(--rule);border-radius:8px}
+.dwg svg text{font-family:var(--mono);font-size:11px;fill:#17202A}
+.dwg svg .t{font-family:var(--body);font-weight:700}
+.dims td.t{text-align:right}
+.dims tr.pass td:last-child{color:var(--ok);font-weight:700}.dims tr.fail td:last-child{color:var(--bad);font-weight:700}
+.dims tr.fail{background:#FDECEC}
+.bal{display:inline-grid;place-items:center;min-width:28px;height:22px;border-radius:11px;border:1.5px solid currentColor;font:700 11px var(--mono);padding:0 4px}
+.plan{display:grid;grid-template-columns:200px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:760px){.plan{grid-template-columns:1fr}}
+.pal{display:grid;gap:6px;align-content:start}
+.pal button{text-align:left;display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:center}
+.pal button svg{width:28px;height:28px}
+.opcards{display:grid;gap:8px;align-content:start}
+.opc{border:1px solid var(--rule);border-left:6px solid var(--c,#0B7285);border-radius:8px;background:var(--surface);padding:8px 10px;display:grid;gap:6px}
+.opc.sel{box-shadow:0 0 0 2px var(--c,#0B7285)}
+.opc.run{background:#FFF9DB}
+.opc .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.opc .hd strong{font-size:.98rem}
+.opc .hd .num{font:700 12px var(--mono);background:var(--c,#0B7285);color:#fff;border-radius:4px;padding:2px 6px}
+.opc .tools{margin-left:auto;display:inline-flex;gap:3px}
+.opc .tools button{padding:2px 8px;font-size:.78rem}
+.opc .flds{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 10px}
+.opc .flds label{font-size:.78rem}
+.opc .flds input,.opc .flds select{padding:4px 6px;font-size:.88rem}
+.opc .meta{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:.82rem;color:var(--muted)}
+.opc .meta .gauge{min-width:150px;flex:1}
+.check{list-style:none;padding:0;margin:0;display:grid;gap:4px;font-size:.92rem}
+.check li.bad{color:var(--bad)} .check li.ok{color:var(--ok)}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:stretch}
+.flow div{background:var(--surface);border:1px solid var(--rule);border-top:4px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:.9rem}
+.flow b{display:block;font-family:var(--display);font-size:1.15rem}
+.toolrack{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.toolrack div{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:8px 10px;font-size:.88rem}
+.toolrack svg{width:44px;height:64px}
+.result{display:grid;gap:8px;border-radius:10px;padding:14px 16px;border:1px solid var(--rule);background:var(--surface)}
+.result.good{border-color:var(--ok);background:#EBFBEE}.result.bad{border-color:var(--bad);background:#FFF5F5}
+.stars{font-size:1.6rem;letter-spacing:.1em;color:#F2A900}.stars .off{color:var(--rule)}
+.quiz{display:grid;gap:12px}.quiz .q{display:grid;gap:6px}.quiz .opts{display:flex;flex-wrap:wrap;gap:6px}.quiz .fb{font-size:.92rem;min-height:1.3em}
+.exit{gap:14px}.exit .ans{border-left:3px solid var(--ok);padding-left:10px;margin-top:6px}
+.tasks{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.tasks li{display:flex;gap:10px;align-items:center;font-size:.95rem}
+.tasks li::before{content:"○";color:var(--muted);font-weight:700}
+.tasks li.ok::before{content:"✓";color:var(--ok)}
+.dsg{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:900px){.dsg{grid-template-columns:1fr}}
+.dsg table input,.dsg table select{width:58px;padding:3px 4px;font-size:.85rem}.dsg table input[type=checkbox]{width:auto}.dsg table select[data-h]{width:88px}.dsg th{font-size:.68rem;padding:5px 4px}
+.dsg td{vertical-align:middle;padding:4px 5px}
+.frm{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="toprow">
+    <span class="eyebrow">Engineering &amp; Manufacturing · CNC machining</span>
+    <span class="edition @@EDCLASS@@">@@EDITION@@ edition</span>
+  </div>
+  <h1>CNC Machining Center</h1>
+  <p>Real parts start as a drawing and end as metal chips on the shop floor. In between, a machinist plans every cut, and a computer-controlled mill carries the plan out. Meet the machine, read a part drawing, plan the machining steps, watch your part being cut in 3D, then measure it to see if it passes.</p>
+  <div class="meta"><span>About 90 minutes</span><span>All sizes in inches (in)</span><span>@@VERSION@@</span><!--T--><span>Materials: this page projected; one computer per pair</span><!--/T--></div>
+</header>
+<nav class="lnav" id="lnav" aria-label="Lesson sections"></nav>
+
+<!--T-->
+<section id="plan">
+  <h2><span class="n">00</span>Teacher plan</h2>
+  <div class="note small"><strong>Moving around.</strong> The page shows one section at a time: use the section bar at the top, or the Next button at the end of each section. <strong>Show all</strong> switches to one long page. Each computer remembers where it left off, the chosen part and material, each part's machining plan, the student's own design and the best scores.</div>
+  <div class="note small"><strong>Two files.</strong> This Teacher edition has the plan, agenda and answer keys. Give students the <strong>Student edition</strong>: the same activities with the plan and answer keys left out of the file. Both open by double-clicking, work offline and need no account. A laptop or Chromebook works best.</div>
+  <div class="grid2">
+    <div class="sheet">
+      <h3>Learning objectives</h3>
+      <p class="small muted">By the end, students can:</p>
+      <ol>
+        <li>Describe how a part goes from a drawing (CAD) to machining steps (CAM) to G-code to a CNC machine.</li>
+        <li>Locate a point with X, Y and Z machine coordinates and a work zero.</li>
+        <li>Read a simple part drawing: sizes, hole callouts and tolerances.</li>
+        <li>Choose and order machining operations and tools for a part, and explain why the order matters.</li>
+        <li>Explain the trade-off between cutting faster and breaking tools, and inspect a part against its tolerances.</li>
+      </ol>
+    </div>
+    <div class="sheet">
+      <h3>The activities</h3>
+      <ul class="small">
+        <li><strong>§01 Meet the machine:</strong> a 3D CNC mill. Jog the axes to target points, meet the tools, 3-question check.</li>
+        <li><strong>§02 Read the drawing:</strong> pick one of four parts and a material; read its drawing and dimension table.</li>
+        <li><strong>§03 Plan the job:</strong> build the list of operations (face, spot drill, drill, pocket, profile), pick tools, depths and feeds; see each toolpath in 3D.</li>
+        <li><strong>§04 Machine it:</strong> cycle start; watch the metal come off, the G-code line by line, the tool load.</li>
+        <li><strong>§05 Inspect:</strong> every dimension measured against the drawing's tolerance; stars and cycle time.</li>
+        <li><strong>§06 Challenges:</strong> every part in every material, beat the target time.</li>
+        <li><strong>§07 Design a part</strong> (extension): draw your own part, then plan and machine it.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="sheet">
+    <h3>Agenda</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Time</th><th>Segment</th><th>Activity</th></tr></thead>
+      <tbody>
+        <tr><td class="t">0–8</td><td>Hook</td><td>Project §04 with the Keychain tag and its example plan: press Cycle start and let the class watch it being cut. Ask: who told the machine where to go?</td></tr>
+        <tr><td class="t">8–20</td><td>Meet the machine</td><td>§01: CAD → CAM → G-code → CNC. Pairs jog to the three target points, read the tool rack, take the check.</td></tr>
+        <tr><td class="t">20–30</td><td>Read the drawing</td><td>§02: the Keychain tag drawing together; pairs answer the two drawing questions.</td></tr>
+        <tr><td class="t">30–50</td><td>Plan the job</td><td>§03: start from an empty plan, build it operation by operation; discuss the order (outline last) and tool choice.</td></tr>
+        <tr><td class="t">50–65</td><td>Machine and inspect</td><td>§04–§05: run it, measure it, fix the plan, run it again until it passes.</td></tr>
+        <tr><td class="t">65–84</td><td>Challenges</td><td>§06: other parts and aluminum; beat the target time without breaking a tool.</td></tr>
+        <tr><td class="t">84–90</td><td>Exit ticket</td><td>Four questions on paper (§08).</td></tr>
+        <tr><td class="t">Extra</td><td>Design a part</td><td>§07: fast finishers, a second lesson or homework.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="sheet small">
+    <h3>Key terms</h3>
+    <dl class="terms">
+      <dt>CAD / CAM / CNC</dt><dd>Computer-aided design (the drawing) / computer-aided manufacturing (planning the cuts) / computer numerical control (the machine follows coded instructions).</dd>
+      <dt>G-code</dt><dd>The machine's language: one line per move or command, for example <code>G1 X1.25 Y0.5 F30</code>.</dd>
+      <dt>Work zero</dt><dd>The point the program measures from: here the front-left corner of the stock (X 0, Y 0) and the finished top of the part (Z 0).</dd>
+      <dt>Stock</dt><dd>The block of raw material the part is cut from.</dd>
+      <dt>Feed / depth per pass</dt><dd>How fast the tool moves through the material (inches per minute) / how deep it cuts on each trip around.</dd>
+      <dt>Tabs</dt><dd>Small bridges left when cutting out the outline so the part stays attached until the end.</dd>
+      <dt>Tolerance</dt><dd>How far a measured size may be from the drawing's size and still pass, for example ±0.005 in.</dd>
+    </dl>
+  </div>
+</section>
+<!--/T-->
+
+<section id="meet">
+  <h2><span class="n">01</span>Meet the machine</h2>
+  <p>A <strong>CNC mill</strong> holds a spinning cutting tool and moves it in three directions: <strong>X</strong> (left and right), <strong>Y</strong> (front and back) and <strong>Z</strong> (up and down). The block of material, the <strong>stock</strong>, is clamped in a vise. Every move comes from a program; nobody steers it by hand while it cuts.</p>
+  <div class="flow">
+    <div><b>1 · CAD</b>Someone draws the part with its sizes and tolerances.</div>
+    <div><b>2 · CAM</b>A machinist plans the cuts: which tools, in what order, how deep and how fast.</div>
+    <div><b>3 · G-code</b>The plan becomes lines of code the machine understands.</div>
+    <div><b>4 · CNC</b>The machine runs the code and cuts the part. Then it is measured.</div>
+  </div>
+  <div class="sheet">
+    <h3>Your turn: jog the machine</h3>
+    <p class="small">Use the X, Y and Z buttons on the machine's control panel (right of the 3D view) to move the tool tip. The numbers are the tool's position in inches from the <strong>work zero</strong>: the front-left corner of the stock, at the top of the finished part. Move the tool to each target (the green ball):</p>
+    <ul class="tasks" id="jogTasks"></ul>
+  </div>
+  <div class="deckslot" data-mode="jog"></div>
+  <div class="sheet"><h3>The tools</h3><p class="small muted">The machine changes tools by itself. Each tool has a job:</p><div class="toolrack" id="toolRack"></div></div>
+  <div class="sheet quiz" id="quiz1"></div>
+</section>
+
+<section id="draw">
+  <h2><span class="n">02</span>Read the drawing</h2>
+  <p>Pick a part and the material to make it from. The drawing shows every size the finished part must have, and how close it must be: the <strong>tolerance</strong>. Holes are labelled <span class="bal">H1</span>, pockets <span class="bal">P1</span>. A <strong>pocket</strong> is a hollow cut into the top; a hole marked <strong>THRU</strong> goes all the way through.</p>
+  <div class="sheet"><span class="eyebrow">Part</span><div class="parts" id="partPick"></div>
+    <div class="btns"><span class="eyebrow" style="margin-right:4px">Material</span><span id="matPick" class="btns"></span></div><p class="small muted" id="matNote"></p></div>
+  <div class="grid2">
+    <div class="dwg" id="dwg"></div>
+    <div class="sheet small"><span class="eyebrow">Dimensions on the drawing</span><div class="tbl"><table class="dims" id="dimTbl"></table></div></div>
+  </div>
+  <div class="sheet quiz" id="quiz2"></div>
+  <div class="deckslot" data-mode="part"></div>
+</section>
+
+<section id="cam">
+  <h2><span class="n">03</span>Plan the job</h2>
+  <p>This is the CAM step: you decide how the machine makes the part. Add <strong>operations</strong> in the order the machine should do them, and choose the tool, the <strong>depth per pass</strong> and the <strong>feed</strong> for each. The tool-load bar shows how hard each cut pushes the tool: past the dashed line it is risky; full red and the tool breaks.</p>
+  <div class="note small"><strong>Machinist's rules of thumb:</strong> face the top first so every depth is measured from a flat, clean surface. Spot-drill before you drill so the drill does not wander. Cut the outline (profile) last, and leave tabs so the part does not come loose. A round tool cannot cut a corner sharper than its own radius.</div>
+  <div class="sheet">
+    <div class="btns"><button id="planAuto">Load the example plan</button><button id="planClear">Clear the plan</button><span class="sep"></span><span class="small muted" id="planPart"></span></div>
+    <div class="plan">
+      <div class="pal" id="opPal" role="group" aria-label="Add an operation"></div>
+      <div style="display:grid;gap:10px;min-width:0"><div class="opcards" id="opCards"></div>
+        <div class="grid2"><div><span class="eyebrow">Plan check</span><ul class="check" id="planCheck"></ul></div>
+          <div><span class="eyebrow">Estimate</span><p class="small" id="planEst"></p><button class="primary" id="planGo">Machine it ▶</button></div></div></div>
+    </div>
+  </div>
+  <p class="small muted">Click an operation to see its toolpath on the machine below: solid lines are cutting moves, dashed grey lines are fast moves through the air.</p>
+  <div class="deckslot" data-mode="path"></div>
+</section>
+
+<section id="run">
+  <h2><span class="n">04</span>Machine it</h2>
+  <p>Press <strong>Cycle start</strong>. The machine follows your plan, one line of G-code at a time: the line it is running is highlighted in the <strong>G-code</strong> tab. Watch the chips fly and the tool-load gauge. <strong>Feed hold</strong> pauses; the speed menu runs the job faster than real time. When it finishes, go to §05 to measure the part.</p>
+  <div class="deckslot" data-mode="run"></div>
+  <div class="note small">Safety on a real machine: doors closed, safety glasses on, hands away while the spindle turns, and one finger near <strong>Feed hold</strong> on the first run of any new program.</div>
+</section>
+
+<section id="insp">
+  <h2><span class="n">05</span>Inspect</h2>
+  <p>Every size on the drawing is measured and compared with its tolerance. A size passes if it is inside the tolerance. Three stars: every size passes and the cycle time beats the target.</p>
+  <div id="inspOut"></div>
+</section>
+
+<section id="chal">
+  <h2><span class="n">06</span>Challenges</h2>
+  <p>Make every part, in every material. The example plan is safe but slow: it earns two stars. For three stars, every size must pass and the cycle time must beat the target. Faster feeds and deeper passes save time, but push the tool load too far and the tool breaks. Aluminum is much harder to cut than wax.</p>
+  <div class="sheet small"><span class="eyebrow">Your best results on this computer</span><div class="tbl"><table id="bestTbl"></table></div></div>
+</section>
+
+<section id="dsg">
+  <h2><span class="n">07</span>Design a part <span class="chip c-warn">Extension</span></h2>
+  <p>Now be the designer. Choose the outline and thickness, add holes and pockets, and the drawing draws itself. Then press <strong>Use my part</strong>, plan it in §03 and machine it in §04.</p>
+  <div class="dsg">
+    <div class="sheet">
+      <div class="frm" id="dsgMain"></div>
+      <span class="eyebrow">Holes</span><div class="tbl"><table id="dsgHoles"></table></div><div class="btns"><button id="dsgAddHole">+ Hole</button></div>
+      <span class="eyebrow">Pockets</span><div class="tbl"><table id="dsgPockets"></table></div><div class="btns"><button id="dsgAddPocket">+ Pocket</button></div>
+      <ul class="check" id="dsgCheck"></ul>
+      <div class="btns"><button class="primary" id="dsgUse">Use my part</button><button id="dsgReset">Start over</button></div>
+    </div>
+    <div class="dwg" id="dsgDwg"></div>
+  </div>
+  <!--T--><div class="note small"><strong>Teacher notes.</strong> Good prompts: design a part with a pocket the 1/2 in end mill cannot finish; design a bracket with four bolt holes; design a part that takes the least cycle time. Pairs can swap designs by reading the sizes aloud: the drawing is the shared language.</div><!--/T-->
+</section>
+
+<section id="exit">
+  <h2><span class="n">08</span>Exit ticket</h2>
+  <p>Answer on paper.</p>
+  <ol class="exit">
+    <li><p>Put these in order and say what each does: G-code, CAM, CAD, CNC machine.</p>
+      <!--T--><p class="small ans">CAD (draw the part) → CAM (plan the cuts) → G-code (the plan as machine instructions) → CNC machine (cuts the part).</p><!--/T--></li>
+    <li><p>Why is the outline (profile) cut last, and what are tabs for?</p>
+      <!--T--><p class="small ans">Once the outline is cut through, the part is no longer held by the stock, so any later cut would shake or move it. Tabs are small bridges that keep the part attached until the job is done; they are broken and filed off afterwards.</p><!--/T--></li>
+    <li><p>A hole is drawn Ø0.250 ±0.003 THRU. Which drill do you choose, and why spot-drill first?</p>
+      <!--T--><p class="small ans">The Ø0.250 (1/4 in) drill: a drill makes a hole its own size. A spot drill makes a small cone exactly on the centre so the long drill starts there instead of wandering off position.</p><!--/T--></li>
+    <li><p>You double the feed of a cut. What gets better, and what risk goes up?</p>
+      <!--T--><p class="small ans">The cycle time goes down (the part is made faster, so it costs less), but the force on the tool goes up; too much and the tool breaks (and the part may be scrapped).</p><!--/T--></li>
+  </ol>
+</section>
+
+</div>
+<!-- the machine deck: moved into the .deckslot of the section being shown -->
+<div class="deck" id="deck">
+  <div class="view" id="view">
+    <canvas id="c" tabindex="0" aria-label="3D view of the CNC mill"></canvas>
+    <div class="flash" id="flash"></div>
+    <div class="banner" id="banner" hidden></div>
+    <div class="hud tl"><span class="hchip" id="hudMode">Jog</span><span class="phase" id="hudPhase">Ready</span></div>
+    <div class="hud tr"><div class="vseg" id="views" role="group" aria-label="Camera view">
+      <button data-v="iso" aria-pressed="true">Machine</button><button data-v="close" aria-pressed="false">Close-up</button><button data-v="top" aria-pressed="false">Top</button><button data-v="front" aria-pressed="false">Front</button>
+    </div></div>
+    <div class="hud br" id="hudClock">Cycle 0:00</div>
+  </div>
+  <aside class="rail">
+    <div class="card">
+      <div class="dro" aria-label="Tool position"><span>X</span><b id="dX">0.0000</b><span>Y</span><b id="dY">0.0000</b><span>Z</span><b id="dZ">0.0000</b></div>
+      <dl class="minis"><div><dt>Tool</dt><dd id="mT">—</dd></div><div><dt>Spindle</dt><dd id="mS">0 rpm</dd></div><div><dt>Feed</dt><dd id="mF">—</dd></div></dl>
+      <div id="pJog" class="rp">
+        <div class="jog" role="group" aria-label="Jog the axes">
+          <button class="x" data-j="x-">X−</button><button class="x" data-j="x+">X+</button><button class="z" data-j="z+">Z+</button><button class="z" data-j="z-">Z−</button>
+          <button class="y" data-j="y-">Y−</button><button class="y" data-j="y+">Y+</button>
+          <label class="tog" style="grid-column:span 2">Step <select id="jogStep"><option value="1">1.0 in</option><option value="0.1" selected>0.1 in</option><option value="0.01">0.01 in</option></select></label>
+        </div>
+        <p class="small muted">Keyboard: arrows move X and Y, Page Up / Page Down move Z (click the 3D view first).</p>
+      </div>
+      <div id="pRun" class="rp">
+        <div class="btns"><button class="primary go" id="btnStart" style="flex:1">Cycle start</button><button id="btnHold" disabled>Feed hold</button><button id="btnReset">Reset</button></div>
+        <div class="btns small"><button id="btnSkip" disabled>Finish this operation now</button>
+          <label class="tog">Speed <select id="optSpeed"><option value="1">1×</option><option value="5" selected>5×</option><option value="20">20×</option><option value="60">60×</option></select></label></div>
+        <div class="gauge"><span class="small"><strong>Tool load</strong> <span id="gLoadT" class="muted">—</span></span><i><b id="gLoad"></b></i></div>
+        <label class="tog small"><input type="checkbox" id="optPaths" checked> Show toolpaths</label>
+      </div>
+    </div>
+    <div class="card" style="flex:1;min-height:0">
+      <div class="rtabs" role="group" aria-label="Panel">
+        <button data-r="ops" aria-pressed="true">Operations</button><button data-r="gc" aria-pressed="false">G-code</button><button data-r="log" aria-pressed="false">Log</button>
+      </div>
+      <div class="rbody" id="r-ops"><ul class="ops" id="opList"></ul><p class="small muted" id="opEmpty">No plan yet: build one in §03.</p></div>
+      <div class="rbody" id="r-gc" hidden><pre class="gcode" id="gcode"></pre></div>
+      <div class="rbody" id="r-log" hidden><ul class="log" id="log"></ul></div>
+    </div>
+  </aside>
+</div>
+
+<script>/*@@THREE@@*/</script>
+<script>/*@@ORBIT@@*/</script>
+<script>
+/*@@APP@@*/
+</script>
+</body>
+</html>
