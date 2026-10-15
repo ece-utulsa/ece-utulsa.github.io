@@ -226,6 +226,66 @@ const server = http.createServer((req, res) => {
     await page.context().close();
   });
 
+  // Board point -> page pixels, for the view an Import leaves (demo view 40,20 at scale 1).
+  const atPage = (page, q) => page.evaluate(q => { const r = document.querySelector('#board').getBoundingClientRect(); return { x: r.left + 40 + q.x, y: r.top + 20 + q.y }; }, q);
+  // The board as last saved to storage (saving is debounced, so wait for it).
+  const saved = async page => { await page.waitForTimeout(600); return page.evaluate(() => JSON.parse(localStorage.getItem('dlb.circuit'))); };
+  // Drag with the mouse between two page points.
+  const drag = async (page, a, b) => { await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(100); };
+
+  await t('A selected wire can be dragged by its middle; its tee handle sits beside it and still tees off (revision 2026-10-15)', async () => {
+    const page = await open();
+    // SW out (92,60) -> NOT in (188,160): Z route, vertical run at mx = 140
+    await importJSON(page, { v:3, comps:[{ id:1, type:'SW', x:40, y:40, label:'A' }, { id:2, type:'NOT', x:200, y:140 }, { id:3, type:'NOT', x:200, y:260 }],
+                             wires:[{ from:{c:1,pin:0}, to:{c:2,pin:0} }] });
+    const mid = await atPage(page, { x:140, y:110 });
+    await page.mouse.click(mid.x, mid.y); await page.waitForTimeout(100);
+    await drag(page, mid, { x: mid.x + 20, y: mid.y });
+    eq((await saved(page)).wires[0].mx, 160, 'second drag on the selected wire moved it');
+    await drag(page, { x: mid.x + 20, y: mid.y }, { x: mid.x + 40, y: mid.y });
+    eq((await saved(page)).wires[0].mx, 180, 'and again');
+    // the handle: TEE_OFFSET (16) right of the vertical run's middle; drag it to the second NOT's input
+    await drag(page, await atPage(page, { x:196, y:110 }), await atPage(page, { x:188, y:280 }));
+    eq(await page.$eval('#r-w', e => e.textContent), '2', 'tee from the handle made a second wire');
+    eq(page.errors, []);
+    await page.context().close();
+  });
+
+  const HALF_ADDER = { v:3, comps:[{ id:1, type:'SW', x:0, y:100, label:'A' }, { id:2, type:'SW', x:0, y:180, label:'B' }, { id:3, type:'XOR', x:120, y:80 }, { id:4, type:'AND', x:120, y:200 },
+      { id:5, type:'LED', x:260, y:100, label:'S' }, { id:6, type:'LED', x:260, y:220, label:'C' }],
+    wires:[{ from:{c:1,pin:0}, to:{c:3,pin:0} }, { from:{c:2,pin:0}, to:{c:3,pin:1} }, { from:{c:1,pin:0}, to:{c:4,pin:0} }, { from:{c:2,pin:0}, to:{c:4,pin:1} },
+           { from:{c:3,pin:0}, to:{c:5,pin:0} }, { from:{c:4,pin:0}, to:{c:6,pin:0} }] };
+  await t('Make subsystem: box, name, one block; it is listed, survives reload, Undo and Ungroup bring the gates back', async () => {
+    const page = await open(); page.promptAnswer = 'HA';
+    await importJSON(page, HALF_ADDER);
+    await page.click('#mksub'); ok(!(await page.$eval('#areachip', e => e.hidden)), 'area chip shown');
+    await drag(page, await atPage(page, { x:100, y:60 }), await atPage(page, { x:220, y:300 }));
+    eq(await page.$eval('#r-n', e => e.textContent), '5'); eq(await page.$eval('#r-w', e => e.textContent), '4');
+    eq(await page.$$eval('#palette .sub button:first-child', b => b.map(x => x.textContent)), ['HA']);
+    ok(/inputs A, B; outputs S, C/.test(await page.$eval('#note', e => e.textContent)), 'notice names the pins');
+    await saved(page); await page.reload(); await page.waitForSelector('#pg-tut .wrap', { state: 'attached' }); await page.waitForTimeout(200);
+    eq(await page.$eval('#r-n', e => e.textContent), '5', 'restored after reload');
+    eq(await page.$$eval('#palette .sub button:first-child', b => b.map(x => x.textContent)), ['HA'], 'listed after reload');
+    const blk = await atPage(page, { x:150, y:110 }); await page.mouse.click(blk.x, blk.y); await page.click('#ungrp'); await page.waitForTimeout(100);
+    eq(await page.$eval('#r-n', e => e.textContent), '6', 'ungrouped'); eq(await page.$eval('#r-w', e => e.textContent), '6');
+    await page.keyboard.press('Control+z'); await page.waitForTimeout(100); eq(await page.$eval('#r-n', e => e.textContent), '5', 'undo ungroup');
+    eq(page.errors, []);
+    await page.context().close();
+  });
+
+  await t('Experiment 9 refuses a MUX hidden inside a subsystem', async () => {
+    const page = await open(); page.promptAnswer = 'M';
+    await importJSON(page, { v:3, comps:[{ id:1, type:'SW', x:0, y:40, label:'I0' }, { id:2, type:'SW', x:0, y:120, label:'I1' }, { id:3, type:'SW', x:140, y:-80, label:'S' },
+      { id:4, type:'MUX2', x:120, y:40 }, { id:5, type:'PROBE', x:280, y:60, label:'Y' }],
+      wires:[{ from:{c:1,pin:0}, to:{c:4,pin:0} }, { from:{c:2,pin:0}, to:{c:4,pin:1} }, { from:{c:3,pin:0}, to:{c:4,pin:2} }, { from:{c:4,pin:0}, to:{c:5,pin:0} }] });
+    await page.click('#mksub'); await drag(page, await atPage(page, { x:110, y:30 }), await atPage(page, { x:210, y:130 }));
+    eq(await page.$eval('#r-n', e => e.textContent), '5', 'MUX collapsed into M');
+    await page.click('.tabs button[data-pg=exp]');
+    const card = (await page.$$('.card'))[8]; await (await card.$('text=Check')).click();
+    ok(/remove the MUX 2:1 part \(subsystems included\)/.test(await card.$eval('.res', e => e.textContent)), await card.$eval('.res', e => e.textContent));
+    await page.context().close();
+  });
+
   await t('Reduced motion turns off the timing-panel transition (CQ-DL-017)', async () => {
     const page = await open(null, { reducedMotion: 'reduce' });
     eq(await page.$eval('#timing', e => getComputedStyle(e).transitionDuration), '0s');

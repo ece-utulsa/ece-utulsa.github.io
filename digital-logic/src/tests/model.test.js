@@ -6,7 +6,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const SRC = path.join(__dirname, '..');
 global.window = {};
 for(const f of ['defs.js', 'sim.js']) vm.runInThisContext(fs.readFileSync(path.join(SRC, f), 'utf8'), { filename: f });
-const { DEFS, Circuit, checkVectors, truthTable } = window.DLB;
+const { DEFS, Circuit, checkVectors, truthTable, pinPos, pinDir, typesUsed } = window.DLB;
 
 let pass = 0, fail = 0;
 function t(name, fn){ return Promise.resolve().then(fn).then(() => { pass++; console.log('PASS', name); }, e => { fail++; console.log('FAIL', name, '-', e.message); }); }
@@ -87,7 +87,7 @@ await t('Reject unknown colour', bad(j => { j.comps[0].color = '__proto__'; }, '
 await t('Reject non-numeric rot', bad(j => { j.comps[0].rot = 'x'; }, 'rot'));
 await t('Reject state value out of range', bad(j => { j.comps[0].state = { on: 2 }; }, 'state.on'));
 await t('Reject second wire into one input', bad(j => { j.wires.push({from:{c:3,pin:0},to:{c:2,pin:0}}); }, 'second wire'));
-await t('Reject newer file format', bad(j => { j.v = 3; }, 'newer'));
+await t('Reject newer file format', bad(j => { j.v = 4; }, 'newer'));
 await t('Reject too many parts', bad(j => { j.comps = Array.from({length:501}, (_,i) => ({id:i+1,type:'AND',x:0,y:0})); j.wires = []; }, 'Too many parts'));
 await t('Reject unknown part type named "constructor"', bad(j => { j.comps[1].type = 'constructor'; }, 'unknown part type'));
 await t('Counter state accepts 0..15 and rejects 16', () => {
@@ -118,6 +118,129 @@ await t('Switch flips and clock ticks are not edits (rev unchanged)', () => {
 await t('onBeforeEdit sees the board before the edit, once per edit', () => {
   const k = new Circuit(); k.add('SW',0,0); const seen = []; k.onBeforeEdit(() => seen.push(k.comps.length));
   k.batch(() => { k.add('NOT',0,0); k.add('NOT',0,0); }); eq(seen, [1]);
+});
+
+// ── Customer revisions 2026-10-15 ──
+await t('LED has one input and lights while it is HIGH', () => {
+  eq(DEFS.LED.ins, ['A']);
+  const k = new Circuit(), s = k.add('SW',0,0), l = k.add('LED',0,0); W(k,s,0,l,0);
+  eq(window.DLB.readOut(k, l), 0); s.state.on = 1; k.update(); eq(window.DLB.readOut(k, l), 1);
+});
+await t('A v2 board with LED cathode wires loads: the cathode wires are dropped and counted', () => {
+  const j = { v:2, comps:[{id:1,type:'SW',x:0,y:0,label:'A',state:{on:1}},{id:2,type:'LED',x:100,y:0,label:'L1'},{id:3,type:'GND',x:200,y:0}],
+              wires:[{from:{c:1,pin:0},to:{c:2,pin:0}},{from:{c:3,pin:0},to:{c:2,pin:1}}] };
+  const k = new Circuit(), r = k.load(j); ok(r.ok, JSON.stringify(r.errors)); eq(r.ledWires, 1); eq(k.wires.length, 1);
+  eq(window.DLB.readOut(k, k.comp(2)), 1);
+  const j3 = JSON.parse(JSON.stringify(j)); j3.v = 3; ok(!Circuit.validate(j3).ok, 'a v3 file may not wire LED pin 1');
+});
+await t('MUX select inputs are on the top edge, on the grid, S0 left of S1', () => {
+  const k = new Circuit(), m2 = k.add('MUX2',100,100), m4 = k.add('MUX4',300,100);
+  eq(pinDir(m2,'in',2), {dx:0,dy:-1}); eq(pinDir(m2,'in',0), {dx:-1,dy:0});
+  const s = pinPos(m2,'in',2); ok(s.y < m2.y && s.x % 20 === 0, 'S above the body on the grid '+JSON.stringify(s));
+  const s0 = pinPos(m4,'in',4), s1 = pinPos(m4,'in',5); ok(s0.y === s1.y && s0.y < m4.y && s0.x < s1.x, 'S0 left of S1');
+  m2.rot = 1; eq(pinDir(m2,'in',2), {dx:1,dy:0}, 'rotates with the part');
+});
+await t('7-SEG exposes a..g and DP; BCD 7-SEG keeps its D0..D3 inputs', () => {
+  eq(DEFS.SEG7S.ins, ['a','b','c','d','e','f','g','DP']); eq(DEFS.SEG7.ins, ['D0','D1','D2','D3']); eq(DEFS.SEG7.name, 'BCD 7-SEG');
+});
+
+// Half adder on the board: SW A, B -> XOR, AND -> LED S, C. Returns the parts.
+function halfAdder(k){
+  const a = lab(k,k.add('SW',0,100),'A'), b = lab(k,k.add('SW',0,180),'B'), x = k.add('XOR',120,80), n = k.add('AND',120,200), s = lab(k,k.add('LED',260,100),'S'), c = lab(k,k.add('LED',260,220),'C');
+  W(k,a,0,x,0); W(k,b,0,x,1); W(k,a,0,n,0); W(k,b,0,n,1); W(k,x,0,s,0); W(k,n,0,c,0); return { a, b, x, n, s, c };
+}
+const outs = (k, ps) => ps.map(p => window.DLB.readOut(k, p));
+await t('Subsystem from gates inside a box: wires crossing the box become pins named after the switches and LEDs', () => {
+  const k = new Circuit(), h = halfAdder(k), r = k.makeSubsystem('HA', [h.x, h.n]); ok(r.comp, r.error);
+  const d = DEFS[r.comp.type]; eq(d.ins, ['A','B']); eq(d.outs, ['S','C']); eq(k.comps.length, 5); eq(k.wires.length, 4);
+  for(let v=0; v<4; v++){ h.a.state.on = v>>1; h.b.state.on = v&1; k.update(); eq(outs(k,[h.s,h.c]), [(v>>1)^(v&1), (v>>1)&(v&1)], 'v='+v); }
+});
+await t('Subsystem of a whole circuit: its switches become inputs, its LEDs outputs', () => {
+  const k = new Circuit(), h = halfAdder(k), r = k.makeSubsystem('HA', k.comps.slice()); ok(r.comp, r.error);
+  eq(DEFS[r.comp.type].ins, ['A','B']); eq(DEFS[r.comp.type].outs, ['S','C']); eq(k.comps.length, 1); eq(k.wires.length, 0);
+});
+await t('Subsystem refuses a used name, a blank name and parts with no inputs or outputs', () => {
+  const k = new Circuit(), h = halfAdder(k); ok(k.makeSubsystem('HA', [h.x]).comp);
+  ok(k.makeSubsystem('HA', [h.n]).error.includes('already'), 'used'); ok(k.makeSubsystem(' ', [h.n]).error, 'blank');
+  const lone = k.add('NOT',500,500); ok(k.makeSubsystem('N', [lone]).error.includes('no inputs or outputs'));
+});
+// Ripple counter: SW CK -> DFF0 (Q̄->D) -> Q̄ clocks DFF1 (Q̄->D); PROBE Q0, Q1. Built, then reset to 0.
+function ripple(k){
+  const ck = lab(k,k.add('SW',0,0),'CK'), f0 = dff(k), f1 = dff(k), q0 = lab(k,k.add('PROBE',0,0),'Q0'), q1 = lab(k,k.add('PROBE',0,0),'Q1');
+  f0.x = 100; f1.x = 200; q0.x = q1.x = 300; q1.y = 60;
+  W(k,f0,1,f0,0); W(k,f1,1,f1,0); W(k,ck,0,f0,1); W(k,f0,1,f1,1); W(k,f0,0,q0,0); W(k,f1,0,q1,0); k.resetState(); return { ck, f0, f1, q0, q1 };
+}
+const upCount = () => { const v = []; let n = 0; for(let e=0;e<4;e++){ const m = (n+1)%4; v.push({in:{CK:1},out:{Q0:m&1,Q1:m>>1&1}}); n = m; v.push({in:{CK:0},out:{Q0:n&1,Q1:n>>1&1}}); } return v; };
+await t('Sequential subsystem: ripple counter in a block counts like the flat one and keeps its count', () => {
+  const k = new Circuit(), r = ripple(k);
+  const pulse = () => { r.ck.state.on = 1; k.update(); r.ck.state.on = 0; k.update(); };
+  pulse(); pulse(); eq(outs(k,[r.q0,r.q1]), [0,1], 'count 2 before');
+  const m = k.makeSubsystem('RC', [r.f0, r.f1]); ok(m.comp, m.error); eq(DEFS[m.comp.type].ins, ['CK']); eq(DEFS[m.comp.type].outs, ['Q0','Q1']);
+  eq(outs(k,[r.q0,r.q1]), [0,1], 'count kept'); pulse(); eq(outs(k,[r.q0,r.q1]), [1,1], 'count 3');
+  ok(DEFS[m.comp.type].mem, 'flagged as memory');
+  const c = checkVectors(k, upCount()); ok(c.ok, JSON.stringify(c.rows.filter(x=>!x.ok)));
+});
+await t('Subsystem state and edge memory survive export / import (CK HIGH at save is not an edge)', () => {
+  const k = new Circuit(), r = ripple(k); k.makeSubsystem('RC', [r.f0, r.f1]);
+  r.ck.state.on = 1; k.update(); eq(outs(k,[r.q0,r.q1]), [1,0]);
+  const j = JSON.parse(JSON.stringify(k.toJSON())), k2 = new Circuit(), res = k2.load(j); ok(res.ok, JSON.stringify(res.errors));
+  const q = id => window.DLB.readOut(k2, k2.comp(id)); eq([q(r.q0.id), q(r.q1.id)], [1,0], 'state restored, no edge');
+  const ck = k2.comp(r.ck.id); ck.state.on = 0; k2.update(); ck.state.on = 1; k2.update(); eq([q(r.q0.id), q(r.q1.id)], [0,1]);
+});
+await t('Copies of a subsystem each keep their own state; Reset FFs clears them', () => {
+  const k = new Circuit(), r = ripple(k), m = k.makeSubsystem('RC', [r.f0, r.f1]), b2 = k.add(m.comp.type, 400, 0), p = lab(k, k.add('PROBE',0,0), 'X');
+  W(k, b2, 0, p, 0); r.ck.state.on = 1; k.update(); eq(outs(k,[r.q0, p]), [1, 0], 'second copy not clocked');
+  k.resetState(); eq(outs(k,[r.q0, r.q1]), [0, 0]);
+});
+await t('Nested subsystems: a full adder from two HA blocks and an OR, all 8 rows', () => {
+  const k = new Circuit(), h = halfAdder(k); const ha = k.makeSubsystem('HA', [h.x, h.n]).comp;
+  k.remove(h.s); k.remove(h.c); k.remove(h.a); k.remove(h.b);
+  const A = lab(k,k.add('SW',0,0),'A'), B = lab(k,k.add('SW',0,60),'B'), C = lab(k,k.add('SW',0,120),'Ci'), h2 = k.add(ha.type, 200, 80), o = k.add('OR', 320, 40);
+  const S = lab(k,k.add('PROBE',440,80),'S'), CO = lab(k,k.add('PROBE',440,20),'Co');
+  W(k,A,0,ha,0); W(k,B,0,ha,1); W(k,ha,0,h2,0); W(k,C,0,h2,1); W(k,h2,0,S,0); W(k,ha,1,o,0); W(k,h2,1,o,1); W(k,o,0,CO,0);
+  const fa = k.makeSubsystem('FA', [ha, h2, o]); ok(fa.comp, fa.error); eq(DEFS[fa.comp.type].ins, ['A','B','Ci']);
+  for(let v=0; v<8; v++){ A.state.on = v>>2&1; B.state.on = v>>1&1; C.state.on = v&1; k.update(); const n = (v>>2&1)+(v>>1&1)+(v&1); eq(outs(k,[S,CO]), [n&1, +(n>1)], 'v='+v); }
+  ok(typesUsed(k.comps).has('XOR'), 'parts inside nested subsystems are visible to experiment rules');
+  const j = k.toJSON(), k2 = new Circuit(); ok(k2.load(JSON.parse(JSON.stringify(j))).ok, 'nested file loads');
+});
+await t('Ungroup puts the circuit back: same parts, same wiring, same outputs', () => {
+  const k = new Circuit(), h = halfAdder(k), m = k.makeSubsystem('HA', [h.x, h.n]); h.a.state.on = 1; k.update();
+  const placed = k.ungroup(m.comp); eq(placed.map(c => c.type).sort(), ['AND','XOR']); eq(k.comps.length, 6); eq(k.wires.length, 6);
+  eq(outs(k,[h.s,h.c]), [1,0]); h.b.state.on = 1; k.update(); eq(outs(k,[h.s,h.c]), [0,1]);
+});
+await t('Ungroup of a whole-circuit block keeps its switches and LEDs, with fresh labels on a clash', () => {
+  const k = new Circuit(), h = halfAdder(k), m = k.makeSubsystem('HA', k.comps.slice()), b2 = k.add(m.comp.type, 400, 0);
+  k.ungroup(m.comp); k.ungroup(b2); eq(k.comps.length, 12);
+  const labels = k.comps.filter(c => ['SW','LED'].includes(c.type)).map(c => c.label); eq(new Set(labels).size, 8, 'labels unique: '+labels);
+});
+await t('Removing a subsystem from the list is refused while a block or another subsystem uses it', () => {
+  const k = new Circuit(), h = halfAdder(k), m = k.makeSubsystem('HA', [h.x, h.n]);
+  ok(k.deleteSub('HA'), 'in use on the board'); k.remove(m.comp); eq(k.deleteSub('HA'), null); eq(k.subs.size, 0);
+});
+await t('Truth table sees through a subsystem and flags one with memory', async () => {
+  const k = new Circuit(), h = halfAdder(k); k.makeSubsystem('HA', [h.x, h.n]);
+  const T = await truthTable(k); eq(T.rows.map(r => r.out), [[0,0],[0,1],[0,1],[1,0]]); eq(T.seq, false);
+});
+
+// ── Subsystem import validation ──
+const subFile = () => { const k = new Circuit(), h = halfAdder(k); k.makeSubsystem('HA', [h.x, h.n]); return JSON.parse(JSON.stringify(k.toJSON())); };
+const badSub = (mut, frag) => () => { const j = subFile(); mut(j); const r = Circuit.validate(j); ok(!r.ok, 'should be rejected'); ok(r.errors.join(' ').includes(frag), 'message "'+frag+'" in '+JSON.stringify(r.errors)); };
+await t('Valid subsystem file passes', () => { ok(Circuit.validate(subFile()).ok); });
+await t('Reject a subsystem type the file does not define', badSub(j => { delete j.subs.HA; }, 'unknown part type'));
+await t('Reject a subsystem that contains itself', badSub(j => { j.subs.HA.comps.push({ id:99, type:'SUB:HA', x:0, y:0 }); }, 'contain itself'));
+await t('Reject nesting that would expand past the part limit', badSub(j => {
+  for(let L=1; L<=6; L++){ const below = L===1 ? 'XOR' : 'SUB:L'+(L-1), comps = [{id:1,type:'SW',x:0,y:0,label:'I'}];
+    for(let i=0;i<10;i++) comps.push({ id:i+2, type:below, x:0, y:0 }); j.subs['L'+L] = { comps, wires:[], ins:[1], outs:[], auto:[] }; }
+  j.comps.push({ id:500, type:'SUB:L6', x:0, y:0 }); }, 'Too many parts counting'));
+await t('Reject bad subsystem ports and state', () => {
+  badSub(j => { j.subs.HA.ins = [12345]; }, 'ins must list')();
+  badSub(j => { j.subs.HA.outs = j.subs.HA.ins.slice(); }, 'outs must list')();
+  badSub(j => { j.comps.find(c => c.type==='SUB:HA').state = { parts: [[1, { on: 1 }, 0]], x: 1 }; }, 'state must be')();
+  badSub(j => { const c = j.comps.find(c => c.type==='SUB:HA'), xor = j.subs.HA.comps.find(s => s.type==='XOR'); c.state = { parts: [[xor.id, { evil: 1 }, 0]] }; }, 'unknown field')();
+});
+await t('A subsystem called "__proto__" loads without touching any prototype', () => {
+  const j = subFile(); j.subs = JSON.parse('{"__proto__":'+JSON.stringify(j.subs.HA)+'}'); j.comps.forEach(c => { if(c.type==='SUB:HA') c.type = 'SUB:__proto__'; });
+  const k = new Circuit(), r = k.load(j); ok(r.ok, JSON.stringify(r.errors)); ok(k.subs.has('__proto__')); eq(({}).comps, undefined); eq(Object.getPrototypeOf(k.subs), Map.prototype);
 });
 
 // ── Truth table (CQ-DL-008) ──
