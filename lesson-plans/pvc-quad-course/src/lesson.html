@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PVC Quad Course — @@EDITION@@ edition</title>
+<style>
+/* Layout: a reading column of lesson sections; one shared "flight deck" (3D cage + instrument rail) moves into the
+   section being shown. Light shop-floor look: dark ink on pale grey, safety-orange accent. */
+:root{
+  color-scheme:light;
+  --bg:#EEF1F4; --surface:#FFFFFF; --ink:#17202A; --muted:#566370; --rule:#D3DAE1; --tint:#E6EBF0;
+  --accent:#D9480F; --accent-soft:#FBE3D6; --ok:#2B8A3E; --warn:#C27500; --bad:#C92A2A; --blue:#1971C2;
+  --display:"Avenir Next Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 64px}
+h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.1rem,5vw,3.2rem)}
+h2{font-size:1.85rem;display:flex;gap:.5em;align-items:baseline;flex-wrap:wrap}
+h2 .n{font-family:var(--mono);font-size:.95rem;color:var(--accent);font-weight:600}
+h3{font-size:1.25rem}
+p{margin:0;max-width:72ch}
+code,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font:600 .78rem/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)} .small{font-size:.9rem}
+header.top{display:grid;gap:12px;padding-bottom:20px;border-bottom:2px solid var(--ink)}
+header.top .meta{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.92rem;color:var(--muted)}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.edition{font:600 .78rem/1 var(--body);letter-spacing:.1em;text-transform:uppercase;padding:7px 10px;border-radius:4px;border:1px solid var(--ink)}
+.edition.teacher-ed{background:var(--ink);color:var(--surface)}
+section{display:grid;gap:16px;padding-block:30px;border-bottom:1px solid var(--rule);scroll-margin-top:60px}
+[hidden]{display:none!important}
+/* section bar: one section at a time (default) or the whole lesson as one page */
+.lnav{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--rule);display:flex;gap:6px;align-items:center;padding:8px 0}
+.lnav .tabsrow{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin;padding:2px}
+.lnav .tabsrow button{white-space:nowrap;font-size:.82rem;padding:6px 9px}
+.lnav .tabsrow button[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.lnav>button{flex:0 0 auto;padding:6px 10px}
+.pager{display:none;justify-content:space-between;align-items:center;gap:10px;padding-top:10px;flex-wrap:wrap}
+body.paged .pager{display:flex}
+.pager .nextbtn{font-size:1.05rem;padding:12px 18px;margin-left:auto}
+body.paged section{border-bottom:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.grid2>*,.grid3>*{min-width:0}
+.sheet{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;display:grid;gap:12px;min-width:0}
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;font-size:.95rem}
+.note.blue{border-color:var(--blue);background:#E7F0FA}
+ul,ol{margin:0;padding-left:1.25em;display:grid;gap:4px}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font:600 .76rem/1.2 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+td.t{font-family:var(--mono);white-space:nowrap}
+.tbl{overflow-x:auto}
+dl.terms{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0} dl.terms dt{font-weight:700} dl.terms dd{margin:0}
+.chip{display:inline-block;font:700 .72rem/1 var(--body);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
+.c-ok{color:var(--ok)} .c-warn{color:var(--warn)} .c-bad{color:var(--bad)}
+button{font:600 .9rem var(--body);padding:8px 12px;border-radius:6px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover:not(:disabled){color:#fff;filter:brightness(1.07)}
+button[aria-pressed="true"].seg{background:var(--ink);border-color:var(--ink);color:#fff}
+.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btns .sep{width:1px;align-self:stretch;background:var(--rule);margin:0 4px}
+label{display:grid;gap:4px;font-size:.82rem;color:var(--muted);min-width:0}
+label.tog{display:inline-flex;gap:6px;align-items:center;font-size:.9rem;color:var(--ink);cursor:pointer}
+input[type=number],select,textarea{font:500 .95rem var(--mono);padding:6px 7px;border:1px solid var(--rule);border-radius:5px;background:var(--bg);color:var(--ink);width:100%}
+select{font-family:var(--body)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.kbd,kbd{font:500 .8rem var(--mono);border:1px solid var(--rule);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff;color:var(--ink)}
+
+/* ---------- flight deck ---------- */
+.deck{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px;align-items:stretch}
+@media (max-width:900px){.deck{grid-template-columns:1fr}}
+.view{position:relative;min-height:0;height:min(68vh,640px);min-height:380px;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:#E3E8ED}
+#c{display:block;width:100%;height:100%;touch-action:none;outline:none}
+.hud{position:absolute;display:flex;gap:6px;align-items:center;pointer-events:none}
+.hud>*{pointer-events:auto}
+.hud.tl{top:10px;left:10px;flex-wrap:wrap;max-width:62%}
+.hud.tr{top:10px;right:10px}
+.hud.bl{bottom:10px;left:10px}
+.hud.br{bottom:10px;right:10px;font-family:var(--mono);font-size:12px;background:rgba(255,255,255,.92);border:1px solid var(--rule);border-radius:6px;padding:4px 8px}
+.hchip{font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase;background:var(--ink);color:#fff;border-radius:5px;padding:3px 8px}
+.phase{background:rgba(255,255,255,.94);border:1px solid var(--rule);border-radius:5px;padding:3px 8px;font-weight:600;font-size:13px}
+.vseg{display:inline-flex;background:rgba(255,255,255,.95);border:1px solid var(--rule);border-radius:7px;padding:2px;flex-wrap:wrap}
+.vseg button{font:700 12px var(--display);letter-spacing:.04em;text-transform:uppercase;border:0;background:transparent;color:var(--muted);padding:5px 8px;border-radius:5px}
+.vseg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.pip{position:absolute;right:10px;bottom:44px;width:30%;max-width:300px;aspect-ratio:16/10;border:2px solid #fff;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.3);pointer-events:none}
+.pip span{position:absolute;left:6px;top:4px;font:700 11px var(--display);letter-spacing:.06em;color:#fff;text-shadow:0 1px 2px #000;text-transform:uppercase}
+.pad{display:grid;grid-template-columns:repeat(3,40px);gap:4px;background:rgba(255,255,255,.92);border:1px solid var(--rule);border-radius:8px;padding:6px}
+.pad button{height:36px;padding:0;font:700 12px var(--display);user-select:none;-webkit-user-select:none;touch-action:none}
+.flash{position:absolute;inset:0;border:5px solid var(--bad);border-radius:10px;opacity:0;pointer-events:none;transition:opacity .3s}
+.flash.on{opacity:1;transition:none}
+.rail{display:flex;flex-direction:column;gap:10px;min-width:0;height:min(68vh,640px);min-height:380px}
+@media (max-width:900px){.rail{height:auto}}
+@media (max-width:600px){.hud.tr{top:42px;left:10px;right:auto}.pip{width:42%}}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+.card h4{font:700 12px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0}
+.modes{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;background:var(--tint);border-radius:8px;padding:3px}
+.modes button{border:0;background:transparent;padding:7px 2px;font:700 13px var(--display);color:var(--muted)}
+.modes button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(23,32,42,.15)}
+.rtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;border-bottom:1px solid var(--rule);padding-bottom:6px}
+.rtabs button{border:0;background:transparent;padding:5px 2px;font:700 12px var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-radius:5px}
+.rtabs button[aria-pressed="true"]{background:var(--tint);color:var(--ink)}
+.rbody{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.steps li{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:center;font-size:13.5px;color:var(--muted);padding:2px 0}
+.steps li::before{content:"";width:12px;height:12px;border-radius:50%;border:2px solid var(--rule);justify-self:center}
+.steps li.active{color:var(--ink);font-weight:700}
+.steps li.active::before{border-color:var(--accent);background:var(--accent-soft)}
+.steps li.done{color:var(--ink)} .steps li.done::before{border-color:var(--ok);background:var(--ok)}
+.steps li.miss{color:var(--bad)} .steps li.miss::before{border-color:var(--bad)}
+.tele{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px;margin:0}
+.tele dt{font:700 10.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tele dd{margin:0;font:500 15px var(--mono);white-space:nowrap}
+.tele dd small{font-size:11px;color:var(--muted)}
+.bars{display:grid;gap:5px}
+.bar{display:grid;grid-template-columns:58px 1fr 58px;gap:8px;align-items:center;font-size:12.5px}
+.bar span:first-child{color:var(--muted);font:700 11px var(--display);letter-spacing:.04em;text-transform:uppercase}
+.bar i{display:block;height:8px;background:var(--tint);border-radius:4px;overflow:hidden;position:relative}
+.bar i b{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ok);border-radius:4px}
+.bar span:last-child{font-family:var(--mono);text-align:right}
+.vision{font-family:var(--mono);font-size:12.5px;background:var(--tint);border-radius:6px;padding:6px 8px}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:12.5px}
+.log li{display:grid;grid-template-columns:52px 1fr;gap:6px}
+.log time{font-family:var(--mono);color:var(--muted)}
+.log li.bad{color:var(--bad)} .log li.good{color:var(--ok)}
+.score{display:grid;gap:6px}
+.stars{font-size:1.6rem;letter-spacing:.1em;color:#F2A900}
+.stars .off{color:var(--rule)}
+.goals{list-style:none;padding:0;margin:0;display:grid;gap:3px;font-size:13.5px}
+.goals li::before{content:'○';margin-right:7px;color:var(--muted)}
+.goals li.ok::before{content:'✓';color:var(--ok);font-weight:700}
+.goals li.bad::before{content:'✗';color:var(--bad);font-weight:700}
+
+/* ---------- path editor ---------- */
+.ped{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:900px){.ped{grid-template-columns:1fr}}
+.ped svg{display:block;width:100%;height:auto;background:#F7F9FA;border:1px solid var(--rule);border-radius:8px;touch-action:none;user-select:none}
+.ped svg text{font-family:var(--mono);font-size:10px;fill:var(--muted)}
+.ped svg .lbl{font-family:var(--body);font-weight:700;font-size:11px;fill:var(--ink)}
+.wp{cursor:grab} .wp:active{cursor:grabbing}
+.wptbl input{width:74px;padding:3px 5px} .wptbl select{width:auto;padding:3px 4px}
+.wptbl tr.sel td{background:var(--accent-soft)}
+.wptbl td{vertical-align:middle;padding:4px 6px}
+.check{list-style:none;padding:0;margin:0;display:grid;gap:4px;font-size:.92rem}
+.check li.bad{color:var(--bad)} .check li.ok{color:var(--ok)}
+.coord{font:600 .9rem var(--mono);background:var(--tint);border-radius:5px;padding:3px 8px}
+
+/* ---------- blocks ---------- */
+.blk{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:760px){.blk{grid-template-columns:1fr}}
+.pal{display:grid;gap:5px;align-content:start}
+.pal h5{margin:6px 0 0;font:700 11px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.bk{--c:#1971C2;background:var(--c);color:#fff;border-radius:7px;padding:5px 8px;display:grid;gap:4px;font:600 .86rem/1.3 var(--body);box-shadow:inset 0 -2px 0 rgba(0,0,0,.2)}
+.bk.c-move{--c:#1971C2}.bk.c-go{--c:#0B7285}.bk.c-claw{--c:#2B8A3E}.bk.c-ctl{--c:#C25E00}
+button.bk{border:0;text-align:left;cursor:pointer;display:block}
+button.bk:hover:not(:disabled){color:#fff;filter:brightness(1.12)}
+.bk i{font-style:normal;background:rgba(255,255,255,.92);color:var(--ink);border-radius:4px;padding:0 5px;font:600 .8rem var(--mono)}
+.bk i.cond{background:#7048E8;color:#fff;font-family:var(--body);border-radius:10px}
+.pbody{display:block;height:10px;margin:4px 0 0 12px;background:rgba(255,255,255,.35);border-radius:3px}
+.bk-row{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.bk input,.bk select{width:auto;padding:1px 4px;font:600 .82rem var(--mono);border:0;border-radius:4px;background:#fff;color:var(--ink)}
+.bk input[type=number]{width:62px}.bk input.txt{width:190px;font-family:var(--body)}
+.bk select{font-family:var(--body)}
+.bk .cond{background:#7048E8;border-radius:12px;padding:2px 7px;display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center}
+.bk-body{margin-left:14px;background:#F7F9FA;border-radius:5px;padding:3px 4px;display:grid;gap:2px;color:var(--ink)}
+.bk-tools{margin-left:auto;display:inline-flex;gap:2px;align-items:center}
+.bk-tools button{padding:0 6px;font-size:.72rem;line-height:1.6;background:rgba(255,255,255,.22);color:#fff;border:0;border-radius:4px}
+.bk-tools button:hover:not(:disabled){background:#fff;color:var(--c)}
+.grip{cursor:grab;padding:0 4px;opacity:.85;user-select:none}
+.bk.run{outline:3px solid #FCC419;outline-offset:1px;box-shadow:0 0 0 6px rgba(252,196,25,.35)}
+.bk.err{outline:3px solid var(--bad);outline-offset:1px}
+.slot{min-height:7px;border-radius:4px;cursor:pointer;font:600 .74rem var(--body);color:var(--accent);padding:0 6px}
+.slot:hover,.slot:focus-visible{background:var(--accent-soft)}
+.slot.empty{color:var(--muted);font-weight:500;min-height:20px;border:1px dashed var(--rule)}
+.slot.on{min-height:22px;background:var(--accent-soft);border:2px dashed var(--accent);color:var(--accent);font-weight:700}
+body.bkdrag .slot{min-height:18px;border:1px dashed var(--accent)}
+.slot.drop{background:var(--accent)!important;color:#fff}
+.prog{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:8px;display:grid;gap:2px;min-height:220px;align-content:start}
+pre.code{margin:0;background:#17202A;color:#E9EDF1;border-radius:8px;padding:12px 14px;font:13px/1.5 var(--mono);overflow-x:auto;white-space:pre}
+pre.code b{color:#FFA94D;font-weight:600}
+/* ---------- designer ---------- */
+.dprops{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.item{cursor:grab}
+textarea#desCode{font:12px/1.4 var(--mono);resize:vertical}
+
+/* ---------- mini-lab ---------- */
+.lab{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:900px){.lab{grid-template-columns:1fr}}
+#cvLab{display:block;width:100%;height:min(52vh,460px);min-height:300px;border:1px solid var(--rule);border-radius:10px;background:#E3E8ED;touch-action:none}
+.msl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.msl label b{font-family:var(--mono);color:var(--ink)}
+.what{font-size:1.05rem;font-weight:600;min-height:3em}
+.quiz{display:grid;gap:12px}
+.quiz .q{display:grid;gap:6px}
+.quiz .opts{display:flex;flex-wrap:wrap;gap:6px}
+.quiz .fb{font-size:.92rem;min-height:1.3em}
+.exit{gap:14px}.exit .ans{border-left:3px solid var(--ok);padding-left:10px;margin-top:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="toprow">
+    <span class="eyebrow">Engineering &amp; Robotics · Drones</span>
+    <span class="edition @@EDCLASS@@">@@EDITION@@ edition</span>
+  </div>
+  <h1>PVC Quad Course</h1>
+  <p>A drone has to take off, grab a 4-inch cube, fly through four PVC gates, drop the cube in a bin and land, all inside a netted cage 10 ft wide and 20 ft tall. Find out how four spinning props steer a drone, plan its flight on a map, program it with blocks, watch an autopilot work out its own route, fly it yourself, take on the challenges, and then design a course of your own.</p>
+  <div class="meta"><span>About 90 minutes</span><span>Sizes in feet (ft); the cube is 4 in</span><span>@@VERSION@@</span><!--T--><span>Materials: this page projected; one computer per pair</span><!--/T--></div>
+</header>
+<nav class="lnav" id="lnav" aria-label="Lesson sections"></nav>
+
+<!--T-->
+<section id="plan">
+  <h2><span class="n">00</span>Teacher plan</h2>
+  <div class="note small"><strong>Moving around.</strong> The page shows one section at a time: use the section bar at the top, or the Next button at the end of each section. <strong>Show all</strong> switches to one long page. Each computer remembers where it left off, its best challenge scores, its flight path, its program and its course.</div>
+  <div class="note small"><strong>Two files.</strong> This Teacher edition has the plan, agenda and answer keys. Give students the <strong>Student edition</strong>: the same activities with the plan and answer keys left out of the file. Both open by double-clicking, work offline and need no account. A laptop or Chromebook works best; a phone works but is cramped.</div>
+  <div class="grid2">
+    <div class="sheet">
+      <h3>Learning objectives</h3>
+      <p class="small muted">By the end, students can:</p>
+      <ol>
+        <li>Explain how changing the speed of four props makes a drone climb, tilt, move and turn.</li>
+        <li>Describe a point in 3D space with (x, y, height) coordinates.</li>
+        <li>Plan a flight path as a list of waypoints and check it for collisions.</li>
+        <li>Write a short program with a loop, a sensor reading and a decision (if / else).</li>
+        <li>Describe in their own words how an autopilot finds a safe route (map the obstacles, search, straighten).</li>
+        <li>Compare manual, programmed and autonomous flight.</li>
+      </ol>
+    </div>
+    <div class="sheet">
+      <h3>The activities</h3>
+      <ul class="small">
+        <li><strong>§01 Meet the drone:</strong> a 3D drone with four motor sliders and thrust arrows. Presets, "what happens?" and a 3-question check.</li>
+        <li><strong>§02 Plan a path:</strong> click a map of the cage to place waypoints, set heights in the side view, pre-flight check, then fly it.</li>
+        <li><strong>§03 Program it:</strong> snap together blocks (take off, fly to, move, fly through gate, grab, repeat, repeat until, if / else, sensors); the running block lights up; see the same program as Python-style code.</li>
+        <li><strong>§04 Autopilot:</strong> watch the route search spread through the cage, step by step; then fly the full mission and move the cube.</li>
+        <li><strong>§05 Fly it yourself:</strong> keyboard or on-screen pad, follow camera and drone-cam inset.</li>
+        <li><strong>§06 Challenges:</strong> five scored levels, any flying mode, stars and a best score.</li>
+        <li><strong>§07 Design a course</strong> (extension): move the pad, cube and bin, add gates, hoops and poles, check the course, share it as a code.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="sheet">
+    <h3>Agenda</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Time</th><th>Segment</th><th>Activity</th></tr></thead>
+      <tbody>
+        <tr><td class="t">0–6</td><td>Hook</td><td>Project §04 and press Launch: the autopilot flies the whole course. Ask: how does it know where to go? How does it even move sideways?</td></tr>
+        <tr><td class="t">6–16</td><td>Meet the drone</td><td>Pairs try every preset in §01, then make the drone climb, move forward and turn on their own. 3-question check.</td></tr>
+        <tr><td class="t">16–30</td><td>Plan a path</td><td>§02: coordinates in the cage, then plan Gate 1 only. Pre-flight check before every launch.</td></tr>
+        <tr><td class="t">30–50</td><td>Program it</td><td>§03: run the three examples, then the "Try it" tasks: a repeat loop, Move cube with the sensor program, Show as code. Fast pairs write a full-course program.</td></tr>
+        <tr><td class="t">50–60</td><td>Autopilot</td><td>§04: step through the route search together. Move the cube and launch again. Discuss: what did the autopilot do that your path and program could not?</td></tr>
+        <tr><td class="t">60–70</td><td>Fly it yourself</td><td>§05: each partner flies Gate 1 and back. Notice how hard it is to judge depth.</td></tr>
+        <tr><td class="t">70–84</td><td>Challenges</td><td>§06: levels 1–3 in any mode; faster pairs try Windy day and Surprise cube. Record best scores.</td></tr>
+        <tr><td class="t">84–90</td><td>Exit ticket</td><td>Four questions on paper (§08).</td></tr>
+        <tr><td class="t">Extra</td><td>Design a course</td><td>§07: for fast finishers, a second lesson or homework. Pairs design, check and swap courses by course code.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="sheet small">
+    <h3>Key terms</h3>
+    <dl class="terms">
+      <dt>Thrust</dt><dd>The upward push from a spinning prop.</dd>
+      <dt>Pitch / roll / yaw</dt><dd>Tilting nose up or down / tilting left or right / turning to face a new direction.</dd>
+      <dt>Waypoint</dt><dd>A point in space the drone flies to; a flight path is a list of waypoints.</dd>
+      <dt>Coordinates</dt><dd>(x, y, height) in feet: x east, y north, height above the floor. The cage centre is x = 0, y = 0.</dd>
+      <dt>Program</dt><dd>A list of instructions the drone follows one at a time. A <em>loop</em> repeats instructions; an <em>if</em> chooses between them.</dd>
+      <dt>Sensor</dt><dd>A part that measures something; here, the distance to the nearest object in five directions, and a camera that looks for the cube.</dd>
+      <dt>Autonomous</dt><dd>The drone decides its own route from its map and sensors.</dd>
+      <dt>Clearance</dt><dd>The space kept between the drone and an obstacle. Here the drone needs about 0.5 ft all round.</dd>
+    </dl>
+  </div>
+</section>
+<!--/T-->
+
+<section id="meet">
+  <h2><span class="n">01</span>Meet the drone</h2>
+  <p>A quadcopter has four props. Each one pushes air down and the drone up; that push is <strong>thrust</strong>. There is no rudder and no wing flap: the flight controller steers only by making some props spin faster than others. Drag the four sliders, or try a preset, and watch the arrows and the drone.</p>
+  <div class="lab">
+    <canvas id="cvLab" aria-label="3D drone with thrust arrows on its four motors"></canvas>
+    <div class="sheet">
+      <div class="btns" id="labPresets" role="group" aria-label="Presets"></div>
+      <div class="msl">
+        <label for="m1">M1 front-left: <b id="m1v"></b><input id="m1" type="range" min="0" max="100" value="0"></label>
+        <label for="m2">M2 front-right: <b id="m2v"></b><input id="m2" type="range" min="0" max="100" value="0"></label>
+        <label for="m4">M4 back-left: <b id="m4v"></b><input id="m4" type="range" min="0" max="100" value="0"></label>
+        <label for="m3">M3 back-right: <b id="m3v"></b><input id="m3" type="range" min="0" max="100" value="0"></label>
+      </div>
+      <div><span class="eyebrow">What happens</span><div class="what" id="labWhat"></div></div>
+      <div class="small muted" id="labNums"></div>
+      <div class="btns"><button id="labReset">Put it back on the floor</button></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="note blue small"><strong>Up and down:</strong> all four props together. More thrust than the drone's weight and it climbs; exactly its weight and it hovers. <strong>Moving:</strong> the drone tilts, and the tilted thrust pushes it sideways. Faster back props tip the nose down, so it flies forward.</div>
+    <div class="note blue small"><strong>Turning:</strong> the props spin in opposite directions in pairs (front-left with back-right, front-right with back-left). Each prop twists the body the other way. Speed up one pair and slow the other, and the twists no longer cancel: the drone turns on the spot.</div>
+  </div>
+  <div class="sheet quiz" id="quiz1"></div>
+</section>
+
+<section id="plan2">
+  <h2><span class="n">02</span>Plan a path</h2>
+  <p>Every spot in the cage has an address: <strong>x</strong> (feet east of the centre), <strong>y</strong> (feet north) and <strong>height</strong> (feet above the floor). The floor runs from −5 to 5 in x and y, and the drone must stay 0.5 ft away from the nets. A flight path is a list of these points, called <strong>waypoints</strong>, flown in straight lines.</p>
+  <div class="note small"><strong>How to plan:</strong> click the map to add a waypoint, drag one to move it, and drag it up or down in the side view to set its height. Tag one waypoint <em>pick</em> (grab the cube), one <em>drop</em> (over the bin) and the last <em>land</em>. The pre-flight check lists every leg that hits something. Then press <strong>Launch</strong> on the flight deck below.</div>
+  <div class="sheet">
+    <div class="btns">
+      <button id="pedExample">Load a full-course example</button><button id="pedGate1">Load a Gate 1 example</button><button id="pedClear">Clear path</button><span class="sep"></span>
+      <button id="pedDel" disabled>Delete selected</button><span class="coord" id="pedHover">x —, y —</span>
+    </div>
+    <div class="ped">
+      <figure style="margin:0;display:grid;gap:4px"><svg id="pedTop" viewBox="0 0 400 400" role="application" aria-label="Top-down map of the cage. Click to add a waypoint, drag to move it."></svg><figcaption class="small muted">Top view (map). North is up. Click to add, drag to move. The pink edge is the 0.5 ft no-fly strip along the nets; pink circles are the space the props need around each pole.</figcaption></figure>
+      <figure style="margin:0;display:grid;gap:4px"><svg id="pedSide" viewBox="0 0 400 400" role="application" aria-label="Side view from the south. Drag a waypoint up or down to set its height."></svg><figcaption class="small muted">Side view from the south: x across, height up. Drag a point up or down to set its height. Gate openings show as gaps.</figcaption></figure>
+    </div>
+    <div class="grid2">
+      <div class="tbl"><table class="wptbl" id="pedTbl"></table></div>
+      <div style="display:grid;gap:10px;align-content:start"><span class="eyebrow">Pre-flight check</span><ul class="check" id="pedCheck"></ul>
+        <span class="eyebrow">The course</span>
+        <ul class="small" style="margin:0" id="courseLegend"></ul></div>
+    </div>
+  </div>
+  <div class="deckslot" data-mode="path"></div>
+</section>
+
+<section id="prog">
+  <h2><span class="n">03</span>Program it</h2>
+  <p>A path is a list of places. A <strong>program</strong> is a list of instructions, and it can do things a path cannot: repeat steps, read a sensor and decide what to do next. Snap blocks together, then press <strong>Run program</strong>. The drone does one block at a time, and the block it is doing lights up yellow.</p>
+  <div class="note small"><strong>How:</strong> click a block in the coloured list to add it to your program at the orange marker. Click a gap in your program to move the marker there. You can also drag blocks in. On each block, <strong>▲ ▼</strong> move it, <strong>✕</strong> deletes it and <strong>⠿</strong> drags it. Positions and heights are in feet, as on the map in §02.</div>
+  <div class="sheet">
+    <div class="btns"><strong>Examples:</strong><button id="blkEx1">Gate 1 and back</button><button id="blkEx2">Pick and drop with a sensor</button><button id="blkEx3">Full course</button>
+      <span class="sep"></span><button id="blkClear">Clear</button><button id="blkCodeBtn" class="seg" aria-pressed="false">Show as code</button><span class="sep"></span><button id="blkRun" class="primary">▶ Run program</button></div>
+    <div class="blk">
+      <div class="pal" id="blkPal" role="group" aria-label="Blocks: click one to add it"></div>
+      <div style="display:grid;gap:8px;min-width:0"><span class="eyebrow">My program</span><div class="prog" id="blkProg"></div><pre class="code" id="blkCode" hidden></pre><p class="small muted" id="blkInfo"></p></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="note blue small"><strong>Loops.</strong> <em>repeat 3 times</em> runs the blocks inside it three times. <em>repeat until</em> keeps going until something becomes true. <em>repeat until down sensor &lt; 0.4 ft: move down 0.25 ft</em> lowers the drone in small steps until it is just above whatever is under it: the cube, the floor or the bin.</div>
+    <div class="note blue small"><strong>Decisions.</strong> <em>if … else</em> does one set of blocks or the other. The distance sensors measure how far it is to the nearest thing in front, right, behind, left and below (watch them in the Instruments tab on the flight deck). The camera can tell whether it sees the cube.</div>
+  </div>
+  <div class="sheet small"><span class="eyebrow">Try it</span>
+    <ol>
+      <li>Run <em>Gate 1 and back</em>. Then change it so the drone flies through Gate 1 three times, using one <em>repeat</em> block.</li>
+      <li>Run <em>Pick and drop with a sensor</em>. Press <strong>Move cube</strong> (on the flight deck) and run it again. Which block finds the cube where it is now?</li>
+      <li>Press <strong>Show as code</strong>. Each block is one line of Python-style code. Which line is the loop? How can you tell what is inside it?</li>
+      <li>Write your own program for the full course (Level 3 in §06). Can you get three stars?</li>
+    </ol>
+  </div>
+  <!--T--><div class="note small"><strong>Answers.</strong> (1) Put <em>fly through gate 1</em> and <em>move west 2.8 ft</em> inside <em>repeat 3 times</em>. (2) <em>fly over the cube</em> goes to wherever the cube is now, and the sensor loop stops just above it, whatever its height. But the fixed <em>fly to</em> blocks before it may now cross a pole: a good discussion of why real drones need both sensors and a planner. (3) The <code>while</code> (or <code>for</code>) line; the lines inside it are indented. Programs stop at 400 blocks or on an error; the block that caused the error turns red and the reason is in the Log tab.</div><!--/T-->
+  <div class="deckslot" data-mode="blocks"></div>
+</section>
+
+<section id="auto">
+  <h2><span class="n">04</span>Autopilot</h2>
+  <p>In autonomous mode nobody gives the drone a path. It works one out for itself, in three steps. Step through them below, then press <strong>Launch</strong> and watch it fly the whole mission. Then press <strong>Move cube</strong> and launch again: the autopilot re-plans; your path from §02 would not.</p>
+  <div class="sheet">
+    <div class="btns" id="thinkBtns">
+      <strong id="thinkTo">How it would plan a shortcut from the cube to Gate 4:</strong>
+      <button class="seg" data-think="0" aria-pressed="false">1 · Map the no-fly zones</button>
+      <button class="seg" data-think="1" aria-pressed="false">2 · Search</button>
+      <button class="seg" data-think="2" aria-pressed="false">3 · Straighten</button>
+      <button data-think="off">Hide</button>
+    </div>
+    <p class="small" id="thinkText">Pick a step to see it in the cage.</p>
+  </div>
+  <div class="deckslot" data-mode="auto"></div>
+</section>
+
+<section id="manual">
+  <h2><span class="n">05</span>Fly it yourself</h2>
+  <p>Now you are the flight controller. Press <strong>Launch</strong>, then climb with <kbd>R</kbd> (or <strong>UP</strong> on the pad). <kbd>W</kbd> <kbd>S</kbd> fly forward and back, <kbd>A</kbd> <kbd>D</kbd> left and right, <kbd>Q</kbd> <kbd>E</kbd> turn, <kbd>F</kbd> down. Hover with the claw just above the cube and press <kbd>G</kbd> to grab; press <kbd>G</kbd> again over the bin to drop. Click the 3D view first so it hears the keys.</p>
+  <div class="note small">The <strong>Follow</strong> camera stays behind the drone, and the <strong>drone cam</strong> inset shows what its own camera sees. Depth is hard to judge from one camera: switch to <strong>Top</strong> to line up over the cube.</div>
+  <div class="deckslot" data-mode="manual"></div>
+</section>
+
+<section id="chal">
+  <h2><span class="n">06</span>Challenges</h2>
+  <p>Pick a level and a way to fly it: your path (§02), your program (§03), the autopilot (§04) or by hand (§05). The score card ticks off each goal as you fly. Stars: <strong>★</strong> some goals, <strong>★★</strong> every goal, <strong>★★★</strong> every goal with no contacts, under the target time. Each computer keeps its best score for each level.</p>
+  <div class="sheet">
+    <div class="btns" id="levelBtns" role="group" aria-label="Level"></div>
+    <p class="small" id="levelText"></p>
+  </div>
+  <div class="deckslot" data-mode="keep"></div>
+  <div class="sheet small"><span class="eyebrow">Your best scores on this computer</span><div class="tbl"><table id="bestTbl"></table></div><p class="muted" id="bestNote"></p></div>
+</section>
+
+<section id="design">
+  <h2><span class="n">07</span>Design a course <span class="chip c-warn">Extension</span></h2>
+  <p>Real drone courses are designed by people, then tested. Build your own: move the pad, the cube and the bin, add gates, hoops and poles, and set their heights. Then press <strong>Check course</strong>, and launch the autopilot to see it fly. Your course is used everywhere in the lesson (paths, programs, challenges) until you load the original again.</p>
+  <div class="sheet">
+    <div class="btns" id="desPresets"></div>
+    <div class="btns"><button id="desAddGate">+ Gate</button><button id="desAddHoop">+ Hoop</button><button id="desAddPole">+ Pole</button><span class="sep"></span><button id="desCheck0" class="primary">Check course</button><span class="coord" id="desHover">x —, y —</span></div>
+    <div class="ped">
+      <figure style="margin:0;display:grid;gap:4px"><svg id="desTop" viewBox="0 0 400 400" role="application" aria-label="Top-down map of your course. Drag things to move them; click one to change it."></svg><figcaption class="small muted">Top view: drag to move, click to select. Arrows show which way the autopilot flies through each gate.</figcaption></figure>
+      <div style="display:grid;gap:12px;align-content:start">
+        <div id="desProps" style="display:grid;gap:8px"></div>
+        <span class="eyebrow">Course check</span><ul class="check" id="desCheck"></ul>
+        <figure style="margin:0;display:grid;gap:4px"><svg id="desSide" viewBox="0 0 400 400" aria-label="Side view of your course from the south"></svg><figcaption class="small muted">Side view from the south.</figcaption></figure>
+      </div>
+    </div>
+    <div style="display:grid;gap:6px"><span class="eyebrow">Course code</span><p class="small muted">Copy it to share your course; paste someone else's code and press Load to fly theirs.</p>
+      <textarea id="desCode" rows="3" spellcheck="false" aria-label="Course code"></textarea>
+      <div class="btns"><button id="desCopy">Copy code</button><button id="desLoad">Load this code</button></div></div>
+  </div>
+  <!--T--><div class="note small"><strong>Teacher notes.</strong> A good extension for fast finishers, a second lesson or homework. Ask pairs to design a course that is hard to fly by hand but still passes the check, swap course codes with another pair, and fly each other's courses in every mode. The check refuses openings too small for the drone (it needs about 1 ft plus room to spare) and things the autopilot cannot reach. Each course keeps its own best scores. "Original" restores the lesson's course.</div><!--/T-->
+  <div class="deckslot" data-mode="auto"></div>
+</section>
+
+<section id="exit">
+  <h2><span class="n">08</span>Exit ticket</h2>
+  <p>Answer on paper.</p>
+  <ol class="exit">
+    <li><p>Your drone is hovering. Which props must speed up, and which slow down, to make it fly <strong>backward</strong>? Why?</p>
+      <!--T--><p class="small ans">The front props speed up and the back props slow down. The nose tips up, the thrust tilts backward, and the drone moves backward (total thrust stays the same, so it keeps its height).</p><!--/T--></li>
+    <li><p>Write the waypoint for a point 2 ft west of the centre, 3 ft north of it and 6 ft above the floor.</p>
+      <!--T--><p class="small ans">(x, y, height) = (−2, 3, 6).</p><!--/T--></li>
+    <li><p>The cube was moved. Explain why the autopilot still picked it up but your saved path missed it.</p>
+      <!--T--><p class="small ans">A saved path is a fixed list of points, so the drone flies to where the cube used to be. The autopilot finds the cube with its camera and plans a new route around the pipes from where the cube actually is.</p><!--/T--></li>
+    <li><p>A program says <em>repeat until down sensor &lt; 0.4 ft: move down 0.25 ft</em>. What does the drone do? Why is that better than one block that says <em>move down 2.5 ft</em>?</p>
+      <!--T--><p class="small ans">It steps down a quarter of a foot at a time, checking the sensor before each step, and stops when something is less than 0.4 ft below it. It works from any starting height and stops above whatever is there (the cube, the floor, the bin); a fixed 2.5 ft move only works from exactly the right height and could hit the cube or the floor.</p><!--/T--></li>
+  </ol>
+</section>
+
+</div>
+
+<!-- the flight deck: moved into the .deckslot of the section being shown -->
+<div class="deck" id="deck">
+  <div class="view" id="view">
+    <canvas id="c" tabindex="0" aria-label="3D view of the drone flight cage"></canvas>
+    <div class="pip" id="pip"><span>Drone cam</span></div>
+    <div class="flash" id="flash"></div>
+    <div class="hud tl"><span class="hchip" id="hudMode">Autonomous</span><span class="phase" id="hudPhase">On the pad</span></div>
+    <div class="hud tr"><div class="vseg" id="views" role="group" aria-label="Camera view">
+      <button data-v="follow" aria-pressed="true">Follow</button><button data-v="orbit" aria-pressed="false">Whole cage</button><button data-v="fpv" aria-pressed="false">Drone cam</button><button data-v="top" aria-pressed="false">Top</button>
+    </div></div>
+    <div class="hud bl" id="touchPad" hidden>
+      <div class="pad">
+        <button data-k="KeyQ" aria-label="Turn left">⟲</button><button data-k="KeyW" aria-label="Forward">▲</button><button data-k="KeyE" aria-label="Turn right">⟳</button>
+        <button data-k="KeyA" aria-label="Left">◀</button><button data-k="KeyG" aria-label="Grab or release">GRAB</button><button data-k="KeyD" aria-label="Right">▶</button>
+        <button data-k="KeyR" aria-label="Climb">UP</button><button data-k="KeyS" aria-label="Back">▼</button><button data-k="KeyF" aria-label="Descend">DN</button>
+      </div>
+    </div>
+    <div class="hud br" id="hudClock">T+ 0.0 s</div>
+  </div>
+  <aside class="rail">
+    <div class="card">
+      <div class="modes" role="group" aria-label="Flight mode">
+        <button data-m="path" aria-pressed="false">My path</button>
+        <button data-m="blocks" aria-pressed="false">Program</button>
+        <button data-m="auto" aria-pressed="true">Autopilot</button>
+        <button data-m="manual" aria-pressed="false">Manual</button>
+      </div>
+      <div class="btns">
+        <button class="primary" id="btnGo" style="flex:1">Launch</button>
+        <button id="btnPause" disabled>Pause</button>
+        <button id="btnReset">Reset</button>
+      </div>
+      <div class="btns small">
+        <button id="btnCube">Move cube</button>
+        <label class="tog">Speed <select id="optSpeed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+      </div>
+      <div class="btns small">
+        <label class="tog"><input type="checkbox" id="optWind"> Wind</label>
+        <label class="tog"><input type="checkbox" id="optBeams" checked> Sensor beams</label>
+        <label class="tog"><input type="checkbox" id="optThrust" checked> Thrust arrows</label>
+        <label class="tog"><input type="checkbox" id="optPip" checked> Drone-cam inset</label>
+      </div>
+      <p class="small muted" id="levelChip"></p>
+    </div>
+    <div class="card" style="flex:1;min-height:0">
+      <div class="rtabs" role="group" aria-label="Panel">
+        <button data-r="mission" aria-pressed="true">Mission</button><button data-r="instr" aria-pressed="false">Instruments</button><button data-r="log" aria-pressed="false">Log</button>
+      </div>
+      <div class="rbody" id="r-mission">
+        <div class="score" id="scoreCard"></div>
+        <div><h4>Steps</h4><ul class="steps" id="steps"></ul><p class="small muted" id="stepsEmpty">Press Launch.</p></div>
+      </div>
+      <div class="rbody" id="r-instr" hidden>
+        <dl class="tele">
+          <div><dt>Height</dt><dd id="tAlt">0.0 <small>ft</small></dd></div>
+          <div><dt>Speed</dt><dd id="tSpd">0.0 <small>ft/s</small></dd></div>
+          <div><dt>Heading</dt><dd id="tHdg">090°</dd></div>
+          <div><dt>Pitch</dt><dd id="tPit">0.0°</dd></div>
+          <div><dt>Roll</dt><dd id="tRol">0.0°</dd></div>
+          <div><dt>Battery</dt><dd id="tBat">100%</dd></div>
+          <div><dt>Position</dt><dd id="tPos" style="font-size:12.5px">—</dd></div>
+          <div><dt>Contacts</dt><dd id="tCol">0</dd></div>
+          <div><dt>Cube</dt><dd id="tCube">on mat</dd></div>
+        </dl>
+        <h4>Distance sensors</h4>
+        <div class="bars">
+          <div class="bar"><span>Front</span><i><b id="bF"></b></i><span id="vF">—</span></div>
+          <div class="bar"><span>Right</span><i><b id="bR"></b></i><span id="vR">—</span></div>
+          <div class="bar"><span>Rear</span><i><b id="bB"></b></i><span id="vB">—</span></div>
+          <div class="bar"><span>Left</span><i><b id="bL"></b></i><span id="vL">—</span></div>
+          <div class="bar"><span>Down</span><i><b id="bD"></b></i><span id="vD">—</span></div>
+        </div>
+        <div class="vision" id="vision">Camera: idle</div>
+        <h4>Motor thrust</h4>
+        <div class="bars">
+          <div class="bar"><span>M1 FL</span><i><b id="mb0"></b></i><span id="mv0">0%</span></div>
+          <div class="bar"><span>M2 FR</span><i><b id="mb1"></b></i><span id="mv1">0%</span></div>
+          <div class="bar"><span>M3 BR</span><i><b id="mb2"></b></i><span id="mv2">0%</span></div>
+          <div class="bar"><span>M4 BL</span><i><b id="mb3"></b></i><span id="mv3">0%</span></div>
+        </div>
+      </div>
+      <div class="rbody" id="r-log" hidden><ul class="log" id="log"></ul></div>
+    </div>
+  </aside>
+</div>
+
+<script>/*@@THREE@@*/</script>
+<script>/*@@ORBIT@@*/</script>
+<script>
+/*@@APP@@*/
+</script>
+</body>
+</html>
