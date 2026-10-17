@@ -15,9 +15,10 @@
    11. Files         — export, import, timing panel
    12. Pages         — Sim / Tutorial / Experiments
    13. Tweaks        — background theme and display toggles
+   14. Startup       — restore the saved board, or the default demo with a notice saying why
    ============================================================ */
 (function(){
-const { DEFS, CATS, LED_COLORS, SUB_PREFIX, Circuit, Board, Timing, pages, truthTable, TT_MAX_IN, refreshTheme } = window.DLB;
+const { DEFS, CATS, LED_COLORS, LABEL_MAX, SUB_PREFIX, Circuit, Board, Timing, pages, truthTable, TT_MAX_IN, refreshTheme } = window.DLB;
 
 // ── CONSTANTS ─────────────────────────────────────────────────
 const HZ_DEFAULT = 2, HZ_MIN = 0.5, HZ_MAX = 10, HZ_STEP = 0.5;   // clock frequency slider (Hz)
@@ -31,6 +32,7 @@ const NOTICE_MS = 6000;          // board notices (replaced wire, relabelled par
 const IMPORT_MAX_MB = 1, IMPORT_MAX_BYTES = IMPORT_MAX_MB * 1e6;   // a circuit file larger than this is refused (SEC-DL-004)
 const PAGES = ['sim','tut','exp'];
 const DEMO_VIEW = { ox: 40, oy: 20, s: 1 };
+const DEFAULT_DEMO = 'Binary counter';   // shown on first visit, and when a saved board cannot be restored
 const STORE_PREFIX = 'dlb.';
 const BG_THEMES = {
   Charcoal: { '--bg':'#0f1218','--bg2':'#161b22','--bg3':'#1c222b','--inset':'#090c11','--line':'#262d38','--line2':'#333c49' },
@@ -45,11 +47,15 @@ const TWEAKS_DEFAULT = { theme:'Charcoal', grid:true, pins:true, wire:true };
 const $ = s => document.querySelector(s);
 // Save a value. Storage can be blocked (sandboxed embed, policy, quota): the tool then runs without saving (CQ-DL-009).
 function store(k, v){ try { localStorage.setItem(STORE_PREFIX+k, JSON.stringify(v)); } catch(e){ /* not saved: storage unavailable */ } }
-// Read a saved value, or d when it is missing, unreadable, or fails the check ok(v) (SEC-DL-006).
-function load(k, d, ok){
-  try { const s = localStorage.getItem(STORE_PREFIX+k); if(s === null) return d; const v = JSON.parse(s); return !ok || ok(v) ? v : d; }
-  catch(e){ return d; }
+// Read a saved value: { v } when it is there and parses, { bad: true } when it is there but is not JSON, and {} when
+// it is missing or storage is unavailable.
+function readSaved(k){
+  let s; try { s = localStorage.getItem(STORE_PREFIX+k); } catch(e){ return {}; }
+  if(s === null) return {};
+  try { return { v: JSON.parse(s) }; } catch(e){ return { bad: true }; }
 }
+// Read a saved value, or d when it is missing, unreadable, or fails the check ok(v) (SEC-DL-006).
+function load(k, d, ok){ const r = readSaved(k); return 'v' in r && (!ok || ok(r.v)) ? r.v : d; }
 // True for true / false.
 const isBool = v => typeof v === 'boolean';
 // True if k is one of o's own keys (never a prototype key such as "constructor").
@@ -87,29 +93,35 @@ function relabelNotice(what, res){
 function named(c, t){ const why = ckt.setLabel(c, t); if(why) throw new Error('Demo label: '+why); return c; }
 // Wire output pin fp of part f to input pin tp of part t, with an optional route offset.
 function W(f, fp, t, tp, adj){ ckt.connect({c:f.id,pin:fp},{c:t.id,pin:tp}); if(adj) Object.assign(ckt.wires[ckt.wires.length-1], adj); }
+// Row of four LEDs Q0..Q3 for outputs 0..3 of part src (layout data): Q0 on the right, so the row reads as a binary
+// number. Each LED takes its wire on the left, from a run that comes down beside it, so no wire crosses a label (DL-017).
+const LED_ROW = { x0: 300, step: 80, gap: 20, colors: ['red','amber','green','blue'] };
+// Place the LED row with its top at y and wire it to src.
+function ledRow(src, y){ const n = LED_ROW.colors.length;
+  for(let i=0;i<n;i++){ const x = LED_ROW.x0 + LED_ROW.step*(n-1-i), l = named(ckt.add('LED',x,y), 'Q'+i); l.color = LED_ROW.colors[i]; W(src,i,l,0,{mx:x-LED_ROW.gap}); } }
 const DEMOS = {
   'Binary counter': { clock:true, build(){
-    const K = ckt.add('CLK',40,140), R = named(ckt.add('SW',40,220), 'RST'), C = ckt.add('CNT4',160,120), S = ckt.add('SEG7',360,120);
+    const K = ckt.add('CLK',40,140), R = named(ckt.add('SW',40,220), 'RST'), C = ckt.add('CNT4',160,120), S = ckt.add('SEG7',620,120);
     W(K,0,C,0); W(R,0,C,1); for(let i=0;i<4;i++) W(C,i,S,i);
-    const xs = [460,400,340,280];
-    for(let i=0;i<4;i++){ const l = named(ckt.add('LED',xs[i],300), 'Q'+i); l.rot = 1; l.color = ['red','amber','green','blue'][i]; W(C,i,l,0); } } },
+    ledRow(C, 300); } },
   'LED chaser': { clock:true, build(){
     const K = ckt.add('CLK',40,380), R = ckt.add('SHR4',160,320), N = ckt.add('NOT',160,520); N.rot = 2;
     W(K,0,R,1); W(R,3,N,0,{my:480}); W(N,0,R,0,{my:440});
-    const xs = [460,400,340,280];
-    for(let i=0;i<4;i++){ const l = named(ckt.add('LED',xs[i],480), 'Q'+i); l.rot = 1; l.color = ['red','amber','green','blue'][i]; W(R,i,l,0); } } },
+    ledRow(R, 460); } },
   'Half adder': { build(){
     const A = ckt.add('SW',40,100), B = ckt.add('SW',40,180), X = ckt.add('XOR',160,80), N = ckt.add('AND',160,200);
     W(A,0,X,0,{mx:120}); W(A,0,N,0,{mx:110}); W(B,0,X,1,{mx:130}); W(B,0,N,1,{mx:120});
     const S = named(ckt.add('LED',300,100), 'S'), C = named(ckt.add('LED',300,220), 'C'); S.color='green'; C.color='red';
     W(X,0,S,0); W(N,0,C,0); } },
+  // One row of switches, B3..B0 then A3..A0: each wire runs down from its switch and across to its input, clear of
+  // every label (DL-017).
   '4-bit adder': { build(){
-    const AD = ckt.add('ADD4',200,100), S = ckt.add('SEG7',400,140);
-    for(let i=0;i<4;i++){ const s = named(ckt.add('SW',140-40*i,20), 'A'+i); s.rot = 1; W(s,0,AD,i); }
-    for(let i=0;i<4;i++){ const s = named(ckt.add('SW',20+40*i,340), 'B'+i); s.rot = 3; W(s,0,AD,4+i); }
-    const Z = ckt.add('LO',100,260); W(Z,0,AD,8);
-    W(AD,0,S,0); W(AD,1,S,1); W(AD,2,S,2,{mx:360}); W(AD,3,S,3,{mx:330});
-    const C = named(ckt.add('LED',400,280), 'Cout'); C.color='red'; W(AD,4,C,0,{mx:310}); } },
+    const AD = ckt.add('ADD4',400,100), S = ckt.add('SEG7',600,140);
+    for(let i=0;i<4;i++){ const s = named(ckt.add('SW',340-40*i,20), 'A'+i); s.rot = 1; W(s,0,AD,i); }
+    for(let i=0;i<4;i++){ const s = named(ckt.add('SW',160-40*i,20), 'B'+i); s.rot = 1; W(s,0,AD,4+i); }
+    const Z = ckt.add('LO',300,280); W(Z,0,AD,8);
+    W(AD,0,S,0); W(AD,1,S,1); W(AD,2,S,2,{mx:560}); W(AD,3,S,3,{mx:530});
+    const C = named(ckt.add('LED',600,280), 'Cout'); C.color='red'; W(AD,4,C,0,{mx:510}); } },
   'SR latch': { build(){
     const S = ckt.add('SW',40,240), R = ckt.add('SW',40,80), N1 = ckt.add('NOR',160,80), N2 = ckt.add('NOR',160,200); named(S,'S'); named(R,'R');
     W(R,0,N1,0); W(S,0,N2,1);
@@ -206,9 +218,6 @@ function setRun(on){ running = on; $('#run').textContent = on?'Stop':'Run'; $('#
   if(on){ last = performance.now(); acc = 0; frame = requestAnimationFrame(loop); } }
 $('#run').onclick = ()=>setRun(!running);
 $('#step').onclick = ()=>{ setRun(false); ckt.tickClocks(); };
-const saved = load('circuit', null), restored = saved ? ckt.load(saved) : null;
-if(restored && restored.ok){ relabelNotice('Restored your board', restored); if(load('run', false, isBool) && ckt.comps.some(c=>c.type==='CLK')) setRun(true); }
-else loadDemo('Binary counter');
 // ── END CLOCK ─────────────────────────────────────────────────
 
 // ── BOARD ACTIONS ─────────────────────────────────────────────
@@ -231,7 +240,7 @@ $('#mksub').onclick = ()=>{ if(board.areaCb){ board.pickArea(null); return; }
   board.pickArea(parts => {
     if(!parts.length){ notice('No parts inside the box. Press Make subsystem and drag a box around the circuit.'); return; }
     let name = '', why = null;
-    do { const v = prompt((why ? why+'\n\n' : '')+'Name for the subsystem ('+parts.length+' part'+(parts.length>1?'s':'')+', up to 10 characters)', name); if(v === null) return; name = v.trim(); why = ckt.subNameProblem(name); } while(why);
+    do { const v = prompt((why ? why+'\n\n' : '')+'Name for the subsystem ('+parts.length+' part'+(parts.length>1?'s':'')+', up to '+LABEL_MAX+' characters)', name); if(v === null) return; name = v.trim(); why = ckt.subNameProblem(name); } while(why);
     const r = ckt.makeSubsystem(name, parts); if(r.error){ alert(r.error); return; }
     board.select(r.comp); const d = DEFS[r.comp.type];
     notice('Made subsystem '+name+': inputs '+(d.ins.join(', ') || 'none')+'; outputs '+(d.outs.join(', ') || 'none')+'. Place more copies from Components › Subsystems; Ungroup opens it again.'); }); };
@@ -264,7 +273,7 @@ async function showTT(){
   if(!T.ins.length || !T.outs.length){ ttNote('Place at least one SWITCH (input) and one PROBE or LED (output). The table lists every switch combination and what the probes read.'); return; }
   if(T.tooMany){ ttNote(T.ins.length + ' switches would need ' + (1 << T.ins.length) + ' rows; the table handles up to ' + TT_MAX_IN + ' switches (' + (1 << TT_MAX_IN) + ' rows).', true); return; }
   ttNote('Inputs are the switches, outputs the probes and LEDs, each in label order (first label = most significant bit). Each row is applied to a copy of your board taken when you pressed Truth table; the board itself is not changed.');
-  if(T.seq) ttNote('This circuit has memory (a latch or flip-flop). Each row starts from reset with every switch LOW, so the table shows what the circuit does from reset, not every behaviour. Clocks are held LOW: to tabulate a flip-flop, clock it from a switch.', true);
+  if(T.seq) ttNote('This circuit has memory (a flip-flop, or gates wired in a feedback loop such as a latch). Each row starts from reset with every switch LOW, so the table shows what the circuit does from reset, not every behaviour. Clocks are held LOW: to tabulate a flip-flop, clock it from a switch.', true);
   if(T.rows.some(r => r.unstable)) ttNote('Some rows did not settle (a combinational loop): those outputs are marked ~.', true);
   const tb = document.createElement('table'); tb.className = 'tt';
   const hr = document.createElement('tr'), th = (t, c) => { const e = document.createElement('th'); e.textContent = t; if(c) e.className = c; hr.append(e); };
@@ -309,8 +318,9 @@ $('#file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; i
     const v = Circuit.validate(j); if(!v.ok){ alert('Could not load "'+f.name+'". The board was not changed.\n\n'+v.errors.join('\n')); return; }
     setRun(false); let res; ckt.batch(() => { res = ckt.load(j); }); timing.clear(); board.select(null);
     relabelNotice('Loaded "'+f.name+'"', res); }); };
-// Show or hide the timing diagram.
-function setTiming(on){ timing.enabled = on; $('#timing').classList.toggle('on', on); $('#tim').classList.toggle('on', on); store('timing', on); requestAnimationFrame(()=>requestAnimationFrame(()=>{ board.resize(); timing.draw(); })); }
+// Show or hide the timing diagram. The panel's height changes, so the resize observers redraw the board and the
+// diagram (CQ-DL-032).
+function setTiming(on){ timing.enabled = on; $('#timing').classList.toggle('on', on); $('#tim').classList.toggle('on', on); store('timing', on); }
 $('#tim').onclick = ()=>setTiming(!timing.enabled);
 setTiming(load('timing', false, isBool));
 // ── END FILES ─────────────────────────────────────────────────
@@ -318,10 +328,10 @@ setTiming(load('timing', false, isBool));
 // ── PAGES ─────────────────────────────────────────────────────
 $('#pg-tut').append(pages.tutorial());
 $('#pg-exp').append(pages.experiments(ckt, ()=>showPage('sim')));
-// Show one page (Sim, Tutorial, Experiments).
+// Show one page (Sim, Tutorial, Experiments). Showing the Sim page lays out its canvases again, so the resize
+// observers redraw the board and the timing diagram (CQ-DL-032).
 function showPage(id){ if(!PAGES.includes(id)) id = PAGES[0];
-  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id==='pg-'+id)); document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.pg===id)); store('page', id);
-  if(id==='sim') requestAnimationFrame(()=>requestAnimationFrame(()=>{ board.resize(); timing.draw(); })); }
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id==='pg-'+id)); document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.pg===id)); store('page', id); }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = ()=>showPage(b.dataset.pg));
 showPage(load('page', PAGES[0], v => PAGES.includes(v)));
 // ── END PAGES ─────────────────────────────────────────────────
@@ -336,6 +346,15 @@ function applyTweaks(){ Object.entries(BG_THEMES[tw.theme]).forEach(([k,v]) => d
   $('#themes').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent===tw.theme));
   board.showGrid = tw.grid; board.showPinNames = tw.pins; board.wireColor = tw.wire; board.requestDraw(); timing.draw(); store('tweaks', tw); }
 applyTweaks();
-ckt.emit();
 // ── END TWEAKS ────────────────────────────────────────────────
+
+// ── STARTUP ───────────────────────────────────────────────────
+// Restore the saved board. A board that cannot be restored (it is not readable, or fails Import validation) is
+// replaced by the default demo, and a notice names the cause (principal ruling 2026-10-17 (7)).
+const saved = readSaved('circuit'), restored = 'v' in saved ? ckt.load(saved.v) : null;
+if(restored && restored.ok){ relabelNotice('Restored your board', restored); if(load('run', false, isBool) && ckt.comps.some(c=>c.type==='CLK')) setRun(true); }
+else { loadDemo(DEFAULT_DEMO);
+  if(saved.bad || restored) notice('Your saved board could not be restored ('+(saved.bad ? 'the saved data is not readable' : restored.errors[0].replace(/\.$/, ''))+'), so the '+DEFAULT_DEMO+' demo is shown instead.'); }
+ckt.emit();
+// ── END STARTUP ───────────────────────────────────────────────
 })();

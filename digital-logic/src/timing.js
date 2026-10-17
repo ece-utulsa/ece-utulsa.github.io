@@ -12,7 +12,8 @@ const { theme } = window.DLB;
 
 // ── CONSTANTS ─────────────────────────────────────────────────
 const MAX_COLS = 48;             // columns kept and shown
-const HEIGHT = 200;              // canvas height (px); matches #tdiag in the page CSS
+const HEIGHT = 200;              // panel and canvas height (px); the page CSS reads it as --timing-h (CQ-DL-027)
+const HEIGHT_VAR = '--timing-h';
 const LABEL_W = 64;              // left gutter for signal names
 const TOP = 26;                  // first row starts here (caption above)
 const ROW_MAX = 30;              // tallest row
@@ -34,6 +35,7 @@ class Timing {
   // Attach to a canvas and a circuit; every change records a column.
   constructor(canvas, ckt){
     this.cv = canvas; this.ctx = canvas.getContext('2d'); this.ckt = ckt; this.hist = []; this.enabled = false;
+    document.documentElement.style.setProperty(HEIGHT_VAR, HEIGHT+'px');
     ckt.onChange(()=>this.record());
     new ResizeObserver(()=>this.draw()).observe(canvas.parentElement);
   }
