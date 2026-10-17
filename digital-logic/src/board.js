@@ -7,13 +7,20 @@
    TABLE OF CONTENTS
    1. Constants        — view, gestures, zoom, routing, stroke widths, 7-segment patterns, part glyph geometry
    2. Helpers          — rr, uprightText, distSeg, routePts
-   3. Board            — construction, draw scheduling, view (zoom/fit), selection and editing,
-                         pointer routing, mouse/pen logic, keyboard, drawing
+   3. Board            — construction
+      3.1 Draw scheduling   — requestDraw, resize
+      3.2 View              — pointer to board coordinates, zoom, fit
+      3.3 Selection and editing — select, rename, arm, area mode, remove, wire
+      3.4 Hit tests         — pin, part, wire, tee handle, wire route
+      3.5 Pointer routing   — mouse, pen and touch: pinch, double tap, long press
+      3.6 Mouse / pen logic — press, move, release, double click, wheel
+      3.7 Keyboard          — Delete, rotate, LED colour, nudge, Escape
+      3.8 Drawing           — board, parts, pin markers
    4. Part glyphs      — drawGate, drawSeg and one draw function per part shape (SHAPES table)
    5. Export           — window.DLB.Board
    ============================================================ */
 (function(){
-const { DEFS, LED_COLORS, ledLit, GRID, PIN_LEN, LABEL_MAX, geom, geom0, localPin, pinPos, pinDir, theme } = window.DLB;
+const { DEFS, LED_COLORS, ledLit, GRID, PIN_LEN, LABEL_MAX, snap, geom, geom0, localPin, pinPos, pinDir, colors } = window.DLB;
 
 // ── CONSTANTS ─────────────────────────────────────────────────
 const VIEW0 = { ox: 60, oy: 40, s: 1 };   // initial / empty-board view origin (px) and scale
@@ -30,6 +37,9 @@ const NUDGE_BIG = 5;             // Shift+arrow nudges this many grid steps
 const ROUTE_STUB = 12;           // a wire leaves a pin straight for this long before turning
 const ROUTE_FACING_MIN = 24;     // pins at least this far apart, facing each other, get a Z route
 const ROUTE_CLAMP = 8;           // a Z route's vertical run stays this far out from either pin
+// Route shapes by point count (see routePts), and the segments of a wrap route that a drag moves.
+const ROUTE_PTS = { straight: 2, z: 4, l: 5 };   // anything longer is a wrap (6 points)
+const WRAP_SEG = { ax: 1, my: 2, bx: 3 };
 const GRID_DOT = 1.5;            // grid dot size
 const WIRE_W_HI = 3, WIRE_W_LO = 2.2, WIRE_W_DRAG = 2;   // wire stroke widths
 const SEL_HALO_W = 6, SEL_HALO_ALPHA = .35;   // selected wire halo
@@ -46,10 +56,12 @@ const CLK_MARK_H = 5, CLK_MARK_W = 6;   // ▷ clock-input marker on edge-trigge
 const PIN_NAME_INSET = 4, PIN_NAME_INSET_CLK = 8;   // pin name offset from the body edge (past the ▷ on CK)
 const UNSTABLE_GAP = 2;          // ~ marker below a part when the board is UNSTABLE
 const KNOB_ON = '#0b2e1a';       // dark knob on a switch that is on
-// 7-segment patterns, bit 0..6 = segments a..g. 0-9 are the decimal digits; 10-15 are the 7448 decoder's
-// patterns (principal ruling 2026-10-11, replacing hex A-F): 10 ⊏-like (d e g), 11 (c d g), 12 (b f g),
-// 13 (a d f g), 14 (d e f g), 15 blank.
-const SEG_7448 = [0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f, 0x58,0x4c,0x62,0x69,0x78,0x00];
+// 7-segment patterns, bit 0..6 = segments a..g: the 7448 decoder's function table. 0-9 are the decimal digits, with
+// 6 and 9 drawn as the 7448 draws them, without tails (6 = c d e f g, 9 = a b c f g; principal ruling 2026-10-17,
+// DL-015); 10-15 are its non-digit patterns (ruling 2026-10-11, replacing hex A-F): 10 ⊏-like (d e g), 11 (c d g),
+// 12 (b f g), 13 (a d f g), 14 (d e f g), 15 blank.
+const SEG_7448 = [0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7c,0x07,0x7f,0x67, 0x58,0x4c,0x62,0x69,0x78,0x00];
+const SEG_DP_BIT = 7;            // bit of the decimal point in a segment mask (after a..g)
 // Segment rectangles [x, y, w, h] around the display centre, a..g, for segment length SEG_L and thickness SEG_T.
 const SEG_L = 14, SEG_T = 3;
 const SEG_BIG = 2;               // 7-SEG (all segments exposed) draws its digit this many times larger
@@ -95,7 +107,7 @@ function routePts(a,b,below,w,da,db){
     if(facing){ if(a.y===b.y) return [a,b]; let mx = w.mx ?? Math.round((a.x+b.x)/2);
       const lo = Math.min(a.x+da.dx*ROUTE_CLAMP, b.x+db.dx*ROUTE_CLAMP), hi = Math.max(a.x+da.dx*ROUTE_CLAMP, b.x+db.dx*ROUTE_CLAMP);
       mx = Math.max(lo, Math.min(hi, mx)); return [a,{x:mx,y:a.y},{x:mx,y:b.y},b]; }
-    const my = w.my ?? Math.round(below/GRID)*GRID, ax = w.ax ?? a1.x, bx = w.bx ?? b1.x;
+    const my = w.my ?? snap(below), ax = w.ax ?? a1.x, bx = w.bx ?? b1.x;
     return [a,{x:ax,y:a.y},{x:ax,y:my},{x:bx,y:my},{x:bx,y:b.y},b];
   }
   if(da.dy!==0 && db.dy===0){ const my = w.my ?? b.y; return [a,{x:a.x,y:my},{x:b1.x,y:my},b1,b]; }
@@ -103,7 +115,7 @@ function routePts(a,b,below,w,da,db){
     if((a.y-b.y)*db.dy >= ROUTE_STUB){ const mx = w.mx ?? b.x; return [a,a1,{x:mx,y:a1.y},{x:mx,y:b.y},b]; }
     const ax = w.ax ?? a1.x, my = w.my ?? b1.y;
     return [a,{x:ax,y:a.y},{x:ax,y:my},{x:b.x,y:my},b1,b]; }
-  const my = w.my ?? Math.round((a1.y+b1.y)/2/GRID)*GRID;
+  const my = w.my ?? snap((a1.y+b1.y)/2);
   return [a,a1,{x:a1.x,y:my},{x:b1.x,y:my},b1,b];
 }
 // Keep a view scale inside the zoom limits.
@@ -131,18 +143,22 @@ class Board {
     ckt.onChange(()=>this.requestDraw());
   }
 
-  // ── Draw scheduling ──
+  // ── 3.1 DRAW SCHEDULING ───────────────────────────────────────
   // Ask for a redraw; all requests in one frame produce one draw. Skipped while the Sim page is hidden: showing it
   // again resizes and redraws the board.
   requestDraw(){ if(!this.frame) this.frame = requestAnimationFrame(()=>{ this.frame = 0; if(this.cv.offsetParent) this.draw(); }); }
-  // Match the canvas backing store to its box and draw at once.
-  resize(){ const r = this.cv.parentElement.getBoundingClientRect(); this.cv.width = Math.max(1, r.width*devicePixelRatio); this.cv.height = Math.max(1, r.height*devicePixelRatio); this.cv.style.height = r.height+'px'; this.draw(); }
+  // Match the canvas backing store to its box and draw at once. The store is reallocated (and cleared) only when the
+  // size changed (CQ-DL-032).
+  resize(){ const r = this.cv.parentElement.getBoundingClientRect(), w = Math.max(1, Math.round(r.width*devicePixelRatio)), h = Math.max(1, Math.round(r.height*devicePixelRatio));
+    if(this.cv.width !== w) this.cv.width = w; if(this.cv.height !== h) this.cv.height = h; this.cv.style.height = r.height+'px'; this.draw(); }
 
-  // ── View ──
+  // ── END 3.1 DRAW SCHEDULING ───────────────────────────────────
+
+  // ── 3.2 VIEW ──────────────────────────────────────────────────
   // Board coordinates of a pointer event.
   world(e){ const r = this.cv.getBoundingClientRect(); return { x:(e.clientX-r.left-this.view.ox)/this.view.s, y:(e.clientY-r.top-this.view.oy)/this.view.s }; }
   // Nearest grid line.
-  snap(v){ return Math.round(v/GRID)*GRID; }
+  snap(v){ return snap(v); }
   // Set the scale to s (clamped), keeping the board point under canvas point (mx, my) fixed.
   zoomAbout(mx, my, s){ s = clampZoom(s); this.view.ox = mx - (mx-this.view.ox)*s/this.view.s; this.view.oy = my - (my-this.view.oy)*s/this.view.s; this.view.s = s; this.requestDraw(); }
   // Zoom about the canvas centre (− / + buttons).
@@ -154,7 +170,9 @@ class Board {
     const r = this.cv.getBoundingClientRect(), s = clampZoom(Math.min(r.width/(x1-x0), r.height/(y1-y0)));
     this.view = { s, ox: (r.width - (x1-x0)*s)/2 - x0*s, oy: (r.height - (y1-y0)*s)/2 - y0*s }; this.requestDraw(); }
 
-  // ── Selection and editing ──
+  // ── END 3.2 VIEW ──────────────────────────────────────────────
+
+  // ── 3.3 SELECTION AND EDITING ─────────────────────────────────
   // Select a part, a wire, or nothing.
   select(x){ this.sel = x || null; this.onSelect(this.sel); this.requestDraw(); }
   // Ask for a label. Signal labels (switches, buttons, clocks, probes, LEDs) must be unique and not blank, so the
@@ -184,7 +202,9 @@ class Board {
     this.onNotice('Replaced the wire into '+name+' input '+DEFS[c.type].ins[to.pin]+' — one wire per input. Undo brings the old wire back.');
   }
 
-  // ── Hit tests ──
+  // ── END 3.3 SELECTION AND EDITING ─────────────────────────────
+
+  // ── 3.4 HIT TESTS ─────────────────────────────────────────────
   // Pin under board point p.
   hitPin(p){
     for(const c of this.ckt.comps){ const d = DEFS[c.type];
@@ -211,7 +231,10 @@ class Board {
     return routePts(a,b,below,w,pinDir(ca,'out',w.from.pin),pinDir(cb,'in',w.to.pin));
   }
 
-  // ── Pointer routing: one pointer drives the mouse logic, a second one turns the gesture into pan + pinch ──
+  // ── END 3.4 HIT TESTS ─────────────────────────────────────────
+
+  // ── 3.5 POINTER ROUTING ───────────────────────────────────────
+  // One pointer drives the mouse logic; a second one turns the gesture into pan + pinch.
   // Pointer down: mouse goes straight through; touch tracks fingers, double tap and long press.
   pdown(e){
     if(e.pointerType === 'mouse'){ this.hitR = HIT_R_MOUSE; this.down(e); return; }
@@ -237,8 +260,9 @@ class Board {
     this.touches.set(e.pointerId, { x:e.clientX, y:e.clientY });
     if(this.longT && Math.hypot(e.clientX-this.longT.x, e.clientY-this.longT.y) > LONG_PRESS_SLOP_PX) this.cancelLong();
     if(this.pinch && this.touches.size >= 2){ const [a,b] = [...this.touches.values()], P = this.pinch, r = this.cv.getBoundingClientRect();
-      const s = clampZoom(P.s * Math.hypot(a.x-b.x, a.y-b.y) / P.d), mx = P.cx - r.left, my = P.cy - r.top;
-      this.view.s = s; this.view.ox = mx - (mx-P.ox)*s/P.s + ((a.x+b.x)/2-P.cx); this.view.oy = my - (my-P.oy)*s/P.s + ((a.y+b.y)/2-P.cy); this.requestDraw(); return; }
+      // zoom about the pinch's starting centre from the view it started with, then pan by how far the centre moved
+      Object.assign(this.view, { s:P.s, ox:P.ox, oy:P.oy }); this.zoomAbout(P.cx - r.left, P.cy - r.top, P.s * Math.hypot(a.x-b.x, a.y-b.y) / P.d);
+      this.view.ox += (a.x+b.x)/2 - P.cx; this.view.oy += (a.y+b.y)/2 - P.cy; return; }
     this.move(e);
   }
   // Pointer up / cancel.
@@ -251,13 +275,16 @@ class Board {
     this.up(e);
   }
 
-  // ── Mouse / pen logic ──
+  // ── END 3.5 POINTER ROUTING ───────────────────────────────────
+
+  // ── 3.6 MOUSE / PEN LOGIC ─────────────────────────────────────
   // Press: remove (right button), place an armed part, start a tee, a wire, a part drag, a segment drag or a pan.
   down(e){
     const p = this.world(e); this.mouse = p;
     if(e.button === 2){ if(this.areaCb) this.pickArea(null); else this.removeAt(p); return; }
     if(this.areaCb){ this.drag = { kind:'area', a:p, b:p }; this.areaSel = new Set(); return; }
-    if(this.armed){ const c = this.ckt.add(this.armed, this.snap(p.x)-PLACE_OFFSET, this.snap(p.y)-PLACE_OFFSET); this.select(c); if(!e.shiftKey){ this.armed=null; this.onArm(null); } return; }
+    if(this.armed){ const why = this.ckt.addProblem(this.armed); if(why){ this.onNotice(why); return; }   // SEC-DL-016
+      const c = this.ckt.add(this.armed, this.snap(p.x)-PLACE_OFFSET, this.snap(p.y)-PLACE_OFFSET); this.select(c); if(!e.shiftKey){ this.armed=null; this.onArm(null); } return; }
     if(this.sel && !this.sel.type){ const t = this.teePos(this.sel); if(Math.hypot(t.x-p.x,t.y-p.y) < TEE_HIT_PX){ this.drag = { kind:'wire', from:{ c:this.ckt.comp(this.sel.from.c), side:'out', pin:this.sel.from.pin } }; return; } }
     const pin = this.hitPin(p);
     if(pin){ this.drag = { kind:'wire', from:pin }; return; }
@@ -286,9 +313,9 @@ class Board {
     else if(d.kind==='seg'){ const w = d.w, gx = this.snap(p.x), gy = this.snap(p.y), before = [w.mx, w.my, w.ax, w.bx].join();
       const set = (k, v) => { if(w[k] !== v){   // move one route offset; the first change opens the edit
         if(!d.moved) this.ckt.touch(); d.moved = true; w[k] = v; } };
-      if(d.n===4 || d.n===2) set('mx', gx);
-      else if(d.n===5){ if(d.kindV) set('my', gy); else set('mx', gx); }
-      else { if(d.seg===1) set('ax', gx); else if(d.seg===2) set('my', gy); else if(d.seg===3) set('bx', gx); }
+      if(d.n===ROUTE_PTS.z || d.n===ROUTE_PTS.straight) set('mx', gx);
+      else if(d.n===ROUTE_PTS.l){ if(d.kindV) set('my', gy); else set('mx', gx); }
+      else { if(d.seg===WRAP_SEG.ax) set('ax', gx); else if(d.seg===WRAP_SEG.my) set('my', gy); else if(d.seg===WRAP_SEG.bx) set('bx', gx); }
       if(before === [w.mx, w.my, w.ax, w.bx].join()) return; }
     this.requestDraw();
   }
@@ -311,7 +338,9 @@ class Board {
   // Wheel zooms about the pointer.
   wheel(e){ e.preventDefault(); const r = this.cv.getBoundingClientRect(); this.zoomAbout(e.clientX-r.left, e.clientY-r.top, this.view.s*(e.deltaY<0 ? WHEEL_STEP : 1/WHEEL_STEP)); }
 
-  // ── Keyboard ──
+  // ── END 3.6 MOUSE / PEN LOGIC ─────────────────────────────────
+
+  // ── 3.7 KEYBOARD ──────────────────────────────────────────────
   // Board keys: Delete, R rotate, C LED colour, arrows nudge, Escape. Only while the Sim page shows.
   key(e){ if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
     if(!this.cv.offsetParent) return;
@@ -324,13 +353,12 @@ class Board {
       if(e.key==='ArrowUp') c.y -= st; else if(e.key==='ArrowDown') c.y += st; else if(e.key==='ArrowLeft') c.x -= st; else if(e.key==='ArrowRight') c.x += st; this.ckt.edited(); }
     if(e.key==='Escape'){ this.armed=null; this.onArm(null); this.select(null); this.pickArea(null); } }
 
-  // ── Drawing ──
-  // Colours for this draw, from the theme cache.
-  palette(){ const t = theme; return { HI:t['--hi'], LO:t['--mut2'], TXT:t['--txt'], MUT:t['--mut'], ACC:t['--acc'], L2:t['--line2'], OPEN:t['--open'],
-    BG:t['--bg'], BG3:t['--bg3'], INSET:t['--inset'], LINE:t['--line'], RED:t['--red'], MONO:t['--mono'] }; }
+  // ── END 3.7 KEYBOARD ──────────────────────────────────────────
+
+  // ── 3.8 DRAWING ───────────────────────────────────────────────
   // Draw the whole board: grid, wires, tee handle, wire being dragged, parts, part being placed.
   draw(){
-    const ctx = this.ctx, W = this.cv.width/devicePixelRatio, H = this.cv.height/devicePixelRatio, v = this.view, C = this.palette();
+    const ctx = this.ctx, W = this.cv.width/devicePixelRatio, H = this.cv.height/devicePixelRatio, v = this.view, C = colors;
     ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); ctx.clearRect(0,0,W,H);
     ctx.fillStyle = C.INSET; ctx.fillRect(0,0,W,H);
     ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
@@ -384,6 +412,7 @@ class Board {
     ctx.fillStyle = hov ? C.ACC : driven ? (val?C.HI:C.BG3) : C.INSET; ctx.fill();
     ctx.strokeStyle = hov ? C.ACC : driven ? (val ? C.HI : C.MUT) : C.OPEN; ctx.lineWidth=THIN; ctx.stroke();
   }
+  // ── END 3.8 DRAWING ───────────────────────────────────────────
 }
 // ── END BOARD ─────────────────────────────────────────────────
 
@@ -405,7 +434,7 @@ function drawGate(ctx, sh, x, y, w, h, C, out){
 function drawSeg(ctx, cx, cy, m, C, k, dp){
   ctx.save(); ctx.translate(cx, cy); ctx.scale(k||1, k||1);
   SEG_RECTS.forEach((s,i)=>{ ctx.fillStyle = (m>>i)&1 ? C.HI : C.INSET; ctx.fillRect(s[0],s[1],s[2],s[3]); });
-  if(dp){ ctx.fillStyle = (m>>7)&1 ? C.HI : C.INSET; ctx.beginPath(); ctx.arc(SEG_L/2+SEG_T+SEG_DP_R, SEG_L+SEG_T/2, SEG_DP_R, 0, 2*Math.PI); ctx.fill(); }
+  if(dp){ ctx.fillStyle = (m>>SEG_DP_BIT)&1 ? C.HI : C.INSET; ctx.beginPath(); ctx.arc(SEG_L/2+SEG_T+SEG_DP_R, SEG_L+SEG_T/2, SEG_DP_R, 0, 2*Math.PI); ctx.fill(); }
   ctx.restore();
 }
 // Rounded body outline, filled and stroked with the current styles.
@@ -457,6 +486,6 @@ const SHAPES = {
 // ── END PART GLYPHS ───────────────────────────────────────────
 
 // ── EXPORT ────────────────────────────────────────────────────
-Object.assign(window.DLB, { Board, SEG_7448 });
+Object.assign(window.DLB, { Board });
 // ── END EXPORT ────────────────────────────────────────────────
 })();

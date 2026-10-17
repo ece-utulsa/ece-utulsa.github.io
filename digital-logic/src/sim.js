@@ -7,19 +7,23 @@
    prevClk is persisted in the file (format v2) so a reload restores the exact edge memory.
    Subsystems (format v3): a circuit collapsed into one block. Each instance runs its own inner Circuit: the block's
    fn() drives the inner input ports and settles the inner circuit, and update() runs the inner edge detectors in the
-   same edge round as the outer ones, so a subsystem behaves exactly like the flat circuit it replaced. */
+   same edge round as the outer ones, so a subsystem gives the same logic as the flat circuit it replaced.
+   Work bound: one update spends at most WORK_MAX part evaluations, counted through every subsystem level, and blocks
+   nest at most NEST_MAX levels; an oscillating loop deep inside blocks is flagged UNSTABLE in bounded time instead of
+   multiplying its cost by SETTLE_MAX per level (CQ-DL-025, SEC-DL-015). */
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — settle / edge limits, file format, import caps, truth-table budget
-   2. Helpers          — part output reading, Import field checks
-   3. Subsystems       — registry, part definitions, file-table checks, saved inner state
-   4. Circuit          — parts, wires, labels, change events, simulation, file format, validation, subsystems
+   2. Helpers          — part output reading, state copies, feedback loops, Import field checks
+   3. Subsystems       — registry, part definitions, expansion and depth, flip-flop clocks, saved inner state
+   4. Circuit          — parts, wires, labels, change events, simulation, file format, validation
+      4.1 Subsystems   — make, ungroup and delete subsystem blocks
    5. Checker          — checkVectors: experiment vectors on a private copy
    6. Truth table      — truthTable: every switch combination, in time slices
    7. Export           — window.DLB namespace
    ============================================================ */
 (function(){
-const { DEFS, ledLit, LED_COLORS, LABEL_MAX, SIGNAL_TYPES, MANUAL_INPUTS, QUARTER_TURNS, SUB_PREFIX, GRID, pinPos } = window.DLB;
+const { DEFS, ledLit, LED_COLORS, LABEL_MAX, SIGNAL_TYPES, MANUAL_INPUTS, QUARTER_TURNS, SUB_PREFIX, GRID, bit, own, snap, rowBits, pinPos } = window.DLB;
 
 // ── CONSTANTS ─────────────────────────────────────────────────
 const SETTLE_MAX = 64;       // combinational passes before a loop is declared UNSTABLE
@@ -34,9 +38,15 @@ const TT_SLICE_MS = 25;      // truth table: work per task before yielding (W3C 
 const WIRE_ROUTE_KEYS = ['mx','my','ax','bx'];   // optional wire route offsets kept in the file
 const SUBS_MAX = 50;         // subsystem definitions in one file
 const PORTS_MAX = 16;        // inputs, and outputs, on one subsystem block
-const EXPAND_MAX = 5000;     // parts on a board counted through every subsystem level (nesting cannot explode)
+const AUTO_MAX = 2 * PORTS_MAX;   // a subsystem's auto list names ports only
+const EXPAND_MAX = 5000;     // parts on a board, or in one subsystem, counted through every subsystem level
+const NEST_MAX = 4;          // subsystem levels: a block holds blocks at most this many levels deep (CQ-DL-025)
+const WORK_MAX = 100000;     // part evaluations one update may spend, through every subsystem level (CQ-DL-025)
+const SAVED_PART_LEN = 3;    // a subsystem's saved inner part is [id, state, prevClk]
 const OUT_TYPES = ['PROBE','LED'];   // parts that become a subsystem's outputs (MANUAL_INPUTS become its inputs)
-const PORT_GAP = 40;         // a port part made for a wire crossing the subsystem boundary sits this far from the pin
+const PORT_GAP_OUT = 40;     // a port made for a wire crossing the subsystem boundary sits this far right of an output pin ...
+const PORT_GAP_IN = 3 * PORT_GAP_OUT;   // ... and this far left of an input pin (room for the switch body and its wire)
+const NAME_BAD = /[\p{Cc}\p{Cf}]/u;   // control and format characters (bidi overrides, zero-width) in a subsystem name
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── HELPERS ───────────────────────────────────────────────────
@@ -47,10 +57,6 @@ function readOut(ckt, c){
 }
 // True for 0 or 1.
 const isBit = v => v === 0 || v === 1;
-// Truthy -> 1, falsy -> 0.
-const bit = v => v ? 1 : 0;
-// True if k is one of o's own keys (never a prototype key such as "constructor").
-const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 // True for a plain object (not null, not an array).
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // Built-in part definition for a type read from a file, or null (own keys only, so "constructor" is not a part).
@@ -61,14 +67,15 @@ function stateProblem(d, st){
   if(typeof st !== 'object' || Array.isArray(st)) return 'state is not an object';
   const init = d.init ? d.init() : {};
   for(const k of Object.keys(st)){
-    if(!Object.prototype.hasOwnProperty.call(init, k)) return 'state has an unknown field "'+String(k).slice(0, LABEL_MAX)+'"';
+    if(!own(init, k)) return 'state has an unknown field "'+String(k).slice(0, LABEL_MAX)+'"';
     const want = init[k], v = st[k];
     if(Array.isArray(want)){ if(!Array.isArray(v) || v.length !== want.length || !v.every(isBit)) return 'state.'+k+' must be '+want.length+' bits'; }
     else { const max = (d.stateMax && d.stateMax[k]) || 1; if(!Number.isInteger(v) || v < 0 || v > max) return 'state.'+k+' must be an integer 0..'+max; }
   }
   return null;
 }
-// Copy of an imported state over the part's init() state (validated first, so no foreign keys get in).
+// Copy of a state over the part's init() state: arrays are copied too, so the copy shares nothing with st. Used for
+// imported states (validated first, so no foreign keys get in) and for saved and snapshot states (CQ-DL-026).
 function stateFrom(d, st){
   const s = d.init ? d.init() : {};
   if(st) for(const k of Object.keys(s)) if(st[k] !== undefined) s[k] = Array.isArray(st[k]) ? st[k].slice() : st[k];
@@ -80,6 +87,28 @@ function wireFrom(w){
   for(const k of WIRE_ROUTE_KEYS) if(Number.isFinite(w[k])) o[k] = w[k];
   return o;
 }
+// True if the wires make a loop through the parts: feedback, as in a latch or a ring built from gates (DL-016).
+// Iterative depth-first search, so a long chain cannot overflow the stack.
+function hasLoop(comps, wires){
+  const next = new Map(comps.map(s => [s.id, []]));
+  for(const w of wires){ const l = next.get(w.from.c); if(l && next.has(w.to.c)) l.push(w.to.c); }
+  const seen = new Map();   // part id -> 1 while on the search path, 2 once every path from it is done
+  for(const start of next.keys()){
+    if(seen.has(start)) continue;
+    const path = [[start, 0]]; seen.set(start, 1);
+    while(path.length){
+      const top = path[path.length-1], out = next.get(top[0]);
+      if(top[1] === out.length){ seen.set(top[0], 2); path.pop(); continue; }
+      const t = out[top[1]++], st = seen.get(t);
+      if(st === 1) return true;
+      if(!st){ seen.set(t, 1); path.push([t, 0]); }
+    }
+  }
+  return false;
+}
+// True if a circuit can hold state: a flip-flop, counter, register, the SR LATCH, a block with memory inside, or a
+// feedback loop built from gates (DL-016).
+const hasMemory = (comps, wires) => comps.some(s => { const d = DEFS[s.type]; return !!(d.seq || d.mem) || s.type === 'SR'; }) || hasLoop(comps, wires);
 // Check a board's (or a subsystem's) parts and wires from a file; report through err with `at` before each place.
 // defFor(type) gives a part's pins, or null for an unknown type. legacy: a two-pin-LED file, whose wires into the LED
 // cathode (pin 1) are allowed here and dropped by load(). Returns the parts by id.
@@ -133,27 +162,40 @@ function innerCircuit(name){
 // Register a table of definitions (Map name -> sd), each after the subsystems it contains.
 function registerSubs(table){
   const done = new Set();
+  // Register definition `name` after every subsystem it contains.
   const visit = name => { if(done.has(name)) return; done.add(name); const sd = table.get(name);
     sd.comps.forEach(s => { if(s.type.startsWith(SUB_PREFIX)) visit(s.type.slice(SUB_PREFIX.length)); });
+    // A block pin is named after its port part's label.
     const port = id => sd.comps.find(s => s.id === id).label;
     SUBS.set(name, sd);
     DEFS[SUB_PREFIX+name] = { name, cat:'Subsystems', sub:name, ins: sd.ins.map(port), outs: sd.outs.map(port),
-      mem: sd.comps.some(s => DEFS[s.type].seq || s.type==='SR' || DEFS[s.type].mem),
+      mem: hasMemory(sd.comps, sd.wires),
       init: () => ({ inner: innerCircuit(name) }), fn: (i, st) => st.inner.evalPorts(i) }; };
   for(const name of table.keys()) visit(name);
 }
-// Parts on a board counted through every subsystem level; Infinity for a definition that contains itself.
-function expandedSize(comps, table, memo, stack){
-  let n = 0;
+// Size and depth of a board (or a subsystem's parts) through every subsystem level: n parts, counted inside every
+// block, and depth, the levels of blocks inside blocks (0 with no block). n is Infinity for a definition that contains
+// itself; counting stops once n passes EXPAND_MAX. memo keeps each definition's result by name; stack holds the names
+// being expanded.
+function expansion(comps, table, memo, stack){
+  let n = 0, depth = 0;
   for(const s of comps){
     if(typeof s.type !== 'string' || !s.type.startsWith(SUB_PREFIX)){ n++; continue; }
     const name = s.type.slice(SUB_PREFIX.length);
-    if(!table.has(name)) { n++; continue; }
-    if(stack.has(name)) return Infinity;
-    if(!memo.has(name)){ stack.add(name); memo.set(name, expandedSize(table.get(name).comps, table, memo, stack)); stack.delete(name); }
-    n += memo.get(name); if(n > EXPAND_MAX) return n;
+    if(!table.has(name)){ n++; continue; }
+    if(stack.has(name)) return { n: Infinity, depth: Infinity };
+    if(!memo.has(name)){ stack.add(name); memo.set(name, expansion(table.get(name).comps, table, memo, stack)); stack.delete(name); }
+    const e = memo.get(name); n += e.n; depth = Math.max(depth, e.depth + 1);
+    if(n > EXPAND_MAX) break;
   }
-  return n;
+  return { n, depth };
+}
+// Why a board holding `comps` would be too big or nest too deep with library `table`, or null.
+function expansionProblem(comps, table){
+  const e = expansion(comps, table, new Map(), new Set());
+  if(e.n > EXPAND_MAX) return 'The board would hold more than '+EXPAND_MAX+' parts counting every subsystem level.';
+  if(e.depth > NEST_MAX) return 'Subsystems nest at most '+NEST_MAX+' levels deep; this would make '+e.depth+'.';
+  return null;
 }
 // Every part type used on a board, through every subsystem level (an experiment's "build it from gates" rule).
 function typesUsed(comps, seen){
@@ -162,21 +204,36 @@ function typesUsed(comps, seen){
     if(d && d.sub && !seen.has(d.sub) && SUBS.has(d.sub)){ seen.add(d.sub); typesUsed(SUBS.get(d.sub).comps, seen).forEach(t => types.add(t)); } }
   return types;
 }
+// Flip-flops on a board counted through every subsystem level, and how many of them are not clocked straight from
+// one source: fromClock(end) says whether a wire's source end is that source. Inside a block the source is any input
+// port whose block pin is fed straight from it (an experiment's "synchronous counter" rule, CQ-DL-038).
+function flipFlops(comps, wires, fromClock){
+  let total = 0, unclocked = 0;
+  for(const c of comps){ const d = DEFS[c.type];
+    if(d.seq){ total++; if(!wires.some(w => w.to.c === c.id && w.to.pin === d.seq.clk && fromClock(w.from))) unclocked++; }
+    else if(d.sub && SUBS.has(d.sub)){ const sd = SUBS.get(d.sub);
+      const fed = new Set(sd.ins.filter((id, k) => wires.some(w => w.to.c === c.id && w.to.pin === k && fromClock(w.from))));
+      const r = flipFlops(sd.comps, sd.wires, from => fed.has(from.c)); total += r.total; unclocked += r.unclocked; } }
+  return { total, unclocked };
+}
 // Problem with a saved subsystem state ({ parts: [[id, state, prevClk], ...] }) against definition `name`, or null.
-function subStateProblem(table, name, st){
+// byId(name) gives the definition's parts by id.
+function subStateProblem(table, byId, name, st){
   if(st === undefined || st === null) return null;
   if(!isObj(st) || !Array.isArray(st.parts) || Object.keys(st).some(k => k !== 'parts')) return 'state must be { parts: [...] }';
-  const sd = table.get(name); if(st.parts.length > sd.comps.length) return 'state lists more parts than the subsystem has';
+  const sd = table.get(name), parts = byId(name); if(st.parts.length > sd.comps.length) return 'state lists more parts than the subsystem has';
   for(const e of st.parts){
-    if(!Array.isArray(e) || e.length !== 3 || !isBit(e[2])) return 'state.parts entries must be [id, state, prevClk]';
-    const s = sd.comps.find(x => x.id === e[0]); if(!s) return 'state names a part the subsystem does not have';
-    const why = s.type.startsWith(SUB_PREFIX) ? subStateProblem(table, s.type.slice(SUB_PREFIX.length), e[1]) : stateProblem(DEFS[s.type], e[1]);
+    if(!Array.isArray(e) || e.length !== SAVED_PART_LEN || !isBit(e[2])) return 'state.parts entries must be [id, state, prevClk]';
+    const s = parts.get(e[0]); if(!s) return 'state names a part the subsystem does not have';
+    const why = s.type.startsWith(SUB_PREFIX) ? subStateProblem(table, byId, s.type.slice(SUB_PREFIX.length), e[1]) : stateProblem(DEFS[s.type], e[1]);
     if(why) return why;
   }
   return null;
 }
-// Saved form of a part's state: a subsystem saves every inner part's state and edge memory.
-function savedState(c){ return DEFS[c.type].sub ? { parts: c.state.inner.comps.map(ic => [ic.id, savedState(ic), ic.prevClk||0]) } : c.state; }
+// Saved form of a part's state, a value copy that later changes to the part cannot reach (CQ-DL-026): an undo
+// snapshot keeps the state, the edge memory and the clock level of one moment. A subsystem saves every inner
+// part's state and edge memory.
+function savedState(c){ const d = DEFS[c.type]; return d.sub ? { parts: c.state.inner.comps.map(ic => [ic.id, savedState(ic), ic.prevClk||0]) } : stateFrom(d, c.state); }
 // State of a part being loaded from a validated file.
 function loadedState(d, st){ if(!d.sub) return stateFrom(d, st); const s = d.init(); if(st) restoreInner(s.inner, st.parts, false); return s; }
 // Put saved inner states back (edges = false) or saved inner edge memory (edges = true, after the board is primed).
@@ -196,7 +253,7 @@ function newComp(s, state){
 function subNameProblem(name, table){
   if(typeof name !== 'string' || !name.trim()) return 'A subsystem needs a name.';
   if(name.length > LABEL_MAX) return 'A subsystem name has at most '+LABEL_MAX+' characters.';
-  if(/[\u0000-\u001f\u007f]/.test(name) || name !== name.trim()) return 'A subsystem name cannot start or end with a space or hold control characters.';
+  if(NAME_BAD.test(name) || name !== name.trim()) return 'A subsystem name cannot start or end with a space or hold control or formatting characters.';
   if(table && table.has(name)) return 'There is already a subsystem called "'+name+'".';
   return null;
 }
@@ -214,6 +271,7 @@ class Circuit {
     this.links = null;       // connectivity index, rebuilt after any part or wire change
     this.subs = new Map();   // subsystem library: name -> definition (saved with the board)
     this.ports = null;       // inner circuit of a subsystem: { ins, outs } port part ids
+    this.work = { left: 0 }; // part evaluations left in this update; a subsystem's inner circuit shares its board's
   }
   // Register a listener for every change (board drawn, readouts, timing, persistence).
   onChange(f){ this.listeners.push(f); }
@@ -264,8 +322,12 @@ class Circuit {
     if(c.label !== t){ this.touch(); c.label = t; this.emit(); }
     return null;
   }
-  // Place a new part and simulate.
+  // Why a part of this type cannot be placed, or null: a subsystem block must keep the board within EXPAND_MAX parts
+  // counting every level (SEC-DL-016).
+  addProblem(type){ return DEFS[type].sub ? expansionProblem(this.comps.concat([{ type }]), this.subs) : null; }
+  // Place a new part and simulate. Returns the part, or null if addProblem refuses it.
   add(type, x, y){
+    if(this.addProblem(type)) return null;
     const d = DEFS[type]; this.touch();
     const c = { id: this.nextId++, type, x, y, rot: d.rot0||0, color: d.color0, label: this.autoLabel(type), state: d.init ? d.init() : {}, out: d.outs.map(()=>0), inv: d.ins.map(()=>0), drv: d.ins.map(()=>0), prevClk: 0 };
     this.comps.push(c); this.relink(); this.update(); return c;
@@ -300,11 +362,14 @@ class Circuit {
   // Remove every part and wire. The subsystem library is kept.
   clear(){ this.touch(); this.comps = []; this.wires = []; this.unstable = false; this.relink(); this.update(); }
 
-  // One combinational pass; returns true if any output changed.
+  // One combinational pass; returns true if any output changed. Stops early, reporting no change, once the update's
+  // work budget is spent. A subsystem's inner circuit spends the same budget.
   pass(){
     const into = this.index().into; let changed = false;
     for(const c of this.comps){
+      if(--this.work.left < 0) return false;
       const d = DEFS[c.type], inv = d.ins.map(()=>0), drv = d.ins.map(()=>0);
+      if(d.sub) c.state.inner.work = this.work;
       for(const l of into.get(c.id)){ inv[l.pin] = l.src.out[l.sp]; drv[l.pin] = 1; }
       c.inv = inv; c.drv = drv;
       const out = d.fn(inv, c.state);
@@ -313,11 +378,14 @@ class Circuit {
     }
     return changed;
   }
-  // Iterate passes to a fixed point; flag a loop that does not settle (here or inside a subsystem).
+  // Iterate passes to a fixed point; flag a loop that does not settle (here or inside a subsystem), or that used up
+  // the update's work budget.
   settle(){
     let n = 0; while(this.pass() && n < SETTLE_MAX) n++;
-    this.unstable = n >= SETTLE_MAX || this.comps.some(c => DEFS[c.type].sub && c.state.inner.unstable);
+    this.unstable = n >= SETTLE_MAX || this.work.left < 0 || this.comps.some(c => DEFS[c.type].sub && c.state.inner.unstable);
   }
+  // Start an update on a board: a fresh work budget for it and every subsystem inside.
+  begin(){ this.work.left = WORK_MAX; }
   // Arm every edge detector at the present (settled) clock level, so no edge fires. Subsystems arm theirs too.
   primeEdges(){ for(const c of this.comps){ const d = DEFS[c.type]; if(d.seq) c.prevClk = c.inv[d.seq.clk]; else if(d.sub) c.state.inner.primeEdges(); } }
   // One round of rising-edge updates on the settled board, inside subsystems too. Returns true if any edge fired.
@@ -340,10 +408,10 @@ class Circuit {
     return this.ports.outs.map(id => { const p = this.comp(id); return bit(p.drv[0] && p.inv[0]); });
   }
   // Settle combinationally and arm the edge detectors — no edge fires.
-  prime(){ this.settle(); this.primeEdges(); this.emit(); }
+  prime(){ this.begin(); this.settle(); this.primeEdges(); this.emit(); }
   // Full update: settle, then apply rising-edge updates until quiescent.
   update(){
-    this.settle();
+    this.begin(); this.settle();
     for(let e=0; e<EDGE_MAX && this.edgeRound(); e++) this.settle();
     this.emit();
   }
@@ -369,8 +437,9 @@ class Circuit {
   }
   // Validate a whole file before touching the board. Returns { ok, errors[] } — errors name every problem found
   // (DL-005, CQ-DL-020, SEC-DL-004), up to ERRORS_MAX. Subsystem definitions get the same checks as the board, and
-  // nesting is bounded: no definition may contain itself, and the board counted through every level stays under
-  // EXPAND_MAX parts.
+  // nesting is bounded: no definition may contain itself, every definition and the board counted through every level
+  // stay within EXPAND_MAX parts, and blocks nest at most NEST_MAX levels (SEC-DL-015, -016). Port lists are checked
+  // for length before any net check, and each subsystem's pins are worked out once (SEC-DL-017).
   static validate(j){
     const errors = [], err = t => { if(errors.length < ERRORS_MAX) errors.push(t); };
     if(!isObj(j)) return { ok:false, errors:['Not a circuit file (expected a JSON object).'] };
@@ -389,19 +458,24 @@ class Circuit {
       if(why) err(where+': '+why);
       else if(!isObj(sd) || ![sd.comps, sd.wires, sd.ins, sd.outs].every(Array.isArray) || (sd.auto !== undefined && !Array.isArray(sd.auto))) err(where+': needs comps, wires, ins and outs lists.');
       else if(sd.comps.length > IMPORT_MAX_PARTS || sd.wires.length > IMPORT_MAX_WIRES) err(where+': too many parts or wires.');
+      else if(sd.ins.length > PORTS_MAX) err(where+'.ins: at most '+PORTS_MAX+' ports.');
+      else if(sd.outs.length > PORTS_MAX) err(where+'.outs: at most '+PORTS_MAX+' ports.');
+      else if(sd.auto && sd.auto.length > AUTO_MAX) err(where+'.auto: at most '+AUTO_MAX+' ports.');
       else table.set(n, sd);
     }
     if(errors.length) return { ok:false, errors };
+    // Each definition's parts by id (first of a duplicated id; checkNet reports the duplicate), and its pins.
+    const byIds = new Map(), pins = new Map();
+    for(const [n, sd] of table){ const m = new Map(); sd.comps.forEach(s => { if(isObj(s) && !m.has(s.id)) m.set(s.id, s); }); byIds.set(n, m);
+      // A pin is named after its port part's label (or its id when that is not a label).
+      const pin = id => { const s = m.get(id); return s && typeof s.label === 'string' ? s.label : String(id); };
+      pins.set(n, { sub: n, ins: sd.ins.map(pin), outs: sd.outs.map(pin) }); }
     // A part type: built in, or a subsystem in this file's table (its port lists give its pins).
-    const defFor = type => { const d = defOf(type); if(d) return d;
-      const name = typeof type === 'string' && type.startsWith(SUB_PREFIX) ? type.slice(SUB_PREFIX.length) : null;
-      if(name === null || !table.has(name)) return null;
-      const sd = table.get(name), pin = id => { const s = sd.comps.find(x => isObj(x) && x.id === id); return s && typeof s.label === 'string' ? s.label : String(id); };
-      return { sub: name, ins: sd.ins.map(pin), outs: sd.outs.map(pin) }; };
+    const defFor = type => defOf(type) || (typeof type === 'string' && type.startsWith(SUB_PREFIX) && pins.get(type.slice(SUB_PREFIX.length))) || null;
     for(const [n, sd] of table){
       const where = 'subs["'+n+'"]', ids = checkNet(sd.comps, sd.wires, where+'.', defFor, false, err);
       // Port list: distinct ids of parts of the given types.
-      const ports = (list, types, key) => { if(list.length > PORTS_MAX) err(where+'.'+key+': at most '+PORTS_MAX+' ports.');
+      const ports = (list, types, key) => {
         if(new Set(list).size !== list.length || !list.every(id => ids.has(id) && types.includes(ids.get(id).type))) err(where+'.'+key+' must list distinct '+types.join(' / ')+' part ids.'); };
       ports(sd.ins, MANUAL_INPUTS, 'ins'); ports(sd.outs, OUT_TYPES, 'outs');
       if(!sd.ins.length && !sd.outs.length) err(where+': needs at least one input or output.');
@@ -412,11 +486,17 @@ class Circuit {
     const legacy = (j.v||1) < LED_ONE_PIN_V;
     checkNet(j.comps, j.wires, '', defFor, legacy, err);
     if(errors.length) return { ok:false, errors };
-    for(const n of table.keys()) if(expandedSize([{ type:SUB_PREFIX+n }], table, new Map(), new Set()) === Infinity) err('subs["'+n+'"]: a subsystem cannot contain itself.');
+    // Every definition, placed or only in the library, is bounded like the board (SEC-DL-016).
+    const memo = new Map();
+    for(const n of table.keys()){ const e = expansion([{ type:SUB_PREFIX+n }], table, memo, new Set()), where = 'subs["'+n+'"]: ';
+      if(e.n === Infinity) err(where+'a subsystem cannot contain itself.');
+      else if(e.n > EXPAND_MAX) err(where+'more than '+EXPAND_MAX+' parts counting every subsystem level.');
+      else if(e.depth > NEST_MAX) err(where+'subsystems nest '+e.depth+' levels deep (at most '+NEST_MAX+').'); }
     if(errors.length) return { ok:false, errors };
-    const size = expandedSize(j.comps, table, new Map(), new Set());
-    if(size > EXPAND_MAX) err('Too many parts counting every subsystem level (more than '+EXPAND_MAX+').');
-    j.comps.forEach((s,k) => { const d = defFor(s.type); if(d.sub){ const why = subStateProblem(table, d.sub, s.state); if(why) err('comps['+k+']: '+why+'.'); } });
+    if(expansion(j.comps, table, memo, new Set()).n > EXPAND_MAX) err('Too many parts counting every subsystem level (more than '+EXPAND_MAX+').');
+    // A definition's parts by id, for the saved-state check.
+    const byId = name => byIds.get(name);
+    j.comps.forEach((s,k) => { const d = defFor(s.type); if(d.sub){ const why = subStateProblem(table, byId, d.sub, s.state); if(why) err('comps['+k+']: '+why+'.'); } });
     return { ok: !errors.length, errors };
   }
   // Load a validated file. Board is untouched if validation fails. Edge memory restored exactly (v2+) or primed (v1).
@@ -439,14 +519,14 @@ class Circuit {
       if(c.label && !seen.has(c.label)){ seen.add(c.label); continue; }
       const old = c.label; c.label = this.autoLabel(c.type); seen.add(c.label);
       relabelled.push(DEFS[c.type].name+' '+(old ? '"'+old+'" (duplicate)' : '(no label)')+' → "'+c.label+'"'); }
-    this.settle(); this.primeEdges();
+    this.begin(); this.settle(); this.primeEdges();
     if((j.v||1) >= 2) for(const s of j.comps){ const c = this.comp(s.id), d = DEFS[c.type];
       if(d.seq && s.prevClk !== undefined) c.prevClk = s.prevClk; else if(d.sub && s.state) restoreInner(c.state.inner, s.state.parts, true); }
     this.emit();
     return Object.assign(v, { relabelled, ledWires: j.wires.length - this.wires.length });
   }
 
-  // ── Subsystems ──
+  // ── 4.1 SUBSYSTEMS ────────────────────────────────────────────
   // Problem with a name for a new subsystem, or null.
   subNameProblem(name){ return subNameProblem(name, this.subs); }
   // Collapse parts into a new subsystem block called `name`, in one edit. Switches, buttons and clocks among the parts
@@ -456,7 +536,7 @@ class Circuit {
   makeSubsystem(name, parts){
     const bad = subNameProblem(name, this.subs); if(bad) return { error: bad };
     if(!parts.length) return { error: 'No parts selected: drag a box around the circuit to collapse.' };
-    const ids = new Set(parts.map(c => c.id)), snap = v => Math.round(v/GRID)*GRID;
+    const ids = new Set(parts.map(c => c.id));
     const sd = { comps: parts.map(c => ({ id:c.id, type:c.type, x:c.x, y:c.y, rot:c.rot||0, color:c.color, label:c.label })),
                  wires: this.wires.filter(w => ids.has(w.from.c) && ids.has(w.to.c)).map(wireFrom), ins: [], outs: [], auto: [] };
     const used = new Set(sd.comps.filter(s => SIGNAL_TYPES.includes(s.type)).map(s => s.label));
@@ -470,21 +550,22 @@ class Circuit {
     let nextId = this.nextId;   // port part ids: clear of every id on the board
     const ext = new Map();      // port id -> its outside wiring: { from } for an input, { to: [...] } for an output
     for(const g of crossIn.values()){ const src = this.comp(g.from.c), t0 = g.to[0], dst = this.comp(t0.c), p = pinPos(dst, 'in', t0.pin), id = nextId++;
-      sd.comps.push({ id, type:'SW', x: snap(p.x - 3*PORT_GAP), y: snap(p.y - GRID), rot:0, label: label(SIGNAL_TYPES.includes(src.type) ? src.label : DEFS[dst.type].ins[t0.pin], 'IN') });
+      sd.comps.push({ id, type:'SW', x: snap(p.x - PORT_GAP_IN), y: snap(p.y - GRID), rot:0, label: label(SIGNAL_TYPES.includes(src.type) ? src.label : DEFS[dst.type].ins[t0.pin], 'IN') });
       g.to.forEach(t => sd.wires.push({ from:{ c:id, pin:0 }, to:t })); sd.auto.push(id); ext.set(id, { from: g.from }); }
     // An output is named after the probe or LED it feeds outside, else its source's label or pin name.
     for(const g of crossOut.values()){ const src = this.comp(g.from.c), p = pinPos(src, 'out', g.from.pin), id = nextId++;
       const shown = g.to.map(t => this.comp(t.c)).find(c => OUT_TYPES.includes(c.type));
-      sd.comps.push({ id, type:'PROBE', x: snap(p.x + PORT_GAP), y: snap(p.y - GRID), rot:0,
+      sd.comps.push({ id, type:'PROBE', x: snap(p.x + PORT_GAP_OUT), y: snap(p.y - GRID), rot:0,
         label: label(shown ? shown.label : SIGNAL_TYPES.includes(src.type) ? src.label : DEFS[src.type].outs[g.from.pin], 'OUT') });
       sd.wires.push({ from: g.from, to:{ c:id, pin:0 } }); sd.auto.push(id); ext.set(id, { to: g.to }); }
+    // Port order: top to bottom, then left to right.
     const byPlace = (a, b) => a.y - b.y || a.x - b.x;
     sd.ins = sd.comps.filter(s => MANUAL_INPUTS.includes(s.type)).sort(byPlace).map(s => s.id);
     sd.outs = sd.comps.filter(s => OUT_TYPES.includes(s.type)).sort(byPlace).map(s => s.id);
     if(!sd.ins.length && !sd.outs.length) return { error: 'These parts have no inputs or outputs. Include a SWITCH or a PROBE, or parts wired to the rest of the board.' };
     if(sd.ins.length > PORTS_MAX || sd.outs.length > PORTS_MAX) return { error: 'A subsystem has at most '+PORTS_MAX+' inputs and '+PORTS_MAX+' outputs; this one would have '+sd.ins.length+' and '+sd.outs.length+'.' };
     const table = new Map(this.subs).set(name, sd), type = SUB_PREFIX + name;
-    if(expandedSize(this.comps.filter(c => !ids.has(c.id)).concat([{ type }]), table, new Map(), new Set()) > EXPAND_MAX) return { error: 'The board would hold more than '+EXPAND_MAX+' parts counting every subsystem level.' };
+    const big = expansionProblem(this.comps.filter(c => !ids.has(c.id)).concat([{ type }]), table); if(big) return { error: big };
     this.touch(); registerSubs(table); this.subs = table;
     const blk = newComp({ id: nextId++, type, x: snap(Math.min(...parts.map(c => c.x))), y: snap(Math.min(...parts.map(c => c.y))) }, DEFS[type].init());
     this.nextId = nextId;
@@ -529,6 +610,7 @@ class Circuit {
     if(user) return 'Subsystem "'+user[0]+'" contains '+name+'.';
     this.touch(); this.subs = new Map(this.subs); this.subs.delete(name); this.emit(); return null;
   }
+  // ── END 4.1 SUBSYSTEMS ────────────────────────────────────────
 }
 // ── END CIRCUIT ───────────────────────────────────────────────
 
@@ -541,7 +623,7 @@ class Circuit {
    a name used by two parts is reported, never resolved silently (DL-011, CQ-DL-010). */
 function checkVectors(ckt, vectors){
   const inNames = Object.keys(vectors[0].in), outNames = Object.keys(vectors[0].out);
-  const isOut = c => c.type==='PROBE' || c.type==='LED';   // parts the checker reads
+  const isOut = c => OUT_TYPES.includes(c.type);   // parts the checker reads
   const count = (pred, n) => ckt.comps.filter(c => pred(c) && c.label === n).length;   // parts of a kind carrying label n
   const missing = [], duplicates = [];
   inNames.forEach(n => { const k = count(c => c.type==='SW', n); if(!k) missing.push('SWITCH "'+n+'"'); else if(k > 1) duplicates.push('SWITCH "'+n+'"'); });
@@ -566,17 +648,18 @@ function checkVectors(ckt, vectors){
 /* Truth table of the board as built. Inputs are the SWITCHes, outputs the PROBEs and LEDs, each ordered by label
    (first label = most significant bit). Every row starts from reset with all switches LOW and then sets the row,
    so a combinational circuit gives its exact table, and a circuit with memory (latches, flip-flops) gives what it
-   does from reset -- flagged so the student knows the table is not the whole story. Clocks are held LOW; drive
+   does from reset -- flagged so the student knows the table is not the whole story. A latch built from gates counts:
+   any feedback loop flags the table (DL-016). Clocks are held LOW; drive
    sequential parts from a switch to tabulate them.
    Async: rows are computed in slices of TT_SLICE_MS and the main thread is released between slices (CQ-DL-008).
    onProgress(done, total) is called after each slice. The board is copied at the call; it is never changed. */
 async function truthTable(ckt, onProgress){
   const byLab = (a,b) => a.label.localeCompare(b.label, undefined, { numeric:true });   // label order, I2 before I10
-  const ins = ckt.comps.filter(c => c.type==='SW').sort(byLab), outs = ckt.comps.filter(c => c.type==='PROBE' || c.type==='LED').sort(byLab);
+  const ins = ckt.comps.filter(c => c.type==='SW').sort(byLab), outs = ckt.comps.filter(c => OUT_TYPES.includes(c.type)).sort(byLab);
   const head = { ins: ins.map(c => c.label), outs: outs.map(c => c.label) };
   if(!ins.length || !outs.length) return Object.assign(head, { rows: [], seq: false, tooMany: false });
   if(ins.length > TT_MAX_IN) return Object.assign(head, { rows: [], seq: false, tooMany: true });
-  const seq = ckt.comps.some(c => DEFS[c.type].seq || c.type==='SR' || DEFS[c.type].mem);
+  const seq = hasMemory(ckt.comps, ckt.wires);
   const sim = new Circuit(); sim.load(ckt.toJSON());
   const sw = ins.map(c => sim.comp(c.id)), pr = outs.map(c => sim.comp(c.id)), n = ins.length, total = 1 << n, rows = [];
   const manual = sim.comps.filter(c => MANUAL_INPUTS.includes(c.type));
@@ -584,7 +667,7 @@ async function truthTable(ckt, onProgress){
   for(let k=0; k<total; k++){
     manual.forEach(c => { c.state.on = 0; });
     sim.resetState();
-    const bits = sw.map((_,j) => (k >> (n-1-j)) & 1);
+    const bits = rowBits(k, n);
     sw.forEach((c,j) => { c.state.on = bits[j]; }); sim.update();
     rows.push({ in: bits, out: pr.map(o => readOut(sim, o)), unstable: sim.unstable });
     if(performance.now() - sliceStart > TT_SLICE_MS && k < total-1){
@@ -599,6 +682,6 @@ async function truthTable(ckt, onProgress){
 // ── END TRUTH TABLE ───────────────────────────────────────────
 
 // ── EXPORT ────────────────────────────────────────────────────
-Object.assign(window.DLB, { Circuit, checkVectors, truthTable, readOut, typesUsed, TT_MAX_IN, FILE_V });
+Object.assign(window.DLB, { Circuit, checkVectors, truthTable, typesUsed, flipFlops, TT_MAX_IN, NEST_MAX });
 // ── END EXPORT ────────────────────────────────────────────────
 })();

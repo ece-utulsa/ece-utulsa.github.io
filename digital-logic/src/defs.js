@@ -6,10 +6,10 @@
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — grid, pin and body geometry, label and type lists
-   2. Helpers          — bit(), gate factory G()
+   2. Helpers          — bit(), own(), snap(), rowBits(), gate factory G()
    3. Part definitions — DEFS table, LED colours, palette categories
    4. Geometry         — body size, pin positions and directions
-   5. Theme cache      — CSS custom properties read once per theme change
+   5. Theme cache      — CSS custom properties and the canvas colour palette, read once per theme change
    6. Export           — window.DLB namespace
    ============================================================ */
 (function(){
@@ -31,11 +31,20 @@ const SMALL_TYPES = ['SW','BTN','HI','LO','LED','PROBE','CLK','VCC','GND','RES']
 const SUB_PREFIX = 'SUB:';       // a subsystem part's type is SUB_PREFIX + its name
 // CSS custom properties the canvases draw with (read into the theme cache).
 const THEME_VARS = ['--bg','--bg3','--inset','--line','--line2','--txt','--mut','--mut2','--acc','--hi','--red','--blue','--open','--mono'];
+// Board colour palette: name -> the CSS custom property it is read from.
+const PALETTE_VARS = { HI:'--hi', LO:'--mut2', TXT:'--txt', MUT:'--mut', ACC:'--acc', L2:'--line2', OPEN:'--open',
+                       BG:'--bg', BG3:'--bg3', INSET:'--inset', LINE:'--line', RED:'--red', MONO:'--mono' };
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── HELPERS ───────────────────────────────────────────────────
 // Truthy -> 1, falsy -> 0.
 const bit = v => v ? 1 : 0;
+// True if k is one of o's own keys (never a prototype key such as "constructor"); k must be a string.
+const own = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
+// Nearest grid line to v.
+const snap = v => Math.round(v/GRID)*GRID;
+// The n input bits of truth-table row k, most significant first.
+const rowBits = (k, n) => Array.from({ length:n }, (_, j) => (k >> (n-1-j)) & 1);
 // Gate definition from a name, input names and a Boolean function of the input array.
 const G = (name, ins, f, shape) => ({ name, cat:'Gates', ins, outs:['Y'], fn: i => [bit(f(i))], shape });
 // ── END HELPERS ───────────────────────────────────────────────
@@ -162,19 +171,21 @@ function pinDir(c, side, idx){
 // ── END GEOMETRY ──────────────────────────────────────────────
 
 // ── THEME CACHE ───────────────────────────────────────────────
-// The canvases read colours from this object instead of calling getComputedStyle on every draw (CQ-DL-005).
+// The canvases read colours from these objects instead of calling getComputedStyle on every draw (CQ-DL-005);
+// colors is the board's palette, built here so a draw does not rebuild it (CQ-DL-032).
 // refreshTheme() is called at startup and after every theme change.
-const theme = {};
-// Read every THEME_VARS property into the theme cache.
+const theme = {}, colors = {};
+// Read every THEME_VARS property into the theme cache and rebuild the palette.
 function refreshTheme(){
   const cs = getComputedStyle(document.documentElement);
   for(const v of THEME_VARS) theme[v] = cs.getPropertyValue(v).trim();
   if(!theme['--open']) theme['--open'] = theme['--acc'];
+  for(const [k, v] of Object.entries(PALETTE_VARS)) colors[k] = theme[v];
 }
 // ── END THEME CACHE ───────────────────────────────────────────
 
 // ── EXPORT ────────────────────────────────────────────────────
 window.DLB = Object.assign(window.DLB||{}, { DEFS, CATS, LED_COLORS, ledLit, GRID, PIN_LEN, QUARTER_TURNS, LABEL_MAX, SIGNAL_TYPES, MANUAL_INPUTS, SUB_PREFIX,
-  geom, geom0, localPin, pinPos, pinDir, theme, refreshTheme });
+  bit, own, snap, rowBits, geom, geom0, localPin, pinPos, pinDir, theme, colors, refreshTheme });
 // ── END EXPORT ────────────────────────────────────────────────
 })();

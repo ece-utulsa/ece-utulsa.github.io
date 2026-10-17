@@ -6,7 +6,10 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const SRC = path.join(__dirname, '..');
 global.window = {};
 for(const f of ['defs.js', 'sim.js']) vm.runInThisContext(fs.readFileSync(path.join(SRC, f), 'utf8'), { filename: f });
-const { DEFS, Circuit, checkVectors, truthTable, pinPos, pinDir, typesUsed } = window.DLB;
+const { DEFS, Circuit, checkVectors, truthTable, pinPos, pinDir, typesUsed, flipFlops, NEST_MAX } = window.DLB;
+// What an output part shows (1 / 0, or null for an open probe), read the way the page reads it: through signals().
+// The shipped page exports no test-only helpers (ruling 2026-10-17 (4)), so the tests use the public interface.
+const readOut = (k, c) => k.signals().find(s => s.id === c.id).val;
 
 let pass = 0, fail = 0;
 function t(name, fn){ return Promise.resolve().then(fn).then(() => { pass++; console.log('PASS', name); }, e => { fail++; console.log('FAIL', name, '-', e.message); }); }
@@ -124,13 +127,13 @@ await t('onBeforeEdit sees the board before the edit, once per edit', () => {
 await t('LED has one input and lights while it is HIGH', () => {
   eq(DEFS.LED.ins, ['A']);
   const k = new Circuit(), s = k.add('SW',0,0), l = k.add('LED',0,0); W(k,s,0,l,0);
-  eq(window.DLB.readOut(k, l), 0); s.state.on = 1; k.update(); eq(window.DLB.readOut(k, l), 1);
+  eq(readOut(k, l), 0); s.state.on = 1; k.update(); eq(readOut(k, l), 1);
 });
 await t('A v2 board with LED cathode wires loads: the cathode wires are dropped and counted', () => {
   const j = { v:2, comps:[{id:1,type:'SW',x:0,y:0,label:'A',state:{on:1}},{id:2,type:'LED',x:100,y:0,label:'L1'},{id:3,type:'GND',x:200,y:0}],
               wires:[{from:{c:1,pin:0},to:{c:2,pin:0}},{from:{c:3,pin:0},to:{c:2,pin:1}}] };
   const k = new Circuit(), r = k.load(j); ok(r.ok, JSON.stringify(r.errors)); eq(r.ledWires, 1); eq(k.wires.length, 1);
-  eq(window.DLB.readOut(k, k.comp(2)), 1);
+  eq(readOut(k, k.comp(2)), 1);
   const j3 = JSON.parse(JSON.stringify(j)); j3.v = 3; ok(!Circuit.validate(j3).ok, 'a v3 file may not wire LED pin 1');
 });
 await t('MUX select inputs are on the top edge, on the grid, S0 left of S1', () => {
@@ -149,7 +152,7 @@ function halfAdder(k){
   const a = lab(k,k.add('SW',0,100),'A'), b = lab(k,k.add('SW',0,180),'B'), x = k.add('XOR',120,80), n = k.add('AND',120,200), s = lab(k,k.add('LED',260,100),'S'), c = lab(k,k.add('LED',260,220),'C');
   W(k,a,0,x,0); W(k,b,0,x,1); W(k,a,0,n,0); W(k,b,0,n,1); W(k,x,0,s,0); W(k,n,0,c,0); return { a, b, x, n, s, c };
 }
-const outs = (k, ps) => ps.map(p => window.DLB.readOut(k, p));
+const outs = (k, ps) => ps.map(p => readOut(k, p));
 await t('Subsystem from gates inside a box: wires crossing the box become pins named after the switches and LEDs', () => {
   const k = new Circuit(), h = halfAdder(k), r = k.makeSubsystem('HA', [h.x, h.n]); ok(r.comp, r.error);
   const d = DEFS[r.comp.type]; eq(d.ins, ['A','B']); eq(d.outs, ['S','C']); eq(k.comps.length, 5); eq(k.wires.length, 4);
@@ -184,7 +187,7 @@ await t('Subsystem state and edge memory survive export / import (CK HIGH at sav
   const k = new Circuit(), r = ripple(k); k.makeSubsystem('RC', [r.f0, r.f1]);
   r.ck.state.on = 1; k.update(); eq(outs(k,[r.q0,r.q1]), [1,0]);
   const j = JSON.parse(JSON.stringify(k.toJSON())), k2 = new Circuit(), res = k2.load(j); ok(res.ok, JSON.stringify(res.errors));
-  const q = id => window.DLB.readOut(k2, k2.comp(id)); eq([q(r.q0.id), q(r.q1.id)], [1,0], 'state restored, no edge');
+  const q = id => readOut(k2, k2.comp(id)); eq([q(r.q0.id), q(r.q1.id)], [1,0], 'state restored, no edge');
   const ck = k2.comp(r.ck.id); ck.state.on = 0; k2.update(); ck.state.on = 1; k2.update(); eq([q(r.q0.id), q(r.q1.id)], [0,1]);
 });
 await t('Copies of a subsystem each keep their own state; Reset FFs clears them', () => {
@@ -231,7 +234,7 @@ await t('Reject a subsystem that contains itself', badSub(j => { j.subs.HA.comps
 await t('Reject nesting that would expand past the part limit', badSub(j => {
   for(let L=1; L<=6; L++){ const below = L===1 ? 'XOR' : 'SUB:L'+(L-1), comps = [{id:1,type:'SW',x:0,y:0,label:'I'}];
     for(let i=0;i<10;i++) comps.push({ id:i+2, type:below, x:0, y:0 }); j.subs['L'+L] = { comps, wires:[], ins:[1], outs:[], auto:[] }; }
-  j.comps.push({ id:500, type:'SUB:L6', x:0, y:0 }); }, 'Too many parts counting'));
+  j.comps.push({ id:500, type:'SUB:L6', x:0, y:0 }); }, 'parts counting every subsystem level'));
 await t('Reject bad subsystem ports and state', () => {
   badSub(j => { j.subs.HA.ins = [12345]; }, 'ins must list')();
   badSub(j => { j.subs.HA.outs = j.subs.HA.ins.slice(); }, 'outs must list')();
@@ -265,6 +268,115 @@ await t('Truth table: 8-switch ADD 4 board, 256 rows correct, no slice over 50 m
     const s = r.out[0] | r.out[1]<<1 | r.out[2]<<2 | r.out[3]<<3 | r.out[4]<<4; if(s !== a+b) throw new Error('row '+row); void val; });
   console.log('     total', (performance.now()-t0).toFixed(1), 'ms; longest slice', worst.toFixed(1), 'ms');
   ok(worst < 50, 'longest slice '+worst.toFixed(1)+' ms');
+});
+
+// ── Fix pass v1.3.0 (2026-10-17) ──
+// Board where a D flip-flop is clocked from SWITCH CK with SWITCH D, plus an undo history kept the way main.js keeps
+// it: the board is copied just before each edit (onBeforeEdit) and Undo loads the copy inside a batch.
+function undoBoard(){
+  const k = new Circuit(), d = lab(k, k.add('SW',0,0), 'D'), ck = lab(k, k.add('SW',0,80), 'CK'), f = dff(k), q = lab(k, k.add('PROBE',200,0), 'Q');
+  W(k,d,0,f,0); W(k,ck,0,f,1); W(k,f,0,q,0); k.resetState();
+  const hist = []; k.onBeforeEdit(() => hist.push(k.toJSON()));
+  return { k, d, ck, f, q, undo: () => k.batch(() => k.load(hist.pop())) };
+}
+await t('CQ-DL-026: Undo after clocking with CK HIGH fires no phantom edge', () => {
+  const b = undoBoard(), { k } = b;
+  k.add('NOT', 400, 400);                                   // an edit: the board (D 0, CK 0, Q 0) is kept for Undo
+  b.ck.state.on = 1; k.update(); eq(b.f.state.q, 0, 'clocked D = 0');
+  b.d.state.on = 1; k.update(); eq(b.f.state.q, 0, 'D changed with CK HIGH: no edge');
+  b.undo();
+  const f = k.comp(b.f.id); eq([k.comp(b.ck.id).state.on, k.comp(b.d.id).state.on, f.state.q, f.prevClk], [0,0,0,0], 'board as it was at the edit');
+  k.update(); eq(f.state.q, 0, 'an ordinary update after Undo fires no edge');
+  eq(readOut(k, k.comp(b.q.id)), 0);
+});
+await t('CQ-DL-026: an undo snapshot does not change when the board changes later (state, arrays, subsystems)', () => {
+  const k = new Circuit(), sw = k.add('SW',0,0), reg = k.add('REG4',100,0);
+  W(k,sw,0,reg,4); const j = k.toJSON(), before = JSON.stringify(j);
+  sw.state.on = 1; k.update(); reg.state.v[0] = 1; eq(JSON.stringify(j), before, 'plain and array states copied');
+  const k2 = new Circuit(), rr = ripple(k2); k2.makeSubsystem('RC', [rr.f0, rr.f1]);
+  const j2 = k2.toJSON(), before2 = JSON.stringify(j2);
+  rr.ck.state.on = 1; k2.update(); eq(JSON.stringify(j2), before2, 'subsystem inner states copied');
+});
+// File holding a ring of three inverters (an oscillator) nested `depth` subsystems deep, placed once on the board.
+function ringFile(depth){
+  const subs = { L1: { comps:[{id:1,type:'SW',x:0,y:0,label:'I'},{id:2,type:'NOT',x:0,y:0},{id:3,type:'NOT',x:0,y:0},{id:4,type:'NOT',x:0,y:0},{id:5,type:'PROBE',x:0,y:0,label:'O'}],
+    wires:[{from:{c:2,pin:0},to:{c:3,pin:0}},{from:{c:3,pin:0},to:{c:4,pin:0}},{from:{c:4,pin:0},to:{c:2,pin:0}},{from:{c:4,pin:0},to:{c:5,pin:0}}], ins:[1], outs:[5], auto:[] } };
+  for(let L=2; L<=depth; L++) subs['L'+L] = { comps:[{id:1,type:'SW',x:0,y:0,label:'I'},{id:2,type:'SUB:L'+(L-1),x:0,y:0},{id:3,type:'PROBE',x:0,y:0,label:'O'}],
+    wires:[{from:{c:1,pin:0},to:{c:2,pin:0}},{from:{c:2,pin:0},to:{c:3,pin:0}}], ins:[1], outs:[3], auto:[] };
+  return { v:3, comps:[{id:1,type:'SW',x:0,y:0,label:'A'},{id:2,type:'SUB:L'+depth,x:100,y:0},{id:3,type:'PROBE',x:200,y:0,label:'Q'}],
+           wires:[{from:{c:1,pin:0},to:{c:2,pin:0}},{from:{c:2,pin:0},to:{c:3,pin:0}}], subs };
+}
+const BOUND_MS = 250;   // generous for a slow machine; v1.2.0 took 8.9 s at depth 3 and did not finish at depth 4
+await t('CQ-DL-025 / SEC-DL-015: an oscillator nested 2, 3 and 4 levels deep imports, updates and tabulates in bounded time', async () => {
+  ok(NEST_MAX >= 4, 'NEST_MAX '+NEST_MAX);
+  for(const depth of [2, 3, 4]){
+    const k = new Circuit(); let t0 = performance.now(); const r = k.load(ringFile(depth)), tl = performance.now() - t0;
+    ok(r.ok, JSON.stringify(r.errors)); ok(k.unstable, 'flagged UNSTABLE at depth '+depth);
+    t0 = performance.now(); k.comps[0].state.on = 1; k.update(); const tu = performance.now() - t0;
+    t0 = performance.now(); const T = await truthTable(k); const tt = performance.now() - t0;
+    console.log('     depth', depth, 'load', tl.toFixed(1), 'ms, update', tu.toFixed(1), 'ms, truth table', tt.toFixed(1), 'ms');
+    ok(tl < BOUND_MS && tu < BOUND_MS && tt < 2*BOUND_MS, 'depth '+depth+' too slow');
+    ok(T.rows.every(x => x.unstable), 'rows marked unstable');
+  }
+});
+await t('Subsystems nest at most NEST_MAX levels: Import and Make subsystem refuse a deeper one', () => {
+  const r = Circuit.validate(ringFile(NEST_MAX + 1)); ok(!r.ok); ok(r.errors.join(' ').includes('levels deep'), JSON.stringify(r.errors));
+  const k = new Circuit(); ok(k.load(ringFile(NEST_MAX)).ok);
+  const m = k.makeSubsystem('TOP', [k.comps[1]]); ok(m.error && m.error.includes('levels deep'), JSON.stringify(m));
+});
+await t('SEC-DL-016: a library-only definition past EXPAND_MAX is refused at Import, and fast', () => {
+  const subs = { L0: { comps:[{id:1,type:'SW',x:0,y:0,label:'I'},{id:2,type:'NOT',x:0,y:0}], wires:[{from:{c:1,pin:0},to:{c:2,pin:0}}], ins:[1], outs:[], auto:[] } };
+  for(let L=1; L<=3; L++){ const comps = [{id:1,type:'SW',x:0,y:0,label:'I'}]; for(let i=0;i<100;i++) comps.push({ id:i+2, type:'SUB:L'+(L-1), x:0, y:0 });
+    subs['L'+L] = { comps, wires:[], ins:[1], outs:[], auto:[] }; }
+  const t0 = performance.now(), r = Circuit.validate({ v:3, comps:[], wires:[], subs }), ms = performance.now() - t0;
+  ok(!r.ok && r.errors.join(' ').includes('subs["L2"]: more than'), JSON.stringify(r.errors)); ok(ms < 50, ms+' ms');
+});
+await t('SEC-DL-016: placing a block that would pass EXPAND_MAX is refused (add returns null, board unchanged)', () => {
+  const k = new Circuit(), comps = [{id:1,type:'SW',x:0,y:0,label:'I'}]; for(let i=0;i<450;i++) comps.push({ id:i+2, type:'NOT', x:0, y:0 });
+  ok(k.load({ v:3, comps:[], wires:[], subs:{ BIG:{ comps, wires:[], ins:[1], outs:[], auto:[] } } }).ok);
+  for(let i=0;i<11;i++) ok(k.add('SUB:BIG', 0, 0), 'block '+i);
+  const rev = k.rev; ok(k.addProblem('SUB:BIG').includes('more than'), 'reason'); eq(k.add('SUB:BIG', 0, 0), null); eq(k.comps.length, 11); eq(k.rev, rev);
+});
+await t('SEC-DL-017: a 10,000-entry port list is refused before the net checks, in under 50 ms', () => {
+  const comps = [{ id:1, type:'SW', x:0, y:0, label:'I' }], ins = Array.from({ length:10000 }, () => 1), board = [], wires = [];
+  for(let i=0;i<500;i++) board.push({ id:i+1, type:'SUB:X', x:0, y:0 });
+  for(let i=0;i<2000;i++) wires.push({ from:{ c:1+i%500, pin:0 }, to:{ c:1+(i+1)%500, pin:i%16 } });
+  const t0 = performance.now(), r = Circuit.validate({ v:3, comps:board, wires, subs:{ X:{ comps, wires:[], ins, outs:[], auto:[] } } }), ms = performance.now() - t0;
+  ok(!r.ok); eq(r.errors, ['subs["X"].ins: at most 16 ports.']); ok(ms < 50, ms.toFixed(1)+' ms');
+});
+await t('Subsystem names with bidi or zero-width characters are refused (SEC-DL-016)', () => {
+  const k = new Circuit(), h = halfAdder(k);
+  for(const name of ['\u202Eevil', 'a\u200Bb', 'x\u2066y', 'a\u0001']) ok(k.makeSubsystem(name, [h.x]).error, JSON.stringify(name));
+  const j = subFile(); j.subs = { ['\u202Eevil']: j.subs.HA }; j.comps.forEach(c => { if(c.type === 'SUB:HA') c.type = 'SUB:\u202Eevil'; });
+  ok(!Circuit.validate(j).ok, 'Import refuses it too');
+});
+await t('DL-016: a latch built from NOR gates flags the truth table as memory; a gate circuit without feedback does not', async () => {
+  const k = new Circuit(), s = lab(k,k.add('SW',0,0),'S'), r = lab(k,k.add('SW',0,0),'R'), n1 = k.add('NOR',0,0), n2 = k.add('NOR',0,0), q = lab(k,k.add('PROBE',0,0),'Q');
+  W(k,r,0,n1,0); W(k,s,0,n2,1); W(k,n1,0,n2,0); W(k,n2,0,n1,1); W(k,n1,0,q,0);
+  eq((await truthTable(k)).seq, true, 'NOR latch');
+  const m = k.makeSubsystem('LAT', [n1, n2]); ok(m.comp, m.error); ok(DEFS[m.comp.type].mem, 'a block holding the latch has memory');
+  eq((await truthTable(k)).seq, true, 'latch inside a block');
+  const k2 = new Circuit(); halfAdder(k2); eq((await truthTable(k2)).seq, false, 'half adder');
+});
+await t('DL-015: the 7-SEG draws 6 and 9 as the 7448 does (no tails); 0-5, 7, 8 and 10-15 unchanged', () => {
+  // board.js is read from the source: the table is not exported from the shipped page (ruling 2026-10-17 (4)).
+  const m = fs.readFileSync(path.join(SRC, 'board.js'), 'utf8').match(/const SEG_7448 = \[([^\]]+)\]/);
+  const seg = m[1].split(',').map(x => Number(x.trim()));
+  const segs = v => 'abcdefg'.split('').filter((_, i) => v >> i & 1).join('');
+  eq(segs(seg[6]), 'cdefg', '6'); eq(segs(seg[9]), 'abcfg', '9');
+  eq(seg.slice(0,6).concat(seg.slice(7,9)), [0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x07,0x7f], '0-5, 7, 8');
+  eq(seg.slice(10), [0x58,0x4c,0x62,0x69,0x78,0x00], '10-15');
+});
+await t('CQ-DL-038: flip-flops inside subsystems count for the synchronous-counter rule', () => {
+  const k = new Circuit(), ck = lab(k, k.add('SW',0,0), 'CK'), t0 = k.add('TFF',100,0), t1 = k.add('TFF',100,100), one = k.add('HI',0,200);
+  const q0 = lab(k, k.add('PROBE',300,0), 'Q0'), q1 = lab(k, k.add('PROBE',300,100), 'Q1');
+  W(k,one,0,t0,0); W(k,ck,0,t0,1); W(k,t0,0,t1,0); W(k,ck,0,t1,1); W(k,t0,0,q0,0); W(k,t1,0,q1,0);
+  const fromCK = from => from.c === ck.id;
+  eq(flipFlops(k.comps, k.wires, fromCK), { total:2, unclocked:0 }, 'flat');
+  const m = k.makeSubsystem('SC', [t0, t1, one]); ok(m.comp, m.error);
+  eq(flipFlops(k.comps, k.wires, fromCK), { total:2, unclocked:0 }, 'inside a block clocked from CK');
+  const k2 = new Circuit(), r2 = ripple(k2); k2.makeSubsystem('RC', [r2.f0, r2.f1]);
+  eq(flipFlops(k2.comps, k2.wires, from => from.c === r2.ck.id), { total:2, unclocked:1 }, 'ripple inside a block: stage 1 is not clocked from CK');
 });
 
 console.log('\n'+pass+' passed, '+fail+' failed');

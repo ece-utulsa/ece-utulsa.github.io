@@ -5,7 +5,9 @@
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..', '..');
-const FILE = fs.readdirSync(ROOT).find(f => /^Digital Logic Breadboard v[\d.]+\.html$/.test(f));
+// The newest bundle: an older one may stay in the folder until its gates pass.
+const vnum = f => f.match(/v(\d+)\.(\d+)\.(\d+)\.html$/).slice(1).reduce((n, x) => n*1000 + Number(x), 0);
+const FILE = fs.readdirSync(ROOT).filter(f => /^Digital Logic Breadboard v\d+\.\d+\.\d+\.html$/.test(f)).sort((a, b) => vnum(a) - vnum(b)).pop();
 const VERSION = FILE.match(/(v[\d.]+)\.html$/)[1];
 
 let pass = 0, fail = 0;
@@ -47,24 +49,24 @@ const server = http.createServer((req, res) => {
     eq(await page.$eval('meta[name=version]', m => m.content), VERSION);
     eq(await page.$eval('.nav .ver', e => e.textContent), VERSION);
     const raw = fs.readFileSync(path.join(ROOT, FILE), 'utf8');
-    ok(/^<!DOCTYPE html>\n<!--\n  Digital Logic Breadboard\n  Version: v\d+\.\d+\.\d+\n  Released: \d{4}-\d\d-\d\d\n  Changelog: .+\n  Owner Claude: .+\n-->/.test(raw), 'stamp block (SEC-DL-001)');
+    ok(/^<!DOCTYPE html>\n<!--\n  Digital Logic Breadboard\n  Version: v\d+\.\d+\.\d+\n  Released: \d{4}-\d\d-\d\d\n  Changelog: .+\n  Author: .+\n-->/.test(raw), 'stamp block (SEC-DL-001)');
     ok(!/preconnect/.test(raw), 'no preconnect hints (SEC-DL-010)');
     await page.context().close();
   });
 
-  await t('No test hooks in the shipped page (SEC-DL-002)', async () => {
+  await t('No test hooks or test-only exports in the shipped page (SEC-DL-002; ruling 2026-10-17 (4), CQ-DL-031)', async () => {
     const page = await open();
     eq(await page.evaluate(() => [typeof window.__dlb, typeof window.DLB.EXPS]), ['undefined','undefined']);
+    eq(await page.evaluate(() => ['readOut','FILE_V','SEG_7448'].filter(k => k in window.DLB)), []);
     eq(await page.$$eval('#__om-edit-overrides', a => a.length), 0);
     await page.context().close();
   });
 
-  await t('7-SEG codes 10-15 are the 7448 patterns; 0-9 unchanged', async () => {
+  // The 7-SEG patterns themselves are checked against board.js in the model tests (the page no longer exports them).
+  await t('7-SEG text: Experiment 8 and Tutorial §5 name the 7448 patterns, 6 and 9 without tails', async () => {
     const page = await open();
-    const seg = await page.evaluate(() => window.DLB.SEG_7448);
-    eq(seg.slice(0,10), [0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f], '0-9');
-    eq(seg.slice(10), [0x58,0x4c,0x62,0x69,0x78,0x00], '10-15');
     const text = await page.$eval('#pg-exp', e => e.textContent);
+    ok(/6 and 9 without tails/.test(text), 'Experiment 8 names 6 and 9');
     ok(/BCD to 7-segment \(7448\)/.test(text) && !/Hex to 7-segment/.test(text), 'Experiment 8 title');
     const tut = await page.$eval('#pg-tut', e => e.textContent);
     ok(/7448/.test(tut) && /carry-in/.test(tut) && !/in hexadecimal/.test(tut), 'Tutorial §5');
@@ -289,6 +291,63 @@ const server = http.createServer((req, res) => {
   await t('Reduced motion turns off the timing-panel transition (CQ-DL-017)', async () => {
     const page = await open(null, { reducedMotion: 'reduce' });
     eq(await page.$eval('#timing', e => getComputedStyle(e).transitionDuration), '0s');
+    await page.context().close();
+  });
+
+  await t('A saved board that fails validation: the demo loads and a notice names the cause (ruling 2026-10-17 (7))', async () => {
+    const page = await open(() => { if(!sessionStorage.getItem('seeded')){ sessionStorage.setItem('seeded','1');
+      localStorage.setItem('dlb.circuit', JSON.stringify({ v:3, comps:[{ id:1, type:'NOPE', x:0, y:0 }], wires:[] })); } });
+    eq(page.errors, []);
+    eq(await page.$eval('#r-n', e => e.textContent), '8', 'Binary counter demo loaded');
+    const note = await page.$eval('#note', e => e.hidden ? '' : e.textContent);
+    ok(/could not be restored \(comps\[0\]: unknown part type "NOPE"\), so the Binary counter demo is shown/.test(note), 'notice: '+note);
+    await page.context().close();
+    const page2 = await open(() => { if(!sessionStorage.getItem('seeded')){ sessionStorage.setItem('seeded','1'); localStorage.setItem('dlb.circuit', '{not json'); } });
+    ok(/the saved data is not readable/.test(await page2.$eval('#note', e => e.textContent)), 'unreadable storage named');
+    await page2.context().close();
+  });
+
+  await t('CQ-DL-026 through the UI: Undo after clocking with CK HIGH fires no phantom edge', async () => {
+    const page = await open();
+    // D (0) and CK (0) switches into a D FF; a NOT to select and rotate (the edit Undo takes back); X triggers an update
+    await importJSON(page, { v:3, comps:[{ id:1, type:'SW', x:40, y:40, label:'D' }, { id:2, type:'SW', x:40, y:140, label:'CK' }, { id:3, type:'DFF', x:160, y:60 },
+      { id:4, type:'PROBE', x:320, y:60, label:'Q' }, { id:5, type:'NOT', x:160, y:240 }, { id:6, type:'SW', x:40, y:240, label:'X' }],
+      wires:[{ from:{c:1,pin:0}, to:{c:3,pin:0} }, { from:{c:2,pin:0}, to:{c:3,pin:1} }, { from:{c:3,pin:0}, to:{c:4,pin:0} }] });
+    const click = async q => { const p = await atPage(page, q); await page.mouse.click(p.x, p.y); await page.waitForTimeout(60); };
+    const q = async () => (await saved(page)).comps.find(c => c.id === 3).state.q;
+    await click({ x:200, y:260 }); await page.keyboard.press('r'); await page.waitForTimeout(60);   // edit: rotate the NOT
+    await click({ x:60, y:160 });     // CK HIGH: Q = D = 0
+    await click({ x:60, y:60 });      // D = 1 with CK HIGH: no edge
+    eq(await q(), 0, 'Q before Undo');
+    await page.keyboard.press('Control+z'); await page.waitForTimeout(100);
+    await click({ x:60, y:260 });     // an unrelated switch: an ordinary update
+    const j = await saved(page);
+    eq([j.comps.find(c => c.id === 2).state.on, j.comps.find(c => c.id === 1).state.on, j.comps.find(c => c.id === 3).state.q], [0, 0, 0], 'CK, D, Q after Undo and an update');
+    eq(page.errors, []);
+    await page.context().close();
+  });
+
+  await t('Experiment 12 passes a synchronous counter built inside a subsystem (CQ-DL-038)', async () => {
+    const page = await open();
+    const inner = { comps:[{ id:1, type:'SW', x:0, y:0, label:'CK' }, { id:2, type:'TFF', x:100, y:0 }, { id:3, type:'TFF', x:100, y:100 }, { id:4, type:'HI', x:0, y:100 },
+      { id:5, type:'PROBE', x:300, y:0, label:'Q0' }, { id:6, type:'PROBE', x:300, y:100, label:'Q1' }],
+      wires:[{ from:{c:4,pin:0}, to:{c:2,pin:0} }, { from:{c:1,pin:0}, to:{c:2,pin:1} }, { from:{c:2,pin:0}, to:{c:3,pin:0} }, { from:{c:1,pin:0}, to:{c:3,pin:1} },
+             { from:{c:2,pin:0}, to:{c:5,pin:0} }, { from:{c:3,pin:0}, to:{c:6,pin:0} }], ins:[1], outs:[5,6], auto:[] };
+    await importJSON(page, { v:3, comps:[{ id:1, type:'SW', x:40, y:40, label:'CK' }, { id:2, type:'SUB:SC', x:160, y:40 },
+      { id:3, type:'PROBE', x:320, y:40, label:'Q0' }, { id:4, type:'PROBE', x:320, y:120, label:'Q1' }],
+      wires:[{ from:{c:1,pin:0}, to:{c:2,pin:0} }, { from:{c:2,pin:0}, to:{c:3,pin:0} }, { from:{c:2,pin:1}, to:{c:4,pin:0} }], subs:{ SC: inner } });
+    eq(await page.$eval('#r-n', e => e.textContent), '4', 'imported');
+    await page.click('.tabs button[data-pg=exp]');
+    const card = (await page.$$('#pg-exp .card'))[11]; await (await card.$('button:has-text("Check")')).click();
+    const res = await card.$eval('.res', e => e.textContent); ok(/^PASS/.test(res), 'result: '+res);
+    await page.context().close();
+  });
+
+  await t('Truth table flags a NOR latch built from gates as memory (DL-016)', async () => {
+    const page = await open();
+    await page.click('#demos button:has-text("SR latch")'); await page.waitForTimeout(100);
+    await page.click('#ttb'); await page.waitForSelector('#ttbody table');
+    ok(/This circuit has memory/.test(await page.$eval('#ttbody', e => e.textContent)), 'memory note');
     await page.context().close();
   });
 
