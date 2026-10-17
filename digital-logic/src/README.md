@@ -20,8 +20,7 @@ sources here and rebuild it. Never patch the bundle by hand.
 
     python3 build.py              # writes ../Digital Logic Breadboard <VERSION>.html
 
-When you change the version, update the link in `../index.html`. Keep the previous bundle until the new one has
-passed its gates, then remove it (the browser tests run the newest bundle in the folder).
+When you change the version, remove the previous bundle and update the link in `../index.html`.
 
 ## Developer tests
 
