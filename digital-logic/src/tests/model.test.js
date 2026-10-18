@@ -47,12 +47,12 @@ await t('DL-002: export/import with CK HIGH does not apply an edge (v2 and v1 fi
   const j1 = JSON.parse(JSON.stringify(j)); j1.v = 1; j1.comps.forEach(c => delete c.prevClk);
   const k3 = new Circuit(); ok(k3.load(j1).ok); eq(k3.comp(f.id).state.q, 0, 'v1');
 });
-await t('DL-003/004: Exp 6 and Exp 7 circuits pass with CK left HIGH; board unchanged by Check', () => {
+await t('DL-003/004: Exp 6 and Exp 7 circuits pass with CK left HIGH; board unchanged by Check', async () => {
   const k = new Circuit(), ck = lab(k, k.add('SW',0,0), 'CK'), f0 = dff(k), f1 = dff(k), q0 = lab(k, k.add('PROBE',0,0), 'Q0'), q1 = lab(k, k.add('PROBE',0,0), 'Q1');
   W(k,f0,1,f0,0); W(k,f1,1,f1,0); W(k,ck,0,f0,1); W(k,f0,1,f1,1); W(k,f0,0,q0,0); W(k,f1,0,q1,0);
   ck.state.on = 1; k.update(); const before = JSON.stringify(k.toJSON());
   const v = []; let n = 0; for(let e=0;e<4;e++){ const m = (n+1)%4; v.push({in:{CK:1},out:{Q0:m&1,Q1:m>>1&1}}); n = m; v.push({in:{CK:0},out:{Q0:n&1,Q1:n>>1&1}}); }
-  const r = checkVectors(k, v); ok(r.ok, 'Exp 7 ripple Q̄-chained should pass: '+JSON.stringify(r.rows.filter(x=>!x.ok)));
+  const r = await checkVectors(k, v); ok(r.ok, 'Exp 7 ripple Q̄-chained should pass: '+JSON.stringify(r.rows.filter(x=>!x.ok)));
   eq(JSON.stringify(k.toJSON()), before, 'board unchanged');
 });
 
@@ -72,10 +72,10 @@ await t('Import repairs blank and duplicate signal labels and reports them', () 
   const k = new Circuit(), r = k.load(j); ok(r.ok); eq(r.relabelled.length, 3);
   const labels = k.comps.map(c => c.label); eq(new Set(labels).size, 4, 'unique'); ok(labels.every(Boolean), 'none blank');
 });
-await t('Checker reports duplicate labels instead of resolving them', () => {
+await t('Checker reports duplicate labels instead of resolving them', async () => {
   const k = new Circuit(), a = k.add('SW',0,0), b = k.add('SW',0,0), p = k.add('PROBE',0,0); W(k,a,0,p,0);
   a.label = 'A'; b.label = 'A'; p.label = 'Y';   // forced past setLabel, as an old build could produce
-  const r = checkVectors(k, [{in:{A:0},out:{Y:0}}]); ok(!r.ok); eq(r.duplicates, ['SWITCH "A"']);
+  const r = await checkVectors(k, [{in:{A:0},out:{Y:0}}]); ok(!r.ok); eq(r.duplicates, ['SWITCH "A"']);
 });
 
 // ── Import validation (CQ-DL-020, SEC-DL-004) ──
@@ -174,14 +174,14 @@ function ripple(k){
   W(k,f0,1,f0,0); W(k,f1,1,f1,0); W(k,ck,0,f0,1); W(k,f0,1,f1,1); W(k,f0,0,q0,0); W(k,f1,0,q1,0); k.resetState(); return { ck, f0, f1, q0, q1 };
 }
 const upCount = () => { const v = []; let n = 0; for(let e=0;e<4;e++){ const m = (n+1)%4; v.push({in:{CK:1},out:{Q0:m&1,Q1:m>>1&1}}); n = m; v.push({in:{CK:0},out:{Q0:n&1,Q1:n>>1&1}}); } return v; };
-await t('Sequential subsystem: ripple counter in a block counts like the flat one and keeps its count', () => {
+await t('Sequential subsystem: ripple counter in a block counts like the flat one and keeps its count', async () => {
   const k = new Circuit(), r = ripple(k);
   const pulse = () => { r.ck.state.on = 1; k.update(); r.ck.state.on = 0; k.update(); };
   pulse(); pulse(); eq(outs(k,[r.q0,r.q1]), [0,1], 'count 2 before');
   const m = k.makeSubsystem('RC', [r.f0, r.f1]); ok(m.comp, m.error); eq(DEFS[m.comp.type].ins, ['CK']); eq(DEFS[m.comp.type].outs, ['Q0','Q1']);
   eq(outs(k,[r.q0,r.q1]), [0,1], 'count kept'); pulse(); eq(outs(k,[r.q0,r.q1]), [1,1], 'count 3');
   ok(DEFS[m.comp.type].mem, 'flagged as memory');
-  const c = checkVectors(k, upCount()); ok(c.ok, JSON.stringify(c.rows.filter(x=>!x.ok)));
+  const c = await checkVectors(k, upCount()); ok(c.ok, JSON.stringify(c.rows.filter(x=>!x.ok)));
 });
 await t('Subsystem state and edge memory survive export / import (CK HIGH at save is not an edge)', () => {
   const k = new Circuit(), r = ripple(k); k.makeSubsystem('RC', [r.f0, r.f1]);
@@ -377,6 +377,64 @@ await t('CQ-DL-038: flip-flops inside subsystems count for the synchronous-count
   eq(flipFlops(k.comps, k.wires, fromCK), { total:2, unclocked:0 }, 'inside a block clocked from CK');
   const k2 = new Circuit(), r2 = ripple(k2); k2.makeSubsystem('RC', [r2.f0, r2.f1]);
   eq(flipFlops(k2.comps, k2.wires, from => from.c === r2.ck.id), { total:2, unclocked:1 }, 'ripple inside a block: stage 1 is not clocked from CK');
+});
+
+// ── Fix pass v1.3.1 (2026-10-18) ──
+// A board for Experiment 13 (SWITCH X, SWITCH CK, PROBE Z) that spends the whole work budget on every update: an
+// oscillator nested four subsystems deep, plus a chain of 390 gates (about 56 KB as a file).
+function workCapFile(){
+  const f = ringFile(4), comps = [{id:1,type:'SW',x:40,y:40,label:'X'},{id:2,type:'SW',x:40,y:120,label:'CK'},{id:3,type:'DFF',x:160,y:40},{id:4,type:'PROBE',x:320,y:40,label:'Z'},{id:5,type:'SUB:L4',x:160,y:200}];
+  const wires = [{from:{c:1,pin:0},to:{c:3,pin:0}},{from:{c:2,pin:0},to:{c:3,pin:1}},{from:{c:3,pin:0},to:{c:4,pin:0}},{from:{c:1,pin:0},to:{c:5,pin:0}}];
+  let prev = 1; for(let i=0;i<390;i++){ const id = 100+i; comps.push({id,type:'XOR',x:400+(i%20)*100,y:300+Math.floor(i/20)*80}); wires.push({from:{c:prev,pin:0},to:{c:id,pin:0}},{from:{c:2,pin:0},to:{c:id,pin:1}}); prev = id; }
+  return { v:3, comps, wires, subs:f.subs };
+}
+// Experiment 13's vectors, built as learn.js builds them.
+function exp13(){ const xs=[1,0,1,0,1,1,0,1,0,0,1], v=[]; let h=[0,0,0], z=0;
+  xs.forEach(x => { v.push({in:{X:x,CK:0},out:{Z:z}}); h=[h[1],h[2],x]; z=+(h[0]===1&&h[1]===0&&h[2]===1); v.push({in:{X:x,CK:1},out:{Z:z}}); }); return v; }
+// Run job() while a 0 ms timer ticks; resolves to [result, longest gap between ticks in ms] (the longest task).
+// Node's garbage collector adds pauses of its own, so the bound here is looser than the browser's 50 ms Long Tasks
+// limit, which tests/browser.test.js checks with a PerformanceObserver; v1.3.0 ran the whole Check as one task.
+const NODE_TASK_MS = 100;
+async function longestTask(job){
+  let last = performance.now(), worst = 0, on = true;
+  const tick = () => { const now = performance.now(); worst = Math.max(worst, now - last); last = now; if(on) setTimeout(tick, 0); };
+  setTimeout(tick, 0); const r = await job(); on = false; worst = Math.max(worst, performance.now() - last); return [r, worst];
+}
+await t('CQ-DL-041 / SEC-DL-018: Check on a work-cap board runs in slices, results as in v1.3.0', async () => {
+  const k = new Circuit(); ok(k.load(workCapFile()).ok);
+  const [r, worst] = await longestTask(() => checkVectors(k, exp13()));
+  console.log('     Check: 22 vectors, longest task', worst.toFixed(1), 'ms');
+  eq(r.rows.map(x => x.got.Z).join(''), '0011001100111100110000', 'same results as v1.3.0'); ok(worst < NODE_TASK_MS, worst.toFixed(1)+' ms');
+});
+await t('CQ-DL-041: truth table of a work-cap board runs in slices, results as in v1.3.0', async () => {
+  const k = new Circuit(); ok(k.load(workCapFile()).ok);
+  const [T, worst] = await longestTask(() => truthTable(k));
+  console.log('     truth table: longest task', worst.toFixed(1), 'ms');
+  eq([T.ins, T.outs, T.rows.map(x => [x.out, x.unstable]), T.seq], [['CK','X'], ['Z'], [[[0],true],[[0],true],[[0],true],[[0],true]], true]); ok(worst < NODE_TASK_MS, worst.toFixed(1)+' ms');
+});
+await t('DL-018: a select wire from a switch below never crosses the MUX body or its side pins (x 160..360, MUX 2:1 and 4:1)', () => {
+  vm.runInThisContext(fs.readFileSync(path.join(SRC, 'board.js'), 'utf8'), { filename:'board.js' });
+  const { Board, geom, PIN_LEN } = window.DLB;
+  // true if axis-aligned segment p-q meets box r
+  const meets = (p, q, r) => Math.max(p.x,q.x) >= r.x0 && Math.min(p.x,q.x) <= r.x1 && Math.max(p.y,q.y) >= r.y0 && Math.min(p.y,q.y) <= r.y1;
+  for(const [type, pin] of [['MUX2',2],['MUX4',4],['MUX4',5]]) for(let x=160; x<=360; x+=20){
+    const k = new Circuit(), m = k.add(type, 300, 200), s = k.add('SW', x, 380); W(k, s, 0, m, pin);
+    // the block with its side pins (their tips and markers lie within PIN_LEN of the body)
+    const pts = Board.prototype.route.call({ ckt:k }, k.wires[0]), g = geom(m.type, m.rot), r = { x0:m.x-PIN_LEN, y0:m.y, x1:m.x+g.w+PIN_LEN, y1:m.y+g.h };
+    ok(!pts.some((p, i) => i && meets(pts[i-1], p, r)), type+' pin '+pin+' switch x '+x+': '+JSON.stringify(pts));
+  }
+  const k = new Circuit(), m = k.add('MUX2', 300, 200), s = k.add('SW', 260, 380); W(k, s, 0, m, 2); k.wires[0].ax = 340;
+  eq(Board.prototype.route.call({ ckt:k }, k.wires[0])[1].x, 340, 'a dragged run stays where the student put it');
+});
+await t('SEC-DL-019: line separators refused in subsystem names, bidi controls in labels (Rename and Import), cause named', () => {
+  const k = new Circuit(), h = halfAdder(k);
+  ok(k.makeSubsystem('a\u2028b', [h.x]).error.includes('line separator (U+2028)'));
+  ok(k.makeSubsystem('a\u2029', [h.x]).error.includes('paragraph separator (U+2029)'));
+  ok(k.setLabel(h.a, 'A\u202E').includes('bidirectional control character (U+202E)'), 'Rename');
+  ok(k.setLabel(k.add('AND',0,0), 'g\u2067').includes('U+2067'), 'labels on any part');
+  eq(k.setLabel(h.a, 'Q\u0304'), null, 'a combining mark (Q̄) is still allowed');
+  const j = base(); j.comps[0].label = 'A\u200F'; const r = Circuit.validate(j); ok(!r.ok && r.errors[0].includes('label holds a bidirectional control character (U+200F)'), JSON.stringify(r.errors));
+  const js = subFile(); js.subs.HA.comps.find(c => c.label === 'A').label = 'A\u2066'; ok(!Circuit.validate(js).ok, 'labels inside a subsystem too');
 });
 
 console.log('\n'+pass+' passed, '+fail+' failed');

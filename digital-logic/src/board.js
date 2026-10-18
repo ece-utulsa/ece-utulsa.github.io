@@ -37,6 +37,7 @@ const NUDGE_BIG = 5;             // Shift+arrow nudges this many grid steps
 const ROUTE_STUB = 12;           // a wire leaves a pin straight for this long before turning
 const ROUTE_FACING_MIN = 24;     // pins at least this far apart, facing each other, get a Z route
 const ROUTE_CLAMP = 8;           // a Z route's vertical run stays this far out from either pin
+const ROUTE_CLEAR = PIN_LEN + ROUTE_STUB;   // a run moved round a body clears its side pins by a stub (DL-018)
 // Route shapes by point count (see routePts), and the segments of a wrap route that a drag moves.
 const ROUTE_PTS = { straight: 2, z: 4, l: 5 };   // anything longer is a wrap (6 points)
 const WRAP_SEG = { ax: 1, my: 2, bx: 3 };
@@ -98,8 +99,11 @@ function distSeg(p,a,b){ const dx=b.x-a.x, dy=b.y-a.y, l2=dx*dx+dy*dy||1; let t=
 /* Orthogonal route from output pin a to input pin b. da/db are the pins' outward directions.
    Both horizontal & facing: Z route (adjustable mx). Both horizontal, not facing: wrap below (ax/my/bx).
    One vertical: L route via a single adjustable run; into a vertical pin from its far side (e.g. into a MUX select
-   pin from below), wrap round via ax / my so the wire does not cross the body. Both vertical: U route via my. */
-function routePts(a,b,below,w,da,db){
+   pin from below), wrap round via ax / my so the wire does not cross the body: when the default run ax would pass
+   through the destination's body or its side pins (box {x0, y0, x1, y1}), it moves past the body's side and pins,
+   in the direction the wire leaves its pin, or on the source's own side when the source is level with the body
+   (DL-018); a run the student has dragged (w.ax set) stays where it is. Both vertical: U route via my. */
+function routePts(a,b,below,w,da,db,body){
   w = w || {}; da = da || {dx:1,dy:0}; db = db || {dx:-1,dy:0};
   const a1 = { x:a.x+da.dx*ROUTE_STUB, y:a.y+da.dy*ROUTE_STUB }, b1 = { x:b.x+db.dx*ROUTE_STUB, y:b.y+db.dy*ROUTE_STUB };
   if(da.dy===0 && db.dy===0){
@@ -113,7 +117,10 @@ function routePts(a,b,below,w,da,db){
   if(da.dy!==0 && db.dy===0){ const my = w.my ?? b.y; return [a,{x:a.x,y:my},{x:b1.x,y:my},b1,b]; }
   if(da.dy===0 && db.dy!==0){
     if((a.y-b.y)*db.dy >= ROUTE_STUB){ const mx = w.mx ?? b.x; return [a,a1,{x:mx,y:a1.y},{x:mx,y:b.y},b]; }
-    const ax = w.ax ?? a1.x, my = w.my ?? b1.y;
+    const my = w.my ?? b1.y; let ax = w.ax ?? a1.x;
+    if(w.ax === undefined && body && ax > body.x0 - ROUTE_CLEAR && ax < body.x1 + ROUTE_CLEAR && Math.max(a.y, my) > body.y0 && Math.min(a.y, my) < body.y1){
+      const beside = a.y > body.y0 && a.y < body.y1;   // a source level with the body goes round on its own side
+      ax = (da.dx > 0) !== beside ? body.x1 + ROUTE_CLEAR : body.x0 - ROUTE_CLEAR; }
     return [a,{x:ax,y:a.y},{x:ax,y:my},{x:b.x,y:my},b1,b]; }
   const my = w.my ?? snap((a1.y+b1.y)/2);
   return [a,a1,{x:a1.x,y:my},{x:b1.x,y:my},b1,b];
@@ -227,8 +234,8 @@ class Board {
   route(w){
     const ca = this.ckt.comp(w.from.c), cb = this.ckt.comp(w.to.c);
     const a = pinPos(ca,'out',w.from.pin), b = pinPos(cb,'in',w.to.pin);
-    const below = Math.max(ca.y+geom(ca.type,ca.rot).h, cb.y+geom(cb.type,cb.rot).h) + GRID;
-    return routePts(a,b,below,w,pinDir(ca,'out',w.from.pin),pinDir(cb,'in',w.to.pin));
+    const gb = geom(cb.type,cb.rot), below = Math.max(ca.y+geom(ca.type,ca.rot).h, cb.y+gb.h) + GRID;
+    return routePts(a,b,below,w,pinDir(ca,'out',w.from.pin),pinDir(cb,'in',w.to.pin),{ x0:cb.x, y0:cb.y, x1:cb.x+gb.w, y1:cb.y+gb.h });
   }
 
   // ── END 3.4 HIT TESTS ─────────────────────────────────────────

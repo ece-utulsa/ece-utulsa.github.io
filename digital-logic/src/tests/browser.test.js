@@ -36,6 +36,11 @@ const server = http.createServer((req, res) => {
     await page.goto(URL); await page.waitForSelector('#pg-tut .wrap', { state: 'attached' }); await page.waitForTimeout(150);
     return page;
   }
+  // Press an experiment card's Check and wait for its result (Check runs in time slices, CQ-DL-041).
+  async function check(card){
+    const chk = await card.$('button:has-text("Check")'); await chk.click();
+    await card.waitForSelector('button:has-text("Check"):not([disabled])'); await card.waitForSelector('.res:not(:empty)');
+  }
   // Load a circuit file through the real Import button.
   async function importJSON(page, j, name){
     await page.setInputFiles('#file', { name: name || 'c.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(j)) });
@@ -202,7 +207,7 @@ const server = http.createServer((req, res) => {
              { from:{c:2,pin:0}, to:{c:4,pin:0} }, { from:{c:3,pin:0}, to:{c:5,pin:0} }] });
     await page.click('.tabs button[data-pg=exp]');
     const cards = await page.$$('#pg-exp .card');
-    await (await cards[6].$('button:has-text("Check")')).click();
+    await check(cards[6]);
     ok(/PASS/.test(await cards[6].$eval('.res', e => e.textContent)), 'Exp 7 PASS');
     eq(await cards[7].$$eval('button', b => b.map(x => x.textContent)), ['Open board']);
     await page.context().close();
@@ -283,7 +288,7 @@ const server = http.createServer((req, res) => {
     await page.click('#mksub'); await drag(page, await atPage(page, { x:110, y:30 }), await atPage(page, { x:210, y:130 }));
     eq(await page.$eval('#r-n', e => e.textContent), '5', 'MUX collapsed into M');
     await page.click('.tabs button[data-pg=exp]');
-    const card = (await page.$$('.card'))[8]; await (await card.$('text=Check')).click();
+    const card = (await page.$$('#pg-exp .card'))[8]; await check(card);
     ok(/remove the MUX 2:1 part \(subsystems included\)/.test(await card.$eval('.res', e => e.textContent)), await card.$eval('.res', e => e.textContent));
     await page.context().close();
   });
@@ -338,7 +343,7 @@ const server = http.createServer((req, res) => {
       wires:[{ from:{c:1,pin:0}, to:{c:2,pin:0} }, { from:{c:2,pin:0}, to:{c:3,pin:0} }, { from:{c:2,pin:1}, to:{c:4,pin:0} }], subs:{ SC: inner } });
     eq(await page.$eval('#r-n', e => e.textContent), '4', 'imported');
     await page.click('.tabs button[data-pg=exp]');
-    const card = (await page.$$('#pg-exp .card'))[11]; await (await card.$('button:has-text("Check")')).click();
+    const card = (await page.$$('#pg-exp .card'))[11]; await check(card);
     const res = await card.$eval('.res', e => e.textContent); ok(/^PASS/.test(res), 'result: '+res);
     await page.context().close();
   });
@@ -348,6 +353,57 @@ const server = http.createServer((req, res) => {
     await page.click('#demos button:has-text("SR latch")'); await page.waitForTimeout(100);
     await page.click('#ttb'); await page.waitForSelector('#ttbody table');
     ok(/This circuit has memory/.test(await page.$eval('#ttbody', e => e.textContent)), 'memory note');
+    await page.context().close();
+  });
+
+  // ── Fix pass v1.3.1 ──
+  // A board for Experiment 13 (SWITCH X, SWITCH CK, PROBE Z) that spends the whole work budget on every update: an
+  // oscillator nested four subsystems deep, plus a chain of 390 gates (about 56 KB as a file).
+  function workCapFile(){
+    const subs = { L1: { comps:[{id:1,type:'SW',x:0,y:0,label:'I'},{id:2,type:'NOT',x:0,y:0},{id:3,type:'NOT',x:0,y:0},{id:4,type:'NOT',x:0,y:0},{id:5,type:'PROBE',x:0,y:0,label:'O'}],
+      wires:[{from:{c:2,pin:0},to:{c:3,pin:0}},{from:{c:3,pin:0},to:{c:4,pin:0}},{from:{c:4,pin:0},to:{c:2,pin:0}},{from:{c:4,pin:0},to:{c:5,pin:0}}], ins:[1], outs:[5], auto:[] } };
+    for(let L=2; L<=4; L++) subs['L'+L] = { comps:[{id:1,type:'SW',x:0,y:0,label:'I'},{id:2,type:'SUB:L'+(L-1),x:0,y:0},{id:3,type:'PROBE',x:0,y:0,label:'O'}],
+      wires:[{from:{c:1,pin:0},to:{c:2,pin:0}},{from:{c:2,pin:0},to:{c:3,pin:0}}], ins:[1], outs:[3], auto:[] };
+    const comps = [{id:1,type:'SW',x:40,y:40,label:'X'},{id:2,type:'SW',x:40,y:120,label:'CK'},{id:3,type:'DFF',x:160,y:40},{id:4,type:'PROBE',x:320,y:40,label:'Z'},{id:5,type:'SUB:L4',x:160,y:200}];
+    const wires = [{from:{c:1,pin:0},to:{c:3,pin:0}},{from:{c:2,pin:0},to:{c:3,pin:1}},{from:{c:3,pin:0},to:{c:4,pin:0}},{from:{c:1,pin:0},to:{c:5,pin:0}}];
+    let prev = 1; for(let i=0;i<390;i++){ const id = 100+i; comps.push({id,type:'XOR',x:400+(i%20)*100,y:300+Math.floor(i/20)*80}); wires.push({from:{c:prev,pin:0},to:{c:id,pin:0}},{from:{c:2,pin:0},to:{c:id,pin:1}}); prev = id; }
+    return { v:3, comps, wires, subs };
+  }
+  const longTasks = () => { window.__long = []; new PerformanceObserver(l => l.getEntries().forEach(e => window.__long.push(Math.round(e.duration)))).observe({ type:'longtask' }); };
+
+  await t('CQ-DL-041 / SEC-DL-018: Check on a work-cap board — no task over 50 ms, button disabled while running, same result as v1.3.0', async () => {
+    const page = await open(longTasks);
+    await importJSON(page, workCapFile()); await page.waitForTimeout(300);
+    await page.click('.tabs button[data-pg=exp]'); await page.evaluate(() => { window.__long = []; });
+    const card = (await page.$$('#pg-exp .card'))[12], chk = await card.$('button:has-text("Check")');
+    await chk.click();
+    ok(await chk.evaluate(b => b.disabled), 'Check disabled while it runs');
+    await chk.click({ force:true }).catch(() => {});   // a second press while running is ignored
+    await page.waitForFunction(b => !b.disabled, chk, { timeout: 20000 }); await page.waitForTimeout(200);
+    const res = await card.$eval('.res', e => e.textContent);
+    ok(/^FAIL — 10 of 22 vectors differ/.test(res), 'result: '+res.slice(0, 60));
+    eq(await card.$$eval('.res table', a => a.length), 1, 'one result table (the second press did not run again)');
+    const long = await page.evaluate(() => window.__long); ok(!long.some(d => d > 50), 'long tasks: '+JSON.stringify(long));
+    eq(page.errors, []);
+    await page.context().close();
+  });
+
+  await t('CQ-DL-041: truth table of a work-cap board — no task over 50 ms', async () => {
+    const page = await open(longTasks);
+    await importJSON(page, workCapFile()); await page.waitForTimeout(300); await page.evaluate(() => { window.__long = []; });
+    await page.click('#ttb'); await page.waitForFunction(() => document.querySelectorAll('#ttbody table tr').length === 5, null, { timeout: 20000 }); await page.waitForTimeout(200);
+    const long = await page.evaluate(() => window.__long); ok(!long.some(d => d > 50), 'long tasks: '+JSON.stringify(long));
+    await page.context().close();
+  });
+
+  await t('SEC-DL-019: Import refuses a bidi control in a label, naming it; Rename refuses it too', async () => {
+    const page = await open();
+    await importJSON(page, { v:3, comps:[{ id:1, type:'SW', x:40, y:40, label:'A\u202E' }], wires:[] });
+    ok(/label holds a bidirectional control character \(U\+202E\)/.test(page.lastDialog || ''), 'Import: '+page.lastDialog);
+    await importJSON(page, { v:3, comps:[{ id:1, type:'SW', x:40, y:40, label:'A' }], wires:[] });
+    const p = await atPage(page, { x:60, y:60 }); page.promptAnswer = 'B\u2067';
+    await page.mouse.dblclick(p.x, p.y); await page.waitForTimeout(150);
+    ok(/bidirectional control character \(U\+2067\)/.test(page.lastDialog || ''), 'Rename: '+page.lastDialog);
     await page.context().close();
   });
 
