@@ -53,11 +53,12 @@ function txt(x, y, s, opts){
   return el('text', { x, y, 'font-size': size, 'text-anchor': opts.anchor || 'start', fill: opts.fill || 'var(--txt)', 'font-weight': opts.weight || 600,
     'dominant-baseline': 'central', class: opts.cls, id: opts.id }, parts);
 }
-/* Text made of coloured runs [[text, fill], …] at (x, y), as one <text> element. Subscripts as in txt(). */
+/* Text made of runs [[text, fill, size, weight], …] at (x, y), as one <text> element; a run's size and weight default to
+   the text's. Subscripts as in txt(). */
 function richTxt(x, y, runs, opts){
   opts = opts || {};
   const size = opts.size || FS.label, subSize = Math.max(size * SUB_SCALE, FS.small);
-  const run = ([t, fill]) => el('tspan', { fill: fill || 'var(--txt)' }, String(t).split(/(_[A-Za-z0-9]+)/).map(p => p.startsWith('_')
+  const run = ([t, fill, sz, wt]) => el('tspan', { fill: fill || 'var(--txt)', 'font-size': sz || null, 'font-weight': wt || null }, String(t).split(/(_[A-Za-z0-9]+)/).map(p => p.startsWith('_')
     ? el('tspan', { 'font-size': n2(subSize), 'baseline-shift': 'sub' }, esc(p.slice(1))) : esc(p)).join(''));
   return el('text', { x, y, 'font-size': size, 'text-anchor': opts.anchor || 'start', fill: 'var(--txt)', 'font-weight': opts.weight || 600,
     'dominant-baseline': 'central', class: opts.cls, id: opts.id }, runs.map(run).join(''));

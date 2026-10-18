@@ -2,7 +2,7 @@
    the gates, not the blind Test suite. They read the built page only through the DOM (text, data-q / data-v
    attributes, the URL hash); the page has no test hooks.
 
-   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.2.0.html] [--shots]
+   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.2.1.html] [--shots]
    --shots also writes the 1280×720 presentation screenshots to ../screenshots/.
    Set CHROMIUM=/path/to/chromium to use a particular browser binary. */
 'use strict';
@@ -11,7 +11,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
-const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.2.0.html'));
+const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.2.1.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
 const STOPS = ['#view=reflections', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
@@ -118,7 +118,7 @@ const devGapIssues = page => page.evaluate(() => {
   g('numeric line→badges', Math.min(...badges.map(r => r.top)) - num.bottom, 12); g('badges→screen bottom', window.innerHeight - Math.max(...badges.map(r => r.bottom)), 12);
   labs.forEach(([id, r]) => { g(id + ' from left edge', r.left - svg.left, 16); g(id + ' from divider', svg.right - r.right, 16); });
   const head = +document.querySelector('#stage .box').nextElementSibling.getAttribute('y1') - +document.querySelector('#stage .box').getAttribute('y');
-  if(head > 90) bad.push('header band ' + head);
+  if(head > (location.hash.includes('device=iso') ? 100 : 90)) bad.push('header band ' + head);
   if([...document.querySelectorAll('#stage .ment')].some(e => +e.getAttribute('font-size') < 30)) bad.push('matrix entries < 30');
   if([...document.querySelectorAll('#stage .badge text')].some(e => +e.getAttribute('font-size') < 18)) bad.push('badge text < 18');
   return bad;
@@ -144,22 +144,23 @@ const alignIssues = page => page.evaluate(() => {
 
   console.log('Load');
   { const { ctx, page, log } = await open(browser);
-    check('version v1.2.0: header comment, Released, meta, title; the changelog starts a v1.2.0 entry and keeps v1.1.0 below it',
-      /Version: v1\.2\.0/.test(html) && /Released: 2026-10-18/.test(html) && /<meta name="version" content="v1\.2\.0">/.test(html) && /<title>RF Cascade Analyzer v1\.2\.0<\/title>/.test(html)
+    check('version v1.2.1: header comment, Released, meta, title; changelog v1.2.1 on top, then v1.2.0 and v1.1.0 as history',
+      /Version: v1\.2\.1/.test(html) && /Released: 2026-10-18/.test(html) && /<meta name="version" content="v1\.2\.1">/.test(html) && /<title>RF Cascade Analyzer v1\.2\.1<\/title>/.test(html)
+      && /v1\.2\.1 - Devices: power shown beside the driven wave \(\|b\|²\) and dB caption gives × power and × wave\./.test(html) && html.indexOf('v1.2.1 - ') < html.indexOf('v1.2.0 - ')
       && /v1\.2\.0 - Three views \(Reflections, Devices, Cascade\); normalized waves a\/b on Devices with forward\/reverse drive; version stamp in presentation mode; layout fixes\./.test(html)
-      && html.indexOf('v1.2.0 - Three views') < html.indexOf('v1.1.0 - ') && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.1\.0|content="v1\.1\.0"/.test(html));
-    check('footer: v1.2.0 · released 2026-10-18 · Author: Claude Code', /Author: Claude Code/.test(html)
-      && (await text(page, 'footer')).includes('v1.2.0 · released 2026-10-18 · Author: Claude Code'));
+      && html.indexOf('v1.2.0 - Three views') < html.indexOf('v1.1.0 - ') && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.0)|content="v1\.(1\.0|2\.0)"/.test(html));
+    check('footer: v1.2.1 · released 2026-10-18 · Author: Claude Code', /Author: Claude Code/.test(html)
+      && (await text(page, 'footer')).includes('v1.2.1 · released 2026-10-18 · Author: Claude Code'));
     const stamp = async () => page.evaluate(() => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
       const btns = [...document.querySelectorAll('#top button')].filter(b => b.getBoundingClientRect().width), last = btns[btns.length - 1].getBoundingClientRect(), top = document.getElementById('top').getBoundingClientRect();
       return { text: v.textContent, fs: parseFloat(cs.fontSize), mut: cs.color === getComputedStyle(document.querySelector('.note') || document.body).color || cs.color !== getComputedStyle(document.body).color,
-        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.2.0'),
+        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.2.1'),
         oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; });
     let st = await stamp();
-    check('stamp "v1.2.0" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.2.0' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
+    check('stamp "v1.2.1" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.2.1' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
     const wBtn = await page.evaluate(() => [...document.querySelectorAll('#top button')].map(b => Math.round(b.getBoundingClientRect().width)).join(','));
     await present(page); st = await stamp();
-    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.2.0"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
+    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.2.1"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
     await page.keyboard.press('t'); await page.waitForTimeout(60); st = await stamp();
     check('presentation (dark): stamp still visible', st.shown && st.body && await page.evaluate(() => !document.body.classList.contains('light')));
     await page.keyboard.press('t'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
@@ -247,7 +248,7 @@ const alignIssues = page => page.evaluate(() => {
     await page.keyboard.press('PageDown'); await page.waitForTimeout(80);
     check('PageDown moves on even with the slider focused (Attenuator), keeping Forward', (await page.evaluate(() => location.hash)) === STOPS[2]);
     P = await paths(); T = await stageTexts(page); W = await waves();
-    check('Attenuator opens at 3 dB: "−3 dB" in the box; S21, S12 = 0.71 drawn thinner', T.includes('−3 dB') && near(P.S21.w, 8 * 0.7079, 0.02) && T.includes('S21 0.71'), P);
+    check('Attenuator opens at 3 dB: "−3 dB …" in the box; S21, S12 = 0.71 drawn thinner', T.some(t => t.startsWith('−3 dB')) && near(P.S21.w, 8 * 0.7079, 0.02) && T.includes('S21 0.71'), P);
     check('Attenuator 3 dB, Forward: b1 = 0, b2 = 0.71∠0°; power out = |b2|² = 50 %', W.b1 === 'b1 = 0' && W.b2 === 'b2 = 0.71∠0°' && (await heads())[1] === '50 %');
     check('Attenuator: badges R ✓ S ✓ L ✗ P ✓', (await badges()) === '1101');
     await page.keyboard.press('ArrowRight'); await page.waitForTimeout(80);
@@ -258,12 +259,12 @@ const alignIssues = page => page.evaluate(() => {
     const chev = () => page.evaluate(() => { const g = document.querySelector('#stage .pathg.s21'), c = g.querySelector('.chev'), p = g.querySelector('.path'), r = c.getBBox(), w = parseFloat(getComputedStyle(p).strokeWidth);
       return { fill: c.getAttribute('fill'), fits: Math.max(r.width, r.height) <= w + 0.5 }; });
     check('Amplifier 10 dB: the S21 direction triangle is background-coloured inside the thick band (item 6)', JSON.stringify(await chev()) === '{"fill":"var(--bg)","fits":true}', await chev());
-    check('Amplifier: gain shown, "+10 dB" in the box', T.includes('+10 dB'));
+    check('Amplifier: gain shown, "+10 dB …" in the box', T.some(t => t.startsWith('+10 dB')));
     await setInput(page, '#gain', '20');
     await setInput(page, '#gain', '30');
     check('Amplifier 30 dB (maximum): the triangle is still background-coloured inside the band', JSON.stringify(await chev()) === '{"fill":"var(--bg)","fits":true}');
     await setInput(page, '#gain', '20');
-    check('Amplifier: gain slider updates the box and the waves (+20 dB, b2 = 10.00∠0°, 100 × input)', (await stageTexts(page)).includes('+20 dB') && (await waves()).b2 === 'b2 = 10.00∠0°' && (await heads())[1] === '100 × input');
+    check('Amplifier: gain slider updates the box and the waves (+20 dB, b2 = 10.0∠0°, 100 × input)', (await stageTexts(page)).some(t => t.startsWith('+20 dB')) && (await waves()).b2 === 'b2 = 10.0∠0°' && (await heads())[1] === '100 × input');
     check('Amplifier: badges all ✗', (await badges()) === '0000');
     await setInput(page, '#gain', '10');
     await page.keyboard.press('ArrowRight'); await page.waitForTimeout(80);
@@ -311,11 +312,58 @@ const alignIssues = page => page.evaluate(() => {
       && +document.getElementById('numLine').getAttribute('font-size') === 22));
     await ctx.close(); }
 
+  console.log('Devices: wave-to-power link (v1.2.1 items 1, 2)');
+  { const { ctx, page } = await open(browser); await present(page);
+    const lab = () => page.evaluate(() => { const d = location.hash.includes('drive=rev') ? '1' : '2', w = document.getElementById('wb' + d), p = document.getElementById('pb' + d);
+      const other = document.getElementById('pb' + (d === '1' ? '2' : '1'));
+      return { wave: w.textContent, power: p ? p.textContent : null, wSize: +w.getAttribute('font-size'), wWeight: w.getAttribute('font-weight'), pSize: p ? +p.getAttribute('font-size') : 0,
+        pWeight: p ? p.getAttribute('font-weight') : null, same: p ? p.getAttribute('fill') === w.getAttribute('fill') : false, below: p ? p.getBoundingClientRect().top >= w.getBoundingClientRect().bottom - 2 : false, otherSingle: !other }; });
+    const cap = () => page.evaluate(() => { const c = document.getElementById('boxCaption'); if(!c) return null; const lines = c.tagName === 'g' ? [...c.querySelectorAll(':scope > text')] : [c];
+      const box = document.querySelector('#stage .box').getBoundingClientRect(), r = c.getBoundingClientRect(), hl = document.querySelector('#stage .headline').getBoundingClientRect();
+      const db = c.querySelector('tspan[font-weight="700"]');
+      return { text: lines.map(t => t.textContent).join(' / '), lines: lines.length, inside: r.left >= box.left + 16 && r.right <= box.right - 16 && r.bottom <= hl.top,
+        dbSize: db ? +db.getAttribute('font-size') : 0, dbFill: db ? db.getAttribute('fill') : null }; });
+    const CASES = [['amp', 'fwd', 'gain', '3', 'b2 = 1.41∠0°', '|b2|² = 2.0', '+3 dB = 2.0× power = 1.41× wave'],
+                   ['amp', 'fwd', 'gain', '10', 'b2 = 3.16∠0°', '|b2|² = 10', '+10 dB = 10× power = 3.16× wave'],
+                   ['amp', 'fwd', 'gain', '20', 'b2 = 10.0∠0°', '|b2|² = 100', '+20 dB = 100× power = 10.0× wave'],
+                   ['atten', 'fwd', 'att', '3', 'b2 = 0.71∠0°', '|b2|² = 0.50', '−3 dB = 0.50× power = 0.71× wave'],
+                   ['atten', 'fwd', 'att', '6', 'b2 = 0.50∠0°', '|b2|² = 0.25', '−6 dB = 0.25× power = 0.50× wave'],
+                   ['through', 'fwd', null, null, 'b2 = 1.00∠−90°', '|b2|² = 1.0', null],
+                   ['through', 'rev', null, null, 'b1 = 1.00∠−90°', '|b1|² = 1.0', null],
+                   ['iso', 'rev', null, null, 'b1 = 0', '|b1|² = 0', null]];
+    for(const [d, r, ctl, v, wave, power, caption] of CASES){
+      await goto(page, '#view=devices&device=' + d + '&drive=' + r); if(ctl) await setInput(page, '#' + ctl, v);
+      const L = await lab(), C = await cap(), name = d + (v ? ' ' + v + ' dB' : '') + ' ' + (r === 'fwd' ? 'Forward' : 'Reverse');
+      check(name + ': arrow "' + wave + '" / "' + power + '" (line 2 18 px regular, same colour, under line 1; line 1 22 px bold; other output single-line)',
+        L.wave === wave && L.power === power && L.wSize === 22 && L.wWeight === '700' && L.pSize === 18 && L.pWeight === '400' && L.same && L.below && L.otherSingle, L);
+      if(caption) check(name + ': box caption "' + caption + '" on one line inside the header band; dB term larger and coloured', C && C.text === caption && C.lines === 1 && C.inside && C.dbSize > 20
+        && C.dbFill === (d === 'amp' ? 'var(--s21)' : 'var(--s22)'), C);
+      else if(d === 'through') check(name + ': through-line ruler and βℓ caption unchanged', (await stageTexts(page)).includes('ℓ = λ/4') && (await stageTexts(page)).includes('βℓ = 2πℓ/λ = 90°') && !C);
+    }
+    await goto(page, '#view=devices&device=iso&drive=fwd');
+    let C = await cap();
+    check('Isolator: forward line "→ forward: −0.5 dB = 0.89× power = 0.94× wave" (broken after the dB term to fit); reverse line "← reverse: blocked"',
+      C.text.replace(' / ', ' ') === '→ forward: −0.5 dB = 0.89× power = 0.94× wave' && C.inside && (await stageTexts(page)).includes('← reverse: blocked'), C);
+    await setInput(page, '#isoIL', '3'); C = await cap();
+    check('Isolator caption updates live: 3 dB forward loss → −3 dB = 0.50× power = 0.71× wave', C.text.replace(' / ', ' ') === '→ forward: −3 dB = 0.50× power = 0.71× wave' && C.inside, C);
+    const fits = [];
+    for(const [d, ctl, vals] of [['amp', 'gain', ['0', '0.5', '3', '10', '20', '30']], ['atten', 'att', ['0', '0.5', '3', '6', '20', '40']], ['iso', 'isoIL', ['0', '0.1', '0.5', '1', '3']]]){
+      await goto(page, '#view=devices&device=' + d + '&drive=fwd');
+      for(const v of vals){ await setInput(page, '#' + ctl, v); const c = await cap(); if(!c.inside) fits.push(d + ' ' + v + ': ' + c.text); } }
+    check('box caption fits inside the header band for every control value from minimum to maximum', fits.length === 0, fits);
+    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '30'); C = await cap();
+    check('Amplifier 30 dB (max): +30 dB = 1000× power = 31.6× wave; b2 = 31.6∠0° / |b2|² = 1000', C.text === '+30 dB = 1000× power = 31.6× wave' && (await lab()).wave === 'b2 = 31.6∠0°' && (await lab()).power === '|b2|² = 1000', C);
+    await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '40'); C = await cap();
+    check('Attenuator 40 dB (max): −40 dB = 0.00010× power = 0.010× wave', C.text === '−40 dB = 0.00010× power = 0.010× wave', C);
+    check('side panel headline unchanged: power out = |b2|²', (await page.evaluate(() => document.getElementById('roPower').previousSibling.textContent)) === 'power out = |b2|²');
+    await ctx.close(); }
+
   console.log('Devices layout (v1.2.0 items 2, 3)');
   { const { ctx, page } = await open(browser); await present(page);
     const gi = [];
     for(const hs of STOPS.slice(1, 6).concat(REV_STOPS)){ await goto(page, hs); (await devGapIssues(page)).forEach(x => gi.push(hs.replace('#view=devices&', '') + ': ' + x)); }
     await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '30'); (await devGapIssues(page)).forEach(x => gi.push('amp 30 dB: ' + x));
+    await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '40'); (await devGapIssues(page)).forEach(x => gi.push('atten 40 dB: ' + x));
     await goto(page, '#view=devices&device=custom&drive=fwd'); await setInput(page, '#cs11a', '-180'); await setInput(page, '#cs11', '1.25'); (await devGapIssues(page)).forEach(x => gi.push('custom S11 1.25∠180°: ' + x));
     check('gaps: box→b labels ≥ 24, labels→matrix ≥ 16, numeric→badges ≥ 12, badges→bottom ≥ 12; header ≤ 90 (every device, Forward and Reverse)', gi.length === 0, gi.slice(0, 10));
     check('labels ≥ 16 px from the left edge and the divider (all devices F/R; Custom 0.60∠−70°, 0.30∠40°, 0.40∠−20°; amp 30 dB; S11 1.25∠180°)', !gi.some(x => /edge|divider/.test(x)));
@@ -375,6 +423,9 @@ const alignIssues = page => page.evaluate(() => {
     await goto(page, '#view=devices&device=amp'); await setInput(page, '#gain', '30'); await fn('amplifier 30 dB');
     await goto(page, '#view=devices&device=custom'); await setInput(page, '#cs11a', '-180'); await setInput(page, '#cs11', '1.25'); await fn('custom S11 1.25∠180°');
     await goto(page, '#view=devices&device=amp&drive=rev'); await fn('amplifier 30 dB, reverse');
+    await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '40'); await fn('attenuator 40 dB (max loss)');
+    await goto(page, '#view=devices&device=atten&drive=rev'); await fn('attenuator 40 dB, reverse'); await setInput(page, '#att', '3');
+    await goto(page, '#view=devices&device=iso&drive=fwd'); await setInput(page, '#isoIL', '3'); await fn('isolator 3 dB forward loss'); await setInput(page, '#isoIL', '0.5');
     await goto(page, '#view=devices&device=custom&drive=fwd');
     await goto(page, '#view=cascade'); await page.click('#stage [data-blk="2"]'); await page.waitForTimeout(60); await fn('cascade, Custom block selected');
     await page.click('#stage [data-add]'); await page.waitForTimeout(60); await click(page, '#add_amp'); await fn('cascade, 4 blocks');
@@ -447,6 +498,8 @@ const alignIssues = page => page.evaluate(() => {
     fs.readdirSync(SHOT_DIR).filter(f => f.endsWith('.png')).forEach(f => fs.unlinkSync(path.join(SHOT_DIR, f)));
     await goto(page, '#view=reflections'); await setInput(page, '#z02Box', '150', 'change'); await shot('view1_reflections_Z02_150');
     for(const d of ['through', 'atten', 'amp', 'iso', 'custom']){ await goto(page, '#view=devices&device=' + d + '&drive=fwd'); await shot('view2_devices_' + d + '_forward'); }
+    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '3'); await page.evaluate(() => document.activeElement.blur()); await shot('view2_devices_amp_3dB_forward');
+    await setInput(page, '#gain', '10'); await page.evaluate(() => document.activeElement.blur());
     for(const d of ['through', 'amp', 'custom']){ await goto(page, '#view=devices&device=' + d + '&drive=rev'); await shot('view2_devices_' + d + '_reverse'); }
     await goto(page, '#view=devices&device=through&drive=fwd');
     await goto(page, '#view=cascade'); await shot('view3_cascade_check_case');

@@ -20,9 +20,10 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 RELEASED = '2026-10-18'
-CHANGELOG = ('\n    v1.2.0 - Three views (Reflections, Devices, Cascade); normalized waves a/b on Devices with forward/reverse '
+CHANGELOG = ('\n    v1.2.1 - Devices: power shown beside the driven wave (|b|²) and dB caption gives × power and × wave.'
+             '\n    v1.2.0 - Three views (Reflections, Devices, Cascade); normalized waves a/b on Devices with forward/reverse '
              'drive; version stamp in presentation mode; layout fixes.'
              '\n    v1.1.0 - Normalized waves on Devices; forward/reverse; polish (2 significant figures, Cascade alignment, '
              'larger Devices drawing, readable reflection paths). Rework to three views (Reflections, Devices, Cascade) after '
