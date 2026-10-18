@@ -1,0 +1,2187 @@
+<!DOCTYPE html>
+<!--
+  Op-Amp Circuit Lab
+  Version:   3.1.1
+  Released:  2026-10-18
+  Changelog:
+    3.1.1 — Gate fix pass (Code Quality, Cybersecurity, Test on 3.1.0; rulings of 2026-10-17 and 2026-10-18).
+            Security: validated, type-checked and range-clamped restore under a new key (opamp-lab-v3.1, valid v3
+            values migrated), no __proto__ keys, own-key attribute copy, equation strip built from DOM nodes,
+            test hook behind an off build flag. Performance: one coalesced schematic rebuild per change, no
+            rebuild for scope-only Tweaks, equation strip and scope labels cached, canvases sized on resize,
+            nothing redrawn while paused or while the Sim page is hidden, chevrons hold still when paused.
+            Literals named, shared helpers, comments. Content: branch currents in the equation strip, gain at
+            one decimal, no DC offset on the Integrator, f−3dB "n/a" on Integrator / Comparator / Schmitt,
+            Difference tag warns at the rails, supply label half volts, slew-rate readout 3 figures, tutorial
+            and experiment text corrections; every experiment loads at 1× speed.
+    3.1.0 — Schematics redrawn to textbook conventions (left-to-right signal flow, feedback over the top, polarity-marked
+            sources, junction dots only at T-junctions, labels clear of wires, auto-fitted view). Every wire coloured by its
+            live node voltage (green +, grey 0, red −) with gradients across each part; conventional current shown as
+            moving chevrons plus a live "I = … →" tag on every part; live virtual-ground / Vd / threshold tags.
+            Schematic legend with toggles in the sidebar; phone/tablet layout; fixed channel colours declared outside :root.
+    3.0.0 — Pilot 2 design-only rework (TSR_OpAmp_Design_Pilot_v1). Single plain HTML file, vanilla JS,
+            no React/Babel/bundler. Tweaks panel rebuilt in vanilla JS. Closes OA-001..OA-010, OA-013:
+            OA-R3 enforced (Integrator has no DC input), rail-consistent capacitor state in Ideal mode,
+            window-based Status, path-gain labels on Difference/Summing, load-power readout, per-preset
+            output current limit, loadExp sets Vcc/RL/model, amplitude label tracks waveform, constants
+            extracted, one channel-colour table, stale code removed.
+    2.1.0 — Vout probe above output wire; non-inverting layout; first offline release.
+    2.0.0 — Ground-up rebuild in the benchtop-instrument house style.
+  Owner:     EE Interactive Teaching Simulations · 3.1.1 fix pass by Claude Code
+  Standards: IEC 60748-3 (semiconductor devices, integrated circuits — analogue integrated circuits:
+             operational-amplifier parameters A_OL, GBW, SR, CMRR, output current)
+  References: S. Franco, "Design with Operational Amplifiers and Analog Integrated Circuits," 4th ed., 2015;
+             TI SLOA011B "Understanding Operational Amplifier Specifications."
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="version" content="3.1.1">
+<title>Op-Amp Circuit Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#0f1218;--bg2:#161b22;--bg3:#1c222b;--inset:#090c11;--line:#262d38;--line2:#333c49;--txt:#e6ebf2;--mut:#8b95a6;--mut2:#5d6675;
+--acc:#3ddc84;--acc-d:#1f9a58;--nav1:#181d25;--nav2:#11151c;--glowtop:#1a212b;--para:#c0c8d4;--tglow:0 0 8px currentColor;--plot:#090c11;
+--good:#3ddc84;--bad:#ff5d5d;--warn:#ffd23f;--shadow-inset:inset 0 1px 2px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.015);
+  --ontxt:#04180c}
+*{margin:0;padding:0;box-sizing:border-box}
+a{color:var(--acc)}a:hover{color:var(--txt)}
+body{background:radial-gradient(1200px 600px at 50% -10%,var(--glowtop) 0%,transparent 60%),var(--bg);color:var(--txt);
+  font-family:'Archivo',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
+.topnav{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;
+  background:linear-gradient(var(--nav1),var(--nav2));border-bottom:1px solid var(--line2);z-index:200;}
+.topnav-brand{font-size:.84rem;font-weight:800;letter-spacing:.4px;display:flex;align-items:center;gap:9px;text-transform:uppercase;
+  white-space:nowrap;}
+.tn-dot{width:9px;height:9px;border-radius:50%;background:var(--acc);box-shadow:0 0 9px var(--acc)}
+.topnav-right{display:flex;align-items:center;gap:12px}
+.topnav-tabs{display:flex;gap:4px}
+.topnav-tabs button{font-family:'Archivo',sans-serif;font-size:.8rem;font-weight:700;padding:8px 18px;border:1px solid transparent;
+  border-radius:7px;background:transparent;color:var(--mut);cursor:pointer;transition:.15s;letter-spacing:.3px;}
+.topnav-tabs button:hover{color:var(--txt);background:color-mix(in srgb,var(--txt) 6%,transparent)}
+.topnav-tabs button.active{background:linear-gradient(var(--acc),var(--acc-d));color:var(--ontxt);border-color:var(--acc);
+  box-shadow:0 0 12px color-mix(in srgb,var(--acc) 35%,transparent);}
+.tweaks-toggle{font-family:'Archivo',sans-serif;font-size:.76rem;font-weight:700;padding:7px 14px;border:1px solid var(--line2);
+  border-radius:7px;background:var(--bg3);color:var(--mut);cursor:pointer;transition:.15s;}
+.tweaks-toggle:hover{color:var(--acc);border-color:var(--acc-d)}
+.page{display:none}.page.active{display:flex;flex:1 1 auto;min-height:0}
+.main{display:flex;flex:1;overflow:hidden;min-width:0}
+.sidebar{width:264px;min-width:264px;background:var(--bg2);border-right:1px solid var(--line);padding:9px 9px 16px;overflow-y:auto}
+.sidebar::-webkit-scrollbar{width:8px}.sidebar::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+.ctrl-section{background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:8px 9px 9px;margin-bottom:8px}
+.ctrl-section h3{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:1.4px;color:var(--acc);margin-bottom:8px;
+  padding-bottom:6px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;}
+.ctrl-section h3::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--acc);box-shadow:0 0 5px var(--acc)}
+.ctrl-row{margin-bottom:8px}.ctrl-row:last-child{margin-bottom:0}
+.ctrl-row label{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:.76rem;color:var(--mut);margin-bottom:5px}
+.ctrl-row label .lt{font-weight:500}.ctrl-row label .lt sub{font-size:.62em}
+.ctrl-row label span{font-family:'JetBrains Mono',monospace;font-size:.76rem;color:var(--acc);font-weight:700;background:var(--inset);
+  border:1px solid var(--line);border-radius:4px;padding:1px 6px;min-width:72px;text-align:right;white-space:nowrap;}
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:3px;background:var(--inset);outline:none;
+  cursor:pointer;border:1px solid var(--line);}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--acc);
+  border:1px solid var(--acc-d);box-shadow:0 0 6px color-mix(in srgb,var(--acc) 55%,transparent);cursor:pointer;}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border:1px solid var(--acc-d);border-radius:50%;background:var(--acc)}
+.seg-btns{display:flex;gap:4px;margin-bottom:8px}.seg-btns:last-child{margin-bottom:0}
+.seg-btns.g2{display:grid;grid-template-columns:1fr 1fr}
+.seg-btns button{flex:1;font-family:'Archivo',sans-serif;font-size:.7rem;font-weight:700;padding:7px 3px;border:1px solid var(--line2);
+  border-radius:5px;background:var(--inset);color:var(--mut);cursor:pointer;transition:.15s;white-space:nowrap;}
+.seg-btns button.active{background:linear-gradient(var(--acc),var(--acc-d));color:var(--ontxt);border-color:var(--acc);
+  box-shadow:0 0 10px color-mix(in srgb,var(--acc) 35%,transparent);}
+.seg-btns button:hover:not(.active){border-color:var(--acc-d);color:var(--txt)}
+#oaReal.off{display:none}
+.lc-label{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:var(--mut2);margin:6px 0 4px}
+.run-row{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}
+.btn{font-family:'Archivo',sans-serif;font-size:.74rem;font-weight:700;padding:8px 4px;border:1px solid var(--line2);border-radius:6px;
+  cursor:pointer;background:var(--inset);color:var(--mut);transition:.15s;width:100%;}
+.btn:hover{color:var(--txt);border-color:var(--acc-d)}
+.btn.main{background:linear-gradient(var(--acc),var(--acc-d));color:var(--ontxt);border-color:var(--acc)}
+.hint{font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--mut2);margin-top:6px;text-align:center;line-height:1.5}
+.sigbox{border-top:1px dashed var(--line2);padding-top:7px;margin-top:8px}.sigbox:first-of-type{border-top:none;padding-top:0;margin-top:0}
+.signame{font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:800;margin-bottom:5px;text-shadow:var(--tglow)}
+.legend,.wlegend{display:flex;flex-wrap:wrap;gap:4px 12px;font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:700}
+.legend span,.wlegend span{display:flex;align-items:center;gap:5px}
+.legend i,.wlegend i{width:16px;height:3px;border-radius:2px;display:inline-block}
+.wlegend{flex-direction:column;gap:5px;font-size:.66rem;color:var(--mut)}
+.wlegend i.flowdot{width:6px;height:6px;border-radius:50%;background:var(--txt);margin:0 5px}
+.content{flex:1;display:flex;flex-direction:column;gap:8px;padding:8px;overflow:hidden auto;min-width:0}
+.content::-webkit-scrollbar{width:8px}.content::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+.ctabs{flex-shrink:0;display:flex;gap:4px;flex-wrap:wrap}
+.ctabs button{font-family:'Archivo',sans-serif;font-size:.76rem;font-weight:700;padding:7px 12px 7px 8px;border:1px solid var(--line2);
+  border-radius:6px;background:var(--bg3);color:var(--mut);cursor:pointer;transition:.15s;display:flex;align-items:center;gap:7px;}
+.ctabs button em{font-style:normal;font-family:'JetBrains Mono',monospace;font-size:.62rem;width:18px;height:18px;border-radius:50%;
+  background:var(--inset);display:inline-flex;align-items:center;justify-content:center;color:var(--mut2);}
+.ctabs button:hover{color:var(--txt);border-color:var(--acc-d)}
+.ctabs button.active{background:linear-gradient(var(--acc),var(--acc-d));color:var(--ontxt);border-color:var(--acc);
+  box-shadow:0 0 12px color-mix(in srgb,var(--acc) 35%,transparent);}
+.ctabs button.active em{background:rgba(0,0,0,.25);color:var(--ontxt)}
+.well{background:var(--plot);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--shadow-inset);position:relative;
+  overflow:hidden;min-height:0;}
+.well canvas{display:block;width:100%;height:100%}
+.schwell{flex:0 0 auto;display:flex;justify-content:center;align-items:center;padding:6px 10px}
+.schwell svg{width:100%;height:min(44vh,470px);display:block}
+.hud{position:absolute;top:10px;left:14px;font-family:'JetBrains Mono',monospace;font-size:.76rem;font-weight:700;color:var(--mut);
+  pointer-events:none;}
+.pill{position:absolute;top:9px;right:12px;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--acc);
+  padding:5px 10px;border-radius:6px;border:1px solid var(--line2);background:color-mix(in srgb,var(--plot) 80%,transparent);}
+.lower{flex:1 1 0;display:flex;gap:8px;min-height:200px}
+@media (max-height:640px){.schwell svg{height:min(38vh,300px)}.lower{min-height:160px}}
+.plots{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.plots .well{flex:1}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:0 4px}
+.ph .t{font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--acc)}
+.aux{width:320px;min-width:320px;display:flex;flex-direction:column;gap:6px}
+.aux .well{flex:1;min-height:120px}
+.readouts{flex-shrink:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.rb{background:var(--inset);border:1px solid var(--line);border-radius:7px;padding:6px 6px 5px;text-align:center;
+  box-shadow:var(--shadow-inset);min-width:0;}
+.rl{font-size:.58rem;text-transform:uppercase;letter-spacing:1px;color:var(--mut2);margin-bottom:2px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;}
+.rv{font-family:'JetBrains Mono',monospace;font-size:clamp(.85rem,1.15vw,1.2rem);font-weight:800;color:var(--acc);text-shadow:var(--tglow);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rs{font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eq-strip{flex:0 0 auto;display:flex;align-items:center;gap:16px;background:var(--inset);border:1px solid var(--line2);border-radius:12px;
+  box-shadow:var(--shadow-inset);padding:7px 16px;overflow-x:auto;scrollbar-width:thin;}
+.eq-strip::-webkit-scrollbar{height:6px}.eq-strip::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+.eq-title{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:1.4px;color:var(--mut2);writing-mode:vertical-rl;
+  transform:rotate(180deg);flex-shrink:0;}
+.eq-lines{display:flex;flex-direction:column;gap:5px}
+.eql{font-family:'JetBrains Mono',monospace;font-size:.9rem;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;
+  color:var(--txt);}
+.eql.aux-eq{font-size:.74rem;color:var(--mut);font-weight:600}
+.eql .op{color:var(--mut);font-weight:500}
+.tk{padding:1px 7px;border-radius:5px;border:1px solid var(--line2)}
+.tk.acc{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 45%,transparent)}
+.tk.in{color:var(--ch-vin);border-color:color-mix(in srgb,var(--ch-vin) 45%,transparent)}
+.tk.out{color:var(--ch-vout);border-color:color-mix(in srgb,var(--ch-vout) 45%,transparent)}
+.tk.c2{color:var(--ch-v2);border-color:color-mix(in srgb,var(--ch-v2) 45%,transparent)}
+.tk.c3{color:var(--ch-v3);border-color:color-mix(in srgb,var(--ch-v3) 45%,transparent)}
+.tk.c4{color:var(--ch-vp);border-color:color-mix(in srgb,var(--ch-vp) 45%,transparent)}
+@media (max-height:780px){.eql{font-size:.8rem}.eql.aux-eq{display:none}.schwell svg{height:min(40vh,380px)}}
+.vbar{height:10px;border-radius:5px;margin:2px 0 3px;border:1px solid var(--line2)}
+.vbar-ticks{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--mut)}
+.sch-tog{display:flex;justify-content:space-between;align-items:center;font-size:.72rem;color:var(--mut);margin-top:7px;cursor:pointer}
+.sch-tog input{accent-color:var(--acc)}
+.chev{display:inline-block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;margin-right:3px}
+@media (max-width:900px){
+  body{height:auto;min-height:100vh;overflow:auto}
+  .topnav{height:auto;flex-wrap:wrap;gap:6px;padding:8px 12px}
+  .topnav-tabs button{padding:7px 11px}
+  .page.active{flex-direction:column}
+  .main{flex-direction:column;overflow:visible}
+  .sidebar{width:auto;min-width:0;border-right:none;border-top:1px solid var(--line);order:2;overflow:visible}
+  .content{overflow:visible;padding:8px}
+  .topnav-right{flex-wrap:wrap;gap:6px}
+  .schwell{display:block;overflow-x:auto;padding:34px 6px 6px}
+  .schwell svg{height:auto;min-width:640px}
+  .schwell .pill{display:none}
+  .lower,.readouts,.eq-strip,.ctabs{flex:none}
+  .lower{flex-direction:column;min-height:0}
+  .plots{flex:none}
+  .plots .well{height:240px;flex:none}
+  .aux{width:auto;min-width:0}.aux .well{height:240px;flex:none}
+  .readouts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rv{font-size:1rem}
+  .tutorial-inner{padding:22px 16px 44px}
+}
+.tutorial-page{flex:1;overflow-y:auto;flex-direction:column}
+.tutorial-inner{max-width:900px;margin:0 auto;padding:30px 32px 56px}
+.tutorial-inner h1{font-size:1.85rem;font-weight:800;margin-bottom:4px;letter-spacing:-.3px}
+.subtitle{font-family:'JetBrains Mono',monospace;font-size:.82rem;color:var(--acc);margin-bottom:26px}
+.tutorial-inner h2{font-size:1.12rem;font-weight:700;margin:30px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line2);
+  display:flex;align-items:center;gap:9px;}
+.tutorial-inner h2::before{content:"";width:5px;height:16px;border-radius:2px;background:var(--acc);
+  box-shadow:0 0 8px color-mix(in srgb,var(--acc) 50%,transparent);}
+.tutorial-inner p,.tutorial-inner li{font-size:.94rem;line-height:1.7;color:var(--para);text-wrap:pretty}
+.tutorial-inner p{margin-bottom:11px}.tutorial-inner ul,.tutorial-inner ol{margin:0 0 13px 20px}.tutorial-inner strong{color:var(--txt)}
+.eq-box{background:var(--inset);border:1px solid var(--line2);border-radius:8px;padding:14px 18px;margin:14px 0;text-align:center;
+  box-shadow:var(--shadow-inset);}
+.eq-box .eq{font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:600;color:var(--acc);line-height:1.9}
+.eq-box .eq-note{font-size:.78rem;color:var(--mut);margin-top:6px}
+.tut-table{width:100%;border-collapse:collapse;font-size:.86rem;margin:12px 0 16px}
+.tut-table th{text-align:left;padding:8px 11px;background:var(--bg3);font-weight:700;color:var(--acc);border-bottom:1px solid var(--acc-d)}
+.tut-table td{padding:7px 11px;border-bottom:1px solid var(--line);color:var(--para)}
+.tut-table td:first-child{font-family:'JetBrains Mono',monospace;color:var(--txt);white-space:nowrap}
+.exp-card{background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:15px 18px;margin:11px 0}
+.exp-num{font-family:'JetBrains Mono',monospace;font-size:.66rem;font-weight:700;color:var(--acc);text-transform:uppercase;
+  letter-spacing:1.5px;margin-bottom:3px;}
+.exp-title{font-size:1rem;font-weight:700;margin-bottom:7px}
+.exp-body{font-size:.88rem;color:var(--para);line-height:1.6}
+.exp-observe{font-size:.85rem;color:var(--acc);margin-top:8px;padding-top:7px;border-top:1px dashed var(--line2)}
+.exp-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.nav-btn{display:inline-block;padding:9px 20px;font-family:'Archivo',sans-serif;font-size:.84rem;font-weight:700;color:var(--ontxt);
+  background:linear-gradient(var(--acc),var(--acc-d));border:1px solid var(--acc);border-radius:8px;cursor:pointer;}
+.nav-btn.secondary{background:var(--bg3);color:var(--mut);border-color:var(--line2)}
+.nav-row{display:flex;justify-content:space-between;margin-top:30px;padding-top:18px;border-top:1px solid var(--line)}
+/* Tweaks panel (vanilla) */
+.tweaks{position:fixed;top:56px;right:12px;width:270px;background:var(--bg2);border:1px solid var(--line2);border-radius:10px;padding:12px;
+  z-index:300;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none;max-height:calc(100vh - 70px);overflow-y:auto;}
+.tweaks.open{display:block}
+.tweaks h4{font-size:.62rem;text-transform:uppercase;letter-spacing:1.4px;color:var(--acc);margin:10px 0 6px}
+.tweaks h4:first-child{margin-top:0}
+.tw-row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.74rem;color:var(--mut);margin-bottom:7px}
+.tw-row input[type=range]{width:110px}
+.tw-row output{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--acc);min-width:44px;text-align:right}
+.tw-sw{display:flex;gap:6px}
+.tw-sw button{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+.tw-sw button.active{border-color:var(--txt)}
+.tw-tog{width:36px;height:20px;border-radius:10px;background:var(--inset);border:1px solid var(--line2);position:relative;cursor:pointer}
+.tw-tog::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--mut);transition:.15s}
+.tw-tog.on{background:var(--acc-d);border-color:var(--acc)}.tw-tog.on::after{left:18px;background:var(--txt)}
+.tw-seg{display:flex;gap:3px}
+.tw-seg button{font-family:'Archivo',sans-serif;font-size:.64rem;font-weight:700;padding:4px 8px;border:1px solid var(--line2);
+  border-radius:4px;background:var(--inset);color:var(--mut);cursor:pointer;}
+.tw-seg button.active{background:var(--acc);color:var(--ontxt);border-color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="topnav">
+<div class="topnav-brand"><span class="tn-dot"></span>Op-Amp Circuit Lab</div>
+<div class="topnav-right">
+<div class="topnav-tabs" id="pageTabs"><button data-page="simPage" class="active">Sim</button><button
+data-page="tutPage">Tutorial</button><button data-page="expPage">Experiments</button></div>
+<button class="tweaks-toggle" id="themeBtn" title="Switch dark / light view">☀ Light</button>
+<button class="tweaks-toggle" id="tweaksBtn" title="Restyle">✎ Tweaks</button>
+</div>
+</div>
+<div class="tweaks" id="tweaks"></div>
+
+<!-- ══════════ SIM ══════════ -->
+<div class="page active" id="simPage" data-screen-label="Sim">
+<div class="main">
+<aside class="sidebar">
+<div class="ctrl-section" id="secRun"><h3>Run</h3><div class="run-row"><button class="btn main" id="bPlay">❚❚ Pause</button><button
+class="btn" id="bReset">↺ Reset</button></div></div>
+<div class="ctrl-section" id="secOA"><h3>Op-amp model</h3></div>
+<div class="ctrl-section" id="secCirc"><h3>Circuit components</h3></div>
+<div class="ctrl-section" id="secSig"><h3 id="sig1">Input signal</h3></div>
+<div class="ctrl-section" id="secLoad"><h3>Load</h3></div>
+<div class="ctrl-section" id="secSch"><h3>Schematic</h3>
+<div class="lc-label">Wire colour = node voltage</div><div class="vbar" id="vbar"></div>
+<div class="vbar-ticks"><span id="vbLo">−5 V</span><span>0</span><span id="vbHi">+5 V</span></div>
+<div class="wlegend" id="wireLegend" style="margin-top:8px"></div>
+<label class="sch-tog">Colour wires by voltage<input type="checkbox" id="tgV"></label>
+<label class="sch-tog">Moving current arrows<input type="checkbox" id="tgF"></label>
+<label class="sch-tog">Current values on parts<input type="checkbox" id="tgI"></label>
+<div class="hint">Space = pause · R = reset</div></div>
+</aside>
+<div class="content">
+<div class="ctabs" id="ctabs"></div>
+<div class="well schwell"><div class="hud" id="schTitle"></div><div class="pill">Schematic · live</div><svg id="sch" viewBox="0 0 900 420"
+xmlns="http://www.w3.org/2000/svg"></svg></div>
+<div class="lower">
+<div class="plots"><div class="ph"><span class="t">Oscilloscope — rolling</span><div class="legend" id="legend"></div></div><div
+class="well"><canvas id="scope"></canvas></div></div>
+<div class="aux"><div class="ph"><span class="t">Transfer — Vout vs Vin</span><span class="legend"><span><i
+style="background:var(--acc);height:2px"></i>ideal</span></span></div><div class="well"><canvas id="xy"></canvas></div></div>
+</div>
+<div class="readouts">
+<div class="rb"><div class="rl">Vin peak</div><div class="rv" id="r_vin" style="color:var(--ch-vin)">—</div><div class="rs">|Vin| max in
+window</div></div>
+<div class="rb"><div class="rl">Vout peak</div><div class="rv" id="r_vout" style="color:var(--ch-vout)">—</div><div class="rs">|Vout| max in
+window</div></div>
+<div class="rb"><div class="rl">Gain measured</div><div class="rv" id="r_gain">—</div><div class="rs" id="r_gain_s">—</div></div>
+<div class="rb"><div class="rl">Closed-loop f<sub>−3dB</sub></div><div class="rv" id="r_fc">—</div><div class="rs" id="r_fc_s">—</div></div>
+<div class="rb"><div class="rl">Load current pk</div><div class="rv" id="r_il">—</div><div class="rs" id="r_il_s">Vout /
+R<sub>L</sub></div></div>
+<div class="rb"><div class="rl">Load power</div><div class="rv" id="r_pl">—</div><div class="rs" id="r_pl_s">peak · avg over
+window</div></div>
+<div class="rb"><div class="rl">Status</div><div class="rv" id="r_st">—</div><div class="rs" id="r_st_s">—</div></div>
+</div>
+<div class="eq-strip"><div class="eq-title">Governing</div><div class="eq-lines" id="eqLines"></div></div>
+</div>
+</div>
+</div>
+
+<!-- ══════════ TUTORIAL ══════════ -->
+<div class="page tutorial-page" id="tutPage" data-screen-label="Tutorial">
+<div class="tutorial-inner">
+<h1>Op-Amp Circuits — Tutorial</h1>
+<div class="subtitle">Ideal rules, the real one-pole model, and the nine circuits in the lab · v3.1.1</div>
+
+<h2>1. The op-amp and its two golden rules</h2>
+<p>An operational amplifier amplifies the <strong>difference</strong> between its inputs: Vout = A<sub>OL</sub>·(V+ − V−). Open-loop gain
+A<sub>OL</sub> is enormous (10<sup>5</sup>–10<sup>6</sup>), so with <strong>negative feedback</strong> the output only has to move a few
+microvolts of Vd to settle. Two rules follow for the ideal device:</p>
+<ul><li><strong>Rule 1 — no input current.</strong> Input impedance is infinite; the resistors do all the current bookkeeping.</li>
+<li><strong>Rule 2 — Vd = 0.</strong> With negative feedback the output drives V− to equal V+. When V+ is grounded, V− sits at a <em>virtual
+ground</em>: 0 V without being wired to ground.</li></ul>
+<p>Everything in Sections 3–9 is derived from these two rules plus Kirchhoff's current law at the inverting node. Rule 2 holds only while
+the output is inside its rails: once Vout is pinned at ±V<sub>sat</sub> the loop is open and V− is set by the passive network alone — the
+lab computes it that way. The comparator and Schmitt trigger (Sections 10–11) have no negative feedback, so Rule 2 never applies and the
+output sits at a rail.</p>
+
+<h2>2. The Real model — what the "Real" toggle simulates</h2>
+<p>Switch the sidebar to <strong>Real</strong> and the op-amp becomes a one-pole dominant-pole amplifier with four limits taken from the
+datasheet:</p>
+<div class="eq-box"><div class="eq">dVout/dt = ω<sub>p</sub>·(A<sub>OL</sub>·Vd − Vout),  ω<sub>p</sub> = 2π·GBW /
+A<sub>OL</sub><br>|dVout/dt| ≤ SR   ·   |Vout| ≤ V<sub>sat</sub> = V<sub>CC</sub> − 1.2 V   ·   |I<sub>out</sub>| ≤
+I<sub>lim</sub></div><div class="eq-note">Integrated implicitly together with any capacitor in the circuit, so the sim stays stable at any
+R, C or frequency.</div></div>
+<table class="tut-table"><tr><th>Parameter</th><th>Meaning</th><th>What you see</th></tr>
+<tr><td>A<sub>OL</sub></td><td>DC open-loop gain</td><td>Non-inverting closed-loop gain is A<sub>OL</sub>/(1 + A<sub>OL</sub>β); the inverting form is
+−(R<sub>f</sub>/R<sub>in</sub>)/(1 + 1/(A<sub>OL</sub>β)). Both sit slightly below ideal.
+Comparator has a tiny linear region ±V<sub>sat</sub>/A<sub>OL</sub>.</td></tr>
+<tr><td>GBW</td><td>Gain-bandwidth product</td><td>Closed-loop −3 dB frequency f<sub>c</sub> = GBW / noise gain. Above it Vout shrinks and
+lags Vin — the readout box shows f<sub>c</sub> live.</td></tr>
+<tr><td>SR</td><td>Slew rate (V/µs)</td><td>Edges become straight ramps; a sine above f = SR/(2π·V<sub>pk</sub>) turns into a triangle.
+Status reads SLEW-LIMITED.</td></tr>
+<tr><td>V<sub>sat</sub></td><td>Output swing limit</td><td>Flat tops on Vout, dashed rails on the scope, Status reads SATURATED.</td></tr>
+<tr><td>I<sub>lim</sub></td><td>Output short-circuit current limit</td><td>Total output current (load + feedback) is clamped; Vout collapses
+to I<sub>lim</sub>·R<sub>L</sub> when R<sub>L</sub> is too small. Status reads CURRENT-LIMITED.</td></tr></table>
+<table class="tut-table"><tr><th>Preset</th><th>A<sub>OL</sub></th><th>GBW</th><th>SR</th><th>I<sub>lim</sub></th></tr>
+<tr><td>741</td><td>200 000 (106 dB)</td><td>1 MHz</td><td>0.5 V/µs</td><td>25 mA</td></tr>
+<tr><td>LM358</td><td>100 000 (100 dB)</td><td>1 MHz</td><td>0.3 V/µs</td><td>40 mA</td></tr>
+<tr><td>TL071</td><td>200 000 (106 dB)</td><td>3 MHz</td><td>13 V/µs</td><td>40 mA</td></tr>
+<tr><td>OPA2134</td><td>1 000 000 (120 dB)</td><td>8 MHz</td><td>20 V/µs</td><td>40 mA</td></tr></table>
+<p>The presets are representative datasheet values. I<sub>lim</sub> is the typical short-circuit current, except for the 741, whose
+25 mA is the datasheet minimum. Moving any op-amp slider makes the part "custom"; the current limit of the last preset is kept.</p>
+
+<h2>3. Inverting amplifier</h2>
+<p>Vin drives current I = Vin/R<sub>in</sub> into the virtual-ground node. No current can enter the op-amp, so all of it continues through
+R<sub>f</sub>, forcing Vout = −I·R<sub>f</sub>.</p>
+<div class="eq-box"><div class="eq">Vout = −(R<sub>f</sub> / R<sub>in</sub>)·Vin    Z<sub>in</sub> = R<sub>in</sub>    noise gain = 1 +
+R<sub>f</sub>/R<sub>in</sub></div></div>
+<p>The gain is set by a resistor <em>ratio</em>, so it is precise and temperature-stable. Cost: the input impedance is only R<sub>in</sub>,
+and the output is inverted (180° phase shift — watch the X-Y screen slope downward).</p>
+
+<h2>4. Non-inverting amplifier</h2>
+<p>Vin goes straight to V+. Rule 2 puts V− = Vin, and the R<sub>1</sub>–R<sub>f</sub> divider from the output must reproduce that
+voltage:</p>
+<div class="eq-box"><div class="eq">Vout = (1 + R<sub>f</sub> / R<sub>1</sub>)·Vin    Z<sub>in</sub> → ∞</div></div>
+<p>Same polarity, gain ≥ 1, and essentially infinite input impedance — the choice for buffering sensors and high-impedance sources.</p>
+
+<h2>5. Voltage follower</h2>
+<p>The non-inverting amplifier with R<sub>f</sub> = 0 and R<sub>1</sub> → ∞: Vout = Vin. It draws no input current yet can drive
+R<sub>L</sub> hard — an impedance transformer. In Real mode the follower has the widest bandwidth of any configuration (noise gain 1 →
+f<sub>c</sub> = GBW).</p>
+
+<h2>6. Summing amplifier</h2>
+<p>Several inputs feed the same virtual-ground node through their own resistors; currents add and the sum flows through R<sub>f</sub>:</p>
+<div class="eq-box"><div class="eq">Vout = −R<sub>f</sub>·(V1/R<sub>1</sub> + V2/R<sub>2</sub> + V3/R<sub>3</sub>)</div><div
+class="eq-note">Inputs are isolated from each other because the node is held at 0 V — an audio mixer, a DAC ladder, an offset adder. Each
+input has its own path gain −R<sub>f</sub>/R<sub>k</sub>; there is no single "circuit gain".</div></div>
+
+<h2>7. Difference amplifier</h2>
+<p>The inverting path amplifies V1 by −R<sub>2</sub>/R<sub>1</sub>; the non-inverting path amplifies the divided V2 by (1 +
+R<sub>2</sub>/R<sub>1</sub>). With R<sub>3</sub>/R<sub>4</sub> = R<sub>1</sub>/R<sub>2</sub> the two gains match and only the difference
+survives:</p>
+<div class="eq-box"><div class="eq">Vout = (R<sub>2</sub>/R<sub>1</sub>)·(V2 − V1)   when R<sub>4</sub>/R<sub>3</sub> =
+R<sub>2</sub>/R<sub>1</sub></div><div class="eq-note">Mismatch the ratio and common-mode signal leaks through; the equation strip reports
+the resulting CMRR in dB.</div></div>
+
+<h2>8. Differentiator</h2>
+<p>A capacitor at the input carries I = C·dVin/dt into the virtual ground; R<sub>f</sub> converts it to a voltage:</p>
+<div class="eq-box"><div class="eq">Vout = −R<sub>f</sub>C · dVin/dt</div><div class="eq-note">A triangle in gives a square out; a sine
+in gives −cosine out (90° lag) of amplitude 2πf·R<sub>f</sub>C·V<sub>pk</sub>. The amplitude formula holds as R<sub>s</sub> → 0; at
+the default R<sub>s</sub> = 1 kΩ (1 kHz) the output is about 15 % lower.</div></div>
+<p>The pure differentiator's gain rises without limit with frequency, which amplifies noise and — with a real op-amp — makes the loop
+unstable. The small series resistor R<sub>s</sub> caps the high-frequency gain at R<sub>f</sub>/R<sub>s</sub> above f<sub>z</sub> =
+1/(2πR<sub>s</sub>C). Set R<sub>s</sub> very small in Real mode and watch the edges ring.</p>
+
+<h2>9. Integrator</h2>
+<p>The mirror circuit: current Vin/R<sub>in</sub> charges C, and the output voltage is the capacitor voltage (inverted):</p>
+<div class="eq-box"><div class="eq">Vout = −(1 / R<sub>in</sub>C) · ∫ Vin dt</div><div class="eq-note">A square in gives a triangle out; a
+sine gives a +cosine (90° lead) of amplitude V<sub>pk</sub>/(2πf·R<sub>in</sub>C).</div></div>
+<p>Any DC component of Vin integrates without bound, so practical integrators add a leak resistor R<sub>f</sub> across C. It limits DC gain
+to −R<sub>f</sub>/R<sub>in</sub> and the circuit only integrates above 1/(2πR<sub>f</sub>C). In this lab the Integrator accepts
+zero-mean periodic inputs only (sine, square, triangle): it has no DC waveform and no offset control.</p>
+
+<h2>10. Comparator</h2>
+<p>No feedback: Vout = A<sub>OL</sub>·(Vin − Vref) saturates for any difference bigger than a few tens of microvolts. The output is a
+logic-like signal: +V<sub>sat</sub> when Vin &gt; Vref, −V<sub>sat</sub> otherwise. In Real mode the transitions take 2V<sub>sat</sub>/SR —
+about 55 µs for a 741 on ±15 V — which is why dedicated comparators exist.</p>
+
+<h2>11. Schmitt trigger (inverting)</h2>
+<p>Positive feedback through R<sub>1</sub>–R<sub>2</sub> moves the reference <em>with</em> the output. The threshold is high while the
+output is high and low while the output is low:</p>
+<div class="eq-box"><div class="eq">V<sub>T±</sub> = Vref·R<sub>1</sub>/(R<sub>1</sub>+R<sub>2</sub>) ±
+V<sub>sat</sub>·R<sub>2</sub>/(R<sub>1</sub>+R<sub>2</sub>)   hysteresis V<sub>H</sub> =
+2V<sub>sat</sub>·R<sub>2</sub>/(R<sub>1</sub>+R<sub>2</sub>)</div></div>
+<p>The X-Y screen draws the characteristic rectangle. Noise smaller than V<sub>H</sub> can no longer cause chatter at the transition — the
+reason every mechanical switch and slow analog sensor is followed by a Schmitt trigger.</p>
+
+<h2>12. Reading the instrument</h2>
+<ul><li><strong>Schematic colours</strong> show every node's instantaneous voltage: green is positive, grey is 0 V, red is negative
+(scale bar in the sidebar). Each resistor shades from one end's colour to the other's — that shading <em>is</em> the voltage drop.
+Note the wire at the inverting input staying grey in the inverting circuits: that is the virtual ground.</li>
+<li><strong>Current</strong>: yellow chevrons move in the direction of conventional current, faster for larger current; the tag beside each
+part gives its current and direction. At the inverting node of the inverting amplifier, the current arriving through R<sub>in</sub> leaves
+through R<sub>f</sub> — none enters the op-amp.</li>
+<li><strong>Pills</strong> give live node voltages; their coloured dot matches that signal's scope trace.</li>
+<li><strong>Scope</strong> is a rolling display of the last few input cycles, auto-ranged; dashed red lines are ±V<sub>sat</sub>.</li>
+<li><strong>Transfer screen</strong> plots Vout against Vin. Linear amplifiers draw a line with slope = gain; clipping bends it flat;
+integrators and differentiators draw ellipses (90° phase shift); the Schmitt trigger draws its hysteresis loop.</li>
+<li><strong>Load power</strong> is P<sub>L</sub> = Vout²/R<sub>L</sub>: the peak instantaneous value and the average over the displayed
+window.</li>
+<li><strong>Status</strong> is evaluated over the whole displayed window: SATURATED when the output spends more than 2 % of it at the rails,
+CURRENT-LIMITED when the Real model's I<sub>lim</sub> clamps, SLEW-LIMITED when its dVout/dt limit is active, otherwise LINEAR.</li></ul>
+<div class="nav-row"><button class="nav-btn secondary" data-goto="simPage">← Back to Sim</button><button class="nav-btn"
+data-goto="expPage">Experiments →</button></div>
+</div>
+</div>
+
+<!-- ══════════ EXPERIMENTS ══════════ -->
+<div class="page tutorial-page" id="expPage" data-screen-label="Experiments">
+<div class="tutorial-inner">
+<h1>Experiments</h1>
+<div class="subtitle">Each card loads a complete setup into the Sim — then change one thing and watch</div>
+<div id="expCards"></div>
+<div class="nav-row"><button class="nav-btn secondary" data-goto="tutPage">← Tutorial</button><button class="nav-btn"
+data-goto="simPage">Back to Sim →</button></div>
+</div>
+</div>
+
+<script>/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   Op-Amp Circuit Lab — application script
+   TABLE OF CONTENTS
+     §0  Constants (numerical, control ranges, colours, presets, themes)
+     §1  Formatting helpers and equation-strip parts
+     §2  Schematic builder (drawing constants, SVG part library, probes, current-flow animation)
+     §3  Circuit definitions (layout constants, affine V±(Vo) formulation, drawing, equation strips)
+     §4  Simulation state and engine (defaults + OA-R3 coercion, implicit op-amp + capacitor solve)
+     §5  Measurements (window-based)
+     §6  Scope and X-Y screen
+     §7  Readouts, equation strip and frame loop
+     §8  Theme
+     §9  Sidebar controls
+     §10 Circuit tabs, pages, experiments
+     §11 Tweaks panel (vanilla)
+     §12 Persistence (validated load, v3 → v3.1 key migration)
+     §13 Init
+   Layout constants live in §2 (part drawing) and §3 (circuit placement); §0 holds the rest.
+   OA-R3 (no DC input on the Integrator) is enforced in §3 (circuit flag `noDC`), §4 (ensureDefaults
+   coerces wave and offset), §9 (waveform buttons omit DC, no offset slider), §10 (loadExp) and §12 (load).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+(function () {
+'use strict';
+/* ───────────────────────────── §0 CONSTANTS ───────────────────────────── */
+/* Numerical */
+const SCOPE_SAMPLES = 1200;            // ring-buffer length = scope horizontal resolution
+const VSAT_HEADROOM = 1.2;             // V, Vsat = Vcc − headroom in Real mode
+const VSAT_MIN = 0.5;                  // V, floor for Vsat at low supplies
+const STATUS_FRACTION = 0.02;          // fraction of window at rails / slewing / current limit → flag
+const MAX_STEPS_PER_FRAME = 4000;
+const REAL_DT_GBW_DIV = 8 * Math.PI;   // Real-mode step ≤ 1/(8π·GBW)
+const CAP_TAU_DIV = 10;                // step ≤ τ/10 for capacitor circuits
+const IMAX_DECAY = 0.99;               // per-frame decay of the flow-animation current scale
+const IMAX_FLOOR = 1e-5;               // A
+const MAX_FRAME_DT = 0.05;             // s, clamp wall-clock frame time
+const SCOPE_SPEED_DIV = 3;             // window scrolls in (3 / speed) seconds
+const DEFAULT_WINDOW_T = 2e-3;         // s, when all inputs are DC
+const EPS_BETA = 1e-9;                 // feedback factor below which loop is treated as open
+const EPS_D = 1e-6;                    // implicit-solve denominator guard
+const EPS_ZERO_V = 1e-10;              // V, print as 0
+const EPS_ZERO_I = 1e-13;              // A, print as 0
+const EPS_SAT = 1e-9;                  // V, |Vo| ≥ Vsat − EPS counts as saturated
+const EPS_SAT_TAG = 1e-6;              // V, |Vo| ≥ Vsat − EPS turns the schematic tags to their warning state
+const EPS_CMRR = 1e-12;
+const PROBE_ZERO_V = 1e-6;             // V, |Vin| below → gain not measurable
+const TAU = 2 * Math.PI;               // one turn in radians
+const HALF_TURN_DEG = 180;
+const PERCENT = 100;
+const FLOW_SPEED_MIN = 30, FLOW_SPEED_GAIN = 400;   // px/s chevron motion
+const FLOW_SHOW_MIN = 0.004;           // |I|/Imax below which a branch shows no chevrons
+const FLOW_ALPHA_BASE = 0.45, FLOW_ALPHA_GAIN = 0.55;   // chevron opacity = base + gain·√(|I|/Imax)
+const NICE_RANGES = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50];
+const RANGE_MARGIN = 1.12;
+const RANGE_SCAN_STRIDE = 4;           // auto-range samples every 4th scope point
+const LIGHT_ACCENT_SHADE = 0.35, ACCENT_DARK_SHADE = 0.3;
+const BASE_FONT_PX = 16;
+const SAVE_DEBOUNCE_MS = 200;          // localStorage write debounce
+/* Control ranges — shared by the sliders and by the validated load() in §12 */
+const AOL_DB_MIN = 60, AOL_DB_MAX = 130, AOL_DB_STEP = 1;
+const DB_PER_DECADE = 20;              // 20·log10 for voltage gain
+const GBW_MIN = 1e5, GBW_MAX = 5e7;    // Hz
+const SR_MIN = 0.1e6, SR_MAX = 100e6;  // V/s
+const ILIM_MIN = 1e-3, ILIM_MAX = 0.2; // A
+const VCC_MIN = 3, VCC_MAX = 18, VCC_STEP = 0.5;   // V
+const RL_MIN = 100, RL_MAX = 1e6;      // Ω
+const AMP_MIN = 0.01;                  // V
+const AMP_MAX = 10;                    // V, amplitude ceiling (ruling PD-02)
+const F_MIN = 1, F_MAX = 1e6;          // Hz
+const OFF_MIN = -5, OFF_MAX = 5, OFF_STEP = 0.05;  // V
+const R_MIN = 1e3, R_MAX = 1e6;        // Ω, default resistor slider range
+const C_MIN = 1e-9, C_MAX = 10e-6;     // F, default capacitor slider range
+const LOG_STEPS = 1000;                // log sliders run 0…1000
+const LOG_SIG_DIGITS = 3;              // log-slider values snap to 3 significant figures
+const SLIDER_STEP = 0.01;              // default linear slider step
+const UI_SCALE_MIN = 80, UI_SCALE_MAX = 140, UI_SCALE_STEP = 5;   // %
+const TRACE_W_MIN = 1, TRACE_W_MAX = 5, TRACE_W_STEP = 0.2;       // px
+const CYCLES_MIN = 1, CYCLES_MAX = 8, CYCLES_STEP = 1;
+const VSUFFIX = ' V';
+/* Persistence */
+const LS_KEY = 'opamp-lab-v3.1';
+const LS_KEY_OLD = 'opamp-lab-v3';     // v3.0.0 / v3.1.0 store — read once for migration, never written
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const PAGES = ['simPage', 'tutPage', 'expPage'];
+const MODES = ['ideal', 'real'];
+const PRESET_CUSTOM = 'custom';        // preset name after any op-amp slider is moved
+/* Channel colours — the one source (dark / light); applyTheme publishes them as --ch-* */
+const CH_DARK = { vin: '#5b9dff', vout: '#ff5d5d', v2: '#2fd4e6', v3: '#c77dff', vref: '#c77dff', vm: '#ffd23f', vp: '#ff9a1f' };
+const CH_LIGHT = { vin: '#1b63d6', vout: '#d9202a', v2: '#008b9a', v3: '#8a2fd1', vref: '#8a2fd1', vm: '#a87700', vp: '#c25e00' };
+const CH = Object.assign({}, CH_DARK);   // live table, swapped by applyTheme
+const TRACE_LABEL = { vin: 'Vin', vout: 'Vout', v2: 'V2', v3: 'V3', vref: 'Vref', vm: 'V−', vp: 'V+' };
+/* Schematic palette (dark / light): wire ink, current chevrons and tags, node-voltage scale ends */
+const SCH_DARK = { wire: '#aab4c3', flow: '#ffd23f', flowTxt: '#ffd23f', vpos: '#3ddc84', vneg: '#ff5d5d', vzero: '#6f7a8a' };
+const SCH_LIGHT = { wire: '#3a4556', flow: '#c27c00', flowTxt: '#8a5800', vpos: '#0b8a44', vneg: '#d9202a', vzero: '#9aa3b0' };
+/* Op-amp presets: representative datasheet values. ilim = typical output short-circuit current,
+   except the 741, whose 25 mA is the datasheet minimum. */
+const PRESETS = {
+  '741':     { aol: 2e5, gbw: 1e6, sr: 0.5e6, ilim: 0.025 },
+  'LM358':   { aol: 1e5, gbw: 1e6, sr: 0.3e6, ilim: 0.040 },
+  'TL071':   { aol: 2e5, gbw: 3e6, sr: 13e6,  ilim: 0.040 },
+  'OPA2134': { aol: 1e6, gbw: 8e6, sr: 20e6,  ilim: 0.040 },
+};
+const DEFAULT_PRESET = '741';
+const BG_THEMES = {
+  Charcoal: { '--bg': '#0f1218', '--bg2': '#161b22', '--bg3': '#1c222b', '--inset': '#090c11', '--line': '#262d38', '--line2': '#333c49' },
+  Slate:    { '--bg': '#0d141c', '--bg2': '#141d27', '--bg3': '#1a2531', '--inset': '#070c12', '--line': '#22303d', '--line2': '#2f4150' },
+  Black:    { '--bg': '#060709', '--bg2': '#0d0f13', '--bg3': '#13161c', '--inset': '#000000', '--line': '#1c222b', '--line2': '#2a3340' },
+};
+const DARK_TXT = {
+  '--txt': '#e6ebf2', '--mut': '#8b95a6', '--mut2': '#5d6675', '--nav1': '#181d25', '--nav2': '#11151c', '--glowtop': '#1a212b',
+  '--para': '#c0c8d4', '--tglow': '0 0 8px currentColor', '--good': '#3ddc84', '--bad': '#ff5d5d', '--warn': '#ffd23f',
+    '--ontxt': '#04180c',
+};
+const LIGHT = {
+  '--bg': '#e8ecf1', '--bg2': '#f5f7fa', '--bg3': '#ffffff', '--inset': '#eef2f6', '--line': '#d2d9e2', '--line2': '#aeb9c7',
+  '--txt': '#0c131d', '--mut': '#3f4a5b', '--mut2': '#5f6a7c', '--nav1': '#ffffff', '--nav2': '#edf1f5', '--glowtop': '#ffffff',
+  '--para': '#253041', '--tglow': 'none', '--plot': '#ffffff', '--good': '#0b8a44', '--bad': '#d9202a', '--warn': '#a87700',
+    '--ontxt': '#ffffff',
+};
+const ACCENT_OPTIONS = ['#3ddc84', '#ffb340', '#2fd4e6', '#ff5da2'];
+const WAVES = [['sine', '∿ Sine'], ['square', '⊓ Square'], ['tri', '∧ Tri'], ['dc', '— DC']];
+const SPEEDS = [[0.5, '½×'], [1, '1×'], [2, '2×'], [4, '4×']];
+const SPEED_DEFAULT = 1;
+/* sidebar checkbox id → Tweaks key (the same three switches also live in the Tweaks panel) */
+const SCH_TOGGLES = [['tgV', 'voltColour'], ['tgF', 'showFlow'], ['tgI', 'showIval']];
+/* ───────────────────────────── §1 FORMATTING ───────────────────────────── */
+const SI = [[1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p']];
+const SI_DIGITS = 3;                   // default significant figures
+const SI_MAX_DECIMALS = 3;
+const SI_ROUND_UP = 0.9995;            // 999.6 m prints as 1.00 (next prefix)
+const LOG_EPS = 1e-9;                  // guards floor(log10) at exact powers of ten
+const GAIN_DECIMALS = 1;               // ruling PD-07: gain readouts at one decimal
+/* value with SI prefix and `dig` significant figures */
+function fmtSI(v, unit, dig) {
+  dig = dig || SI_DIGITS;
+  if (!isFinite(v)) return '∞ ' + unit;
+  if (Math.abs(v) < EPS_ZERO_V) return '0 ' + unit;
+  const a = Math.abs(v);
+  const p = SI.find(s => a >= s[0] * SI_ROUND_UP) || SI[SI.length - 1];
+  const m = v / p[0];
+  const d = Math.max(0, dig - 1 - Math.floor(Math.log10(Math.abs(m)) + LOG_EPS));
+  return m.toFixed(Math.min(d, SI_MAX_DECIMALS)) + ' ' + p[1] + unit;
+}
+/* signed voltage, explicit + */
+function fmtV(v) { if (Math.abs(v) < EPS_ZERO_V) return '0 V'; return (v < 0 ? '−' : '+') + fmtSI(Math.abs(v), 'V', SI_DIGITS); }
+/* current, sign only when negative */
+function fmtI(i) { if (Math.abs(i) < EPS_ZERO_I) return '0 A'; return (i < 0 ? '−' : '') + fmtSI(Math.abs(i), 'A', SI_DIGITS); }
+/* drop trailing zeros of a component value: 10.0 kΩ → 10 kΩ */
+function trimZeros(s) { return s.replace('.00 ', ' ').replace(/(\.\d)0 /, '$1 '); }
+function fmtR(r) { return trimZeros(fmtSI(r, 'Ω', SI_DIGITS)); }
+function fmtC(c) { return trimZeros(fmtSI(c, 'F', SI_DIGITS)); }
+function fmtF(f) { return fmtSI(f, 'Hz', SI_DIGITS); }
+function fmtW(p) { return fmtSI(p, 'W', SI_DIGITS); }
+/* gain as ±g.g× */
+function fmtGain(g) { return (g >= 0 ? '+' : '') + g.toFixed(GAIN_DECIMALS) + '×'; }
+/* supply label: whole volts, one decimal for half volts (TST-05) */
+function fmtSupply(v) { return v.toFixed(Number.isInteger(v) ? 0 : 1) + VSUFFIX; }
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const par = (a, b) => a * b / (a + b);
+const $ = id => document.getElementById(id);
+/* "R" with subscript "in" as trusted static HTML — slider labels only */
+const subH = (b, s) => `${b}<sub>${s}</sub>`;
+/* Equation-strip parts. Each circuit's eq() returns lines built with the `line` tag from these parts; mountEq()
+   turns them into DOM nodes once per parameter / mode / circuit change. A function part is a live token
+   fn(n) → string, refreshed each frame by textContent. No string ever reaches innerHTML. */
+const op = s => ({ t: 'op', s });
+const sub = (b, s) => ({ t: 'sub', b, s });
+const tk = (s, c) => ({ t: 'tk', s, c });
+const line = (strings, ...vals) => ({ t: 'line', strings, vals });
+/* flatten part `v` into text pieces (strings, live fns) and element parts; a subscript's base letter joins the text */
+function flatPart(v, out) {
+  if (v == null || v === '') return out;
+  if (Array.isArray(v)) { for (const x of v) flatPart(x, out); return out; }
+  if (typeof v !== 'object') { out.push(typeof v === 'function' ? v : String(v)); return out; }
+  if (v.t === 'line') v.strings.forEach((s, i) => { flatPart(s, out); if (i < v.vals.length) flatPart(v.vals[i], out); });
+  else if (v.t === 'sub') { out.push(v.b, { t: 'subEl', s: v.s }); }
+  else out.push(v);
+  return out;
+}
+/* append part `v` to `parent`. Each run of adjacent text becomes ONE text node, as the HTML parser would make it,
+   so glyph shaping is unchanged; a run holding live tokens is one live node. Live nodes are pushed onto `live`. */
+function mountPart(parent, v, live) {
+  const items = flatPart(v, []);
+  for (let i = 0; i < items.length;) {
+    const it = items[i];
+    if (typeof it === 'string' || typeof it === 'function') {
+      const run = [];
+      while (i < items.length && (typeof items[i] === 'string' || typeof items[i] === 'function')) run.push(items[i++]);
+      if (run.every(r => typeof r === 'string')) { parent.appendChild(document.createTextNode(run.join(''))); continue; }
+      const t = parent.appendChild(document.createTextNode(''));
+      live.push({ t, fn: n => run.map(r => (typeof r === 'function' ? r(n) : r)).join('') });
+      continue;
+    }
+    i++;
+    if (it.t === 'subEl') { parent.appendChild(document.createElement('sub')).textContent = it.s; continue; }
+    const e = parent.appendChild(document.createElement('span'));
+    e.className = it.t === 'op' ? 'op' : 'tk ' + (it.c || '');
+    mountPart(e, it.s, live);
+  }
+}
+/* ───────────────────────────── §2 SCHEMATIC BUILDER ─────────────────────────────
+   Textbook-style schematic on a 10-unit grid: signal flows left → right, feedback above the op-amp,
+   grounds at the bottom, junction dots only at T-junctions.
+   Every wire, lead and terminal belongs to a NODE — a key into the live node table, 'gnd' / 'vcc' / 'vee',
+   or a function of the table — and is recoloured each frame by that node's voltage. Two-terminal parts
+   carry a gradient between their end nodes, so the voltage drop across each part is visible.
+   Branch currents are drawn as chevrons moving along the branch (conventional current, speed ∝ |I|)
+   and as live value tags with a direction arrow beside each part. */
+const NS = 'http://www.w3.org/2000/svg';
+const MONO = "'JetBrains Mono',monospace", SANS = "'Archivo',sans-serif";
+/* Part geometry, SVG user units */
+const SCH = { RES: 60, RES_AMP: 8, RES_N: 6, CAP_GAP: 12, CAP_PLATE: 17, SRC_R: 22, OA_W: 120, OA_H: 60, PIN: 30,
+  SUPPLY_X: 40, SUPPLY_LEN: 20, CHEV_SP: 26, FIT_PAD: 16 };
+/* Stroke widths and radii */
+const SW = { WIRE: 3, PLATE: 4, SRC: 2.5, GLYPH: 2.2, OA: 3, GND: 3, TERM: 3, PILL: 1.6, DOT_R: 5, TERM_R: 5.5, PILL_DOT_R: 4 };
+/* Font sizes and weights */
+const FS = { NAME: 15, VAL: 13, TAG: 12, SIGN: 15, PIN_SIGN: 24, OA_NAME: 12, SUPPLY: 12, PILL: 13.5, NOTE: 11.5, TEXT: 12 };
+const FW = { NOTE: 600, BOLD: 700, HEAVY: 800 };
+const SUB_FS = '72%';                  // subscript size in part names
+const COORD_DP = 1;                    // decimals in generated path / transform coordinates
+/* Annotation offsets from a part's midpoint (horizontal parts: y; vertical parts: x) */
+const ANN = { NAME_ABOVE: 33, NAME_BELOW: 30, VAL_DY: 16, CAP_EXTRA: 8,
+  I_ABOVE: 15, I_ABOVE_STACK: 54, I_BELOW: 26, I_BELOW_STACK: 66,
+  VERT_DX: 20, VERT_NAME_DY: 8, VERT_I_DY: 4, VERT_I_STACK_DY: 28 };
+/* Source: polarity marks right of the circle; waveform glyphs as [dx, dy, relative path] from the centre */
+const SRC_SIGN = { PLUS_DX: 5, PLUS_DY: -8, MINUS_DX: 6, MINUS_DY: 17 };
+const SRC_GLYPH = { square: [-11, 6, 'h5 v-12 h11 v12 h6'], tri: [-12, 6, 'l6 -12 l6 12 l6 -12 l6 12'],
+  dc: [-9, -5, 'h18 m-14 10 h10'], sine: [-12, 0, 'q6 -14 12 0 t12 0'] };
+/* Ground symbol: three bars of half-width 15 / 9 / 3, 6 apart */
+const GND_BARS = [15, 9, 3], GND_BAR_SP = 6;
+/* Op-amp: pin signs, model name and supply labels relative to the left edge / centre */
+const OA_TXT = { MINUS_DX: 10, MINUS_DY: 7, PLUS_DX: 9, PLUS_DY: 8, NAME_DX: 50, NAME_DY: 5, SUP_DX: 7, VCC_DY: 5, VEE_DY: 3 };
+/* Live voltage pill: rectangle, channel dot and text relative to the anchor; width grows per character */
+const PILL = { DY: -13, H: 24, RX: 7, DOT_DY: -1, TXT_DY: 4, PAD_W: 22, CHAR_W: 8.1, DOT_DX: 11, TXT_DX: 19 };
+const CHEV_PATH = 'M5.5 0 L-4 5 L-1.5 0 L-4 -5 Z';
+/* create an SVG element; copies only the attribute object's own keys (SEC-OA-02) */
+function el(t, a, txt) {
+  const e = document.createElementNS(NS, t);
+  if (a) for (const k of Object.keys(a)) e.setAttribute(k, a[k]);
+  if (txt != null) e.textContent = txt;
+  return e;
+}
+const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+/* diverging node-voltage colour: −scale → neg, 0 → zero, +scale → pos */
+function vColour(v, scale, pal) {
+  const t = clamp(v / (scale || 1), -1, 1), a = Math.sqrt(Math.abs(t)), end = t >= 0 ? pal.vpos : pal.vneg;
+  return 'rgb(' + pal.vzero.map((z, i) => Math.round(z + (end[i] - z) * a)).join(',') + ')';
+}
+/* "R|in" → R with subscript "in" */
+function nameSpans(parent, name) {
+  const [b, s] = String(name).split('|');
+  parent.appendChild(document.createTextNode(b));
+  if (s) parent.appendChild(el('tspan', { 'baseline-shift': 'sub', 'font-size': SUB_FS }, s));
+  return parent;
+}
+let SCH_UID = 0;
+/* Draws one schematic into an <svg> and keeps the live element lists that update() recolours each frame. */
+class Builder {
+  constructor(svg, col) {
+    this.svg = svg; this.col = col; this.live = []; this.grads = []; this.flows = []; this.dyn = []; this.pills = [];
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    this.defs = svg.appendChild(el('defs'));
+    this.g = svg.appendChild(el('g', { 'font-family': SANS }));
+    this.gParts = this.g.appendChild(el('g'));
+    this.gFlow = this.g.appendChild(el('g'));
+    this.gText = this.g.appendChild(el('g'));
+  }
+  /* append to a layer (parts by default) */
+  add(e, layer) { (layer || this.gParts).appendChild(e); return e; }
+  /* voltage of a node key in the live node table */
+  nv(node, n) {
+    if (node === 'gnd') return 0;
+    if (node === 'vcc') return vsat();
+    if (node === 'vee') return -vsat();
+    if (typeof node === 'function') return node(n) || 0;
+    return n[node] || 0;
+  }
+  /* register an element attribute to be coloured by a node voltage */
+  _live(e, node, attr) { this.live.push({ e, node, attr }); e.setAttribute(attr, this.col.wire); return e; }
+  /* polyline wire on one node */
+  wire(pts, node) {
+    const d = 'M' + pts.map(p => p.join(' ')).join(' L ');
+    this._live(this.add(el('path', { d, fill: 'none', 'stroke-width': SW.WIRE, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' })),
+      node, 'stroke');
+    return this;
+  }
+  /* junction dot */
+  dot(x, y, node) { this._live(this.add(el('circle', { cx: x, cy: y, r: SW.DOT_R })), node, 'fill'); return this; }
+  /* geometry of a two-terminal part: unit vector, body ends a/b, midpoint, orientation */
+  _seg(x1, y1, x2, y2, body) {
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len, mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    return { ux, uy, ax: mx - ux * body / 2, ay: my - uy * body / 2, bx: mx + ux * body / 2, by: my + uy * body / 2, mx, my,
+      horiz: Math.abs(dx) > Math.abs(dy) };
+  }
+  /* gradient between the two end-node colours of a part body */
+  _grad(s, a, b) {
+    const id = 'sg' + (++SCH_UID);
+    const gr = this.defs.appendChild(el('linearGradient', { id, gradientUnits: 'userSpaceOnUse', x1: s.ax, y1: s.ay, x2: s.bx, y2: s.by }));
+    const sa = gr.appendChild(el('stop', { offset: '0' })), sb = gr.appendChild(el('stop', { offset: '1' }));
+    this.grads.push({ sa, sb, a, b });
+    return `url(#${id})`;
+  }
+  /* the two leads from the terminals to the part body */
+  _leads(x1, y1, x2, y2, s, a, b) {
+    this._live(this.add(el('line', { x1, y1, x2: s.ax, y2: s.ay, 'stroke-width': SW.WIRE, 'stroke-linecap': 'round' })), a, 'stroke');
+    this._live(this.add(el('line', { x1: s.bx, y1: s.by, x2, y2, 'stroke-width': SW.WIRE, 'stroke-linecap': 'round' })), b, 'stroke');
+  }
+  /* resistor. o: { a, b (node keys at (x1,y1) / (x2,y2)), name, val, side, i (current key), idir (+1: key positive a→b), iside, idy } */
+  res(x1, y1, x2, y2, o) {
+    const s = this._seg(x1, y1, x2, y2, SCH.RES);
+    this._leads(x1, y1, x2, y2, s, o.a, o.b);
+    const n = SCH.RES_N, seg = SCH.RES / n, px = -s.uy, py = s.ux;
+    let d = `M${s.ax} ${s.ay}`;
+    for (let k = 0; k < n; k++) {
+      const t0 = k * seg + seg / 2, sgn = k % 2 ? -1 : 1;
+      d += ` L${(s.ax + s.ux * t0 + px * sgn * SCH.RES_AMP).toFixed(COORD_DP)} ${(s.ay + s.uy * t0 + py * sgn * SCH.RES_AMP).toFixed(COORD_DP)}`;
+    }
+    d += ` L${s.bx} ${s.by}`;
+    this.add(el('path', { d, fill: 'none', stroke: this._grad(s, o.a, o.b), 'stroke-width': SW.WIRE, 'stroke-linejoin': 'round' }));
+    this._annotate(s, o);
+    return this;
+  }
+  /* capacitor: two plates coloured by their own nodes */
+  cap(x1, y1, x2, y2, o) {
+    const s = this._seg(x1, y1, x2, y2, SCH.CAP_GAP), px = -s.uy, py = s.ux, P = SCH.CAP_PLATE;
+    this._leads(x1, y1, x2, y2, s, o.a, o.b);
+    [[s.ax, s.ay, o.a], [s.bx, s.by, o.b]].forEach(([qx, qy, nd]) => this._live(this.add(el('line', { x1: qx + px * P, y1: qy + py * P,
+      x2: qx - px * P, y2: qy - py * P, 'stroke-width': SW.PLATE })), nd, 'stroke'));
+    this._annotate(s, Object.assign({ cap: true }, o));
+    return this;
+  }
+  /* part name/value on o.side, live current tag on o.iside (stacked further out when on the same side) */
+  _annotate(s, o) {
+    const side = o.side || (s.horiz ? 'above' : 'right');
+    const extra = o.cap ? ANN.CAP_EXTRA : 0;      // capacitor plates stick out further than a zigzag
+    if (s.horiz) {
+      const up = side === 'above';
+      this._name(s.mx, up ? s.my - ANN.NAME_ABOVE - extra : s.my + ANN.NAME_BELOW + extra, o.name, o.val, 'middle');
+      if (o.i) {
+        const iside = o.iside || (up ? 'below' : 'above'), same = iside === side;
+        const y = iside === 'above' ? (same ? s.my - ANN.I_ABOVE_STACK - extra : s.my - ANN.I_ABOVE - extra)
+          : (same ? s.my + ANN.I_BELOW_STACK + extra : s.my + ANN.I_BELOW + extra);
+        this.itag(s.mx, y + (o.idy || 0), o.i, [s.ux * (o.idir || 1), 0], 'middle');
+      }
+    } else {
+      const right = side === 'right', x = right ? s.mx + ANN.VERT_DX : s.mx - ANN.VERT_DX, an = right ? 'start' : 'end';
+      this._name(x, s.my - ANN.VERT_NAME_DY, o.name, o.val, an);
+      if (o.i) {
+        const iside = o.iside || (right ? 'left' : 'right');
+        if (iside === side) this.itag(x, s.my + ANN.VERT_I_STACK_DY, o.i, [0, s.uy * (o.idir || 1)], an);
+        else this.itag(iside === 'right' ? s.mx + ANN.VERT_DX : s.mx - ANN.VERT_DX, s.my + ANN.VERT_I_DY, o.i, [0, s.uy * (o.idir || 1)],
+          iside === 'right' ? 'start' : 'end');
+      }
+    }
+  }
+  /* part name (with subscript) and its value line below */
+  _name(x, y, name, val, anchor) {
+    const t = this.add(el('text', { x, y, 'text-anchor': anchor, fill: this.col.txt, 'font-size': FS.NAME, 'font-weight': FW.BOLD }), this.gText);
+    nameSpans(t, name);
+    if (val != null) this.add(el('text', { x, y: y + ANN.VAL_DY, 'text-anchor': anchor, fill: this.col.val, 'font-size': FS.VAL,
+      'font-weight': FW.BOLD, 'font-family': MONO }, val), this.gText);
+  }
+  /* independent source, vertical: top lead from (x, yTop), circle, bottom lead to ground symbol at yGnd */
+  src(x, yTop, yGnd, o) {
+    const r = SCH.SRC_R, cy = (yTop + yGnd) / 2;
+    this.wire([[x, yTop], [x, cy - r]], o.node);
+    this.wire([[x, cy + r], [x, yGnd]], 'gnd');
+    this.gnd(x, yGnd);
+    this.add(el('circle', { cx: x, cy, r, fill: this.col.bg, stroke: this.col.txt, 'stroke-width': SW.SRC }));
+    const [gx, gy, rel] = SRC_GLYPH[o.wave] || SRC_GLYPH.sine;
+    this.add(el('path', { d: `M${x + gx} ${cy + gy} ${rel}`, fill: 'none', stroke: this.col.txt, 'stroke-width': SW.GLYPH, 'stroke-linecap': 'round' }));
+    this.add(el('text', { x: x + r + SRC_SIGN.PLUS_DX, y: cy + SRC_SIGN.PLUS_DY, fill: this.col.mut, 'font-size': FS.SIGN,
+      'font-weight': FW.HEAVY }, '+'), this.gText);
+    this.add(el('text', { x: x + r + SRC_SIGN.MINUS_DX, y: cy + SRC_SIGN.MINUS_DY, fill: this.col.mut, 'font-size': FS.SIGN,
+      'font-weight': FW.HEAVY }, '−'), this.gText);
+    return this;
+  }
+  /* input terminal (signal referenced to ground) */
+  term(x, y, node) {
+    this._live(this.add(el('circle', { cx: x, cy: y, r: SW.TERM_R, fill: this.col.bg, 'stroke-width': SW.TERM })), node, 'stroke');
+    return this;
+  }
+  /* ground symbol with its top bar at (x, y) */
+  gnd(x, y) {
+    const d = GND_BARS.map((w, k) => `M${x - w} ${y + k * GND_BAR_SP} h${2 * w}`).join(' ');
+    this.add(el('path', { d, stroke: this.col.gnd, 'stroke-width': SW.GND, 'stroke-linecap': 'round' }));
+    return this;
+  }
+  /* op-amp: left edge x, centre y. Inverting input on top unless o.flip. */
+  opamp(x, y, o) {
+    o = o || {};
+    const H = SCH.OA_H, W = SCH.OA_W, c = this.col.txt;
+    this.add(el('path', { d: `M${x} ${y - H} L${x + W} ${y} L${x} ${y + H} Z`, fill: this.col.bg3, stroke: c, 'stroke-width': SW.OA,
+      'stroke-linejoin': 'round' }));
+    const ym = o.flip ? y + SCH.PIN : y - SCH.PIN, yp = o.flip ? y - SCH.PIN : y + SCH.PIN;
+    this.add(el('text', { x: x + OA_TXT.MINUS_DX, y: ym + OA_TXT.MINUS_DY, fill: c, 'font-size': FS.PIN_SIGN, 'font-weight': FW.HEAVY }, '−'));
+    this.add(el('text', { x: x + OA_TXT.PLUS_DX, y: yp + OA_TXT.PLUS_DY, fill: c, 'font-size': FS.PIN_SIGN, 'font-weight': FW.HEAVY }, '+'));
+    if (o.name) this.add(el('text', { x: x + OA_TXT.NAME_DX, y: y + OA_TXT.NAME_DY, fill: this.col.mut, 'font-size': FS.OA_NAME,
+      'font-weight': FW.BOLD, 'text-anchor': 'middle', 'font-family': MONO }, o.name));
+    const sx = x + SCH.SUPPLY_X, edge = H * (1 - SCH.SUPPLY_X / W), L = SCH.SUPPLY_LEN;
+    this._live(this.add(el('line', { x1: sx, y1: y - edge, x2: sx, y2: y - edge - L, 'stroke-width': SW.WIRE })), 'vcc', 'stroke');
+    this._live(this.add(el('line', { x1: sx, y1: y + edge, x2: sx, y2: y + edge + L, 'stroke-width': SW.WIRE })), 'vee', 'stroke');
+    this.add(el('text', { x: sx + OA_TXT.SUP_DX, y: y - edge - L + OA_TXT.VCC_DY, fill: this.col.mut, 'font-size': FS.SUPPLY,
+      'font-weight': FW.BOLD, 'font-family': MONO }, o.vcc || '+V'), this.gText);
+    this.add(el('text', { x: sx + OA_TXT.SUP_DX, y: y + edge + L + OA_TXT.VEE_DY, fill: this.col.mut, 'font-size': FS.SUPPLY,
+      'font-weight': FW.BOLD, 'font-family': MONO }, o.vee || '−V'), this.gText);
+    return this;
+  }
+  /* live voltage pill: coloured dot = scope channel, value in ink */
+  probe(x, y, node, label, chCol, anchor) {
+    const g = this.add(el('g'), this.gText);
+    const rect = g.appendChild(el('rect', { y: y + PILL.DY, height: PILL.H, rx: PILL.RX, fill: this.col.bg, stroke: chCol,
+      'stroke-width': SW.PILL }));
+    const dotc = g.appendChild(el('circle', { cy: y + PILL.DOT_DY, r: SW.PILL_DOT_R, fill: chCol }));
+    const t = g.appendChild(el('text', { y: y + PILL.TXT_DY, fill: this.col.txt, 'font-size': FS.PILL, 'font-weight': FW.BOLD, 'font-family': MONO }));
+    this.pills.push({ rect, dotc, t, node, label, x, anchor: anchor || 'middle', len: 0 });
+    this._pillText(this.pills[this.pills.length - 1], label + ' = +0.000 V');
+    return this;
+  }
+  /* set pill text; resize the pill only when the text length changes */
+  _pillText(P, s) {
+    P.t.textContent = s;
+    if (s.length === P.len) return;
+    P.len = s.length;
+    const w = PILL.PAD_W + s.length * PILL.CHAR_W, x0 = P.anchor === 'start' ? P.x : P.anchor === 'end' ? P.x - w : P.x - w / 2;
+    P.rect.setAttribute('x', x0); P.rect.setAttribute('width', w);
+    P.dotc.setAttribute('cx', x0 + PILL.DOT_DX); P.t.setAttribute('x', x0 + PILL.TXT_DX);
+  }
+  /* live current tag; dir = screen direction in which a POSITIVE value of the key flows */
+  itag(x, y, key, dir, anchor) {
+    const t = this.add(el('text', { x, y, 'text-anchor': anchor || 'middle', fill: this.col.flowTxt, 'font-size': FS.TAG,
+      'font-weight': FW.BOLD, 'font-family': MONO }), this.gText);
+    this.dyn.push({ kind: 'i', t, key, dir });
+    return this;
+  }
+  /* generic live text: fn(n, c) → string or [string, colour] */
+  live2(x, y, fn, opt) {
+    const t = this.add(el('text', Object.assign({ x, y, 'text-anchor': 'middle', fill: this.col.mut, 'font-size': FS.TEXT,
+      'font-weight': FW.BOLD, 'font-family': MONO }, opt || {})), this.gText);
+    if (typeof fn !== 'function') { t.textContent = fn; return this; }
+    this.dyn.push({ kind: 'f', t, fn });
+    return this;
+  }
+  /* static note text */
+  text(x, y, str, opt) {
+    this.add(el('text', Object.assign({ x, y, fill: this.col.mut, 'font-size': FS.TEXT, 'font-weight': FW.NOTE, 'text-anchor': 'middle',
+      'font-family': MONO }, opt || {}), str), this.gText);
+    return this;
+  }
+  /* chevrons along a branch; key = current key (or fn(cur)); positive = along the point order */
+  flow(pts, key) {
+    const segs = []; let L = 0;
+    for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push([pts[i - 1], pts[i], L, l]); L += l; }
+    const n = Math.max(1, Math.round(L / SCH.CHEV_SP)), g = this.add(el('g', { opacity: 0 }), this.gFlow), ch = [];
+    for (let j = 0; j < n; j++) ch.push(g.appendChild(el('path', { d: CHEV_PATH, fill: this.col.flow })));
+    this.flows.push({ g, ch, segs, L, key, phase: 0 });
+    return this;
+  }
+  finish() { this.fit(); return this; }
+  /* fit the viewBox to the drawing */
+  fit() {
+    let bb; try { bb = this.g.getBBox(); } catch (e) { return; }
+    if (!bb || bb.width < 1) return;
+    const p = SCH.FIT_PAD;
+    this.svg.setAttribute('viewBox', `${(bb.x - p).toFixed(0)} ${(bb.y - p).toFixed(0)} ${(bb.width + 2 * p).toFixed(0)} ${(bb.height + 2 * p).toFixed(0)}`);
+  }
+  /* recolour wires and parts, refresh pills and tags, move chevrons by dt (dt = 0 holds them still) */
+  update(n, c, dt, imax, o) {
+    const pal = this.col, sc = o.vscale, col = node => (o.vcol ? vColour(this.nv(node, n), sc, pal) : pal.wire);
+    for (const L of this.live) L.e.setAttribute(L.attr, col(L.node));
+    for (const G of this.grads) { G.sa.setAttribute('stop-color', col(G.a)); G.sb.setAttribute('stop-color', col(G.b)); }
+    for (const P of this.pills) this._pillText(P, P.label + ' = ' + fmtV(this.nv(P.node, n)));
+    for (const D of this.dyn) {
+      if (D.kind === 'i') {
+        const i = typeof D.key === 'function' ? D.key(c) : (c[D.key] || 0);
+        if (!o.ival) { D.t.textContent = ''; continue; }
+        const s = Math.abs(i) < EPS_ZERO_I ? 0 : Math.sign(i), dx = D.dir[0] * s, dy = D.dir[1] * s;
+        const arr = s === 0 ? '' : dx > 0 ? ' →' : dx < 0 ? ' ←' : dy > 0 ? ' ↓' : ' ↑';
+        D.t.textContent = 'I = ' + fmtI(Math.abs(i)) + arr;
+      } else {
+        const r = D.fn(n, c);
+        if (Array.isArray(r)) { D.t.textContent = r[0]; D.t.setAttribute('fill', r[1]); } else D.t.textContent = r;
+      }
+    }
+    for (const F of this.flows) {
+      const i = typeof F.key === 'function' ? F.key(c) : (c[F.key] || 0), r = Math.min(1, Math.abs(i) / imax);
+      const show = o.flow && r > FLOW_SHOW_MIN;
+      F.g.setAttribute('opacity', show ? (FLOW_ALPHA_BASE + FLOW_ALPHA_GAIN * Math.sqrt(r)).toFixed(2) : 0);
+      if (!show) continue;
+      F.phase += Math.sign(i) * (FLOW_SPEED_MIN + FLOW_SPEED_GAIN * Math.sqrt(r)) * dt;
+      const sp = F.L / F.ch.length, flip = i < 0 ? HALF_TURN_DEG : 0;
+      for (let j = 0; j < F.ch.length; j++) {
+        let d = ((F.phase + j * sp) % F.L + F.L) % F.L, k = 0;
+        while (k < F.segs.length - 1 && d > F.segs[k][2] + F.segs[k][3]) k++;
+        const [p0, p1, s0, l] = F.segs[k], t = l ? (d - s0) / l : 0;
+        const ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) * HALF_TURN_DEG / Math.PI + flip;
+        F.ch[j].setAttribute('transform', `translate(${(p0[0] + (p1[0] - p0[0]) * t).toFixed(COORD_DP)} ${(p0[1] + (p1[1] - p0[1]) * t).toFixed(COORD_DP)}) rotate(${ang.toFixed(0)})`);
+      }
+    }
+  }
+}
+/* ───────────────────────────── §3 CIRCUITS ─────────────────────────────
+   Each circuit gives V+ = vp0 + dvp·Vo and V− = vm0 + dvm·Vo (affine in the output).
+   Capacitor circuits (nstate = 1) also give g = ∂vm0/∂Vc·(−1) and the cap ODE dVc/dt = (u0 + u1·Vo − Vc)/τ
+   valid while the loop is closed; `capOpen` gives the ODE when the output is pinned at a rail (OA-002).
+   `post` returns node voltages and branch currents from the solved Vo and Vc. */
+const R = (k, label, def, min, max) => ({ k, label, def, min: min || R_MIN, max: max || R_MAX, log: true, fmt: fmtR });
+const C = (k, label, def, min, max) => ({ k, label, def, min: min || C_MIN, max: max || C_MAX, log: true, fmt: fmtC });
+const sig = (k, label, def) => ({ k, label, def });
+const SINE = (amp, f) => ({ wave: 'sine', amp: amp || 1, f: f || 1e3, off: 0 });
+const T = (...k) => k.map(x => ({ k: x, label: TRACE_LABEL[x], col: CH[x] }));
+const TL = (k, label) => ({ k, label, col: CH[k] });
+/* ── Schematic layouts. Op-amp left edge OX, centre CY; inputs at CY ∓ PIN; output tip at OX + OA_W. ── */
+const OX = 440, CY = 200, TIP = OX + SCH.OA_W, OUT_N = 640, RLX = 740, GND_Y = 350, FB_Y = 80;
+const YT = CY - SCH.PIN, YB = CY + SCH.PIN;          // upper / lower input rows
+const NX = 340;                                       // summing (inverting) node x
+const RL_TOP = CY + 40;                               // top of the load resistor
+const STUB = 10;                                      // resistor-to-ground stub length
+const VOUT_PILL_DX = 14, VOUT_PILL_DY = -24;          // Vout pill, right of and above the output node
+const SRC_PILL_DX = 36, SRC2_PILL_DX = 34;            // source pills, left of the (first / second) source
+const SRC2_GND = GND_Y + 20;                          // second source grounds lower so the ground symbols clear
+const SRC_FLOW_DY = 58;                               // source-current chevrons start this far below the top lead
+const TAG_X = OX - 8, TAG_DY = 4, TAG_DY1 = -4, TAG_DY2 = 12;   // one- and two-line tags left of the op-amp inputs
+const PLUS_GND_DX = 40;                               // grounded + input drops to ground this far left of the op-amp
+const NOTE_DY = 24;                                   // "I+ = 0" note below the + input row
+const TERM_X = 110, TERM_WIRE_X = TERM_X + SW.TERM_R, TERM_PILL_X = 98;   // terminal-input column (summing, difference)
+const RES_X0 = 150, RES_X1 = 250;                     // resistor span on a terminal row
+const IN_X0 = 160, IN_X1 = 260;                       // input resistor span on a source row (inverting, integrator)
+const L_INV = { SX: 100 };
+const L_NINV = { SX: 140, NN: 380, RA: 350, RB: 250, GX: 220, GDY: 14, NOTE_X: 300 };
+const L_BUF = { SX: 140, NN: 400, RAIL: 100, NOTE_X: 290, WNOTE_X: 520, WNOTE_Y: 92 };
+const L_SUM = { ROW1: 100, ROW3: 260, BX: 300, RAIL: 40, I1_DY: -6 };   // I1_DY lifts the R1 current tag clear of the R2 name (TST-03)
+const L_DIF = { SX: 90, RS0: 130, RS1: 210, C0: 230, C1: 290 };
+const L_INT = { SX: 100, RAIL: 10, CAP_Y: 100, C0: 560, C1: 610, VC_DY: 52 };
+const L_CMP = { SX: 120, RX: 300, NOTE_DX: -20, NOTE_Y: 92 };
+const L_SCH = { VX: 120, SX: 300, PN: 380, R0: 180, R1: 280 };
+const TAG_OPT = { 'text-anchor': 'end', 'font-size': FS.NOTE };
+const isSat = n => Math.abs(n.vout || 0) >= vsat() - EPS_SAT_TAG;
+/* resistor-to-ground stub and ground symbol at (x, y) */
+function gndStub(sb, x, y) { sb.wire([[x, y - STUB], [x, y]], 'gnd'); sb.gnd(x, y); }
+/* driven source on node `node` with its live pill to the left */
+function srcStack(sb, x, yTop, yGnd, node, wave, pillDx) {
+  sb.src(x, yTop, yGnd, { node, wave });
+  sb.probe(x - pillDx, (yTop + yGnd) / 2, node, TRACE_LABEL[node], CH[node], 'end');
+}
+/* output wire, load resistor to ground, Vout pill; fb = draw the feedback take-off dot */
+function outStage(sb, X, fb) {
+  sb.wire([[TIP, CY], [OUT_N, CY]], 'vout');
+  sb.wire([[OUT_N, CY], [RLX, CY], [RLX, RL_TOP]], 'vout');
+  sb.res(RLX, RL_TOP, RLX, GND_Y - STUB, { a: 'vout', b: 'gnd', name: 'R|L', val: fmtR(X.rl), side: 'right', i: 'iload', iside: 'left' });
+  gndStub(sb, RLX, GND_Y);
+  if (fb) sb.dot(OUT_N, CY, 'vout');
+  sb.flow([[TIP, CY], [OUT_N, CY]], 'iout');
+  sb.flow([[OUT_N, CY], [RLX, CY], [RLX, GND_Y]], 'iload');
+  sb.probe(OUT_N + VOUT_PILL_DX, CY + VOUT_PILL_DY, 'vout', 'Vout', CH.vout, 'start');
+}
+/* non-inverting input grounded */
+function plusToGnd(sb) { const x = OX - PLUS_GND_DX; sb.wire([[OX, YB], [x, YB], [x, GND_Y]], 'gnd'); sb.gnd(x, GND_Y); }
+/* virtual-ground tag at the inverting node; turns into a warning when the output is pinned at a rail */
+function vgTag(sb) {
+  sb.live2(TAG_X, CY + TAG_DY1, n => (isSat(n) ? ['NOT virtual ground', COL.bad] : ['virtual ground', COL.good]), TAG_OPT);
+  sb.live2(TAG_X, CY + TAG_DY2, n => (isSat(n) ? ['Vout at rail → V− ≠ 0', COL.bad] : ['V− = ' + fmtV(n.vm || 0), COL.mut]), TAG_OPT);
+}
+/* live input differential voltage */
+function vdTag(sb, label) {
+  sb.live2(TAG_X, CY + TAG_DY, n => (label || 'Vd = V+ − V− = ') + fmtV((n.vp || 0) - (n.vm || 0)), TAG_OPT);
+}
+/* feedback resistor over the top on rail y = `rail`, from node (xa, ya) to the output node; chevrons run
+   (xa, fy0) → rail → (OUT_N, fy1), reversed when o.idir = −1 */
+function fbOver(sb, xa, ya, key, o, rail = FB_Y, fy0 = ya, fy1 = CY) {
+  sb.wire([[xa, ya], [xa, rail], [OX, rail]], o.a);
+  sb.res(OX, rail, TIP, rail, o);
+  sb.wire([[TIP, rail], [OUT_N, rail], [OUT_N, CY]], 'vout');
+  sb.flow(o.idir === -1 ? [[OUT_N, fy1], [OUT_N, rail], [xa, rail], [xa, fy0]] : [[xa, fy0], [xa, rail], [OUT_N, rail], [OUT_N, fy1]], key);
+}
+/* One drawing function per circuit: (schematic builder, params, ctx) */
+const DRAW = {
+  inv(sb, p, X) {
+    const sx = L_INV.SX;
+    srcStack(sb, sx, YT, GND_Y, 'vin', X.sig.vin.wave, SRC_PILL_DX);
+    sb.wire([[sx, YT], [IN_X0, YT]], 'vin');
+    sb.res(IN_X0, YT, IN_X1, YT, { a: 'vin', b: 'vm', name: 'R|in', val: fmtR(p.Rin), side: 'above', i: 'iin' });
+    sb.wire([[IN_X1, YT], [OX, YT]], 'vm'); sb.dot(NX, YT, 'vm');
+    fbOver(sb, NX, YT, 'ifb', { a: 'vm', b: 'vout', name: 'R|f', val: fmtR(p.Rf), side: 'above', i: 'ifb' });
+    plusToGnd(sb); sb.opamp(OX, CY, X.oaLab); outStage(sb, X, true);
+    sb.flow([[sx, YT + SRC_FLOW_DY], [sx, YT], [NX, YT]], 'iin');
+    vgTag(sb);
+  },
+  ninv(sb, p, X) {
+    const { SX: sx, NN } = L_NINV;
+    srcStack(sb, sx, YB, GND_Y, 'vin', X.sig.vin.wave, SRC_PILL_DX);
+    sb.wire([[sx, YB], [OX, YB]], 'vin');
+    sb.wire([[OX, YT], [NN, YT]], 'vm'); sb.dot(NN, YT, 'vm');
+    sb.wire([[NN, YT], [L_NINV.RA, YT]], 'vm');
+    sb.res(L_NINV.RA, YT, L_NINV.RB, YT, { a: 'vm', b: 'gnd', name: 'R|1', val: fmtR(p.R1), side: 'above', i: 'ig' });
+    sb.wire([[L_NINV.RB, YT], [L_NINV.GX, YT], [L_NINV.GX, YT + L_NINV.GDY]], 'gnd'); sb.gnd(L_NINV.GX, YT + L_NINV.GDY);
+    fbOver(sb, NN, YT, 'ifb', { a: 'vm', b: 'vout', name: 'R|f', val: fmtR(p.Rf), side: 'above', i: 'ifb', idir: -1 });
+    sb.flow([[NN, YT], [L_NINV.GX, YT], [L_NINV.GX, YT + L_NINV.GDY]], 'ig');
+    sb.opamp(OX, CY, X.oaLab); outStage(sb, X, true);
+    sb.text(L_NINV.NOTE_X, YB + NOTE_DY, 'I+ = 0   (Zin → ∞)');
+    vdTag(sb, 'Vd = ');
+  },
+  buf(sb, p, X) {
+    const { SX: sx, NN } = L_BUF;
+    srcStack(sb, sx, YB, GND_Y, 'vin', X.sig.vin.wave, SRC_PILL_DX);
+    sb.wire([[sx, YB], [OX, YB]], 'vin');
+    sb.wire([[OUT_N, CY], [OUT_N, L_BUF.RAIL], [NN, L_BUF.RAIL], [NN, YT], [OX, YT]], 'vout');
+    sb.opamp(OX, CY, X.oaLab); outStage(sb, X, true);
+    sb.text(L_BUF.NOTE_X, YB + NOTE_DY, 'I+ = 0   (Zin → ∞)');
+    sb.text(L_BUF.WNOTE_X, L_BUF.WNOTE_Y, 'V− is wired straight to Vout', { 'font-size': FS.NOTE });
+    vdTag(sb, 'Vd = ');
+  },
+  sum(sb, p, X) {
+    const rows = [[L_SUM.ROW1, 'vin', 'V1', 'i1', 'R|1', p.R1, 'above', L_SUM.I1_DY], [YT, 'v2', 'V2', 'i2', 'R|2', p.R2, 'above', 0],
+      [L_SUM.ROW3, 'v3', 'V3', 'i3', 'R|3', p.R3, 'below', 0]], bx = L_SUM.BX;
+    for (const [y, k, nm, i, rn, rv, side, idy] of rows) {
+      sb.term(TERM_X, y, k); sb.wire([[TERM_WIRE_X, y], [RES_X0, y]], k);
+      sb.res(RES_X0, y, RES_X1, y, { a: k, b: 'vm', name: rn, val: fmtR(rv), side, i, iside: side === 'above' ? 'below' : 'above', idy });
+      sb.wire([[RES_X1, y], [bx, y]], 'vm');
+      sb.flow(y === YT ? [[TERM_X, y], [bx, y]] : [[TERM_X, y], [bx, y], [bx, YT]], i);
+      sb.probe(TERM_PILL_X, y, k, nm, CH[k], 'end');
+    }
+    sb.wire([[bx, L_SUM.ROW1], [bx, L_SUM.ROW3]], 'vm'); sb.dot(bx, YT, 'vm');
+    sb.wire([[bx, YT], [OX, YT]], 'vm'); sb.dot(NX, YT, 'vm');
+    sb.flow([[bx, YT], [NX, YT]], c => (c.i1 || 0) + (c.i2 || 0) + (c.i3 || 0));
+    fbOver(sb, NX, YT, 'ifb', { a: 'vm', b: 'vout', name: 'R|f', val: fmtR(p.Rf), side: 'above', i: 'ifb' }, L_SUM.RAIL);
+    plusToGnd(sb); sb.opamp(OX, CY, X.oaLab); outStage(sb, X, true);
+    vgTag(sb);
+  },
+  diff(sb, p, X) {
+    const PX = NX;
+    sb.term(TERM_X, YT, 'vin'); sb.wire([[TERM_WIRE_X, YT], [RES_X0, YT]], 'vin');
+    sb.res(RES_X0, YT, RES_X1, YT, { a: 'vin', b: 'vm', name: 'R|1', val: fmtR(p.R1), side: 'above', i: 'i1' });
+    sb.wire([[RES_X1, YT], [OX, YT]], 'vm'); sb.dot(NX, YT, 'vm');
+    sb.term(TERM_X, YB, 'v2'); sb.wire([[TERM_WIRE_X, YB], [RES_X0, YB]], 'v2');
+    sb.res(RES_X0, YB, RES_X1, YB, { a: 'v2', b: 'vp', name: 'R|3', val: fmtR(p.R3), side: 'below', i: 'i3', iside: 'above' });
+    sb.wire([[RES_X1, YB], [OX, YB]], 'vp'); sb.dot(PX, YB, 'vp');
+    sb.res(PX, YB, PX, GND_Y - STUB, { a: 'vp', b: 'gnd', name: 'R|4', val: fmtR(p.R4), side: 'right', i: 'i4', iside: 'right' });
+    gndStub(sb, PX, GND_Y);
+    fbOver(sb, NX, YT, 'ifb', { a: 'vm', b: 'vout', name: 'R|2', val: fmtR(p.R2), side: 'above', i: 'ifb' });
+    sb.flow([[TERM_X, YT], [NX, YT]], 'i1'); sb.flow([[TERM_X, YB], [PX, YB]], 'i3'); sb.flow([[PX, YB], [PX, GND_Y]], 'i4');
+    sb.opamp(OX, CY, X.oaLab); outStage(sb, X, true);
+    sb.probe(TERM_PILL_X, YT, 'vin', 'V1', CH.vin, 'end'); sb.probe(TERM_PILL_X, YB, 'v2', 'V2', CH.v2, 'end');
+    /* spec Q5: V− = V+ only while the loop is closed; warning state when the output sits at a rail */
+    sb.live2(TAG_X, CY + TAG_DY, n => (isSat(n) ? ['Vout at rail → V− ≠ V+', COL.bad] : ['V− = V+ = ' + fmtV(n.vp || 0), COL.mut]), TAG_OPT);
+  },
+  dif(sb, p, X) {
+    const sx = L_DIF.SX, n1 = n => (n.vm || 0) + (n.vc || 0);
+    srcStack(sb, sx, YT, GND_Y, 'vin', X.sig.vin.wave, SRC_PILL_DX);
+    sb.wire([[sx, YT], [L_DIF.RS0, YT]], 'vin');
+    sb.res(L_DIF.RS0, YT, L_DIF.RS1, YT, { a: 'vin', b: n1, name: 'R|s', val: fmtR(p.Rs), side: 'above', i: 'iin' });
+    sb.wire([[L_DIF.RS1, YT], [L_DIF.C0, YT]], n1);
+    sb.cap(L_DIF.C0, YT, L_DIF.C1, YT, { a: n1, b: 'vm', name: 'C', val: fmtC(p.C), side: 'above' });
+    sb.wire([[L_DIF.C1, YT], [OX, YT]], 'vm'); sb.dot(NX, YT, 'vm');
+    fbOver(sb, NX, YT, 'ifb', { a: 'vm', b: 'vout', name: 'R|f', val: fmtR(p.Rf), side: 'above', i: 'ifb' });
+    plusToGnd(sb); sb.opamp(OX, CY, X.oaLab); outStage(sb, X, true);
+    sb.flow([[sx, YT + SRC_FLOW_DY], [sx, YT], [NX, YT]], 'iin');
+    vgTag(sb);
+  },
+  int(sb, p, X) {
+    const { SX: sx, RAIL, CAP_Y, C0, C1 } = L_INT;
+    srcStack(sb, sx, YT, GND_Y, 'vin', X.sig.vin.wave, SRC_PILL_DX);
+    sb.wire([[sx, YT], [IN_X0, YT]], 'vin');
+    sb.res(IN_X0, YT, IN_X1, YT, { a: 'vin', b: 'vm', name: 'R|in', val: fmtR(p.Rin), side: 'above', i: 'iin' });
+    sb.wire([[IN_X1, YT], [OX, YT]], 'vm'); sb.dot(NX, YT, 'vm');
+    fbOver(sb, NX, YT, 'ir', { a: 'vm', b: 'vout', name: 'R|f', val: fmtR(p.Rf) + ' (leak)', side: 'above', i: 'ir' }, RAIL, CAP_Y, CAP_Y);
+    sb.dot(NX, CAP_Y, 'vm'); sb.dot(OUT_N, CAP_Y, 'vout');
+    sb.wire([[NX, CAP_Y], [C0, CAP_Y]], 'vm');
+    sb.cap(C0, CAP_Y, C1, CAP_Y, { a: 'vm', b: 'vout', name: 'C', val: fmtC(p.C), side: 'above', i: 'ic', iside: 'below' });
+    sb.wire([[C1, CAP_Y], [OUT_N, CAP_Y]], 'vout');
+    sb.flow([[sx, YT + SRC_FLOW_DY], [sx, YT], [NX, YT], [NX, CAP_Y]], 'iin');
+    sb.flow([[NX, CAP_Y], [OUT_N, CAP_Y]], 'ic');
+    sb.flow([[OUT_N, CAP_Y], [OUT_N, CY]], 'iin');
+    plusToGnd(sb); sb.opamp(OX, CY, X.oaLab); outStage(sb, X, true);
+    sb.live2((C0 + C1) / 2, CAP_Y + L_INT.VC_DY, n => 'Vc = ' + fmtV(n.vc || 0), { 'font-size': FS.NOTE });
+    vgTag(sb);
+  },
+  cmp(sb, p, X) {
+    const { SX: sx, RX: rx } = L_CMP;
+    srcStack(sb, sx, YT, GND_Y, 'vin', X.sig.vin.wave, SRC_PILL_DX);
+    sb.wire([[sx, YT], [OX, YT]], 'vin');
+    srcStack(sb, rx, YB, SRC2_GND, 'vref', X.sig.vref.wave, SRC2_PILL_DX);
+    sb.wire([[rx, YB], [OX, YB]], 'vref');
+    sb.opamp(OX, CY, Object.assign({ flip: true }, X.oaLab)); outStage(sb, X, false);
+    sb.text(TIP + L_CMP.NOTE_DX, L_CMP.NOTE_Y, 'no feedback — open loop', { 'font-size': FS.NOTE });
+    vdTag(sb);
+  },
+  sch(sb, p, X) {
+    const { VX: vx, SX: sx, PN } = L_SCH;
+    srcStack(sb, vx, YT, GND_Y, 'vref', X.sig.vref.wave, SRC_PILL_DX);
+    sb.wire([[vx, YT], [L_SCH.R0, YT]], 'vref');
+    sb.res(L_SCH.R0, YT, L_SCH.R1, YT, { a: 'vref', b: 'vp', name: 'R|2', val: fmtR(p.R2), side: 'above', i: 'i2', idir: -1 });
+    sb.wire([[L_SCH.R1, YT], [OX, YT]], 'vp'); sb.dot(PN, YT, 'vp');
+    fbOver(sb, PN, YT, 'i1', { a: 'vp', b: 'vout', name: 'R|1', val: fmtR(p.R1), side: 'above', i: 'i1', idir: -1 });
+    sb.flow([[PN, YT], [vx, YT], [vx, YT + SRC_FLOW_DY]], 'i2');
+    srcStack(sb, sx, YB, SRC2_GND, 'vin', X.sig.vin.wave, SRC2_PILL_DX);
+    sb.wire([[sx, YB], [OX, YB]], 'vin');
+    sb.opamp(OX, CY, Object.assign({ flip: true }, X.oaLab)); outStage(sb, X, true);
+    sb.live2(TAG_X, CY + TAG_DY1, 'threshold', TAG_OPT);
+    sb.live2(TAG_X, CY + TAG_DY2, n => 'V+ = ' + fmtV(n.vp || 0), TAG_OPT);
+  },
+};
+/* Each circuit's eq(p, X) returns the strip lines for params p and context X (see §1 for the parts). */
+const GAIN_EQ_DP = 2, PATH_DP = 2, DIFF_DP = 3, CMRR_DP = 1, HF_DP = 1, SCH_K_DP = 3, LOOP_GAIN_DP = 6;
+const CIRCUITS = [
+/* 1 — Inverting */
+{ id: 'inv', name: 'Inverting Amplifier', tab: 'Inverting', inputs: [sig('vin', 'Vin', SINE())],
+  params: [R('Rin', subH('R', 'in'), 10e3), R('Rf', subH('R', 'f'), 20e3)],
+  lin(p, x) { const k = p.Rf / (p.Rin + p.Rf); return { vp0: 0, dvp: 0, vm0: x.vin * k, dvm: 1 - k }; },
+  post(p, x, vo) {
+    const vm = (x.vin * p.Rf + vo * p.Rin) / (p.Rin + p.Rf);
+    return { nodes: { vin: x.vin, vm, vp: 0, vout: vo }, cur: { iin: (x.vin - vm) / p.Rin, ifb: (vm - vo) / p.Rf } };
+  },
+  gain: p => -p.Rf / p.Rin, ng: p => 1 + p.Rf / p.Rin, fbOut: c => -c.ifb,
+  eq(p) {
+    const G = -p.Rf / p.Rin;
+    return [line`Vout ${op('=')} −(${sub('R', 'f')}/${sub('R', 'in')})·Vin ${op('=')} −(${fmtR(p.Rf)} / ${fmtR(p.Rin)})·Vin ${op('=')} \
+${tk(G.toFixed(GAIN_EQ_DP) + '×', 'acc')} Vin`,
+      line`${tk(G.toFixed(GAIN_EQ_DP) + '×', 'acc')} ${op('×')} ${tk(n => fmtV(n.vin), 'in')} ${op('=')} ${tk(n => fmtV(n.vout), 'out')}   ${op('·')}  \
+${sub('I', 'in')} = ${sub('I', 'f')} = (Vin−V−)/${sub('R', 'in')} = ${tk(n => fmtI(n.iin))}`];
+  },
+  traces: T('vin', 'vout'), xy: 'gain' },
+/* 2 — Non-inverting */
+{ id: 'ninv', name: 'Non-Inverting Amplifier', tab: 'Non-Inverting', inputs: [sig('vin', 'Vin', SINE())],
+  params: [R('R1', subH('R', '1'), 10e3), R('Rf', subH('R', 'f'), 20e3)],
+  lin(p, x) { return { vp0: x.vin, dvp: 0, vm0: 0, dvm: p.R1 / (p.R1 + p.Rf) }; },
+  post(p, x, vo) {
+    const vm = vo * p.R1 / (p.R1 + p.Rf);
+    return { nodes: { vin: x.vin, vm, vp: x.vin, vout: vo }, cur: { ifb: (vo - vm) / p.Rf, ig: vm / p.R1, iin: 0 } };
+  },
+  gain: p => 1 + p.Rf / p.R1, ng: p => 1 + p.Rf / p.R1, fbOut: c => c.ifb,
+  eq(p) {
+    const G = 1 + p.Rf / p.R1;
+    return [line`Vout ${op('=')} (1 + ${sub('R', 'f')}/${sub('R', '1')})·Vin ${op('=')} (1 + ${fmtR(p.Rf)} / ${fmtR(p.R1)})·Vin ${op('=')} \
+${tk(G.toFixed(GAIN_EQ_DP) + '×', 'acc')} Vin`,
+      line`${tk(G.toFixed(GAIN_EQ_DP) + '×', 'acc')} ${op('×')} ${tk(n => fmtV(n.vin), 'in')} ${op('=')} ${tk(n => fmtV(n.vout), 'out')}   ${op('·')}  V− = \
+Vout·${sub('R', '1')}/(${sub('R', '1')}+${sub('R', 'f')}) = ${tk(n => fmtV(n.vm))} ≈ V+   ${op('·')}  ${sub('I', '1')} = ${sub('I', 'f')} = V−/${sub('R', '1')} = \
+${tk(n => fmtI(n.ig))}`];
+  },
+  traces: T('vin', 'vout'), xy: 'gain' },
+/* 3 — Follower */
+{ id: 'buf', name: 'Voltage Follower (Buffer)', tab: 'Follower', inputs: [sig('vin', 'Vin', SINE(2))], params: [],
+  lin(p, x) { return { vp0: x.vin, dvp: 0, vm0: 0, dvm: 1 }; },
+  post(p, x, vo) { return { nodes: { vin: x.vin, vm: vo, vp: x.vin, vout: vo }, cur: { iin: 0 } }; },
+  gain: () => 1, ng: () => 1, fbOut: () => 0,
+  eq(p, X) {
+    const lg = X.mode === 'ideal' ? '1' : (X.oa.aol / (1 + X.oa.aol)).toFixed(LOOP_GAIN_DP);
+    return [line`Vout ${op('=')} Vin  ${op('·')}  gain = 1 + ${sub('R', 'f')}/${sub('R', '1')} with ${sub('R', 'f')} = 0, ${sub('R', '1')} → ∞`,
+      line`${tk(n => fmtV(n.vin), 'in')} ${op('→')} ${tk(n => fmtV(n.vout), 'out')}   ${op('·')}  ${sub('Z', 'in')} → ∞ (no input current), \
+${sub('Z', 'out')} → 0 — loop gain A/(1+A) = ${lg}`];
+  },
+  traces: T('vin', 'vout'), xy: 'gain' },
+/* 4 — Summing */
+{ id: 'sum', name: 'Summing Amplifier', tab: 'Summing',
+  inputs: [sig('vin', 'V1', SINE(1, 1e3)), sig('v2', 'V2', SINE(0.5, 2e3)), sig('v3', 'V3', { wave: 'dc', amp: 0.5, f: 1e3, off: 0 })],
+  params: [R('R1', subH('R', '1'), 10e3), R('R2', subH('R', '2'), 10e3), R('R3', subH('R', '3'), 10e3), R('Rf', subH('R', 'f'), 10e3)],
+  lin(p, x) {
+    const G = 1 / p.R1 + 1 / p.R2 + 1 / p.R3 + 1 / p.Rf;
+    return { vp0: 0, dvp: 0, vm0: (x.vin / p.R1 + x.v2 / p.R2 + x.v3 / p.R3) / G, dvm: (1 / p.Rf) / G };
+  },
+  post(p, x, vo) {
+    const G = 1 / p.R1 + 1 / p.R2 + 1 / p.R3 + 1 / p.Rf, vm = (x.vin / p.R1 + x.v2 / p.R2 + x.v3 / p.R3 + vo / p.Rf) / G;
+    return { nodes: { vin: x.vin, v2: x.v2, v3: x.v3, vm, vp: 0, vout: vo },
+      cur: { i1: (x.vin - vm) / p.R1, i2: (x.v2 - vm) / p.R2, i3: (x.v3 - vm) / p.R3, ifb: (vm - vo) / p.Rf } };
+  },
+  gain: null, gainLabel: p => `paths −${(p.Rf / p.R1).toFixed(PATH_DP)} / −${(p.Rf / p.R2).toFixed(PATH_DP)} / −${(p.Rf / p.R3).toFixed(PATH_DP)}`,
+  ng: p => 1 + p.Rf / par(par(p.R1, p.R2), p.R3), fbOut: c => -c.ifb,
+  eq(p) {
+    const a = (p.Rf / p.R1).toFixed(PATH_DP), b = (p.Rf / p.R2).toFixed(PATH_DP), c = (p.Rf / p.R3).toFixed(PATH_DP);
+    return [line`Vout ${op('=')} −${sub('R', 'f')}·(V1/${sub('R', '1')} + V2/${sub('R', '2')} + V3/${sub('R', '3')}) ${op('=')} −(${a}·V1 + \
+${b}·V2 + ${c}·V3)   ${op('·')}  ${sub('I', '1')} = ${tk(n => fmtI(n.i1))}, ${sub('I', '2')} = ${tk(n => fmtI(n.i2))}, \
+${sub('I', '3')} = ${tk(n => fmtI(n.i3))}`,
+      line`${op('=')} −(${a}·${tk(n => fmtV(n.vin), 'in')} + ${b}·${tk(n => fmtV(n.v2), 'c2')} + ${c}·${tk(n => fmtV(n.v3), 'c3')}) ${op('=')} \
+${tk(n => fmtV(n.vout), 'out')}   ${op('·')}  ${sub('I', 'f')} = ${sub('I', '1')} + ${sub('I', '2')} + ${sub('I', '3')} = ${tk(n => fmtI(n.ifb))}`];
+  },
+  traces: [TL('vin', 'V1'), TL('v2', 'V2'), TL('v3', 'V3'), TL('vout', 'Vout')], xy: 'none' },
+/* 5 — Difference */
+{ id: 'diff', name: 'Difference Amplifier', tab: 'Difference',
+  inputs: [sig('vin', 'V1', SINE(1, 1e3)), sig('v2', 'V2', { wave: 'sine', amp: 1, f: 1e3, off: 0.5 })],
+  params: [R('R1', subH('R', '1'), 10e3), R('R2', subH('R', '2'), 20e3), R('R3', subH('R', '3'), 10e3), R('R4', subH('R', '4'), 20e3)],
+  lin(p, x) { const G = 1 / p.R1 + 1 / p.R2; return { vp0: x.v2 * p.R4 / (p.R3 + p.R4), dvp: 0, vm0: (x.vin / p.R1) / G,
+    dvm: (1 / p.R2) / G }; },
+  post(p, x, vo) {
+    const vm = (x.vin / p.R1 + vo / p.R2) / (1 / p.R1 + 1 / p.R2), vp = x.v2 * p.R4 / (p.R3 + p.R4);
+    return { nodes: { vin: x.vin, v2: x.v2, vm, vp, vout: vo }, cur: { i1: (x.vin - vm) / p.R1, ifb: (vm - vo) / p.R2,
+      i3: (x.v2 - vp) / p.R3, i4: vp / p.R4 } };
+  },
+  gain: null, gainLabel: p => `V1 path −${(p.R2 / p.R1).toFixed(PATH_DP)} · V2 path +${((p.R4 / (p.R3 + p.R4)) * (1 + p.R2 / p.R1)).toFixed(PATH_DP)}`,
+  ng: p => 1 + p.R2 / p.R1, fbOut: c => -c.ifb,
+  eq(p) {
+    const g2 = (p.R4 / (p.R3 + p.R4)) * (1 + p.R2 / p.R1), g1 = p.R2 / p.R1, gd = (g1 + g2) / 2, gcm = g2 - g1;
+    const cmrr = Math.abs(gcm) < EPS_CMRR ? Infinity : DB_PER_DECADE * Math.log10(Math.abs(gd / gcm));
+    const matched = Math.abs(g1 - g2) < EPS_CMRR ? line`  ${op('=')} (${sub('R', '2')}/${sub('R', '1')})·(V2 − V1)` : '';
+    return [line`Vout ${op('=')} V2·(${sub('R', '4')}/(${sub('R', '3')}+${sub('R', '4')}))·(1+${sub('R', '2')}/${sub('R', '1')}) − \
+V1·(${sub('R', '2')}/${sub('R', '1')}) ${op('=')} ${tk(g2.toFixed(DIFF_DP) + '·V2', 'acc')} − ${tk(g1.toFixed(DIFF_DP) + '·V1', 'acc')}${matched}`,
+      line`${tk(g2.toFixed(DIFF_DP))}·${tk(n => fmtV(n.v2), 'c2')} − ${tk(g1.toFixed(DIFF_DP))}·${tk(n => fmtV(n.vin), 'in')} ${op('=')} ${tk(n => fmtV(n.vout),
+        'out')}   \
+${op('·')}  CMRR = |${sub('A', 'd')}/${sub('A', 'cm')}| = ${tk(isFinite(cmrr) ? cmrr.toFixed(CMRR_DP) + ' dB' : '∞ (matched)', 'acc')}   ${op('·')}  \
+${sub('I', '1')} = ${tk(n => fmtI(n.i1))}, ${sub('I', '3')} = ${tk(n => fmtI(n.i3))}`];
+  },
+  traces: [TL('vin', 'V1'), TL('v2', 'V2'), TL('vout', 'Vout')], xy: 'none' },
+/* 6 — Differentiator.  Vc = voltage across C (left plate − right plate). */
+{ id: 'dif', name: 'Differentiator', tab: 'Differentiator', inputs: [sig('vin', 'Vin', { wave: 'tri', amp: 1, f: 1e3, off: 0 })],
+  params: [R('Rs', subH('R', 's') + ' (series)', 1e3, 100, 100e3), C('C', 'C', 100e-9), R('Rf', subH('R', 'f'), 10e3)], nstate: 1,
+  lin(p, x, st) {
+    const Vc = st[0], k = p.Rf / (p.Rs + p.Rf);
+    return { vp0: 0, dvp: 0, vm0: (x.vin - Vc) * k, dvm: 1 - k, g: k, cap: { tau: (p.Rs + p.Rf) * p.C, u0: x.vin, u1: -1 } };
+  },
+  /* loop closed, V− = 0: C charges through Rs toward Vin */
+  capIdeal(p, x) { return { tau: p.Rs * p.C, u0: x.vin, u1: 0 }; },
+  /* loop open (Vo pinned): V− = divider of (Vin − Vc) and Vo; C sees Vin − Vo through Rs + Rf */
+  capOpen(p, x) { return { tau: (p.Rs + p.Rf) * p.C, u0: x.vin, u1: -1 }; },
+  post(p, x, vo, st) {
+    const Vc = st[0], vm = ((x.vin - Vc) / p.Rs + vo / p.Rf) / (1 / p.Rs + 1 / p.Rf);
+    return { nodes: { vin: x.vin, vm, vp: 0, vout: vo, vc: Vc }, cur: { iin: (x.vin - Vc - vm) / p.Rs, ifb: (vm - vo) / p.Rf } };
+  },
+  gain: null, gainLabel: () => '|Vout| / |Vin| (not a gain)', ng: p => 1 + p.Rf / p.Rs, fbOut: c => -c.ifb,
+  eq(p, X) {
+    const fz = 1 / (TAU * p.Rs * p.C), s = X.sig.vin, slope = s.wave === 'tri' ? 4 * s.amp * s.f : TAU * s.f * s.amp;
+    return [line`Vout ${op('=')} −${sub('R', 'f')}·C·dVin/dt ${op('·')} ${sub('R', 'f')}C = ${tk(fmtSI(p.Rf * p.C, 's'), 'acc')}  ${op('·')} \
+|dVin/dt|${s.wave === 'tri' ? '' : ' max'} = ${fmtSI(slope, 'V/s')} → |Vout| = ${tk(fmtSI(p.Rf * p.C * slope, 'V'), 'out')}`,
+      line`${sub('R', 's')} limits HF gain to ${sub('R', 'f')}/${sub('R', 's')} = ${tk((p.Rf / p.Rs).toFixed(HF_DP) + '×', 'acc')} above \
+${sub('f', 'z')} = 1/(2π${sub('R', 's')}C) = ${tk(fmtF(fz), 'acc')}   ${op('·')}  ${sub('I', 'C')} = ${sub('I', 'f')} = ${tk(n => fmtI(n.iin || 0))}`];
+  },
+  traces: T('vin', 'vout'), xy: 'none' },
+/* 7 — Integrator.  Vc = V− − Vout (voltage across C). OA-R3: noDC. */
+{ id: 'int', name: 'Integrator', tab: 'Integrator', noDC: true, inputs: [sig('vin', 'Vin', { wave: 'square', amp: 1, f: 1e3, off: 0 })],
+  params: [R('Rin', subH('R', 'in'), 10e3), C('C', 'C', 100e-9), R('Rf', subH('R', 'f') + ' (leak)', 1e6, 10e3, 1e8)], nstate: 1,
+  lin(p, x, st) {
+    const Vc = st[0], k = p.Rf / (p.Rin + p.Rf);
+    return { vp0: 0, dvp: 0, vm0: Vc, dvm: 1, g: -1, cap: { tau: par(p.Rin, p.Rf) * p.C, u0: x.vin * k, u1: -k } };
+  },
+  /* loop closed, V− = 0: Vc = −Vout, C driven by Vin/Rin with leak Rf */
+  capIdeal(p, x) { return { tau: p.Rf * p.C, u0: x.vin * p.Rf / p.Rin, u1: 0 }; },
+  /* loop open: V− floats to the Rin‖Rf divider of Vin and Vo; identical to the Real-mode network ODE */
+  capOpen(p, x) { const k = p.Rf / (p.Rin + p.Rf); return { tau: par(p.Rin, p.Rf) * p.C, u0: x.vin * k, u1: -k }; },
+  post(p, x, vo, st) {
+    const Vc = st[0], vm = vo + Vc;
+    return { nodes: { vin: x.vin, vm, vp: 0, vout: vo, vc: Vc }, cur: { iin: (x.vin - vm) / p.Rin, ir: Vc / p.Rf,
+      ic: (x.vin - vm) / p.Rin - Vc / p.Rf } };
+  },
+  gain: null, gainLabel: () => '|Vout| / |Vin| (not a gain)', fcNA: 'not a gain circuit', ng: p => 1 + p.Rf / p.Rin, fbOut: c => -c.iin,
+  eq(p, X) {
+    const tau = p.Rin * p.C, fz = 1 / (TAU * p.Rf * p.C), s = X.sig.vin;
+    const amp = s.wave === 'square' ? `${fmtSI(s.amp / tau, 'V/s')} ramps → ${fmtSI(s.amp / tau / (2 * s.f), 'V')}pp triangle`
+      : [`|Vout| = `, sub('V', 'pk'), `/(2πf·`, sub('R', 'in'), `C) = ${fmtSI(s.amp / (TAU * s.f * tau), 'V')}`];
+    return [line`Vout ${op('=')} −(1/${sub('R', 'in')}C)·∫Vin dt ${op('·')} ${sub('R', 'in')}C = ${tk(fmtSI(tau, 's'), 'acc')}  ${op('·')} at \
+${fmtF(s.f)}: ${tk(amp, 'out')}   ${op('·')}  ${sub('I', 'in')} = ${tk(n => fmtI(n.iin || 0))}, ${sub('V', 'C')} = ${tk(n => fmtV(n.vc || 0))}`,
+      line`${sub('R', 'f')} leak: DC gain −${sub('R', 'f')}/${sub('R', 'in')} = ${tk((-p.Rf / p.Rin).toFixed(0) + '×',
+        'acc')}, integration only \
+above f = 1/(2π${sub('R', 'f')}C) = ${tk(fmtF(fz), 'acc')}   ${op('·')}  ${sub('I', 'C')} = ${tk(n => fmtI(n.ic || 0))}, ${sub('I', 'Rf')} = ${tk(n => fmtI(n.ir || 0))}`];
+  },
+  traces: T('vin', 'vout'), xy: 'none' },
+/* 8 — Comparator */
+{ id: 'cmp', name: 'Comparator', tab: 'Comparator', inputs: [sig('vref', 'Vref', { wave: 'dc', amp: 0.5, f: 1e3, off: 0 }), sig('vin',
+  'Vin', SINE(2, 1e3))], params: [],
+  lin(p, x) { return { vp0: x.vin, dvp: 0, vm0: x.vref, dvm: 0 }; },
+  post(p, x, vo) { return { nodes: { vin: x.vin, vref: x.vref, vm: x.vref, vp: x.vin, vout: vo }, cur: {} }; },
+  gain: null, gainLabel: () => 'open loop — saturating', fcNA: 'open loop', ng: () => 1, fbOut: () => 0,
+  eq(p, X) {
+    const vs = X.vsat, aol = X.mode === 'ideal' ? '∞' : fmtSI(X.oa.aol, '') + ' = ' + (DB_PER_DECADE * Math.log10(X.oa.aol)).toFixed(0) + ' dB';
+    const real = X.mode === 'real'
+      ? line`   ${op('·')}  linear region only |Vd| < ${sub('V', 'sat')}/${sub('A', 'OL')} = ${fmtSI(vs / X.oa.aol, 'V')}; edge time ≈ \
+2${sub('V', 'sat')}/SR = ${fmtSI(2 * vs / X.oa.sr, 's')}` : '';
+    return [line`Vout ${op('=')} +${sub('V', 'sat')} if Vin > Vref, −${sub('V', 'sat')} if Vin < Vref  ${op('·')}  ${sub('V', 'sat')} = \
+${tk('±' + fmtSI(vs, 'V'), 'acc')}  (open loop, ${sub('A', 'OL')} = ${aol})`,
+      line`Vin − Vref ${op('=')} ${tk(n => fmtV(n.vin), 'in')} − ${tk(n => fmtV(n.vref), 'c3')} ${op('=')} ${tk(n => fmtV(n.vin - n.vref))} ${op('→')} \
+${tk(n => fmtV(n.vout), 'out')}${real}`];
+  },
+  traces: [TL('vin', 'Vin'), TL('vref', 'Vref'), TL('vout', 'Vout')], xy: 'comp' },
+/* 9 — Schmitt trigger (inverting) */
+{ id: 'sch', name: 'Schmitt Trigger (inverting)', tab: 'Schmitt', inputs: [sig('vref', 'Vref', { wave: 'dc', amp: 0, f: 1e3, off: 0 }),
+  sig('vin', 'Vin', SINE(8, 1e3))],
+  params: [R('R1', subH('R', '1') + ' (feedback)', 20e3), R('R2', subH('R', '2'), 10e3)],
+  lin(p, x) { const k = p.R2 / (p.R1 + p.R2); return { vp0: x.vref * (1 - k), dvp: k, vm0: x.vin, dvm: 0 }; },
+  post(p, x, vo) {
+    const vp = vo * p.R2 / (p.R1 + p.R2) + x.vref * p.R1 / (p.R1 + p.R2);
+    return { nodes: { vin: x.vin, vref: x.vref, vm: x.vin, vp, vout: vo }, cur: { i1: (vo - vp) / p.R1, i2: (vp - x.vref) / p.R2 } };
+  },
+  gain: null, gainLabel: () => 'bistable — saturating', fcNA: 'open loop', ng: () => 1, fbOut: c => c.i1,
+  thresholds(p, vsat, vref) { const k = p.R2 / (p.R1 + p.R2); return [vref * (1 - k) + vsat * k, vref * (1 - k) - vsat * k]; },
+  eq(p, X) {
+    const k = p.R2 / (p.R1 + p.R2), thr = n => this.thresholds(p, X.vsat, n.vref);
+    return [line`${sub('V', 'T±')} ${op('=')} Vref·${sub('R', '1')}/(${sub('R', '1')}+${sub('R', '2')}) ± \
+${sub('V', 'sat')}·${sub('R', '2')}/(${sub('R', '1')}+${sub('R', '2')}) ${op('=')} ${n => fmtV(n.vref * (1 - k))} ± ${fmtSI(X.vsat,
+      'V')}·${k.toFixed(SCH_K_DP)} ${op('→')} ${sub('V', 'T+')} = ${tk(n => fmtV(thr(n)[0]), 'acc')}, ${sub('V', 'T−')} = ${tk(n => fmtV(thr(n)[1]), 'acc')}`,
+      line`hysteresis ${sub('V', 'H')} = 2·${sub('V', 'sat')}·${sub('R', '2')}/(${sub('R', '1')}+${sub('R', '2')}) = \
+${tk(n => { const [hi, lo] = thr(n); return fmtSI(hi - lo, 'V'); }, 'acc')}   ${op('·')}  Vin = ${tk(n => fmtV(n.vin), 'in')} vs V+ = ${tk(n => fmtV(n.vp), 'c4')} ${op('→')} ${tk(n => fmtV(n.vout),
+        'out')}   ${op('·')}  ${sub('I', '1')} = ${sub('I', '2')} = ${tk(n => fmtI(n.i1))}`];
+  },
+  traces: [TL('vin', 'Vin'), TL('vp', 'V+ (threshold)'), TL('vout', 'Vout')], xy: 'schmitt' },
+];
+for (const c of CIRCUITS) c.draw = DRAW[c.id];
+const byId = id => CIRCUITS.find(c => c.id === id);
+/* OA-R3 helpers: the waveform list a circuit may use; coercion of a stored waveform */
+const wavesFor = c => (c.noDC ? WAVES.filter(w => w[0] !== 'dc') : WAVES);
+const coerceWave = (c, w) => (c.noDC && w === 'dc' ? 'sine' : w);
+/* OA-R3 extended to the offset (spec Q12): a noDC circuit takes no DC waveform and zero offset */
+function coerceSig(c, s) { s.wave = coerceWave(c, s.wave); if (c.noDC) s.off = 0; return s; }
+/* ───────────────────────────── §4 STATE + ENGINE ───────────────────────────── */
+const S = { circ: 'inv', mode: 'ideal', running: true, speed: SPEED_DEFAULT, vcc: 15, rl: 10e3,
+  oa: Object.assign({ preset: DEFAULT_PRESET }, PRESETS[DEFAULT_PRESET]), sig: {}, p: {}, isLight: false };
+const TW = { accent: ACCENT_OPTIONS[0], bgTheme: 'Charcoal', uiScale: 100, traceWidth: 2.6, cycles: 3, showFlow: true, showPins: false,
+  showRails: true, voltColour: true, showIval: true };
+const S_DEFAULT = JSON.parse(JSON.stringify(S)), TW_DEFAULT = Object.assign({}, TW);   // fallbacks for the validated load()
+let COL = {}, CUR = null, B = null, imax = IMAX_FLOOR, lastPost = { nodes: {}, cur: {} }, meas = {};
+const sim = { t: 0, vo: 0, st: [0], acc: 0, head: 0, n: 0, buf: {}, flag: null, x: null };
+/* per-sample flags: 0 linear, 1 saturated, 2 slew-limited, 3 current-limited */
+const FLAG_LIN = 0, FLAG_SAT = 1, FLAG_SLEW = 2, FLAG_ILIM = 3;
+let stepFlag = FLAG_LIN;
+/* fill missing params / signals with circuit defaults and apply OA-R3 coercion */
+function ensureDefaults() {
+  for (const c of CIRCUITS) {
+    S.p[c.id] = S.p[c.id] || {};
+    for (const pr of c.params) if (S.p[c.id][pr.k] == null) S.p[c.id][pr.k] = pr.def;
+    for (const inp of c.inputs) {
+      const key = c.id + '.' + inp.k;
+      if (!S.sig[key]) S.sig[key] = Object.assign({}, inp.def);
+      coerceSig(c, S.sig[key]);   // OA-R3 on restored state
+    }
+  }
+}
+const vsat = () => (S.mode === 'ideal' ? S.vcc : Math.max(VSAT_MIN, S.vcc - VSAT_HEADROOM));
+/* per-frame context handed to drawing and equation code */
+function ctx() {
+  const sg = {};
+  for (const inp of CUR.inputs) sg[inp.k] = S.sig[CUR.id + '.' + inp.k];
+  const name = S.mode === 'real' ? S.oa.preset : 'ideal';
+  return { mode: S.mode, oa: S.oa, vsat: vsat(), rl: S.rl, sig: sg, oaLab: { vcc: '+' + fmtSupply(S.vcc), vee: '−' + fmtSupply(S.vcc), name } };
+}
+/* source waveform value at time t */
+function wave(s, t) {
+  if (s.wave === 'dc') return s.amp + s.off;
+  const ph = (s.f * t) % 1;
+  let v;
+  if (s.wave === 'sine') v = Math.sin(TAU * ph);
+  else if (s.wave === 'square') v = ph < 0.5 ? 1 : -1;
+  else v = 1 - 4 * Math.abs(ph - 0.5);
+  return s.off + s.amp * v;
+}
+/* all source values of the current circuit at time t */
+function inputs(t) { const x = {}; for (const inp of CUR.inputs) x[inp.k] = wave(S.sig[CUR.id + '.' + inp.k], t); return x; }
+/* scope window length: TW.cycles periods of the slowest periodic input */
+function windowT() {
+  let fmin = Infinity;
+  for (const inp of CUR.inputs) { const s = S.sig[CUR.id + '.' + inp.k]; if (s.wave !== 'dc') fmin = Math.min(fmin, s.f); }
+  return isFinite(fmin) ? TW.cycles / fmin : DEFAULT_WINDOW_T;
+}
+/* exact one-step update of dVc/dt = (u0 + u1·Vo − Vc)/τ  →  Vc' = c0 + c1·Vo */
+function capCoef(cap, Vc, dt) { const E = 1 - Math.exp(-dt / cap.tau); return { c0: Vc + E * (cap.u0 - Vc), c1: E * cap.u1 }; }
+/* total output current for a candidate Vo (load + feedback network) */
+function outCurrent(p, x, vo) { const P = CUR.post(p, x, vo, sim.st); return vo / S.rl + (CUR.fbOut(P.cur) || 0); }
+/* one implicit time step of the op-amp (ideal or one-pole real) together with the capacitor state */
+function step(dt, p, X) {
+  const x = inputs(sim.t), ideal = S.mode === 'ideal', vs = X.vsat;
+  const Lc = CUR.lin(p, x, sim.st), a = Lc.vp0 - Lc.vm0, beta = Lc.dvm - Lc.dvp, g = Lc.g || 0, Vc = sim.st[0] || 0;
+  let vo, flag = FLAG_LIN, capUsed = null;
+  if (ideal) {
+    if (CUR.nstate) {
+      /* closed-loop solve with the virtual-ground ODE */
+      const cap = CUR.capIdeal(p, x), cc = capCoef(cap, Vc, dt);
+      vo = beta > EPS_BETA ? (a + g * (cc.c0 - Vc)) / (beta - g * cc.c1) : (a >= 0 ? vs : -vs);
+      if (Math.abs(vo) >= vs) {
+        /* OA-002: output pinned at a rail — loop is open, capacitor follows the passive network */
+        vo = Math.sign(vo) * vs;
+        capUsed = capCoef(CUR.capOpen(p, x), Vc, dt);
+      } else capUsed = cc;
+    } else {
+      vo = beta > EPS_BETA ? a / beta : ((a - beta * sim.vo) >= 0 ? vs : -vs);
+      vo = clamp(vo, -vs, vs);
+    }
+  } else {
+    const A = S.oa.aol, wp = TAU * S.oa.gbw / A;
+    let cc = { c0: Vc, c1: 0 };
+    if (CUR.nstate) cc = capCoef(Lc.cap, Vc, dt);
+    const D = 1 + dt * wp * (1 + A * beta) - dt * wp * A * g * cc.c1;
+    const vn = D > EPS_D ? (sim.vo + dt * wp * A * (a + g * (cc.c0 - Vc))) / D : sim.vo + wp * (A * a - sim.vo) * dt;
+    let dv = vn - sim.vo;
+    const dm = S.oa.sr * dt;
+    if (Math.abs(dv) > dm) { dv = Math.sign(dv) * dm; flag = FLAG_SLEW; }
+    vo = clamp(sim.vo + dv, -vs, vs);
+    /* OA-007: output current limit — pull Vo back toward the value at which |Iout| = Ilim (network is affine in Vo) */
+    const i0 = outCurrent(p, x, 0), i1 = outCurrent(p, x, 1) - i0, io = i0 + i1 * vo;
+    if (Math.abs(io) > S.oa.ilim && Math.abs(i1) > 0) { vo = (Math.sign(io) * S.oa.ilim - i0) / i1; flag = FLAG_ILIM; }
+    if (CUR.nstate) capUsed = cc;
+  }
+  if (Math.abs(vo) >= vs - EPS_SAT && flag !== FLAG_ILIM) flag = FLAG_SAT;
+  if (capUsed) sim.st[0] = capUsed.c0 + capUsed.c1 * vo;
+  sim.vo = vo; sim.x = x; sim.t += dt; stepFlag = flag;
+}
+/* store one scope sample (node voltages, currents, flag) at the ring-buffer head */
+function record(p, X) {
+  const x = sim.x || inputs(sim.t), P = CUR.post(p, x, sim.vo, sim.st, X);
+  P.cur.iload = sim.vo / S.rl;
+  P.cur.iout = P.cur.iload + (CUR.fbOut(P.cur) || 0);
+  lastPost = P;
+  for (const k in sim.buf) { const v = P.nodes[k]; sim.buf[k][sim.head] = v == null ? 0 : v; }
+  sim.flag[sim.head] = stepFlag;
+  sim.head = (sim.head + 1) % SCOPE_SAMPLES;
+  sim.n = Math.min(sim.n + 1, SCOPE_SAMPLES);
+}
+/* advance simulated time by the scope-scroll equivalent of realDt seconds */
+function advance(realDt) {
+  const p = S.p[CUR.id], X = ctx(), Tw = windowT(), Ts = Tw / SCOPE_SAMPLES, dT = Tw / SCOPE_SPEED_DIV * realDt;
+  let dt = Ts / 2;
+  if (S.mode === 'real') dt = Math.min(dt, 1 / (REAL_DT_GBW_DIV * S.oa.gbw));
+  if (CUR.nstate) {
+    const x0 = inputs(sim.t), tau = Math.min(CUR.lin(p, x0, sim.st).cap.tau, CUR.capIdeal(p, x0).tau);
+    dt = Math.min(dt, tau / CAP_TAU_DIV);
+  }
+  let n = Math.ceil(dT / dt);
+  if (n > MAX_STEPS_PER_FRAME) n = MAX_STEPS_PER_FRAME;
+  dt = dT / n;
+  for (let i = 0; i < n; i++) {
+    step(dt, p, X);
+    sim.acc += dt;
+    while (sim.acc >= Ts) { record(p, X); sim.acc -= Ts; }
+  }
+  if (sim.n === 0) record(p, X);
+}
+/* clear time, output, capacitor state and the scope buffers */
+function resetSim() {
+  sim.t = 0; sim.vo = 0; sim.st = [0]; sim.acc = 0; sim.head = 0; sim.n = 0; sim.buf = {}; sim.x = null;
+  sim.flag = new Uint8Array(SCOPE_SAMPLES);
+  const keys = new Set(['vin', 'vout', 'vm', 'vp']);
+  for (const tr of CUR.traces) keys.add(tr.k);
+  for (const k of keys) sim.buf[k] = new Float32Array(SCOPE_SAMPLES);
+  markDirty();
+}
+/* ───────────────────────────── §5 MEASUREMENTS (whole window) ───────────────────────────── */
+/* peaks, gain, power and limit fractions over the displayed window */
+function measure() {
+  const n = sim.n, b = sim.buf, W = SCOPE_SAMPLES;
+  let vip = 0, vop = 0, corr = 0, sat = 0, slew = 0, ilim = 0, psum = 0, ppk = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (sim.head - 1 - i + W) % W, vi = b.vin[j], vo = b.vout[j];
+    vip = Math.max(vip, Math.abs(vi)); vop = Math.max(vop, Math.abs(vo)); corr += vi * vo;
+    const f = sim.flag[j];
+    if (f === FLAG_SAT) sat++; else if (f === FLAG_SLEW) slew++; else if (f === FLAG_ILIM) ilim++;
+    const pw = vo * vo / S.rl; psum += pw; ppk = Math.max(ppk, pw);
+  }
+  const p = S.p[CUR.id], G = CUR.gain ? CUR.gain(p) : null;
+  meas = { vip, vop, gm: vip > PROBE_ZERO_V ? Math.sign(corr || 1) * vop / vip : null, G,
+    fc: S.mode === 'real' ? S.oa.gbw / CUR.ng(p) : Infinity, il: vop / S.rl, ppk, pavg: n ? psum / n : 0,
+    sat: n ? sat / n : 0, slew: n ? slew / n : 0, ilim: n ? ilim / n : 0 };
+}
+/* ───────────────────────────── §6 SCOPE + X-Y ───────────────────────────── */
+/* Scope plot: margins, divisions, strokes */
+const SCOPE = { LM: 54, RM: 14, TM: 12, BM: 26, XDIV: 10, YDIV: 8, YLABEL_STEP: 2, TICK_GAP: 6, WIDE_PX: 560, TSTEP_WIDE: 2, TSTEP: 5,
+  RAIL_DASH: [6, 6], RAIL_ALPHA: 0.55, RAIL_LW: 1.2, RAIL_TXT_DX: 4, RAIL_TXT_DY: 2, PIN_LW: 1.4, PIN_DASH: [4, 4], HDR_DY: 2,
+  VDIV_PER_HALF: 4 };
+/* X-Y plot: padding, divisions, transfer line */
+const XYP = { PAD: 34, DIV: 8, LABEL_GAP: 8, YLABEL_X: 10, LINE_DASH: [5, 5], LINE_LW: 1.3, LINE_ALPHA: 0.8, LINE_PTS: 100, DOT_R: 4 };
+const GRID_LW = 1, AXIS_LW = 1.5, TICK_DIG = 2;
+const FONT_TICK = "600 12px 'JetBrains Mono',monospace", FONT_TAG = "700 11px 'JetBrains Mono',monospace",
+  FONT_XY = "600 11px 'JetBrains Mono',monospace";
+/* canvas id → { g, w, h }; sized by fitCanvas() on resize only (CQ-OA-009) */
+const CANV = {};
+/* match a canvas backing store to its CSS size × devicePixelRatio */
+function fitCanvas(id) {
+  const cv = DOM[id], r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * d) || cv.height !== Math.round(r.height * d)) { cv.width = Math.round(r.width * d);
+    cv.height = Math.round(r.height * d); }
+  const g = cv.getContext('2d');
+  g.setTransform(d, 0, 0, d, 0, 0);
+  CANV[id] = { g, w: r.width, h: r.height };
+  return CANV[id];
+}
+const nice = v => NICE_RANGES.find(n => n >= v) || NICE_RANGES[NICE_RANGES.length - 1];
+/* scope / X-Y / wire-colour full scale: next nice value above every displayed signal */
+function yRange() {
+  let m = Math.max(meas.vip || 0, meas.vop || 0);
+  for (const tr of CUR.traces) { const b = sim.buf[tr.k]; if (!b) continue; for (let i = 0; i < sim.n; i += RANGE_SCAN_STRIDE) m = Math.max(m,
+    Math.abs(b[i])); }
+  return nice(m * RANGE_MARGIN || 1);
+}
+/* background, grid and the centre axis — shared by scope and X-Y. The scope grid is nx × ny; the square X-Y grid
+   (vAxis, nx = ny) adds the vertical axis and keeps its interleaved stroke order so its pixels stay unchanged. */
+function plotFrame(g, w, h, x0, y0, pw, ph, nx, ny, vAxis) {
+  g.fillStyle = COL.bg; g.fillRect(0, 0, w, h);
+  g.strokeStyle = COL.grid; g.lineWidth = GRID_LW; g.beginPath();
+  if (vAxis) {
+    for (let i = 0; i <= nx; i++) { g.moveTo(x0 + pw * i / nx, y0); g.lineTo(x0 + pw * i / nx, y0 + ph); g.moveTo(x0, y0 + ph * i / ny);
+      g.lineTo(x0 + pw, y0 + ph * i / ny); }
+  } else {
+    for (let i = 0; i <= nx; i++) { const x = x0 + pw * i / nx; g.moveTo(x, y0); g.lineTo(x, y0 + ph); }
+    for (let i = 0; i <= ny; i++) { const y = y0 + ph * i / ny; g.moveTo(x0, y); g.lineTo(x0 + pw, y); }
+  }
+  g.stroke();
+  g.strokeStyle = COL.axis; g.lineWidth = AXIS_LW; g.beginPath(); g.moveTo(x0, y0 + ph / 2); g.lineTo(x0 + pw, y0 + ph / 2);
+  if (vAxis) { g.moveTo(x0 + pw / 2, y0); g.lineTo(x0 + pw / 2, y0 + ph); }
+  g.stroke();
+}
+/* tick and header strings, recomputed only when range, window or width class change */
+let scopeLab = { key: '' };
+function scopeLabels(Y, Tw, stp, vs) {
+  const key = Y + '|' + Tw + '|' + stp + '|' + vs;
+  if (scopeLab.key === key) return scopeLab;
+  const yl = [], tl = [];
+  for (let i = 0; i <= SCOPE.YDIV; i += SCOPE.YLABEL_STEP) { const v = Y - Y * 2 * i / SCOPE.YDIV; yl.push([i, (v > 0 ? '+' : '') + fmtSI(v, 'V', TICK_DIG)]); }
+  for (let i = 0; i <= SCOPE.XDIV; i += stp) { const t = -Tw * (1 - i / SCOPE.XDIV); tl.push([i, i === SCOPE.XDIV ? 'now' : '−' + fmtSI(-t, 's', TICK_DIG)]); }
+  scopeLab = { key, yl, tl, rail: '+Vsat ' + fmtSI(vs, 'V', SI_DIGITS),
+    hdr: fmtSI(Tw / SCOPE.XDIV, 's', TICK_DIG) + '/div · ' + fmtSI(Y / SCOPE.VDIV_PER_HALF, 'V', TICK_DIG) + '/div' };
+  return scopeLab;
+}
+/* rolling oscilloscope */
+function drawScope(Y) {
+  const { g, w, h } = CANV.scope || fitCanvas('scope'), W = SCOPE_SAMPLES;
+  const Lm = SCOPE.LM, Rm = SCOPE.RM, Tm = SCOPE.TM, pw = w - Lm - Rm, ph = h - Tm - SCOPE.BM, Tw = windowT();
+  plotFrame(g, w, h, Lm, Tm, pw, ph, SCOPE.XDIV, SCOPE.YDIV, false);
+  const vs = vsat(), lab = scopeLabels(Y, Tw, pw > SCOPE.WIDE_PX ? SCOPE.TSTEP_WIDE : SCOPE.TSTEP, vs);
+  g.font = FONT_TICK; g.fillStyle = COL.mut; g.textAlign = 'right'; g.textBaseline = 'middle';
+  for (const [i, s] of lab.yl) g.fillText(s, Lm - SCOPE.TICK_GAP, Tm + ph * i / SCOPE.YDIV);
+  g.textAlign = 'center'; g.textBaseline = 'top';
+  for (const [i, s] of lab.tl) g.fillText(s, Lm + pw * i / SCOPE.XDIV, Tm + ph + SCOPE.TICK_GAP);
+  if (TW.showRails && vs < Y) {
+    g.setLineDash(SCOPE.RAIL_DASH); g.strokeStyle = COL.bad; g.globalAlpha = SCOPE.RAIL_ALPHA; g.lineWidth = SCOPE.RAIL_LW; g.beginPath();
+    for (const s of [1, -1]) { const y = Tm + ph / 2 - s * vs / Y * ph / 2; g.moveTo(Lm, y); g.lineTo(Lm + pw, y); }
+    g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+    g.fillStyle = COL.bad; g.textAlign = 'left'; g.textBaseline = 'bottom'; g.font = FONT_TAG;
+    g.fillText(lab.rail, Lm + SCOPE.RAIL_TXT_DX, Tm + ph / 2 - vs / Y * ph / 2 - SCOPE.RAIL_TXT_DY);
+  }
+  const trs = CUR.traces.slice();
+  if (TW.showPins) trs.push({ k: 'vm', label: 'V−', col: CH.vm, dash: true }, { k: 'vp', label: 'V+', col: CH.vp, dash: true });
+  g.save(); g.beginPath(); g.rect(Lm, Tm, pw, ph); g.clip();
+  for (const tr of trs) {
+    const b = sim.buf[tr.k]; if (!b) continue;
+    g.strokeStyle = tr.col; g.lineWidth = tr.dash ? SCOPE.PIN_LW : TW.traceWidth; g.setLineDash(tr.dash ? SCOPE.PIN_DASH : []); g.lineJoin = 'round';
+      g.beginPath();
+    for (let i = 0; i < sim.n; i++) {
+      const j = (sim.head - sim.n + i + W) % W, x = Lm + pw * (W - sim.n + i) / (W - 1), y = Tm + ph / 2 - b[j] / Y * ph / 2;
+      if (i) g.lineTo(x, y); else g.moveTo(x, y);
+    }
+    g.stroke();
+  }
+  g.restore(); g.setLineDash([]);
+  g.fillStyle = COL.mut; g.font = FONT_TAG; g.textAlign = 'right'; g.textBaseline = 'top';
+  g.fillText(lab.hdr, w - Rm, Tm + SCOPE.HDR_DY);
+}
+/* ideal transfer line in volts, recomputed only when circuit, gain, range, rails or Vref change */
+let xyLine = { key: '' };
+function transferLine(Y, vs, vr) {
+  const p = S.p[CUR.id], G = CUR.xy === 'gain' ? CUR.gain(p) : 0;
+  const key = CUR.id + '|' + CUR.xy + '|' + G + '|' + Y + '|' + vs + '|' + vr + '|' + (CUR.xy === 'schmitt' ? p.R1 + '/' + p.R2 : '');
+  if (xyLine.key === key) return xyLine;
+  const segs = [];
+  if (CUR.xy === 'gain') {
+    const pts = [];
+    for (let i = 0; i <= XYP.LINE_PTS; i++) { const x = -Y + 2 * Y * i / XYP.LINE_PTS; pts.push([x, clamp(G * x, -vs, vs)]); }
+    segs.push(pts);
+  } else if (CUR.xy === 'comp') {
+    segs.push([[-Y, -vs], [vr, -vs], [vr, vs], [Y, vs]]);
+  } else if (CUR.xy === 'schmitt') {
+    const [hi, lo] = CUR.thresholds(p, vs, vr);
+    segs.push([[-Y, vs], [hi, vs], [hi, -vs], [Y, -vs]], [[lo, -vs], [lo, vs]]);
+  }
+  xyLine = { key, segs, ax: ['Vin  ±' + fmtSI(Y, 'V', TICK_DIG), 'Vout  ±' + fmtSI(Y, 'V', TICK_DIG)] };
+  return xyLine;
+}
+/* X-Y transfer screen */
+function drawXY(Y) {
+  const { g, w, h } = CANV.xy || fitCanvas('xy'), W = SCOPE_SAMPLES;
+  const pad = XYP.PAD, pw = w - pad * 2, ph = h - pad * 2, vs = vsat(), cx = pad + pw / 2, cy = pad + ph / 2;
+  const X2 = x => cx + x / Y * pw / 2, Y2 = y => cy - y / Y * ph / 2;
+  plotFrame(g, w, h, pad, pad, pw, ph, XYP.DIV, XYP.DIV, true);
+  const tl = transferLine(Y, vs, lastPost.nodes.vref || 0);
+  g.font = FONT_XY; g.fillStyle = COL.mut; g.textAlign = 'center'; g.textBaseline = 'top';
+  g.fillText(tl.ax[0], cx, pad + ph + XYP.LABEL_GAP);
+  g.save(); g.translate(XYP.YLABEL_X, cy); g.rotate(-Math.PI / 2); g.fillText(tl.ax[1], 0, 0); g.restore();
+  g.setLineDash(XYP.LINE_DASH); g.strokeStyle = COL.acc; g.lineWidth = XYP.LINE_LW; g.globalAlpha = XYP.LINE_ALPHA; g.beginPath();
+  for (const pts of tl.segs) pts.forEach(([x, y], i) => { if (i) g.lineTo(X2(x), Y2(y)); else g.moveTo(X2(x), Y2(y)); });
+  g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+  g.save(); g.beginPath(); g.rect(pad, pad, pw, ph); g.clip();
+  g.strokeStyle = CH.vout; g.lineWidth = TW.traceWidth; g.lineJoin = 'round'; g.beginPath();
+  const bi = sim.buf.vin, bo = sim.buf.vout;
+  for (let i = 0; i < sim.n; i++) { const j = (sim.head - sim.n + i + W) % W; if (i) g.lineTo(X2(bi[j]), Y2(bo[j]));
+    else g.moveTo(X2(bi[j]), Y2(bo[j])); }
+  g.stroke();
+  if (sim.n) { const j = (sim.head - 1 + W) % W; g.fillStyle = COL.txt; g.beginPath(); g.arc(X2(bi[j]), Y2(bo[j]), XYP.DOT_R, 0, TAU); g.fill(); }
+  g.restore();
+}
+/* ───────────────────────────── §7 READOUTS + EQUATION STRIP ───────────────────────────── */
+const NG_DP = 2, SR_EQ_DIG = 2;
+/* element lookups cached once at init (CQ-OA-009) */
+const DOM = {};
+const DOM_IDS = ['r_vin', 'r_vout', 'r_gain', 'r_gain_s', 'r_fc', 'r_fc_s', 'r_il', 'r_il_s', 'r_pl', 'r_pl_s', 'r_st', 'r_st_s',
+  'eqLines', 'vbLo', 'vbHi', 'simPage', 'sch', 'schTitle', 'legend', 'vbar', 'wireLegend', 'themeBtn', 'tweaks', 'bPlay', 'scope', 'xy'];
+/* write text only when it changed */
+function setText(e, s) { if (e.textContent !== s) e.textContent = s; }
+/* readout subtext: the full text is also the tooltip, since narrow boxes cut it with an ellipsis (TST-02) */
+function setSub(e, s) { if (e.textContent !== s) { e.textContent = s; e.title = s; } }
+/* the seven readout boxes */
+function renderReadouts() {
+  const m = meas, p = S.p[CUR.id];
+  setText(DOM.r_vin, fmtSI(m.vip, 'V', SI_DIGITS));
+  setText(DOM.r_vout, fmtSI(m.vop, 'V', SI_DIGITS));
+  setText(DOM.r_gain, m.gm == null ? '—' : fmtGain(m.gm));
+  setSub(DOM.r_gain_s, m.G != null ? 'ideal ' + fmtGain(m.G) : CUR.gainLabel(p));
+  if (CUR.fcNA) { setText(DOM.r_fc, 'n/a'); setSub(DOM.r_fc_s, CUR.fcNA); }   // spec Q3: no closed-loop bandwidth
+  else {
+    setText(DOM.r_fc, isFinite(m.fc) ? fmtF(m.fc) : '∞');
+    setSub(DOM.r_fc_s, isFinite(m.fc) ? 'GBW / noise gain ' + CUR.ng(p).toFixed(NG_DP) : 'ideal op-amp');
+  }
+  setText(DOM.r_il, fmtI(m.il));
+  setSub(DOM.r_il_s, S.mode === 'real' ? 'load branch · Ilim ' + fmtI(S.oa.ilim) + ' acts on total Iout' : 'Vout / RL');   // spec Q4
+  setText(DOM.r_pl, fmtW(m.ppk));
+  setSub(DOM.r_pl_s, 'avg ' + fmtW(m.pavg) + ' · Vout²/RL');
+  let s;
+  if (m.ilim > STATUS_FRACTION) s = ['CURRENT-LIMITED', COL.bad, (m.ilim * PERCENT).toFixed(0) + '% of window at Ilim'];
+  else if (m.sat > STATUS_FRACTION) s = ['SATURATED', COL.bad, (m.sat * PERCENT).toFixed(0) + '% of window at rails'];
+  else if (m.slew > STATUS_FRACTION) s = ['SLEW-LIMITED', COL.warn, (m.slew * PERCENT).toFixed(0) + '% of window at SR ' + fmtSI(S.oa.sr,
+    'V/s')];
+  else s = ['LINEAR', COL.good, 'Vd ≈ 0 — feedback holds'];
+  setText(DOM.r_st, s[0]); DOM.r_st.style.color = s[1]; setSub(DOM.r_st_s, s[2]);
+}
+/* equation strip: static DOM rebuilt by buildEq() on any parameter / mode / circuit change, live tokens per frame */
+let eqLive = [], eqDirty = true;
+function buildEq() {
+  const X = ctx(), lines = CUR.eq(S.p[CUR.id], X);
+  const model = S.mode === 'ideal'
+    ? line`Ideal op-amp: ${sub('A', 'OL')} → ∞, Vd = V+ − V− = 0 while inside the rails, no input current, |Vout| ≤ Vcc = ${fmtSI(S.vcc, 'V')}`
+    : line`Real (${S.oa.preset}): dVout/dt = ${sub('ω', 'p')}(${sub('A', 'OL')}·Vd − Vout), ${sub('ω', 'p')} = 2π·GBW/${sub('A', 'OL')} = \
+2π·${fmtSI(S.oa.gbw / S.oa.aol, 'Hz', SI_DIGITS)}  ·  |dVout/dt| ≤ SR = ${fmtSI(S.oa.sr / 1e6, 'V/µs', SR_EQ_DIG)}  ·  |Vout| ≤ ${fmtSI(vsat(), 'V',
+      SI_DIGITS)}  ·  |Iout| ≤ ${fmtI(S.oa.ilim)}  ·  Vd now = ${n => fmtV((n.vp || 0) - (n.vm || 0))}`;
+  const host = DOM.eqLines, live = [];
+  while (host.firstChild) host.removeChild(host.firstChild);
+  for (const l of lines) { const d = host.appendChild(document.createElement('div')); d.className = 'eql'; mountPart(d, l, live); }
+  const d = host.appendChild(document.createElement('div')); d.className = 'eql aux-eq'; mountPart(d, model, live);
+  eqLive = live; eqDirty = false;
+}
+/* refresh the live tokens of the equation strip */
+function renderEq() {
+  if (eqDirty) buildEq();
+  const n = Object.assign({}, lastPost.nodes, lastPost.cur);
+  for (const L of eqLive) { const s = L.fn(n); if (L.t.data !== s) L.t.data = s; }
+}
+/* Frame loop. Rebuilds are coalesced to the next frame (CQ-OA-006); while paused, nothing is redrawn unless
+   something changed (CQ-OA-009); the Sim page's drawing is skipped while it is hidden (CQ-OA-018). */
+let lastT = 0, rebuildPending = true, dirty = true;
+/* request one schematic + equation-strip rebuild on the next frame */
+function requestRebuild() { rebuildPending = true; eqDirty = true; dirty = true; }
+/* request one redraw of the Sim page while paused */
+function markDirty() { dirty = true; }
+/* draw every Sim-page view for the current state; dt moves the chevrons */
+function renderSim(dt) {
+  measure();
+  const Y = yRange();
+  if (B) {
+    B.update(lastPost.nodes, lastPost.cur, dt, imax, { vscale: Y, vcol: TW.voltColour, flow: TW.showFlow, ival: TW.showIval });
+    setText(DOM.vbLo, '−' + fmtSI(Y, 'V', TICK_DIG)); setText(DOM.vbHi, '+' + fmtSI(Y, 'V', TICK_DIG));
+  }
+  drawScope(Y); drawXY(Y); renderReadouts(); renderEq();
+}
+function frame(now) {
+  const rdt = Math.min(MAX_FRAME_DT, (now - lastT) / 1000 || 0);
+  lastT = now;
+  if (rebuildPending) buildSchematic();
+  if (S.running) {
+    advance(rdt * S.speed);
+    const c = lastPost.cur;
+    let mx = IMAX_FLOOR;
+    for (const k in c) mx = Math.max(mx, Math.abs(c[k]));
+    imax = Math.max(imax * IMAX_DECAY, mx);
+  }
+  if (DOM.simPage.classList.contains('active') && (S.running || dirty)) {
+    renderSim(S.running ? rdt : 0);   // paused: chevrons hold still
+    dirty = false;
+  }
+  requestAnimationFrame(frame);
+}
+/* scope legend chips (traces plus the optional V− / V+ pins) */
+function renderLegend() {
+  const pins = TW.showPins ? `<span><i style="background:${CH.vm}"></i>V−</span><span><i style="background:${CH.vp}"></i>V+</span>` : '';
+  DOM.legend.innerHTML = CUR.traces.map(t => `<span><i style="background:${CH[t.k]}"></i>${t.label}</span>`).join('') + pins;
+}
+/* draw the current circuit's schematic from scratch */
+function buildSchematic() {
+  rebuildPending = false;
+  B = new Builder(DOM.sch, COL.sch);
+  CUR.draw(B, S.p[CUR.id], ctx());
+  B.finish();
+  DOM.schTitle.textContent = CUR.name;
+  renderLegend();
+  eqDirty = true; dirty = true;
+}
+/* ───────────────────────────── §8 THEME ───────────────────────────── */
+/* darken a #rrggbb colour by fraction f */
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16), m = c => Math.round(c * (1 - f)).toString(16).padStart(2, '0');
+  return '#' + m((n >> 16) & 255) + m((n >> 8) & 255) + m(n & 255);
+}
+/* publish the light/dark palette as CSS variables and rebuild the colour tables; the caller requests a rebuild */
+function applyTheme() {
+  const Rs = document.documentElement.style, bg = BG_THEMES[TW.bgTheme] || BG_THEMES.Charcoal;
+  const m = S.isLight ? LIGHT : Object.assign({}, bg, DARK_TXT, { '--plot': bg['--inset'] });
+  for (const k in m) Rs.setProperty(k, m[k]);
+  const ac = S.isLight ? shade(TW.accent, LIGHT_ACCENT_SHADE) : TW.accent;
+  Rs.setProperty('--acc', ac); Rs.setProperty('--acc-d', shade(ac, ACCENT_DARK_SHADE));
+  Rs.fontSize = (BASE_FONT_PX * TW.uiScale / PERCENT).toFixed(2) + 'px';
+  Object.assign(CH, S.isLight ? CH_LIGHT : CH_DARK);
+  for (const k in CH) Rs.setProperty('--ch-' + k, CH[k]);
+  const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim(), sp = S.isLight ? SCH_LIGHT : SCH_DARK;
+  COL = { bg: g('--plot'), grid: g('--line'), axis: g('--line2'), txt: g('--txt'), mut: g('--mut'), acc: ac, bad: g('--bad'),
+    good: g('--good'), warn: g('--warn'),
+    sch: { bg: g('--plot'), bg3: g('--bg3'), txt: g('--txt'), mut: g('--mut'), val: ac, gnd: g('--mut'),
+      wire: sp.wire, flow: sp.flow, flowTxt: sp.flowTxt, vpos: hex2rgb(sp.vpos), vneg: hex2rgb(sp.vneg), vzero: hex2rgb(sp.vzero) } };
+  DOM.themeBtn.textContent = S.isLight ? '☾ Dark' : '☀ Light';
+  const sc = COL.sch, rgb = a => `rgb(${a.join(',')})`;
+  DOM.vbar.style.background = `linear-gradient(90deg,${rgb(sc.vneg)},${rgb(sc.vzero)},${rgb(sc.vpos)})`;
+  DOM.wireLegend.innerHTML = `<span><i class="chev" style="border-left:8px solid ${sc.flow}"></i>conventional current — arrows move + → −,
+    faster for larger |I|</span><span style="color:${sc.flowTxt}">I = 98 µA → &nbsp;<span style="color:var(--mut)">value &amp; direction on each part</span></span>
+    <span><i style="background:${CH.vout};width:10px;height:10px;border-radius:50%"></i>pill dot = scope channel colour</span>`;
+  syncBox();
+  scopeLab.key = ''; xyLine.key = '';
+  markDirty();
+}
+/* ───────────────────────────── §9 SIDEBAR CONTROLS ───────────────────────────── */
+/* labelled slider; o: { label | labelFn, min, max, step, log, get, set, fmt }. Every input requests one rebuild. */
+function sliderRow(parent, o) {
+  const row = document.createElement('div');
+  row.className = 'ctrl-row';
+  row.innerHTML = `<label><b class="lt">${o.label}</b><span></span></label><input type="range">`;
+  const inp = row.querySelector('input'), out = row.querySelector('span'), lt = row.querySelector('.lt');
+  const toS = v => (o.log ? Math.round(LOG_STEPS * Math.log(v / o.min) / Math.log(o.max / o.min)) : v);
+  const fromS = s => (o.log ? o.min * Math.pow(o.max / o.min, s / LOG_STEPS) : +s);
+  if (o.log) { inp.min = 0; inp.max = LOG_STEPS; inp.step = 1; } else { inp.min = o.min; inp.max = o.max; inp.step = o.step || SLIDER_STEP; }
+  const refresh = () => { inp.value = toS(o.get()); out.textContent = o.fmt(o.get()); if (o.labelFn) lt.innerHTML = o.labelFn(); };
+  refresh();
+  inp.addEventListener('input', () => {
+    let v = fromS(inp.value);
+    if (o.log) v = +v.toPrecision(LOG_SIG_DIGITS);
+    o.set(v); out.textContent = o.fmt(v); requestRebuild(); save();
+  });
+  parent.appendChild(row);
+  row.refresh = refresh;
+  return row;
+}
+const SEGS = [];
+const SEG_GRID_OVER = 4;               // more buttons than this → two-column grid
+/* segmented button group bound to get/set */
+function seg(parent, opts, get, set, label) {
+  if (label) { const l = document.createElement('div'); l.className = 'lc-label'; l.innerHTML = label; parent.appendChild(l); }
+  const d = document.createElement('div');
+  d.className = 'seg-btns' + (opts.length > SEG_GRID_OVER ? ' g2' : '');
+  for (const [v, txt] of opts) {
+    const b = document.createElement('button');
+    b.innerHTML = txt; b.dataset.v = v;
+    b.onclick = () => { set(v); sync(); };
+    d.appendChild(b);
+  }
+  parent.appendChild(d);
+  d.sync = () => { for (const b of d.children) b.classList.toggle('active', String(b.dataset.v) === String(get())); };
+  d.sync();
+  SEGS.push(d);
+  return d;
+}
+/* refresh button states after any segmented choice; the equation strip may depend on it */
+function sync() {
+  for (const s of SEGS) s.sync();
+  DOM.bPlay.textContent = S.running ? '❚❚ Pause' : '▶ Run';
+  $('oaReal').classList.toggle('off', S.mode !== 'real');
+  $('sig1').textContent = CUR.inputs.length > 1 ? 'Inputs' : 'Input signal';
+  eqDirty = true; markDirty();
+  save();
+}
+/* mirror the Tweaks values into the three sidebar checkboxes */
+function syncBox() { for (const [id, k] of SCH_TOGGLES) $(id).checked = TW[k]; }
+let staticRows = [];
+/* controls that do not depend on the circuit: run, op-amp model, supply, load, toggles, keys */
+function buildStatic() {
+  seg($('secRun'), SPEEDS, () => S.speed, v => { S.speed = +v; }, 'Scroll speed');
+  const oa = $('secOA');
+  seg(oa, [['ideal', 'Ideal'], ['real', 'Real']], () => S.mode, v => { S.mode = v; resetSim(); requestRebuild(); });
+  const real = document.createElement('div');
+  real.id = 'oaReal'; oa.appendChild(real);
+  const applyPreset = v => { S.oa.preset = v; Object.assign(S.oa, PRESETS[v]); for (const r of staticRows) r.refresh(); requestRebuild(); };
+  seg(real, Object.keys(PRESETS).map(k => [k, k]), () => S.oa.preset, applyPreset, 'Part preset');
+  const custom = () => { S.oa.preset = PRESET_CUSTOM; for (const s of SEGS) s.sync(); };   // the slider handler requests the rebuild
+  staticRows = [
+    sliderRow(real, { label: `${subH('A', 'OL')} (open-loop gain)`, min: AOL_DB_MIN, max: AOL_DB_MAX, step: AOL_DB_STEP,
+      get: () => DB_PER_DECADE * Math.log10(S.oa.aol), set: v => { S.oa.aol = Math.pow(10, v / DB_PER_DECADE); custom(); },
+      fmt: v => v.toFixed(0) + ' dB' }),
+    sliderRow(real, { label: 'GBW (gain-bandwidth)', min: GBW_MIN, max: GBW_MAX, log: true, get: () => S.oa.gbw, set: v => { S.oa.gbw = v; custom();
+      }, fmt: fmtF }),
+    sliderRow(real, { label: 'Slew rate', min: SR_MIN, max: SR_MAX, log: true, get: () => S.oa.sr, set: v => { S.oa.sr = v; custom(); },
+      fmt: v => fmtSI(v / 1e6, 'V/µs', SI_DIGITS) }),
+    sliderRow(real, { label: `${subH('I', 'lim')} (output current limit)`, min: ILIM_MIN, max: ILIM_MAX, log: true, get: () => S.oa.ilim,
+      set: v => { S.oa.ilim = v; custom(); }, fmt: fmtI }),
+    sliderRow(oa, { label: `Supply ±${subH('V', 'CC')}`, min: VCC_MIN, max: VCC_MAX, step: VCC_STEP, get: () => S.vcc, set: v => { S.vcc = v; },
+      fmt: v => '±' + v.toFixed(1) + VSUFFIX }),
+    sliderRow($('secLoad'), { label: `Load ${subH('R', 'L')}`, min: RL_MIN, max: RL_MAX, log: true, get: () => S.rl, set: v => { S.rl = v; },
+      fmt: fmtR }),
+  ];
+  for (const [id, k] of SCH_TOGGLES) $(id).onchange = e => { TW[k] = e.target.checked; buildTweaks(); markDirty(); save(); };
+  DOM.bPlay.onclick = () => { S.running = !S.running; sync(); };
+  $('bReset').onclick = () => { resetSim(); };
+  DOM.themeBtn.onclick = () => { S.isLight = !S.isLight; applyTheme(); requestRebuild(); save(); };
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); DOM.bPlay.click(); }
+    if (e.key === 'r' || e.key === 'R') resetSim();
+  });
+}
+let dynSegs = [];
+/* controls of the current circuit: component sliders and one box per input signal */
+function buildDynamic() {
+  const sec = $('secCirc'), sg = $('secSig');
+  sec.innerHTML = '<h3>Circuit components</h3>';
+  sg.innerHTML = '<h3 id="sig1">Input signal</h3>';
+  for (const d of dynSegs) { const i = SEGS.indexOf(d); if (i >= 0) SEGS.splice(i, 1); }
+  dynSegs = [];
+  const p = S.p[CUR.id];
+  if (!CUR.params.length) sec.innerHTML += '<div class="hint">No external components — the op-amp alone</div>';
+  for (const pr of CUR.params) sliderRow(sec, { label: pr.label, min: pr.min, max: pr.max, log: pr.log, get: () => p[pr.k],
+    set: v => { p[pr.k] = v; }, fmt: pr.fmt });
+  for (const inp of CUR.inputs) {
+    const s = S.sig[CUR.id + '.' + inp.k];
+    const box = document.createElement('div');
+    box.className = 'sigbox';
+    box.innerHTML = `<div class="signame" style="color:${CH[inp.k] || CH.vin}">${inp.label}</div>`;
+    sg.appendChild(box);
+    let ampRow;
+    /* OA-R3: wavesFor() omits DC for the Integrator; OA-009: amplitude label tracks the waveform */
+    const wseg = seg(box, wavesFor(CUR), () => s.wave, v => { s.wave = coerceWave(CUR, v); requestRebuild(); ampRow.refresh(); });
+    dynSegs.push(wseg);
+    ampRow = sliderRow(box, { labelFn: () => (s.wave === 'dc' ? 'Level' : 'Amplitude (peak)'), label: '', min: AMP_MIN, max: AMP_MAX, log: true,
+      get: () => s.amp, set: v => { s.amp = v; }, fmt: v => fmtSI(v, 'V', SI_DIGITS) });
+    sliderRow(box, { label: 'Frequency', min: F_MIN, max: F_MAX, log: true, get: () => s.f, set: v => { s.f = v; }, fmt: fmtF });
+    /* spec Q12: no offset control on a noDC circuit (Integrator) */
+    if (!CUR.noDC) sliderRow(box, { label: 'DC offset', min: OFF_MIN, max: OFF_MAX, step: OFF_STEP, get: () => s.off, set: v => { s.off = v; }, fmt: fmtV });
+  }
+}
+/* ───────────────────────────── §10 TABS, PAGES, EXPERIMENTS ───────────────────────────── */
+/* switch circuit: reset the sim, rebuild its controls, schematic and strip */
+function setCircuit(id) {
+  CUR = byId(id) || CIRCUITS[0];
+  S.circ = CUR.id;
+  resetSim(); buildDynamic(); requestRebuild();
+  for (const b of $('ctabs').children) b.classList.toggle('active', b.dataset.id === CUR.id);
+  sync();
+}
+/* the nine circuit tabs */
+function buildTabs() {
+  const t = $('ctabs');
+  t.innerHTML = '';
+  CIRCUITS.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.dataset.id = c.id; b.innerHTML = `<em>${i + 1}</em>${c.tab}`;
+    b.onclick = () => setCircuit(c.id);
+    t.appendChild(b);
+  });
+}
+/* show one of the three pages */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === id));
+  document.querySelectorAll('#pageTabs button').forEach(b => b.classList.toggle('active', b.dataset.page === id));
+  if (id === 'simPage') requestAnimationFrame(() => { if (B) B.fit(); });
+  markDirty();
+  save();
+}
+/* OA-008: every experiment carries mode, oa, vcc, rl; params and signals are reset to circuit defaults then overridden */
+function loadExp(cfg) {
+  const c = byId(cfg.circ);
+  S.mode = cfg.mode; S.vcc = cfg.vcc; S.rl = cfg.rl;
+  S.oa.preset = cfg.oa; Object.assign(S.oa, PRESETS[cfg.oa]);
+  S.p[c.id] = {};
+  for (const pr of c.params) S.p[c.id][pr.k] = pr.def;
+  Object.assign(S.p[c.id], cfg.p || {});
+  for (const inp of c.inputs) S.sig[c.id + '.' + inp.k] = Object.assign({}, inp.def);
+  for (const k in cfg.sig || {}) {
+    coerceSig(c, Object.assign(S.sig[c.id + '.' + k], cfg.sig[k]));   // OA-R3
+  }
+  S.running = true; S.speed = SPEED_DEFAULT;   // TST-06: every experiment runs at 1×
+  setCircuit(c.id);
+  for (const r of staticRows) r.refresh();
+  showPage('simPage');
+}
+/* Observe texts were checked against this build with OPAMP.simulate() at the loaded settings (OA-006);
+   the hook exists only when TEST_HOOK is switched on (§13).
+   Exp 2: gain −10, noise gain 11, 741 GBW 1 MHz → fc = 90.9 kHz; 50 mV in → 0.437 V at 50 kHz, 0.353 V at 91 kHz,
+          0.492 V with TL071. (0.5 V in would slew-limit: 2π·50 kHz·5 V = 1.6 V/µs > 0.5 V/µs.)
+   Exp 3: 741 SR 0.5 V/µs, ±10 V square at 5 kHz → 40 µs ramps, peak still 10 V; 10 V sine at 20 kHz → 6.2 V triangle.
+   Exp 4: Real 741, Vd ≈ 49 µV at the output peak, up to 6.0 mV where Vout slews fastest (zero crossings).
+   Exp 5: max of sin x + ½ sin 2x = 1.30 → |Vout| peak 1.80 V; with R2 = 5 kΩ → 2.26 V.
+   Exp 7: RinC = 1 ms, ±1 V square → 0.5 Vpp triangle; it starts in 0…−0.5 V and the RfC = 100 ms leak centres it.
+   Exp 10: Vout runs from −0.01 V to +12.33 V — the slew from 0 V never reaches the negative rail. */
+const EXPERIMENTS = [
+  { n: 1, tag: 'Inverting', title: 'Gain is a resistor ratio',
+    body: 'Inverting amp, R<sub>in</sub> = 10 kΩ, R<sub>f</sub> = 20 kΩ, 1 V sine at 1 kHz, Ideal, ±15 V, R<sub>L</sub> = 10 kΩ. ' +
+      'Sweep R<sub>f</sub> from 20 kΩ to 200 kΩ.',
+    observe: 'Vout peak reads 2.00 V and measured gain −2.0× — exactly R<sub>f</sub>/R<sub>in</sub>. ' +
+      'Above R<sub>f</sub> = 150 kΩ (gain −15) the output reaches the ±15 V rails: the tops flatten and Status turns SATURATED. ' +
+      'On the transfer screen the slope is the gain; clipping bends it horizontal.',
+    cfg: { circ: 'inv', mode: 'ideal', oa: '741', vcc: 15, rl: 10e3, p: { Rin: 10e3, Rf: 20e3 },
+      sig: { vin: { wave: 'sine', amp: 1, f: 1e3, off: 0 } } } },
+  { n: 2, tag: 'Inverting · Real', title: 'Gain-bandwidth product',
+    body: 'Inverting amp, gain −10 (R<sub>in</sub> = 10 kΩ, R<sub>f</sub> = 100 kΩ), 50 mV sine at 50 kHz, Real 741, ±15 V, ' +
+      'R<sub>L</sub> = 10 kΩ. The small amplitude keeps the 741 below its slew limit so only bandwidth is in play.',
+    observe: 'f<sub>−3dB</sub> reads 90.9 kHz (1 MHz / noise gain 11). At 50 kHz Vout peak is ≈ 0.44 V instead of 0.50 V and ' +
+      'lags Vin — the transfer plot opens into an ellipse. Raise f to 91 kHz: Vout ≈ 0.35 V (0.707×). ' +
+      'Switch to TL071 (GBW 3 MHz): f<sub>−3dB</sub> becomes 273 kHz and the 50 kHz output recovers to ≈ 0.49 V.',
+    cfg: { circ: 'inv', mode: 'real', oa: '741', vcc: 15, rl: 10e3, p: { Rin: 10e3, Rf: 100e3 },
+      sig: { vin: { wave: 'sine', amp: 0.05, f: 50e3, off: 0 } } } },
+  { n: 3, tag: 'Follower · Real', title: 'Slew-rate limiting',
+    body: 'Voltage follower, ±10 V square at 5 kHz, Real 741 (SR 0.5 V/µs), ±15 V, R<sub>L</sub> = 10 kΩ.',
+    observe: 'Each 20 V edge is a straight 40 µs ramp (20 V ÷ 0.5 V/µs); Vout still reaches 10 V and Status shows SLEW-LIMITED. ' +
+      'Switch the input to a 10 V sine at 20 kHz: its peak slope 2π·f·V<sub>pk</sub> = 1.26 V/µs exceeds SR, so Vout becomes a ' +
+      'triangle of only ≈ 6.2 V peak (SR/4f). OPA2134 (20 V/µs) reproduces both cleanly and Status returns to LINEAR.',
+    cfg: { circ: 'buf', mode: 'real', oa: '741', vcc: 15, rl: 10e3, sig: { vin: { wave: 'square', amp: 10, f: 5e3, off: 0 } } } },
+  { n: 4, tag: 'Non-inverting', title: 'Where does V− sit?',
+    body: 'Non-inverting amp, gain 3 (R<sub>1</sub> = 10 kΩ, R<sub>f</sub> = 20 kΩ), 2 V sine at 1 kHz, Ideal, ±15 V, ' +
+      'R<sub>L</sub> = 10 kΩ. Turn on "Show V− / V+ traces" in Tweaks.',
+    observe: 'Vout peak reads 6.00 V and the schematic tag between the inputs reads Vd = 0 V. ' +
+      'The dashed V− trace lies exactly on Vin even though V− is connected only to the ' +
+      'output divider — that is negative feedback at work. Switch to Real 741: near the output peak the equation strip shows Vd of ' +
+      'a few tens of µV; elsewhere in the cycle, where Vout changes fastest, Vd rises to about 6 mV.',
+    cfg: { circ: 'ninv', mode: 'ideal', oa: '741', vcc: 15, rl: 10e3, p: { R1: 10e3, Rf: 20e3 },
+      sig: { vin: { wave: 'sine', amp: 2, f: 1e3, off: 0 } } } },
+  { n: 5, tag: 'Summing', title: 'Mixing three signals',
+    body: 'V1 = 1 V sine 1 kHz, V2 = 0.5 V sine 2 kHz, V3 = 0.5 V DC. All resistors 10 kΩ, Ideal, ±15 V, R<sub>L</sub> = 10 kΩ.',
+    observe: 'Vout = −(V1 + V2 + V3): the 2 kHz ripple rides on the inverted 1 kHz fundamental, shifted by −0.5 V. ' +
+      'Vout peak reads 1.80 V (the two sines never peak together: max of sin x + ½ sin 2x is 1.30, plus 0.5 V). ' +
+      'Halve R<sub>2</sub> to 5 kΩ: only V2’s path gain becomes −2 and the peak rises to 2.26 V — ' +
+      'the virtual ground isolates the inputs.',
+    cfg: { circ: 'sum', mode: 'ideal', oa: '741', vcc: 15, rl: 10e3, p: { R1: 10e3, R2: 10e3, R3: 10e3, Rf: 10e3 },
+      sig: { vin: { wave: 'sine', amp: 1, f: 1e3, off: 0 }, v2: { wave: 'sine', amp: 0.5, f: 2e3, off: 0 },
+        v3: { wave: 'dc', amp: 0.5, f: 1e3, off: 0 } } } },
+  { n: 6, tag: 'Difference', title: 'Common-mode rejection',
+    body: 'Difference amp with R<sub>2</sub>/R<sub>1</sub> = R<sub>4</sub>/R<sub>3</sub> = 2. V1 = 1 V sine, V2 = the same 1 V sine ' +
+      'plus +0.5 V offset. Ideal, ±15 V, R<sub>L</sub> = 10 kΩ.',
+    observe: 'The shared sine cancels; Vout is a flat +1.00 V (2 × 0.5 V) and the strip reads CMRR ∞ (matched). ' +
+      'Nudge R<sub>4</sub> to 22 kΩ: the V2 path gain becomes 2.06, a 0.06 V sine leaks through (peak 1.09 V) and CMRR falls to ≈ 30 dB.',
+    cfg: { circ: 'diff', mode: 'ideal', oa: '741', vcc: 15, rl: 10e3, p: { R1: 10e3, R2: 20e3, R3: 10e3, R4: 20e3 },
+      sig: { vin: { wave: 'sine', amp: 1, f: 1e3, off: 0 }, v2: { wave: 'sine', amp: 1, f: 1e3, off: 0.5 } } } },
+  { n: 7, tag: 'Integrator', title: 'Square → triangle, and the leak',
+    body: 'Integrator, R<sub>in</sub> = 10 kΩ, C = 100 nF (R<sub>in</sub>C = 1 ms), ±1 V square at 1 kHz, leak R<sub>f</sub> = 1 MΩ, ' +
+      'Ideal, ±15 V, R<sub>L</sub> = 10 kΩ.',
+    observe: 'Vout is a triangle ramping at 1 V/ms: 0.5 V per half-period, so 0.5 V<sub>pp</sub>. It starts between 0 and −0.5 V ' +
+      '(the capacitor began discharged), and the R<sub>f</sub>C = 100 ms leak slowly re-centres it on 0 V. ' +
+      'Lower R<sub>f</sub> and the re-centring speeds up in step with R<sub>f</sub>C.',
+    cfg: { circ: 'int', mode: 'ideal', oa: '741', vcc: 15, rl: 10e3, p: { Rin: 10e3, C: 100e-9, Rf: 1e6 },
+      sig: { vin: { wave: 'square', amp: 1, f: 1e3, off: 0 } } } },
+  { n: 8, tag: 'Differentiator · Real', title: 'Why R<sub>s</sub> is there',
+    body: 'Differentiator, ±1 V triangle at 1 kHz, C = 100 nF, R<sub>f</sub> = 10 kΩ, R<sub>s</sub> = 1 kΩ, Real TL071, ±15 V, ' +
+      'R<sub>L</sub> = 10 kΩ.',
+    observe: 'Vout is a ±4 V square (R<sub>f</sub>C · dV/dt = 1 ms × 4000 V/s; peak reads ≈ 3.95 V), with a short rounded corner ' +
+      'at each edge set by R<sub>s</sub>C = 0.1 ms. Drop R<sub>s</sub> to 100 Ω: the corner sharpens and the edges overshoot and ' +
+      'ring (peak ≈ 4.4 V) as the high-frequency loop gain climbs. Switch to Ideal and the ringing disappears — ' +
+      'it is an op-amp effect, not a circuit-theory one.',
+    cfg: { circ: 'dif', mode: 'real', oa: 'TL071', vcc: 15, rl: 10e3, p: { Rs: 1e3, C: 100e-9, Rf: 10e3 },
+      sig: { vin: { wave: 'tri', amp: 1, f: 1e3, off: 0 } } } },
+  { n: 9, tag: 'Comparator vs Schmitt', title: 'Hysteresis stops chatter',
+    body: 'Comparator: Vref = 0.5 V, 2 V sine at 1 kHz, Ideal, ±15 V, R<sub>L</sub> = 10 kΩ. Then the Schmitt trigger: ' +
+      'R<sub>1</sub> = 20 kΩ, R<sub>2</sub> = 10 kΩ, Vref = 0, 8 V sine.',
+    observe: 'The comparator flips at exactly Vin = 0.5 V (transfer screen: one vertical step at +0.5 V; Vout ±15 V, SATURATED). ' +
+      'The Schmitt switches at ±5 V (15 V × 10k/30k) — the transfer screen draws the hysteresis rectangle and the V+ trace ' +
+      'jumps between +5 V and −5 V each time the output flips.',
+    cfg: { circ: 'cmp', mode: 'ideal', oa: '741', vcc: 15, rl: 10e3,
+      sig: { vref: { wave: 'dc', amp: 0.5, f: 1e3, off: 0 }, vin: { wave: 'sine', amp: 2, f: 1e3, off: 0 } } },
+    cfg2: { label: 'Load Schmitt', circ: 'sch', mode: 'ideal', oa: '741', vcc: 15, rl: 10e3, p: { R1: 20e3, R2: 10e3 },
+      sig: { vref: { wave: 'dc', amp: 0, f: 1e3, off: 0 }, vin: { wave: 'sine', amp: 8, f: 1e3, off: 0 } } } },
+  { n: 10, tag: 'Comparator · Real', title: 'A 741 is a slow comparator',
+    body: 'Comparator, Vref = 0, 2 V sine at 20 kHz, Real 741, ±15 V, R<sub>L</sub> = 10 kΩ.',
+    observe: 'V<sub>sat</sub> is ±13.8 V, so each transition must slew 27.6 V at 0.5 V/µs — about 55 µs, longer than the 50 µs ' +
+      'period. The output never reaches the rails: starting from 0 V it slews up and back down each half-period, so it is a ' +
+      'unipolar triangle between 0 V and ≈ +12.3 V, and Status reads SLEW-LIMITED. ' +
+      'This is why comparator ICs (LM311, LM339) are built for speed, not gain accuracy.',
+    cfg: { circ: 'cmp', mode: 'real', oa: '741', vcc: 15, rl: 10e3,
+      sig: { vref: { wave: 'dc', amp: 0, f: 1e3, off: 0 }, vin: { wave: 'sine', amp: 2, f: 20e3, off: 0 } } } },
+];
+/* one card per experiment, with its Load button(s) */
+function buildExperiments() {
+  const host = $('expCards');
+  host.innerHTML = '';
+  for (const e of EXPERIMENTS) {
+    const card = document.createElement('div');
+    card.className = 'exp-card';
+    card.innerHTML = `<div class="exp-num">Experiment ${e.n} · ${e.tag}</div><div class="exp-title">${e.title}</div><div \
+class="exp-body">${e.body}</div>` +
+      `<div class="exp-observe">Observe: ${e.observe}</div><div class="exp-foot"></div>`;
+    const foot = card.querySelector('.exp-foot');
+    const mk = (label, cfg, secondary) => {
+      const b = document.createElement('button');
+      b.className = 'nav-btn' + (secondary ? ' secondary' : ''); b.textContent = label;
+      b.onclick = () => loadExp(cfg);
+      foot.appendChild(b);
+    };
+    if (e.cfg2) { mk('Load comparator', e.cfg, true); mk(e.cfg2.label, e.cfg2, false); } else mk('Load setup', e.cfg, false);
+    host.appendChild(card);
+  }
+}
+/* ───────────────────────────── §11 TWEAKS PANEL (vanilla) ─────────────────────────────
+   Theme changes (accent, background, UI scale) re-theme and rebuild the schematic; scope-only changes
+   (trace width, cycles, V−/V+ traces, ±Vsat rails) and the three schematic switches only redraw (CQ-OA-007). */
+/* re-render the panel; its one delegated click listener (syncBox) is attached once in init (CQ-OA-005) */
+function buildTweaks() {
+  const host = DOM.tweaks;
+  host.innerHTML = '';
+  const h = t => { const e = document.createElement('h4'); e.textContent = t; host.appendChild(e); };
+  const row = label => { const r = document.createElement('div'); r.className = 'tw-row'; r.innerHTML = `<span>${label}</span>`;
+    host.appendChild(r); return r; };
+  const theme = () => { applyTheme(); requestRebuild(); save(); };
+  const scopeOnly = () => { renderLegend(); scopeLab.key = ''; markDirty(); save(); };
+  const redraw = () => { markDirty(); save(); };
+  const swatches = (label, key, opts) => {
+    const r = row(label), d = document.createElement('div'); d.className = 'tw-sw';
+    for (const c of opts) {
+      const b = document.createElement('button'); b.style.background = c; b.classList.toggle('active', TW[key] === c);
+      b.onclick = () => { TW[key] = c; buildTweaks(); theme(); };
+      d.appendChild(b);
+    }
+    r.appendChild(d);
+  };
+  const segRow = (label, key, opts) => {
+    const r = row(label), d = document.createElement('div'); d.className = 'tw-seg';
+    for (const o of opts) {
+      const b = document.createElement('button'); b.textContent = o; b.classList.toggle('active', TW[key] === o);
+      b.onclick = () => { TW[key] = o; buildTweaks(); theme(); };
+      d.appendChild(b);
+    }
+    r.appendChild(d);
+  };
+  const slider = (label, key, min, max, step, unit, apply) => {
+    const r = row(label), i = document.createElement('input'), o = document.createElement('output');
+    i.type = 'range'; i.min = min; i.max = max; i.step = step; i.value = TW[key]; o.textContent = TW[key] + unit;
+    i.oninput = () => { TW[key] = +i.value; o.textContent = i.value + unit; apply(); };
+    r.appendChild(i); r.appendChild(o);
+  };
+  const toggle = (label, key, apply) => {
+    const r = row(label), t = document.createElement('div'); t.className = 'tw-tog' + (TW[key] ? ' on' : '');
+    t.onclick = () => { TW[key] = !TW[key]; t.classList.toggle('on', TW[key]); apply(); };
+    r.appendChild(t);
+  };
+  h('Theme');
+  swatches('Accent', 'accent', ACCENT_OPTIONS);
+  segRow('Dark background', 'bgTheme', Object.keys(BG_THEMES));
+  slider('UI scale', 'uiScale', UI_SCALE_MIN, UI_SCALE_MAX, UI_SCALE_STEP, '%', theme);
+  h('Scope');
+  slider('Trace width', 'traceWidth', TRACE_W_MIN, TRACE_W_MAX, TRACE_W_STEP, 'px', scopeOnly);
+  slider('Cycles in window', 'cycles', CYCLES_MIN, CYCLES_MAX, CYCLES_STEP, '', scopeOnly);
+  toggle('Show V− / V+ traces', 'showPins', scopeOnly);
+  toggle('Mark ±Vsat rails', 'showRails', scopeOnly);
+  h('Schematic');
+  toggle('Colour wires by voltage', 'voltColour', redraw);
+  toggle('Moving current arrows', 'showFlow', redraw);
+  toggle('Current values on parts', 'showIval', redraw);
+}
+/* ───────────────────────────── §12 PERSISTENCE ─────────────────────────────
+   load() never trusts storage: JSON is parsed without __proto__ / constructor / prototype keys, only known fields
+   are read, every value is type-checked and range-clamped against the slider ranges, and anything invalid falls
+   back to its default field by field (SEC-OA-01, -02, -04; TST-01). */
+let saveT = 0;
+/* debounced write of the state, the Tweaks and the open page */
+function save() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ S, TW, page: (document.querySelector('.page.active') || {}).id }));
+      } catch (e) { /* storage unavailable */ }
+  }, SAVE_DEBOUNCE_MS);
+}
+const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+const own = (o, k) => isObj(o) && Object.prototype.hasOwnProperty.call(o, k);
+/* finite number clamped to [lo, hi], else the default */
+const num = (v, lo, hi, def) => (typeof v === 'number' && isFinite(v) ? clamp(v, lo, hi) : def);
+const bool = (v, def) => (typeof v === 'boolean' ? v : def);
+const oneOf = (v, list, def) => (list.includes(v) ? v : def);
+/* parse stored JSON into null-prototype objects, dropping unsafe keys */
+function parseStore(raw) {
+  if (typeof raw !== 'string') return null;
+  return JSON.parse(raw, (k, v) => {
+    if (UNSAFE_KEYS.has(k)) return undefined;
+    if (!isObj(v)) return v;
+    const o = Object.create(null);
+    for (const kk of Object.keys(v)) if (!UNSAFE_KEYS.has(kk)) o[kk] = v[kk];
+    return o;
+  });
+}
+/* restore validated state from the v3.1 key, or once from the old v3 key; returns the saved page id or null */
+function load() {
+  let d = null;
+  try {
+    d = parseStore(localStorage.getItem(LS_KEY));
+    if (!isObj(d)) d = parseStore(localStorage.getItem(LS_KEY_OLD));   // migration: valid values only
+  } catch (e) { return null; }
+  if (!isObj(d) || !isObj(d.S)) return null;
+  const o = d.S, D = S_DEFAULT;
+  S.circ = oneOf(o.circ, CIRCUITS.map(c => c.id), D.circ);
+  S.mode = oneOf(o.mode, MODES, D.mode);
+  S.speed = oneOf(o.speed, SPEEDS.map(s => s[0]), D.speed);
+  S.vcc = num(o.vcc, VCC_MIN, VCC_MAX, D.vcc);
+  S.rl = num(o.rl, RL_MIN, RL_MAX, D.rl);
+  S.isLight = bool(o.isLight, D.isLight);
+  S.running = bool(o.running, D.running);
+  const oa = isObj(o.oa) ? o.oa : {};
+  const preset = oneOf(oa.preset, Object.keys(PRESETS).concat(PRESET_CUSTOM), D.oa.preset);
+  const base = PRESETS[preset] || PRESETS[DEFAULT_PRESET];
+  const aolLo = Math.pow(10, AOL_DB_MIN / DB_PER_DECADE), aolHi = Math.pow(10, AOL_DB_MAX / DB_PER_DECADE);
+  S.oa = { preset, aol: num(oa.aol, aolLo, aolHi, base.aol), gbw: num(oa.gbw, GBW_MIN, GBW_MAX, base.gbw),
+    sr: num(oa.sr, SR_MIN, SR_MAX, base.sr), ilim: num(oa.ilim, ILIM_MIN, ILIM_MAX, base.ilim) };
+  for (const c of CIRCUITS) {
+    const sp = own(o.p, c.id) && isObj(o.p[c.id]) ? o.p[c.id] : {};
+    S.p[c.id] = {};
+    for (const pr of c.params) S.p[c.id][pr.k] = num(sp[pr.k], pr.min, pr.max, pr.def);
+    for (const inp of c.inputs) {
+      const key = c.id + '.' + inp.k, ss = own(o.sig, key) && isObj(o.sig[key]) ? o.sig[key] : {}, df = inp.def;
+      S.sig[key] = { wave: oneOf(ss.wave, wavesFor(c).map(w => w[0]), df.wave), amp: num(ss.amp, AMP_MIN, AMP_MAX, df.amp),
+        f: num(ss.f, F_MIN, F_MAX, df.f), off: num(ss.off, OFF_MIN, OFF_MAX, df.off) };
+      coerceSig(c, S.sig[key]);
+    }
+  }
+  const t = isObj(d.TW) ? d.TW : {}, TD = TW_DEFAULT;
+  TW.accent = oneOf(t.accent, ACCENT_OPTIONS, TD.accent);
+  TW.bgTheme = oneOf(t.bgTheme, Object.keys(BG_THEMES), TD.bgTheme);
+  TW.uiScale = num(t.uiScale, UI_SCALE_MIN, UI_SCALE_MAX, TD.uiScale);
+  TW.traceWidth = num(t.traceWidth, TRACE_W_MIN, TRACE_W_MAX, TD.traceWidth);
+  TW.cycles = Math.round(num(t.cycles, CYCLES_MIN, CYCLES_MAX, TD.cycles));
+  for (const k of ['showFlow', 'showPins', 'showRails', 'voltColour', 'showIval']) TW[k] = bool(t[k], TD[k]);
+  return oneOf(d.page, PAGES, null);
+}
+/* ───────────────────────────── §13 INIT ───────────────────────────── */
+const TEST_HOOK = false;   // build flag: true exposes window.OPAMP for test harnesses; always false in the shipped file
+function init() {
+  for (const id of DOM_IDS) DOM[id] = $(id);
+  const page = load();
+  ensureDefaults();
+  CUR = byId(S.circ) || CIRCUITS[0];
+  buildTabs(); buildStatic(); buildExperiments(); buildTweaks(); applyTheme(); setCircuit(CUR.id);   // schematic is built once, on the first frame
+  DOM.tweaks.addEventListener('click', syncBox);
+  document.querySelectorAll('#pageTabs button').forEach(b => { b.onclick = () => showPage(b.dataset.page); });
+  document.querySelectorAll('[data-goto]').forEach(b => { b.onclick = () => showPage(b.dataset.goto); });
+  $('tweaksBtn').onclick = () => DOM.tweaks.classList.toggle('open');
+  if (page && $(page)) showPage(page);
+  /* canvases are sized on resize only (CQ-OA-009); redraw at once so a resized canvas never shows blank */
+  const refit = () => { fitCanvas('scope'); fitCanvas('xy'); markDirty(); if (CUR && DOM.simPage.classList.contains('active') && !rebuildPending) renderSim(0); };
+  if (window.ResizeObserver) { const ro = new ResizeObserver(refit); ro.observe(DOM.scope); ro.observe(DOM.xy); }
+  window.addEventListener('resize', refit);
+  requestAnimationFrame(frame);
+  if (TEST_HOOK) window.OPAMP = { S, TW, resetSim, setCircuit, loadExp, PRESETS, CIRCUITS, EXPERIMENTS,
+    /* headless run: advance `windows` scope windows synchronously, then refresh readouts */
+    simulate(windows) {
+      if (rebuildPending) buildSchematic();
+      const n = Math.ceil(windows * SCOPE_SPEED_DIV / MAX_FRAME_DT);
+      for (let i = 0; i < n; i++) advance(MAX_FRAME_DT);
+      measure(); renderReadouts(); renderEq();
+      return Object.assign({}, meas);
+    } };
+}
+document.addEventListener('DOMContentLoaded', init);
+})();</script>
+</body>
+</html>
