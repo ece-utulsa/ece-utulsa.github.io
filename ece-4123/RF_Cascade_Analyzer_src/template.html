@@ -3,7 +3,7 @@
   RF Cascade Analyzer
   Version: @@VERSION@@
   Released: @@RELEASED@@
-  Changelog: @@CHANGELOG@@
+  Changelog:@@CHANGELOG@@
   Author: Claude Code
   Standards: Research Standards v1; Engineering Domain Standards v1; Physics & Engineering Decisions v1; Visual/UX
     Standards v1 (WCAG 2.2, ISO 9241-110:2020); Code Quality Standards v1; Security Standards v1.
@@ -50,6 +50,7 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type
 /* ── TOP BAR ── brand, the three view tabs, Previous/Next, pause, theme, presentation, help */
 #top{ flex:none; height:calc(56px * var(--k)); display:flex; align-items:center; gap:calc(10px * var(--k)); padding:0 calc(12px * var(--k)); border-bottom:1px solid var(--line); background:var(--bg2) }
 #brand{ font-weight:600; white-space:nowrap; font-size:var(--ft) }
+#verStamp{ flex:none; font-size:calc(14px * var(--k)); color:var(--mut); white-space:nowrap }   /* version stamp: stays visible in presentation */
 #tabs{ display:flex; gap:0; margin-right:auto }
 #tabs button{ border-radius:0; font-size:var(--ft); font-weight:600; padding:.15em .8em } #tabs button:first-child{ border-radius:6px 0 0 6px } #tabs button:last-child{ border-radius:0 6px 6px 0 }
 #tabs button[aria-selected="true"]{ background:var(--txt); color:var(--bg); border-color:var(--txt) }
@@ -95,6 +96,7 @@ dialog::backdrop{ background:rgba(0,0,0,.6) } dialog table td{ padding:.1em .8em
   <button type="button" id="themeBtn" aria-label="Toggle theme (T)">Theme</button>
   <button type="button" id="presentBtn" aria-pressed="false" aria-label="Presentation mode (F)">Present</button>
   <button type="button" id="helpBtn" aria-label="Keyboard help (?)">?</button>
+  <span id="verStamp" title="RF Cascade Analyzer @@VERSION@@, released @@RELEASED@@">@@VERSION@@</span>
 </header>
 <main id="main">
   <section id="drawCol" aria-label="Drawing">

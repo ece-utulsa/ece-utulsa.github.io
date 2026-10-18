@@ -22,7 +22,7 @@ const MATCH_EPS = 0.01;          // |S11| below this: "source sees a match"
 const RIVER_ROOM = 140;          // the flow panel's height less its tallest band (heading, values, reflected arrows)
 const RIVER_UNIT = 36;           // band height for power 1 when nothing in the chain is larger
 const REFL_X = 3, REFL_MAX = 30; // reflected arrows are drawn REFL_X× the band scale, reduced so none is thicker than REFL_MAX
-const LY_K = { src: 48, srcR: 26, chainY: 100, bh: 80, bw: 120, left: 100, loadW: 100, plusR: 16, plusDy: 46, s2: 184, s3up: 96 };
+const LY_K = { src: 48, srcR: 26, chainY: 100, bh: 80, bw: 120, left: 100, loadW: 100, plusR: 16, plusW: 40, s2: 184, s3up: 96 };
 // Tallest band (units) for a drawing H units tall; the band scale is the smaller of RIVER_UNIT and this over the largest power.
 const riverMax = H => H - LY_K.s3up - LY_K.s2 - RIVER_ROOM;
 // ── END CONSTANTS ─────────────────────────────────────────────
@@ -59,12 +59,13 @@ function solveChain(){
 
 // ── DRAWING ───────────────────────────────────────────────────
 /* x positions: each block's left edge, the load's left edge, the junction x's (junction 0 between the source and block
-   1, junction N at the load), and the "+" centre: just after the last block, below the wire (it is not a chain element). */
+   1, junction N at the load), and the "+" centre. The "+" has its own slot on the wire after the last block, with the
+   same gap on both sides (the slot is kept at 4 blocks, where the "+" is disabled). */
 function chainGeo(){
-  const N = K.blocks.length, loadX = DESIGN_W - 12 - LY_K.loadW, span = loadX - LY_K.left, gap = (span - N * LY_K.bw) / (N + 1);
+  const N = K.blocks.length, loadX = DESIGN_W - 12 - LY_K.loadW, span = loadX - LY_K.left, gap = (span - N * LY_K.bw - LY_K.plusW) / (N + 2);
   const bx = K.blocks.map((_, i) => LY_K.left + gap + i * (LY_K.bw + gap));
   const jx = [(LY_K.src + LY_K.srcR + bx[0]) / 2].concat(bx.map((x, i) => (i < N - 1 ? (x + LY_K.bw + bx[i + 1]) / 2 : (x + LY_K.bw + loadX) / 2)));
-  return { N, bx, loadX, jx, plusX: bx[N - 1] + LY_K.bw + gap / 2, plusY: LY_K.chainY + LY_K.plusDy };
+  return { N, bx, loadX, jx, gap, plusX: bx[N - 1] + LY_K.bw + gap + LY_K.plusW / 2, plusY: LY_K.chainY };
 }
 // A clickable group on the drawing (role=button, keyboard focusable).
 const btnG = (attrs, label, inner) => el('g', Object.assign({ role: 'button', tabindex: 0, 'aria-label': label, class: 'hit' }, attrs), inner);
@@ -83,11 +84,11 @@ function drawChain(G){
       + txt(cx, top + 54, keyValue(b), { anchor: 'middle', fill: b.type === 'amp' ? 'var(--s21)' : 'var(--txt)', cls: 'keyv' }));
     if(G.N > 1) s += btnG({ 'data-del': i }, 'Remove block ' + (i + 1),
       el('circle', { cx: x + LY_K.bw, cy: top, r: 12, fill: 'var(--bg)', stroke: 'var(--mut)', 'stroke-width': 1.5 }) + crossMark(x + LY_K.bw, top, 5, 'var(--mut)')); });
-  // "+" after the last block, below the wire; disabled and greyed at MAX_BLOCKS
+  // "+" in its own slot on the wire after the last block; disabled and greyed at MAX_BLOCKS ("Up to 4 blocks")
   const full = G.N >= MAX_BLOCKS, px = G.plusX, py = G.plusY, pc = full ? 'var(--mut)' : 'var(--txt)';
   s += btnG({ 'data-add': 1, 'aria-expanded': K.menu ? 'true' : 'false', 'aria-disabled': full ? 'true' : null, opacity: full ? 0.35 : null },
-    full ? 'Add a block (the chain is full: ' + MAX_BLOCKS + ' blocks)' : 'Add a block after block ' + G.N,
-    el('circle', { cx: px, cy: py, r: LY_K.plusR, fill: 'var(--panel)', stroke: pc, 'stroke-width': 2 })
+    full ? 'Add a block: up to ' + MAX_BLOCKS + ' blocks' : 'Add a block after block ' + G.N,
+    el('title', {}, full ? 'Up to ' + MAX_BLOCKS + ' blocks' : 'Add a block') + el('circle', { cx: px, cy: py, r: LY_K.plusR, fill: 'var(--panel)', stroke: pc, 'stroke-width': 2 })
     + el('path', { d: 'M' + n2(px - 8) + ' ' + py + 'h16M' + n2(px) + ' ' + (py - 8) + 'v16', stroke: pc, 'stroke-width': 3 }));
   s += el('rect', { x: G.loadX, y: top, width: LY_K.loadW, height: LY_K.bh, rx: 8, fill: 'var(--bg2)', stroke: 'var(--txt)', 'stroke-width': 2, class: 'load' });
   s += txt(G.loadX + LY_K.loadW / 2, top + 24, 'Load', { anchor: 'middle' }) + txt(G.loadX + LY_K.loadW / 2, top + 54, K.load.kind === 'open' ? '∞' : loadText().replace(' (short)', ' Ω'), { anchor: 'middle', id: 'loadVal' });

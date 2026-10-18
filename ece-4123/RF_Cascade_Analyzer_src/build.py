@@ -20,15 +20,17 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 RELEASED = '2026-10-18'
-CHANGELOG = ('Normalized waves on Devices; forward/reverse; polish (2 significant figures, Cascade alignment, larger '
-             'Devices drawing, readable reflection paths). Rework to three views (Reflections, Devices, Cascade) after review of PR #43: the six Lecture steps, '
-             'the step rail and the old Lab (cascade and divider tables, source EMF/Zs) are replaced; Devices keeps the '
-             'two-port path diagram with path width proportional to |S|; Cascade adds the power-flow band and dB budget. '
-             'Earlier in v1.1.0: fixes PF-1 (open load read as a short), PF-2 (Deg/Rad switch changed the network), PF-3 '
-             '(negative VSWR), PF-5 (insertion-loss sign), PF-6 (invalid input read as 0); circulator preset removed; '
-             'Tweaks panel, postMessage bridge and CRT themes removed')
+CHANGELOG = ('\n    v1.2.0 - Three views (Reflections, Devices, Cascade); normalized waves a/b on Devices with forward/reverse '
+             'drive; version stamp in presentation mode; layout fixes.'
+             '\n    v1.1.0 - Normalized waves on Devices; forward/reverse; polish (2 significant figures, Cascade alignment, '
+             'larger Devices drawing, readable reflection paths). Rework to three views (Reflections, Devices, Cascade) after '
+             'review of PR #43: the six Lecture steps, the step rail and the old Lab (cascade and divider tables, source '
+             'EMF/Zs) are replaced; Devices keeps the two-port path diagram with path width proportional to |S|; Cascade adds '
+             'the power-flow band and dB budget. Visual-first rebuild fixes PF-1 (open load read as a short), PF-2 (Deg/Rad '
+             'switch changed the network), PF-3 (negative VSWR), PF-5 (insertion-loss sign), PF-6 (invalid input read as 0); '
+             'circulator preset removed; Tweaks panel, postMessage bridge and CRT themes removed.')
 # ── END RELEASE ───────────────────────────────────────────────────────
 
 SCRIPTS = ['engine.js', 'ui.js', 'reflections.js', 'devices.js', 'cascade.js', 'main.js']
