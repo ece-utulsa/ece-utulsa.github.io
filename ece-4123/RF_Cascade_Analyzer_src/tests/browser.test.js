@@ -113,7 +113,7 @@ const devGapIssues = page => page.evaluate(() => {
   const bad = [], R = e => e.getBoundingClientRect(), svg = R(document.querySelector('#stage svg')), box = R(document.querySelector('#stage .box'));
   const labs = ['wa1', 'wa2', 'wb1', 'wb2'].map(id => [id, R(document.getElementById(id))]), b = labs.filter(([id]) => id[1] === 'b').map(([, r]) => r);
   const mat = R(document.querySelector('#stage .matrix')), num = R(document.getElementById('numLine')), badges = [...document.querySelectorAll('#stage .badge')].map(R);
-  const g = (name, v, min) => { if(v < min - 0.5) bad.push(name + ' ' + v.toFixed(1) + ' < ' + min); };
+  const g = (name, v, min) => { if(v < min - 0.05) bad.push(name + ' ' + v.toFixed(1) + ' < ' + min); };
   b.forEach(r => g('box→b label', r.top - box.bottom, 24)); b.forEach(r => g('b label→matrix', mat.top - r.bottom, 16));
   g('numeric line→badges', Math.min(...badges.map(r => r.top)) - num.bottom, 12); g('badges→screen bottom', window.innerHeight - Math.max(...badges.map(r => r.bottom)), 12);
   labs.forEach(([id, r]) => { g(id + ' from left edge', r.left - svg.left, 16); g(id + ' from divider', svg.right - r.right, 16); });

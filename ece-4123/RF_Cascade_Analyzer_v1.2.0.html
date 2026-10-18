@@ -870,7 +870,7 @@ function drawTwoPort(H, kind, p){
   // in the row under the box at the arrow's outer end. Labels keep LY_D.edge from the drawing's sides; the driven
   // output (b2 Forward, b1 Reverse) is larger and bold. A label too long for half the width breaks into two lines.
   const xa = bx - LY_D.edge, fwd = D.drive === 'fwd', colB1 = fwd ? 'var(--s11)' : 'var(--s12)', colB2 = fwd ? 'var(--s21)' : 'var(--s22)';
-  const xL = LY_D.edge, xR = DESIGN_W - LY_D.edge, half = DESIGN_W / 2 - LY_D.edge - 12;
+  const xL = LY_D.edge, xR = DESIGN_W - LY_D.edge - 2, half = DESIGN_W / 2 - LY_D.edge - 12;
   const label = (name, c, col, x, y, anchor, big) => { const size = big ? FS_OUT : FS.label, head = name.replace(/(\d)$/, '_$1') + ' =', val = waveText(c);
     const o = { anchor, fill: col, size, weight: big ? 700 : 600, cls: 'wlabel' + (big ? ' out' : '') };
     if(textW(head + ' ' + val, size) <= half) return txt(x, y, head + ' ' + val, Object.assign(o, { id: 'w' + name }));
