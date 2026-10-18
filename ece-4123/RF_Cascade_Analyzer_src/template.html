@@ -10,7 +10,8 @@
   References: D. M. Pozar, Microwave Engineering, 4th ed., Wiley, 2012 (§2.3, §4.3, §4.5, §7.1-7.3, §12.1);
     G. Gonzalez, Microwave Transistor Amplifiers, 2nd ed., Prentice Hall, 1997 (Ch. 1-3);
     K. Kurokawa, "Power waves and the scattering matrix," IEEE Trans. MTT 13(2), 1965;
-    HP Application Note 95-1, S-Parameter Techniques; spec_RF_Cascade_Analyzer_v1.1.0 (signed off 2026-10-18).
+    HP Application Note 95-1, S-Parameter Techniques; spec_RF_Cascade_Analyzer_v1.1.0 (signed off 2026-10-18),
+    as amended by 2026-10-18_ClaudeCode_briefing_RFCascade_v1.1.0_rework (three views).
   Font: IBM Plex Mono (SIL Open Font License 1.1), embedded. No network requests at run time.
 -->
 <html lang="en">
@@ -21,153 +22,99 @@
 <title>RF Cascade Analyzer @@VERSION@@</title>
 <style>
 @@FONTFACES@@
-/* ── THEMES ── standard dark (windowed, Lab) and light Projector (presentation default), spec E-Q1 */
+/* ── THEMES ── standard dark (windowed) and light Projector (presentation default); T toggles */
 :root{
   --bg:#0f1218; --bg2:#161b22; --panel:#1c222b; --line:#2f3845; --txt:#e6ebf2; --mut:#a7b1c2; --focus:#ffd479;
-  --s11:#ffb02e; --s21:#3ddc84; --s12:#a5a3ff; --s22:#ff7070; --abs:#9aa4b5; --neutral:#e6ebf2; --bad:#ff8a80;
-  --fa:14px; --fl:16px; --ft:18px; --fh:26px;
+  --s11:#ffb02e; --s21:#3ddc84; --s12:#a5a3ff; --s22:#ff7070; --neutral:#e6ebf2; --bad:#ff8a80;
+  --k:1; --fl:18px; --fh:46px; --ft:20px;
 }
 body.light{
-  --bg:#ffffff; --bg2:#eef1f5; --panel:#f6f8fb; --line:#b8c0cc; --txt:#111827; --mut:#374151; --focus:#1d4ed8;
-  --s11:#9a5200; --s21:#11703a; --s12:#4338ca; --s22:#b91c1c; --abs:#4b5563; --neutral:#111827; --bad:#b91c1c;
+  --bg:#ffffff; --bg2:#eef1f5; --panel:#f6f8fb; --line:#b8c0cc; --txt:#111827; --mut:#4b5563; --focus:#1d4ed8;
+  --s11:#b45309; --s21:#15803d; --s12:#6d28d9; --s22:#dc2626; --neutral:#111827; --bad:#b91c1c;
 }
 *{ box-sizing:border-box; margin:0; padding:0 }
 html,body{ height:100%; overflow:hidden }
-body{ background:var(--bg); color:var(--txt); font-family:'IBM Plex Mono','DejaVu Sans Mono',Menlo,Consolas,ui-monospace,monospace; font-size:var(--fa); line-height:1.25;
+body{ background:var(--bg); color:var(--txt); font-family:'IBM Plex Mono','DejaVu Sans Mono',Menlo,Consolas,ui-monospace,monospace; font-size:var(--fl); line-height:1.25;
   display:flex; flex-direction:column }
-button,select,input{ font:inherit; color:inherit }
-button{ background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:.25em .6em; cursor:pointer }
+button,input{ font:inherit; color:inherit }
+button{ background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:.2em .55em; cursor:pointer; min-height:calc(36px * var(--k)) }
 button:hover{ border-color:var(--mut) }
 button[aria-pressed="true"], button.on{ background:var(--txt); color:var(--bg); border-color:var(--txt) }
+button:disabled{ opacity:.4; cursor:default }
 :focus-visible{ outline:3px solid var(--focus); outline-offset:2px }
-select,input[type=text],input[type=number]{ background:var(--bg2); border:1px solid var(--line); border-radius:5px; padding:.15em .35em; min-width:0 }
+input[type=text],input[type=number]{ background:var(--bg2); border:1px solid var(--line); border-radius:5px; padding:.1em .3em; min-width:0; width:4.6em }
 input.invalid{ border-color:var(--bad); outline:2px solid var(--bad) }
-input[type=range]{ width:100%; accent-color:var(--txt); min-height:28px }
-.hidden{ display:none !important }
-sub{ font-size:max(.75em, var(--fa)); vertical-align:-.2em; line-height:0 }
-/* ── TOP BAR ── */
-#top{ display:flex; align-items:center; gap:.8em; padding:.35em .8em; border-bottom:1px solid var(--line); background:var(--bg2); flex:none }
-#brand{ font-weight:600; white-space:nowrap }
-.seg{ display:inline-flex; gap:0 } .seg button{ border-radius:0 } .seg button:first-child{ border-radius:6px 0 0 6px } .seg button:last-child{ border-radius:0 6px 6px 0 }
-#titleBox{ flex:1; min-width:0; display:flex; flex-direction:column; gap:.15em }
-#stepTitle{ font-size:var(--ft); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-#dots{ display:flex; gap:.6em; align-items:center }
-#dots .sd{ display:inline-flex; gap:3px; align-items:center }
-#dots i{ display:inline-block; width:10px; height:10px; border-radius:50%; border:2px solid var(--mut) }
-#dots i.cur{ background:var(--txt); border-color:var(--txt) }
-#dots i.beat{ width:7px; height:7px; border-width:1px } #dots i.beat.cur{ background:var(--mut) }
-.navb{ min-width:44px; min-height:44px; font-size:var(--fl); font-weight:600 }
-/* ── LECTURE LAYOUT ── three columns: steps rail, stage, readouts and controls */
-#lecture{ flex:1; min-height:0; display:grid; grid-template-columns:minmax(170px,15%) 1fr minmax(300px,26%); }
-#rail{ border-right:1px solid var(--line); padding:.6em; overflow:auto; display:flex; flex-direction:column; gap:.4em }
-#rail button{ text-align:left; padding:.45em .55em } #rail button small{ display:block; color:var(--mut); font-size:var(--fa) }
-#stageCol{ display:flex; flex-direction:column; min-width:0; min-height:0; padding:.4em .6em }
-#chip{ display:flex; align-items:center; gap:.5em; flex:none; padding-bottom:.3em }
-#chip label{ color:var(--mut) }
-#stage{ position:relative; flex:1; min-height:0 }
-#stage svg.vis{ position:absolute; inset:0; width:100%; height:100%; overflow:visible }
-#stage .overlay{ position:absolute; inset:0 }
-#side{ border-left:1px solid var(--line); padding:.6em; display:flex; flex-direction:column; gap:.6em; min-height:0; overflow:hidden }
-#readouts{ display:flex; flex-direction:column; gap:.35em }
-.ro{ display:flex; flex-direction:column } .k{ color:var(--mut) } .ro .v{ font-weight:600 }
-.ro.head .v{ font-size:var(--fh); line-height:1 } .ro.lab .v{ font-size:var(--fl) }
-.ro.line{ flex-direction:row; flex-wrap:wrap; column-gap:.5em; align-items:baseline } .ro.line .k{ font-size:var(--fl); font-weight:600; color:inherit } .ro.line .v{ font-size:var(--fl) }
-.s-name{ font-size:var(--fl) } .ro.sub .v{ font-weight:400 } .heads{ display:grid; grid-template-columns:1fr 1fr; gap:.2em .6em }
-.badge{ display:inline-block; border:2px solid var(--txt); border-radius:6px; padding:.05em .4em; font-weight:600 }
-.badge.off{ border-style:dashed; color:var(--mut); border-color:var(--mut) }
-#controls{ display:flex; flex-direction:column; gap:.45em }
-.ctl{ display:flex; flex-direction:column; gap:.15em }
-.ctl .row{ display:flex; gap:.4em; align-items:center } .ctl .row input[type=number]{ width:6.5em }
-.btnrow{ display:flex; gap:.4em; flex-wrap:wrap }
-details summary{ cursor:pointer; color:var(--mut) }
-table.t6{ border-collapse:collapse } table.t6 td,table.t6 th{ border:1px solid var(--line); padding:.1em .35em; text-align:left }
-table.t6 tr.hl td{ outline:3px solid var(--txt); font-weight:600 }
-.s11{ color:var(--s11) } .s21{ color:var(--s21) } .s12{ color:var(--s12) } .s22{ color:var(--s22) }
-/* Step 6 cards (HTML over the stage) */
-.cards{ position:absolute; inset:0; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:.5em }
-.card{ border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:.35em .5em; display:flex; flex-direction:column; min-height:0; min-width:0 }
-.card.cur{ border:3px solid var(--txt) } .card h3{ font-size:var(--fl) } .card svg{ flex:1; min-height:0; width:100% }
-.card .foot{ display:flex; justify-content:space-between; align-items:center; gap:.3em }
-.card .badges{ display:flex; gap:.25em; flex-wrap:wrap } .card .badges .badge{ font-size:var(--fa); padding:0 .25em }
-/* ── PRESENTATION ── rail hidden, stage ~70 % of the width (spec A.4) */
-body.present #brand, body.present #modeSwitch, body.present #helpBtn, body.present footer, body.present #rail{ display:none }
-body.present #lecture{ grid-template-columns:70% 30% }
-body.present #side{ padding:.3em .5em; gap:.25em } body.present #readouts{ gap:.2em }
-body.present table.t6 td, body.present table.t6 th{ padding:0 .3em }
-body.present #top{ flex-wrap:wrap; row-gap:0; padding:.1em .6em .2em }
-body.present #titleBox{ display:contents }
-body.present #stepTitle{ flex:1 1 100%; order:0; line-height:1.15 }
-body.present #dots{ order:1; margin-right:auto }
-body.present #top > button{ order:2 }
-body.present .ctl{ flex-direction:row; align-items:center; gap:.3em }
-body.present .ctl > label{ flex:none; max-width:6em }
-body.present .ctl .row{ flex:1; min-width:0 } body.present .ctl .row input[type=number]{ width:4.4em }
+input[type=range]{ flex:1; min-width:0; accent-color:var(--txt); min-height:calc(28px * var(--k)) }
 input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0 }
-body.present .cards{ grid-template-columns:1fr; grid-template-rows:1fr auto }
-body.present .cards .card:not(.cur){ display:none }
-body.present .thumbs{ display:flex !important }
-.thumbs{ display:none; gap:.4em } .thumbs button{ flex:1 }
-/* ── LAB ── three columns: settings, chain, results (spec A.9) */
-#lab{ flex:1; min-height:0; display:grid; grid-template-columns:minmax(250px,22%) 1fr minmax(330px,30%); }
-#lab > section{ min-height:0; overflow:auto; padding:.6em; display:flex; flex-direction:column; gap:.6em }
-#lab > section + section{ border-left:1px solid var(--line) }
-#lab h2{ font-size:var(--fl) } #lab fieldset{ border:1px solid var(--line); border-radius:6px; padding:.4em .5em; display:flex; flex-direction:column; gap:.35em }
-#lab legend{ color:var(--mut); padding:0 .3em }
-#lab label.f{ display:flex; flex-direction:column; gap:.1em } #lab label.f input{ width:100% }
-#lab .err{ color:var(--bad) }
-.chain{ display:flex; gap:.5em; overflow-x:auto; padding-bottom:.3em; flex:none }
-.dev{ border:1px solid var(--line); border-radius:6px; background:var(--panel); padding:.4em; min-width:230px; display:flex; flex-direction:column; gap:.3em }
-.dev .sg{ display:grid; grid-template-columns:auto 1fr; gap:.2em .3em; align-items:center }
-table.res{ border-collapse:collapse; width:100% } table.res td,table.res th{ padding:.12em .3em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top }
-table.res td.v{ font-weight:600 }
-.smat{ display:grid; grid-template-columns:1fr 1fr; gap:.3em }
-.smat div{ border:1px solid var(--line); border-radius:5px; padding:.2em .35em }
-#flow{ width:100%; flex:none }
-footer{ flex:none; border-top:1px solid var(--line); padding:.2em .8em; color:var(--mut); display:flex; justify-content:space-between }
-dialog{ margin:auto; background:var(--panel); color:var(--txt); border:2px solid var(--line); border-radius:8px; padding:1em; max-width:min(90vw,60em); max-height:90vh; overflow:auto }
-dialog::backdrop{ background:rgba(0,0,0,.6) } dialog table td{ padding:.1em .6em .1em 0 }
+.hidden{ display:none !important }
+/* ── TOP BAR ── brand, the three view tabs, Previous/Next, pause, theme, presentation, help */
+#top{ flex:none; height:calc(56px * var(--k)); display:flex; align-items:center; gap:calc(10px * var(--k)); padding:0 calc(12px * var(--k)); border-bottom:1px solid var(--line); background:var(--bg2) }
+#brand{ font-weight:600; white-space:nowrap; font-size:var(--ft) }
+#tabs{ display:flex; gap:0; margin-right:auto }
+#tabs button{ border-radius:0; font-size:var(--ft); font-weight:600; padding:.15em .8em } #tabs button:first-child{ border-radius:6px 0 0 6px } #tabs button:last-child{ border-radius:0 6px 6px 0 }
+#tabs button[aria-selected="true"]{ background:var(--txt); color:var(--bg); border-color:var(--txt) }
+.navb{ min-width:calc(44px * var(--k)); min-height:calc(44px * var(--k)); font-weight:600 }
+/* ── MAIN ── drawing area (left) and one side panel (right, 380 px at 1280×720) */
+#main{ flex:1; min-height:0; display:grid; grid-template-columns:1fr calc(380px * var(--k)) }
+#drawCol{ display:flex; flex-direction:column; min-width:0; min-height:0 }
+#devbar{ flex:none; height:calc(48px * var(--k)); display:flex; gap:calc(6px * var(--k)); align-items:center; padding:0 calc(12px * var(--k)) }
+#stage{ position:relative; flex:1; min-height:0; min-width:0 }
+#stage svg.vis{ position:absolute; inset:0; width:100%; height:100%; display:block }
+#stage [role=button]{ cursor:pointer } #stage [role=button]:focus{ outline:none } #stage [role=button]:focus-visible .block, #stage [role=button]:focus-visible circle{ stroke:var(--focus); stroke-width:5 }
+.addmenu{ position:absolute; display:flex; flex-direction:column; gap:4px; background:var(--panel); border:2px solid var(--txt); border-radius:8px; padding:6px; z-index:2 }
+.addmenu button{ text-align:left }
+#panel{ border-left:1px solid var(--line); padding:calc(12px * var(--k)); display:flex; flex-direction:column; gap:calc(12px * var(--k)); min-height:0; overflow:hidden }
+.heads{ display:grid; grid-template-columns:1fr 1fr; gap:.4em }
+.ro.head{ display:flex; flex-direction:column } .ro .k{ color:var(--mut) } .ro.head .v{ font-size:var(--fh); font-weight:600; line-height:1.1; white-space:nowrap }
+.ctl{ display:flex; flex-direction:column; gap:.2em } .ctl .row{ display:flex; gap:.4em; align-items:center }
+.btnrow{ display:flex; gap:.4em; flex-wrap:wrap }
+.note{ color:var(--mut) }
+.sec{ color:var(--mut); font-weight:600; border-top:1px solid var(--line); padding-top:.4em }
+.sec:first-child{ border-top:0; padding-top:0 }
+.srows{ display:flex; flex-direction:column; gap:.3em } .srow{ display:flex; gap:.35em; align-items:center } .srow input[type=number]{ width:3.6em }
+.sname{ font-weight:600; min-width:2.2em }
+.chk{ display:flex; gap:.4em; align-items:center } .chk input{ width:calc(20px * var(--k)); height:calc(20px * var(--k)); accent-color:var(--txt) }
+.slines{ display:flex; flex-direction:column; gap:.15em } .sline{ display:flex; gap:.5em } .sv{ font-weight:600 }
+.s11{ color:var(--s11) } .s21{ color:var(--s21) } .s12{ color:var(--s12) } .s22{ color:var(--s22) }
+footer{ flex:none; border-top:1px solid var(--line); padding:.1em .8em; color:var(--mut); display:flex; justify-content:space-between; font-size:14px }
+/* ── PRESENTATION ── brand, help and footer hidden; sizes scale with the viewport height (--k) */
+body.present #brand, body.present #helpBtn, body.present footer{ display:none }
+dialog{ margin:auto; background:var(--panel); color:var(--txt); border:2px solid var(--line); border-radius:8px; padding:1em; max-width:min(90vw,44em); max-height:90vh; overflow:auto }
+dialog::backdrop{ background:rgba(0,0,0,.6) } dialog table td{ padding:.1em .8em .1em 0 } dialog h2{ font-size:var(--ft); margin-bottom:.4em } dialog p{ margin-top:.6em }
 @media (prefers-reduced-motion:reduce){ *{ transition:none !important } }
 </style>
 </head>
 <body>
 <header id="top">
   <span id="brand">RF Cascade Analyzer</span>
-  <div class="seg" id="modeSwitch" role="group" aria-label="Mode">
-    <button type="button" id="modeLecture" aria-pressed="true">Lecture</button><button type="button" id="modeLab" aria-pressed="false">Lab</button>
-  </div>
-  <div id="titleBox"><div id="stepTitle" aria-live="polite"></div><div id="dots" aria-hidden="true"></div></div>
-  <button type="button" class="navb" id="prevBtn" aria-label="Previous (ArrowLeft, PageUp)">&#8249;</button>
+  <div id="tabs" role="tablist" aria-label="Views"></div>
+  <button type="button" class="navb" id="prevBtn" aria-label="Previous (ArrowLeft, PageUp, Shift+Space)">&#8249;</button>
   <button type="button" class="navb" id="nextBtn" aria-label="Next (ArrowRight, PageDown, Space)">&#8250;</button>
   <button type="button" id="pauseBtn" aria-label="Pause animation (P)">Pause</button>
   <button type="button" id="themeBtn" aria-label="Toggle theme (T)">Theme</button>
-  <button type="button" id="presentBtn" aria-label="Presentation mode (F)">Present</button>
+  <button type="button" id="presentBtn" aria-pressed="false" aria-label="Presentation mode (F)">Present</button>
   <button type="button" id="helpBtn" aria-label="Keyboard help (?)">?</button>
 </header>
-<main id="lecture">
-  <nav id="rail" aria-label="Lecture steps"></nav>
-  <section id="stageCol" aria-label="Stage">
-    <div id="chip"><label for="devSel">Device</label><select id="devSel"></select></div>
+<main id="main">
+  <section id="drawCol" aria-label="Drawing">
+    <div id="devbar" class="hidden" role="group" aria-label="Device"></div>
     <div id="stage"></div>
   </section>
-  <aside id="side" aria-label="Readouts and controls"><div id="readouts" aria-live="polite"></div><div id="controls"></div></aside>
-</main>
-<main id="lab" class="hidden" aria-label="Lab">
-  <section id="labLeft"></section><section id="labMid"></section><section id="labRight"></section>
+  <aside id="panel" aria-label="Controls and readouts" aria-live="polite"></aside>
 </main>
 <footer><span>RF Cascade Analyzer @@VERSION@@ · released @@RELEASED@@ · Author: Claude Code</span><span>ECE 4123/6423 · University of Tulsa</span></footer>
 <dialog id="help" aria-label="Keyboard help">
   <h2>Keys</h2>
   <table>
-    <tr><td>Next beat</td><td>ArrowRight · PageDown · Space · N</td></tr>
-    <tr><td>Previous beat</td><td>ArrowLeft · PageUp · Shift+Space</td></tr>
+    <tr><td>Next</td><td>ArrowRight · PageDown · Space</td></tr>
+    <tr><td>Previous</td><td>ArrowLeft · PageUp · Shift+Space</td></tr>
     <tr><td>First / last</td><td>Home · End</td></tr>
-    <tr><td>Jump to step</td><td>Alt+1 … Alt+6</td></tr>
+    <tr><td>Go to a view</td><td>Alt+1 Reflections · Alt+2 Devices · Alt+3 Cascade</td></tr>
     <tr><td>Presentation</td><td>F (Esc leaves)</td></tr>
     <tr><td>Theme</td><td>T</td></tr>
     <tr><td>Pause / play</td><td>P</td></tr>
-    <tr><td>Step 2: select S</td><td>1 S11 · 2 S21 · 3 S12 · 4 S22</td></tr>
-    <tr><td>Step 3: reverse</td><td>R</td></tr>
   </table>
+  <p>Next and Previous move between the views; inside Devices they also step through the devices.</p>
   <p>PageUp and PageDown always move, even on a slider (presentation clickers send them).</p>
   <p><button type="button" id="helpClose">Close</button></p>
 </dialog>

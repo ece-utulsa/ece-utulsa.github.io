@@ -1,130 +1,100 @@
-/* RF Cascade Analyzer — UI helpers: text sizes for windowed and presentation views, SVG drawing primitives (arrows,
-   bars, text) that follow the spec A.7 encoding rules and carry data-q / data-v (A.6.2), and HTML control builders.
-   SVG is drawn in real CSS pixels (no viewBox scaling), so drawn lengths and font sizes are what the page shows. */
+/* RF Cascade Analyzer — UI helpers: text sizes, SVG drawing primitives (text, band arrows, chevrons, ✕ marks) that
+   carry data-q / data-v for the developer tests, and HTML control builders shared by the three views.
+   Every drawing is made in a design space 900 units wide (DESIGN_W); its height follows the drawing area's aspect.
+   At 1280×720 in presentation mode the drawing area is 900 px wide, so one design unit is one CSS pixel there. */
 /* ============================================================
    TABLE OF CONTENTS
-   1. Constants        — text sizes, arrow encoding limits, S colours and names
-   2. Sizes            — windowed and presentation text sizes (spec A.6.4, A.6.5)
-   3. SVG primitives   — escaping, elements, text, patterns
-   4. Encodings        — amplitude arrows, power arrows, power-bar segments (spec A.7)
-   5. HTML controls    — element builder, sliders with number boxes, buttons, readouts
+   1. Constants        — design width, text sizes, S colours and names
+   2. Sizes            — HTML text sizes (CSS variables) for windowed and presentation views
+   3. SVG primitives   — escaping, elements, text, the drawing root
+   4. Marks            — band arrows, chevrons, ✕ marks, break marks
+   5. HTML controls    — element builder, sliders with number boxes, readouts
    ============================================================ */
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-const BASE_H = 720;              // presentation sizes are given for a 720 px tall viewport (spec A.6.4)
-const PRESENT_PX = { any: 24, label: 32, title: 40, head: 56 };   // minimum sizes at 1280×720, ×1.5 at 1080 p
-const WINDOW_PX = { any: 14, label: 16, title: 18, head: 26 };    // windowed and Lab (≥ 14 px at 1366×768, A.6.5)
-const ARROW_CAP = 2.5;           // amplitude arrows longer than 2.5·L_ref are capped with a break mark (A.7)
-const ARROW_GHOST = 0.005;       // below 0.005·|a_ref| an arrow is a dashed ghost (A.7)
-const STROKE = 4, STROKE_POWER = 10, HEAD = 14;   // arrow stroke widths and head length (px, windowed)
-const DASH = '10 7', DASH_GHOST = '4 6';
-const SUB_SCALE = 0.75;           // subscript size relative to its text
+const DESIGN_W = 900;            // drawing width in design units (the mock-ups' drawing area at 1280×720)
+const BASE_H = 720;              // presentation sizes are given for a 720 px tall viewport, scaled with the height
+const FS = { label: 18, small: 18, head: 46, title: 20, mat: 30 };   // text sizes (design units / px at 720 p)
+const SUB_SCALE = 0.8;           // subscript size relative to its text (never below FS.small)
+const GLYPH_W = 0.6;             // IBM Plex Mono advance width (em), to place text without measuring
+const DASH = '10 7', DOTS = '2 7';
 const S_KEYS = ['s11', 's21', 's12', 's22'];
 const S_NAME = { s11: 'S11', s21: 'S21', s12: 'S12', s22: 'S22' };
-const S_PORT = { s11: [1, 1], s21: [2, 1], s12: [1, 2], s22: [2, 2] };   // S_ij: out at port i, in at port j
-const S_TITLE = { s11: 'input reflection', s21: 'forward transmission', s12: 'reverse transmission (isolation)', s22: 'output reflection' };
-const S_MEANING = { s11: 'reflected at port 1 (Γ at port 1)', s21: 'port 1 → port 2: gain or loss',
-                    s12: 'port 2 → port 1: isolation', s22: 'reflected at port 2 (Γ at port 2)' };
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── SIZES ─────────────────────────────────────────────────────
-let sz = Object.assign({}, WINDOW_PX), scale = 1;   // current text sizes (px) and drawing scale
-// Recompute the text sizes for the current view and publish them as CSS variables (--fa, --fl, --ft, --fh).
+/* Publish the HTML text sizes as CSS variables. Windowed: the base sizes. Presentation: the base sizes scaled with
+   the viewport height (×1 at 720 p, ×1.5 at 1080 p), the same factor the drawing area scales by. */
 function updateSizes(present){
-  scale = present ? window.innerHeight / BASE_H : 1;
-  const base = present ? PRESENT_PX : WINDOW_PX;
-  sz = { any: base.any * scale, label: base.label * scale, title: base.title * scale, head: base.head * scale };
-  if(!present) sz = Object.assign({}, WINDOW_PX);
-  const r = document.documentElement.style;
-  r.setProperty('--fa', sz.any + 'px'); r.setProperty('--fl', sz.label + 'px'); r.setProperty('--ft', sz.title + 'px'); r.setProperty('--fh', sz.head + 'px');
+  const k = present ? window.innerHeight / BASE_H : 1, r = document.documentElement.style;
+  r.setProperty('--k', String(k));
+  r.setProperty('--fl', FS.label * k + 'px'); r.setProperty('--fh', FS.head * k + 'px'); r.setProperty('--ft', FS.title * k + 'px');
 }
-// Stroke width scaled with the view.
-const sw = w => w * Math.max(1, scale);
 // ── END SIZES ─────────────────────────────────────────────────
 
 // ── SVG PRIMITIVES ────────────────────────────────────────────
-// Escape text for SVG/HTML markup (all text the stage draws is built here, never raw user input).
+// Escape text for SVG/HTML markup (all drawn text is built here, never raw user input).
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-// Number for a geometry attribute, rounded to 0.01 px.
+// Number for a geometry attribute, rounded to 0.01 unit.
 const n2 = v => Math.round(v * 100) / 100;
 // An SVG element from a tag, an attribute map and inner markup. Geometry numbers are rounded; data-* values are not.
 function el(tag, attrs, inner){
   let s = '<' + tag;
-  for(const k in attrs){ const v = attrs[k]; if(v === undefined || v === null || v === false) continue; s += ' ' + k + '="' + esc(typeof v === 'number' && !k.startsWith('data-') ? n2(v) : v) + '"'; }
+  for(const k in attrs){ const v = attrs[k]; if(v === undefined || v === null || v === false) continue;
+    s += ' ' + k + '="' + esc(typeof v === 'number' && !k.startsWith('data-') ? n2(v) : v) + '"'; }
   return inner === undefined ? s + '/>' : s + '>' + inner + '</' + tag + '>';
 }
-/* Text at (x, y). opts: size (px), anchor (start|middle|end), fill, weight, base (dominant-baseline), cls.
-   Subscripts are written "S_11" or "a_1": the part after "_" up to a space is drawn as a subscript. */
+/* Text at (x, y), vertically centred. opts: size, anchor (start|middle|end), fill, weight, cls, id.
+   "S_21" or "a_1": the part after "_" up to a space or symbol is drawn as a subscript. */
 function txt(x, y, s, opts){
   opts = opts || {};
-  const size = opts.size || sz.label, subSize = Math.max(size * SUB_SCALE, sz.any);   // a subscript is never below "any text"
+  const size = opts.size || FS.label, subSize = Math.max(size * SUB_SCALE, FS.small);
   const parts = String(s).split(/(_[A-Za-z0-9]+)/).map(p => p.startsWith('_') ? el('tspan', { 'font-size': n2(subSize), 'baseline-shift': 'sub' }, esc(p.slice(1))) : esc(p)).join('');
-  return el('text', { x, y, 'font-size': size, 'text-anchor': opts.anchor || 'start', fill: opts.fill || 'var(--txt)',
-    'font-weight': opts.weight || 600, 'dominant-baseline': opts.base || 'middle', class: opts.cls }, parts);
+  return el('text', { x, y, 'font-size': size, 'text-anchor': opts.anchor || 'start', fill: opts.fill || 'var(--txt)', 'font-weight': opts.weight || 600,
+    'dominant-baseline': 'central', class: opts.cls, id: opts.id }, parts);
 }
-// Text lines from (x, y) downward, one line every 1.35 × size (room for subscripts).
-const txtLines = (x, y, lines, opts) => lines.map((t, i) => txt(x, y + i * (opts.size || sz.label) * 1.35, t, opts)).join('');
-// Hatch and dot patterns for power-bar segments (colour is never the only cue, WCAG 1.4.1).
-function patterns(){
-  const hatch = (id, col) => el('pattern', { id, width: 10, height: 10, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' },
-    el('rect', { width: 10, height: 10, fill: col, 'fill-opacity': 0.35 }) + el('line', { x1: 0, y1: 0, x2: 0, y2: 10, stroke: col, 'stroke-width': 4 }));
-  const dots = (id, col) => el('pattern', { id, width: 9, height: 9, patternUnits: 'userSpaceOnUse' },
-    el('rect', { width: 9, height: 9, fill: col, 'fill-opacity': 0.3 }) + el('circle', { cx: 4.5, cy: 4.5, r: 2, fill: col }));
-  const cross = (id, col) => el('pattern', { id, width: 12, height: 12, patternUnits: 'userSpaceOnUse' },
-    el('rect', { width: 12, height: 12, fill: col, 'fill-opacity': 0.3 }) + el('path', { d: 'M0 6H12M6 0V12', stroke: col, 'stroke-width': 2 }));
-  return el('defs', {}, hatch('pRefl', 'var(--s11)') + dots('pAbs', 'var(--abs)') + hatch('pAdd', 'var(--s21)') + cross('pRev', 'var(--s22)'));
-}
+// Approximate drawn width of text s at size (monospace; subscript markers do not count).
+const textW = (s, size) => String(s).replace(/_/g, '').length * GLYPH_W * (size || FS.label);
+// The drawing root: an SVG of design width DESIGN_W and height H, scaled to the drawing area.
+const svgRoot = (H, label, inner) => el('svg', { class: 'vis', viewBox: '0 0 ' + DESIGN_W + ' ' + n2(H), role: 'img', 'aria-label': label }, inner);
+// Section heading at the top-left of a panel.
+const heading = (x, y, s) => txt(x, y, s, { size: FS.label, fill: 'var(--mut)', cls: 'heading' });
 // ── END SVG PRIMITIVES ────────────────────────────────────────
 
-// ── ENCODINGS ─────────────────────────────────────────────────
-/* An amplitude arrow (spec A.7) from (x, y) pointing dir (+1 right, −1 left), for value v relative to the driving
-   wave (|a_ref| = 1) drawn at Lref px. Returns { svg, len, end } where end is the x of the head tip.
-   opts: col, dashed (reflected path), q (data-q name), label (text placed beyond the arrow), lab (label position:
-   'above' | 'below' | 'end'), lx / la (label x and text-anchor, overriding the centred default), dim (faded, not
-   highlighted), w (stroke width). */
-function ampArrow(x, y, dir, v, Lref, opts){
+// ── MARKS ─────────────────────────────────────────────────────
+/* A filled band arrow from x0 to x1 along y with thickness th (its encoding: thickness ∝ the quantity). The head is
+   at x1 and at least 22 units tall so a thin band still shows its direction. th = 0 draws a dashed ghost outline.
+   opts: col, q (data-q), v (data-v), ref (thickness at v = 1), dashed, cls. */
+function bandArrow(x0, x1, y, th, opts){
   opts = opts || {};
-  const ghost = v < ARROW_GHOST, capped = v > ARROW_CAP;
-  const len = ghost ? Lref : (capped ? ARROW_CAP : v) * Lref, end = x + dir * len, w = sw(opts.w || STROKE), hd = Math.min(sw(HEAD), len * 0.5);
-  const col = opts.col || 'var(--neutral)';
-  const shaft = 'M' + n2(x) + ' ' + n2(y) + 'H' + n2(end - dir * hd);
-  const head = 'M' + n2(end) + ' ' + n2(y) + 'L' + n2(end - dir * hd) + ' ' + n2(y - hd * 0.6) + 'L' + n2(end - dir * hd) + ' ' + n2(y + hd * 0.6) + 'Z';
-  let g = el('path', { d: shaft, stroke: col, 'stroke-width': w, fill: 'none', 'stroke-dasharray': ghost ? DASH_GHOST : (opts.dashed ? DASH : null) })
-        + el('path', { d: head, fill: ghost ? 'none' : col, stroke: col, 'stroke-width': ghost ? sw(1.5) : 0, 'stroke-dasharray': ghost ? '3 3' : null });
-  if(capped){ const bx = x + dir * len * 0.55;   // break mark ≈ across the shaft
-    g += el('path', { d: 'M' + n2(bx - 6) + ' ' + n2(y + 10) + 'l8 -20M' + n2(bx + 2) + ' ' + n2(y + 10) + 'l8 -20', stroke: 'var(--bg)', 'stroke-width': sw(5) })
-       + el('path', { d: 'M' + n2(bx - 6) + ' ' + n2(y + 10) + 'l8 -20M' + n2(bx + 2) + ' ' + n2(y + 10) + 'l8 -20', stroke: col, 'stroke-width': sw(2) }); }
-  const attrs = { class: 'arrow', 'data-q': opts.q, 'data-v': opts.q ? +v.toPrecision(12) : null, 'data-ref': opts.q ? n2(Lref) : null,
-                  'data-ghost': ghost ? 1 : null, 'data-capped': capped ? 1 : null, opacity: opts.dim ? 0.3 : null };
-  let svg = el('g', attrs, g);
-  if(opts.label){ const lab = opts.lab || 'above', fs = opts.size || sz.label;
-    const lx = opts.lx !== undefined ? opts.lx : lab === 'end' ? end + dir * 8 : (x + end) / 2, ly = lab === 'above' ? y - w / 2 - 6 - fs * 0.5 : lab === 'below' ? y + w / 2 + 6 + fs * 0.5 : y;
-    svg += txt(lx, ly, opts.label, { anchor: opts.la || (lab === 'end' ? (dir > 0 ? 'start' : 'end') : 'middle'), fill: col, size: fs, cls: opts.dim ? 'dim' : null }); }
-  return { svg, len, end };
+  const dir = Math.sign(x1 - x0) || 1, ghost = th <= 0, t = ghost ? 14 : th, hh = Math.max(22, t * 1.7) / 2, hl = Math.min(Math.abs(x1 - x0) * 0.4, Math.max(18, hh * 1.1));
+  const xh = x1 - dir * hl;
+  const d = 'M' + n2(x0) + ' ' + n2(y - t / 2) + 'H' + n2(xh) + 'V' + n2(y - hh) + 'L' + n2(x1) + ' ' + n2(y) + 'L' + n2(xh) + ' ' + n2(y + hh) + 'V' + n2(y + t / 2) + 'H' + n2(x0) + 'Z';
+  return el('path', { d, fill: ghost ? 'none' : opts.col, stroke: opts.col, 'stroke-width': ghost ? 1.5 : 1, 'stroke-dasharray': ghost ? '5 5' : (opts.dashed ? '8 5' : null),
+    'fill-opacity': ghost ? null : (opts.op || 0.85), class: 'band ' + (opts.cls || ''), 'data-q': opts.q, 'data-v': opts.q ? +(+opts.v).toPrecision(12) : null,
+    'data-ref': opts.q ? n2(opts.ref) : null, 'data-th': opts.q ? n2(ghost ? 0 : th) : null, 'data-ghost': ghost ? 1 : null });
 }
-/* A power arrow (Step 1a): a thick arrow whose length is proportional to its power fraction f of the incident (Lref
-   at f = 1), with a dashed ghost at zero. */
-function powArrow(x, y, dir, f, Lref, opts){
-  opts = opts || {}; const len = f * Lref, ghost = f < ARROW_GHOST, drawn = ghost ? Lref * 0.5 : len, end = x + dir * drawn, th = sw(STROKE_POWER), hd = Math.min(sw(HEAD * 1.4), drawn * 0.5);
-  const col = opts.col || 'var(--neutral)';
-  const d = 'M' + n2(x) + ' ' + n2(y - th / 2) + 'H' + n2(end - dir * hd) + 'V' + n2(y - th) + 'L' + n2(end) + ' ' + n2(y) + 'L' + n2(end - dir * hd) + ' ' + n2(y + th) + 'V' + n2(y + th / 2) + 'H' + n2(x) + 'Z';
-  const svg = el('g', { class: 'power', 'data-q': opts.q, 'data-v': +f.toPrecision(12), 'data-ref': n2(Lref), 'data-ghost': ghost ? 1 : null },
-    el('path', { d, fill: ghost ? 'none' : (opts.fill || col), stroke: col, 'stroke-width': sw(2), 'stroke-dasharray': ghost ? DASH_GHOST : (opts.dashed ? '8 5' : null) }));
-  return { svg, len: drawn, end };
+// A small filled chevron (direction mark) at (x, y) pointing along angle ang (radians), size r.
+function chevron(x, y, ang, r, col){
+  const p = (a, d) => n2(x + d * Math.cos(ang + a)) + ' ' + n2(y + d * Math.sin(ang + a));
+  return el('path', { d: 'M' + p(0, r) + 'L' + p(2.4, r) + 'L' + p(-2.4, r) + 'Z', fill: col, class: 'chev' });
 }
-/* A horizontal power-bar segment at (x, y) of width f·W100 (W100 = the 100 % width). opts: fill, col, q, label,
-   cap (max drawn fraction; beyond it a break mark is drawn and data-capped set), h (height). */
-function barSeg(x, y, f, W100, opts){
-  opts = opts || {}; const capped = opts.cap !== undefined && f > opts.cap, w = Math.max(0, (capped ? opts.cap : f) * W100), bh = opts.h || sw(36);
-  let g = el('rect', { x, y, width: w, height: bh, fill: opts.fill, stroke: opts.col, 'stroke-width': sw(2) });
-  if(capped){ const bx = x + w - sw(18);
-    g += el('path', { d: 'M' + n2(bx) + ' ' + n2(y + bh + 4) + 'l10 ' + n2(-bh - 8) + 'M' + n2(bx + 8) + ' ' + n2(y + bh + 4) + 'l10 ' + n2(-bh - 8), stroke: 'var(--bg)', 'stroke-width': sw(6) }); }
-  return { svg: el('g', { class: 'seg', 'data-q': opts.q, 'data-v': +f.toPrecision(12), 'data-ref': n2(W100), 'data-capped': capped ? 1 : null }, g), w };
+// A ✕ mark of half-size r at (x, y): a blocked path.
+function crossMark(x, y, r, col){
+  return el('path', { d: 'M' + n2(x - r) + ' ' + n2(y - r) + 'L' + n2(x + r) + ' ' + n2(y + r) + 'M' + n2(x + r) + ' ' + n2(y - r) + 'L' + n2(x - r) + ' ' + n2(y + r),
+    stroke: col, 'stroke-width': 4, 'stroke-linecap': 'round', class: 'xmark' });
 }
-// ── END ENCODINGS ─────────────────────────────────────────────
+// A break mark (two short bars across a capped path) at (x, y) across direction ang, for a path of width w.
+function breakMark(x, y, ang, w){
+  const nx = -Math.sin(ang), ny = Math.cos(ang), tx = Math.cos(ang), ty = Math.sin(ang), L = w / 2 + 6;
+  let d = '';
+  for(const o of [-4, 4]) d += 'M' + n2(x + o * tx - L * nx) + ' ' + n2(y + o * ty - L * ny) + 'L' + n2(x + o * tx + L * nx) + ' ' + n2(y + o * ty + L * ny);
+  return el('path', { d, stroke: 'var(--bg)', 'stroke-width': 3, class: 'brk' });
+}
+// ── END MARKS ─────────────────────────────────────────────────
 
 // ── HTML CONTROLS ─────────────────────────────────────────────
-// An HTML element: tag, properties (class, id, text, attrs, on handlers) and children.
+// An HTML element: tag, properties (cls, text, attrs, on* handlers, other DOM properties) and children.
 function h(tag, props, ...kids){
   const e = document.createElement(tag); props = props || {};
   for(const k in props){ const v = props[k];
@@ -133,25 +103,27 @@ function h(tag, props, ...kids){
   kids.flat().forEach(c => { if(c !== null && c !== undefined && c !== false) e.append(c instanceof Node ? c : document.createTextNode(String(c))); });
   return e;
 }
-/* A labelled slider with a number box. o: id, label, min, max, step, value, unit, toSlider(v)/fromSlider(p) for
-   tapered sliders, fmt(v) for aria-valuetext, onset(v). The number box accepts any value in range; both stay in step. */
+/* A labelled slider with a number box. o: id, label, min, max, step, value, unit, toSlider(v)/fromSlider(p) for tapered
+   sliders (smin, smax, sstep: the slider's own range), fmt(v) for aria-valuetext, numText(v) / placeholder for the box
+   (an empty box with placeholder "∞" shows an infinite value), onset(v). The number box takes any
+   value in [min, max]; out-of-range or empty text is flagged and ignored. */
 function slider(o){
-  const toS = o.toSlider || (v => v), fromS = o.fromSlider || (p => p), smin = o.smin !== undefined ? o.smin : o.min, smax = o.smax !== undefined ? o.smax : o.max;
-  const val = () => o.value;
-  const r = h('input', { type: 'range', id: o.id, min: smin, max: smax, step: o.sstep || o.step || 'any', value: toS(val()), attrs: { 'aria-label': o.label } });
-  const nb = h('input', { type: 'number', id: o.id + 'N', min: o.min, max: o.max, step: o.step || 'any', value: o.numText ? o.numText(val()) : val(), attrs: { 'aria-label': o.label + ' (' + o.unit + ')' } });
+  const toS = o.toSlider || (v => v), fromS = o.fromSlider || (p => p);
+  const r = h('input', { type: 'range', id: o.id, min: o.smin !== undefined ? o.smin : o.min, max: o.smax !== undefined ? o.smax : o.max, step: o.sstep || o.step || 'any',
+    value: toS(o.value), attrs: { 'aria-label': o.label } });
+  const num = v => (o.numText ? o.numText(v) : +(+v).toPrecision(6));
+  const nb = h('input', { type: 'number', id: o.id + 'N', min: o.min, max: o.max, step: o.step || 'any', value: num(o.value), placeholder: o.placeholder || '', attrs: { 'aria-label': o.label + ' (' + o.unit + ')' } });
   const vt = v => r.setAttribute('aria-valuetext', o.fmt ? o.fmt(v) : v + ' ' + o.unit);
-  vt(val());
-  r.addEventListener('input', () => { const v = fromS(+r.value); nb.value = o.numText ? o.numText(v) : +(+v).toPrecision(6); nb.classList.remove('invalid'); vt(v); o.onset(v); });
-  nb.addEventListener('input', () => { const v = +nb.value; const okv = nb.value !== '' && isFinite(v) && v >= o.min && v <= o.max;
+  vt(o.value);
+  r.addEventListener('input', () => { const v = fromS(+r.value); nb.value = num(v); nb.classList.remove('invalid'); nb.setAttribute('aria-invalid', 'false'); vt(v); o.onset(v); });
+  nb.addEventListener('input', () => { const v = +nb.value, okv = nb.value !== '' && isFinite(v) && v >= o.min && v <= o.max;
     nb.classList.toggle('invalid', !okv); nb.setAttribute('aria-invalid', okv ? 'false' : 'true'); if(!okv) return; r.value = toS(v); vt(v); o.onset(v); });
-  return h('div', { cls: 'ctl' }, h('label', { htmlFor: o.id, text: o.label }), h('div', { cls: 'row' }, r, nb, h('span', { text: o.unit })));
+  return h('div', { cls: 'ctl' }, h('label', { htmlFor: o.id, text: o.label }), h('div', { cls: 'row' }, r, nb, h('span', { cls: 'unit', text: o.unit })));
 }
-/* A readout row: key text and value. kind: 'head' (headline, ≥ 56 px in presentation; a polar value may wrap before
-   its ∠), 'lab' (label size), 'line' (key and value on one line, both label size) or 'sub' (plain value). */
-function ro(key, value, kind, cls){
-  const v = h('span', { cls: 'v ' + (cls || '') }), at = String(value).indexOf(ANGLE_SIGN);
-  if(kind === 'head' && at > 0) v.append(String(value).slice(0, at), h('wbr'), String(value).slice(at)); else v.textContent = value;
-  return h('div', { cls: 'ro ' + (kind || 'lab') }, h('span', { cls: 'k ' + (kind === 'line' ? cls || '' : ''), text: key }), v);
-}
+// A headline readout: key text above a large value.
+const headline = (key, value, id) => h('div', { cls: 'ro head' }, h('span', { cls: 'k', text: key }), h('span', { cls: 'v', id, text: value }));
+// One line of plain explanation.
+const note = s => h('p', { cls: 'note', text: s });
+// A button that shows a pressed state.
+const pbtn = (id, text, on, onclick, label) => h('button', { type: 'button', id, text, onclick, attrs: Object.assign({ 'aria-pressed': on ? 'true' : 'false' }, label ? { 'aria-label': label } : {}) });
 // ── END HTML CONTROLS ─────────────────────────────────────────

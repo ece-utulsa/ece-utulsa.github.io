@@ -9,7 +9,7 @@ The delivered page is ONE plain HTML file (no bundle, no loader): template.html 
 
 Sources:
   template.html                        markup, CSS and the version stamp
-  engine.js ui.js lecture.js lab.js main.js   application scripts, in this order
+  engine.js ui.js reflections.js devices.js cascade.js main.js   application scripts, in this order
   fonts/*.woff2                        IBM Plex Mono (SIL OFL 1.1), latin subset, 400 and 600
 
 Usage:  python3 build.py            writes ../RF_Cascade_Analyzer_v<VERSION>.html
@@ -22,13 +22,15 @@ import sys
 # ── RELEASE ───────────────────────────────────────────────────────────
 VERSION = '1.1.0'
 RELEASED = '2026-10-18'
-CHANGELOG = ('Visual-first rebuild: Lecture mode Steps 1-6 with beats, presentation mode with clicker keys, '
-             'Lab mode re-laid out; fixes PF-1 (open load read as a short), PF-2 (Deg/Rad switch changed the '
-             'network), PF-3 (negative VSWR), PF-5 (insertion-loss sign), PF-6 (invalid input read as 0, Z0 '
-             'range); circulator preset removed; Tweaks panel, postMessage bridge and CRT themes removed')
+CHANGELOG = ('Rework to three views (Reflections, Devices, Cascade) after review of PR #43: the six Lecture steps, '
+             'the step rail and the old Lab (cascade and divider tables, source EMF/Zs) are replaced; Devices keeps the '
+             'two-port path diagram with path width proportional to |S|; Cascade adds the power-flow band and dB budget. '
+             'Earlier in v1.1.0: fixes PF-1 (open load read as a short), PF-2 (Deg/Rad switch changed the network), PF-3 '
+             '(negative VSWR), PF-5 (insertion-loss sign), PF-6 (invalid input read as 0); circulator preset removed; '
+             'Tweaks panel, postMessage bridge and CRT themes removed')
 # ── END RELEASE ───────────────────────────────────────────────────────
 
-SCRIPTS = ['engine.js', 'ui.js', 'lecture.js', 'lab.js', 'main.js']
+SCRIPTS = ['engine.js', 'ui.js', 'reflections.js', 'devices.js', 'cascade.js', 'main.js']
 FONTS = [('IBMPlexMono-Regular-latin.woff2', 400), ('IBMPlexMono-SemiBold-latin.woff2', 600)]
 HERE = os.path.dirname(os.path.abspath(__file__))
 
