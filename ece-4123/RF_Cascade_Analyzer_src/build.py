@@ -20,9 +20,11 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.2.1'
+VERSION = '1.3.0'
 RELEASED = '2026-10-18'
-CHANGELOG = ('\n    v1.2.1 - Devices: power shown beside the driven wave (|b|²) and dB caption gives × power and × wave.'
+CHANGELOG = ('\n    v1.3.0 - Devices: two-port redrawn as straight power-tapered lanes (S21 top, S12 bottom) with reflection '
+             'U-turns; no text inside the box; labels outside.'
+             '\n    v1.2.1 - Devices: power shown beside the driven wave (|b|²) and dB caption gives × power and × wave.'
              '\n    v1.2.0 - Three views (Reflections, Devices, Cascade); normalized waves a/b on Devices with forward/reverse '
              'drive; version stamp in presentation mode; layout fixes.'
              '\n    v1.1.0 - Normalized waves on Devices; forward/reverse; polish (2 significant figures, Cascade alignment, '

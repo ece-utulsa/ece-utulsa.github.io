@@ -2,7 +2,7 @@
    the gates, not the blind Test suite. They read the built page only through the DOM (text, data-q / data-v
    attributes, the URL hash); the page has no test hooks.
 
-   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.2.1.html] [--shots]
+   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.3.0.html] [--shots]
    --shots also writes the 1280×720 presentation screenshots to ../screenshots/.
    Set CHROMIUM=/path/to/chromium to use a particular browser binary. */
 'use strict';
@@ -11,7 +11,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
-const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.2.1.html'));
+const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.3.0.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
 const STOPS = ['#view=reflections', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
@@ -107,18 +107,20 @@ const plusIssues = page => page.evaluate(() => {
   blocks.concat([load], [...document.querySelectorAll('#stage [data-del]')].map(d => d.getBoundingClientRect())).forEach((r, i) => { if(hit(p, r)) bad.push('overlaps element ' + i); });
   return bad;
 });
-// ── DEVICES GAPS ── on screen, in px: box bottom → b labels ≥ 24; b labels → matrix ≥ 16; numeric line → badges ≥ 12;
-// badges → bottom of the screen ≥ 12; every a/b label ≥ 16 from the drawing's left edge and from the drawing/panel divider.
+// ── DEVICES LAYOUT ── on screen, in px: box → matrix ≥ 16; numeric line → badges ≥ 12; badges → bottom of the screen
+// ≥ 12; every label ≥ 16 from the drawing's left edge and from the drawing/panel divider; inside the box no text but the
+// four S labels, which stay inside it (v1.3.0 items 1, 6).
 const devGapIssues = page => page.evaluate(() => {
   const bad = [], R = e => e.getBoundingClientRect(), svg = R(document.querySelector('#stage svg')), box = R(document.querySelector('#stage .box'));
-  const labs = ['wa1', 'wa2', 'wb1', 'wb2', 'pb1', 'pb2'].filter(id => document.getElementById(id)).map(id => [id, R(document.getElementById(id))]), b = labs.filter(([id]) => id[1] === 'b').map(([, r]) => r);   // pb: the |b|² line
   const mat = R(document.querySelector('#stage .matrix')), num = R(document.getElementById('numLine')), badges = [...document.querySelectorAll('#stage .badge')].map(R);
   const g = (name, v, min) => { if(v < min - 0.05) bad.push(name + ' ' + v.toFixed(1) + ' < ' + min); };
-  b.forEach(r => g('box→b label', r.top - box.bottom, 24)); b.forEach(r => g('b label→matrix', mat.top - r.bottom, 16));
+  g('box→matrix', mat.top - box.bottom, 16);
   g('numeric line→badges', Math.min(...badges.map(r => r.top)) - num.bottom, 12); g('badges→screen bottom', window.innerHeight - Math.max(...badges.map(r => r.bottom)), 12);
-  labs.forEach(([id, r]) => { g(id + ' from left edge', r.left - svg.left, 16); g(id + ' from divider', svg.right - r.right, 16); });
-  const head = +document.querySelector('#stage .box').nextElementSibling.getAttribute('y1') - +document.querySelector('#stage .box').getAttribute('y');
-  if(head > (location.hash.includes('device=iso') ? 100 : 90)) bad.push('header band ' + head);
+  const texts = [...document.querySelectorAll('#stage svg text')].filter(t => !t.closest('.matrix, .badge') && t.id !== 'numLine');
+  texts.forEach(t => { const r = R(t), name = t.id || t.textContent.slice(0, 12); g(name + ' from left edge', r.left - svg.left, 16); g(name + ' from divider', svg.right - r.right, 16);
+    const inside = r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top, sLab = /^vs(11|21|12|22)$/.test(t.id);
+    if(inside && !sLab) bad.push('text inside the box: "' + t.textContent + '"');
+    if(sLab && !(r.left >= box.left && r.right <= box.right && r.top >= box.top && r.bottom <= box.bottom)) bad.push(t.id + ' not inside the box'); });
   if([...document.querySelectorAll('#stage .ment')].some(e => +e.getAttribute('font-size') < 30)) bad.push('matrix entries < 30');
   if([...document.querySelectorAll('#stage .badge text')].some(e => +e.getAttribute('font-size') < 18)) bad.push('badge text < 18');
   return bad;
@@ -144,23 +146,22 @@ const alignIssues = page => page.evaluate(() => {
 
   console.log('Load');
   { const { ctx, page, log } = await open(browser);
-    check('version v1.2.1: header comment, Released, meta, title; changelog v1.2.1 on top, then v1.2.0 and v1.1.0 as history',
-      /Version: v1\.2\.1/.test(html) && /Released: 2026-10-18/.test(html) && /<meta name="version" content="v1\.2\.1">/.test(html) && /<title>RF Cascade Analyzer v1\.2\.1<\/title>/.test(html)
-      && /v1\.2\.1 - Devices: power shown beside the driven wave \(\|b\|²\) and dB caption gives × power and × wave\./.test(html) && html.indexOf('v1.2.1 - ') < html.indexOf('v1.2.0 - ')
-      && /v1\.2\.0 - Three views \(Reflections, Devices, Cascade\); normalized waves a\/b on Devices with forward\/reverse drive; version stamp in presentation mode; layout fixes\./.test(html)
-      && html.indexOf('v1.2.0 - Three views') < html.indexOf('v1.1.0 - ') && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.0)|content="v1\.(1\.0|2\.0)"/.test(html));
-    check('footer: v1.2.1 · released 2026-10-18 · Author: Claude Code', /Author: Claude Code/.test(html)
-      && (await text(page, 'footer')).includes('v1.2.1 · released 2026-10-18 · Author: Claude Code'));
+    check('version v1.3.0: header comment, Released, meta, title; changelog v1.3.0 on top, then v1.2.1, v1.2.0 and v1.1.0 as history',
+      /Version: v1\.3\.0/.test(html) && /Released: 2026-10-18/.test(html) && /<meta name="version" content="v1\.3\.0">/.test(html) && /<title>RF Cascade Analyzer v1\.3\.0<\/title>/.test(html)
+      && /v1\.3\.0 - Devices: two-port redrawn as straight power-tapered lanes \(S21 top, S12 bottom\) with reflection\s+U-turns; no text inside the box; labels outside\./.test(html)
+      && html.indexOf('v1.3.0 - ') < html.indexOf('v1.2.1 - ') && html.indexOf('v1.2.1 - ') < html.indexOf('v1.2.0 - ') && html.indexOf('v1.2.0 - ') < html.indexOf('v1.1.0 - ')
+      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01])|content="v1\.(1\.0|2\.[01])"/.test(html));
+    check('footer: v1.3.0 · released 2026-10-18 · Author: Claude Code', (await text(page, 'footer')).includes('v1.3.0 · released 2026-10-18 · Author: Claude Code'));
     const stamp = async () => page.evaluate(() => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
       const btns = [...document.querySelectorAll('#top button')].filter(b => b.getBoundingClientRect().width), last = btns[btns.length - 1].getBoundingClientRect(), top = document.getElementById('top').getBoundingClientRect();
       return { text: v.textContent, fs: parseFloat(cs.fontSize), mut: cs.color === getComputedStyle(document.querySelector('.note') || document.body).color || cs.color !== getComputedStyle(document.body).color,
-        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.2.1'),
+        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.3.0'),
         oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; });
     let st = await stamp();
-    check('stamp "v1.2.1" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.2.1' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
+    check('stamp "v1.3.0" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.3.0' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
     const wBtn = await page.evaluate(() => [...document.querySelectorAll('#top button')].map(b => Math.round(b.getBoundingClientRect().width)).join(','));
     await present(page); st = await stamp();
-    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.2.1"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
+    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.3.0"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
     await page.keyboard.press('t'); await page.waitForTimeout(60); st = await stamp();
     check('presentation (dark): stamp still visible', st.shown && st.body && await page.evaluate(() => !document.body.classList.contains('light')));
     await page.keyboard.press('t'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
@@ -209,164 +210,109 @@ const alignIssues = page => page.evaluate(() => {
     check('snapshot wave: the same phase in the dark and the light theme (theme change does not move it)', dark && d0 === d1);
     await ctx.close(); }
 
-  console.log('View 2 — Devices');
+  console.log('View 2 — Devices (v1.3.0 two-port)');
   { const { ctx, page } = await open(browser);
     await present(page);
-    const paths = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stage .path')].map(e => [e.getAttribute('data-q'),
-      { v: +e.getAttribute('data-v'), w: parseFloat(getComputedStyle(e).strokeWidth), ghost: e.getAttribute('data-ghost') === '1', cap: e.getAttribute('data-capped') === '1',
-        op: +e.getAttribute('opacity'), live: e.parentElement.getAttribute('data-live') === '1', gop: +(e.parentElement.getAttribute('opacity') || 1) }])));
+    // lanes (S21, S12) and U-turns (S11, S22): |S|, end width, blocked / capped flags, the group's drive state and opacity
+    const paths = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stage .lane, #stage .uturn')].map(e => [e.getAttribute('data-q'),
+      { v: +e.getAttribute('data-v'), w1: +e.getAttribute('data-w1'), lane: e.classList.contains('lane'), blocked: e.getAttribute('data-blocked') === '1', cap: e.getAttribute('data-capped') === '1',
+        dotted: !!e.getAttribute('stroke-dasharray'), op: +(e.getAttribute('opacity') || 1), live: e.parentElement.getAttribute('data-live') === '1', gop: +(e.parentElement.getAttribute('opacity') || 1) }])));
+    // a lane's drawn width (design units) at its entry and just before its arrowhead
+    const laneW = k => page.evaluate(k => { const e = document.querySelector('#stage .lane.' + k);
+      const n = e.getAttribute('d').match(/-?[\d.]+/g).map(Number), pts = []; for(let i = 0; i < n.length; i += 2) pts.push([n[i], n[i + 1]]);
+      return { w0: Math.abs(pts[pts.length - 1][1] - pts[0][1]), wEnd: pts.length > 3 ? Math.abs(pts[pts.length - 2][1] - pts[1][1]) : 0 }; }, k);
     const badges = () => page.evaluate(() => [...document.querySelectorAll('#stage .badge')].map(b => b.getAttribute('data-on')).join(''));
-    const crossOn = () => page.evaluate(() => !!document.querySelector('#stage .xmark'));
+    const cross = () => page.evaluate(() => { const x = document.querySelector('#stage .xmark'); if(!x) return null; const box = document.querySelector('#stage .box').getBoundingClientRect(), r = x.getBoundingClientRect();
+      return { s: x.getAttribute('data-s'), outside: r.right <= box.left + 1 || r.left >= box.right - 1, strong: !x.closest('[opacity]'), red: x.querySelector('path').getAttribute('stroke') === 'var(--bad)' }; });
     const waves = () => page.evaluate(() => Object.fromEntries(['a1', 'a2', 'b1', 'b2'].map(k => [k, document.getElementById('w' + k).textContent])));
+    const powerLine = () => page.evaluate(() => { const e = document.getElementById(location.hash.includes('drive=rev') ? 'pb1' : 'pb2'); return e ? e.textContent : null; });
     const ghostW = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stage .wave')].map(e => [e.getAttribute('data-q'), e.getAttribute('data-ghost') === '1'])));
     const heads = async () => [null, await text(page, '#roPower')];
     const keys = async () => [null, await page.evaluate(() => document.getElementById('roPower').previousSibling.textContent)];
     const outLabel = () => page.evaluate(() => { const d = location.hash.includes('drive=rev') ? 'wb1' : 'wb2', e = document.getElementById(d); return { size: +e.getAttribute('font-size'), weight: e.getAttribute('font-weight') }; });
-    // Forward check cases
-    await goto(page, '#view=devices&device=through');
-    check('Devices defaults to Forward; hash gains &drive=fwd', (await page.evaluate(() => location.hash)) === STOPS[1] && (await page.getAttribute('#drive_fwd', 'aria-pressed')) === 'true');
-    let W = await waves(), P = await paths(), T = await stageTexts(page);
-    check('Through ℓ = λ/4, Forward: a1 = 1∠0°, a2 = 0, b1 = 0, b2 = 1.00∠−90°', JSON.stringify(W) === JSON.stringify({ a1: 'a1 = 1∠0°', a2: 'a2 = 0', b1: 'b1 = 0', b2: 'b2 = 1.00∠−90°' }), W);
-    { const gw = await ghostW(); check('Through Forward: zero waves a2, b1 drawn as ghosts', gw.a1 === false && gw.b1 === true && gw.a2 === true && gw.b2 === false, gw); }
-    check('Through Forward panel: the power only, power out = |b2|² = 100 %; no "b2 =" headline (item 4)', (await heads())[1] === '100 %' && (await keys())[1] === 'power out = |b2|²'
-      && (await page.$$('#panel .ro.head')).length === 1 && !/b2 =/.test(await text(page, '#panel')));
-    check('the driven output label (b2 in Forward) is 22 px bold', JSON.stringify(await outLabel()) === '{"size":22,"weight":"700"}' && +(await page.getAttribute('#wb1', 'font-size')) === 18);
-    check('Forward: S11, S21 at full strength; S12, S22 faded to 25 %', P.S11.live && P.S21.live && !P.S12.live && !P.S22.live && P.S12.gop === 0.25 && P.S22.gop === 0.25);
-    check('numeric line: [0 ; 1.00∠−90°] = [S] · [1∠0° ; 0]', (await text(page, '#numLine')) === '[0 ; 1.00∠−90°] = [S] · [1∠0° ; 0]', await text(page, '#numLine'));
-    check('caption: "a, b = normalized waves (a = V⁺/√Z0). Power = |wave|²."; never "power wave"', (await text(page, '#panel')).includes('a, b = normalized waves (a = V⁺/√Z0). Power = |wave|².')
-      && !/power wave/i.test(await page.evaluate(() => document.body.innerText)));
-    check('Through: S21 = S12 = 1 drawn at full width 8; S11, S22 ghosts labelled 0 at ≥ 60 % opacity', P.S21.w === 8 && P.S12.w === 8 && P.S11.ghost && P.S22.ghost && P.S11.op >= 0.6 && T.filter(t => t === '0').length === 2);
-    check('|S| printed on every path (S11, S21, S12, S22)', await page.evaluate(() => ['vs11', 'vs21', 'vs12', 'vs22'].every(id => !!document.getElementById(id))));
-    check('Through: ℓ = λ/4 ruler and βℓ = 2πℓ/λ = 90° in the box; S21 1.00∠−90°', T.includes('ℓ = λ/4') && T.includes('βℓ = 2πℓ/λ = 90°') && T.includes('S21 1.00∠−90°'), T);
-    check('Through: "Two-Port" in the box header, above the paths', await page.evaluate(() => { const t = document.querySelector('.boxTitle').getBoundingClientRect();
-      return [...document.querySelectorAll('#stage .path')].every(p => p.getBoundingClientRect().top > t.bottom); }));
-    check('Through: badges Reciprocal ✓ Symmetric ✓ Lossless ✓ Passive ✓; badge text ≥ 18 px', (await badges()) === '1111'
-      && await page.evaluate(() => [...document.querySelectorAll('#stage .badge text')].every(t => +t.getAttribute('font-size') >= 18)));
-    await setInput(page, '#len', '0.3');
-    check('Through: ℓ = 0.30λ gives βℓ = 108°, S21 1.00∠−108° and b2 = 1.00∠−108°', (await stageTexts(page)).includes('βℓ = 2πℓ/λ = 108°') && (await stageTexts(page)).includes('S21 1.00∠−108°') && (await waves()).b2 === 'b2 = 1.00∠−108°');
-    await setInput(page, '#len', '0.25');
-    await page.keyboard.press('PageDown'); await page.waitForTimeout(80);
-    check('PageDown moves on even with the slider focused (Attenuator), keeping Forward', (await page.evaluate(() => location.hash)) === STOPS[2]);
-    P = await paths(); T = await stageTexts(page); W = await waves();
-    check('Attenuator opens at 3 dB: "−3 dB …" in the box; S21, S12 = 0.71 drawn thinner', T.some(t => t.startsWith('−3 dB')) && near(P.S21.w, 8 * 0.7079, 0.02) && T.includes('S21 0.71'), P);
-    check('Attenuator 3 dB, Forward: b1 = 0, b2 = 0.71∠0°; power out = |b2|² = 50 %', W.b1 === 'b1 = 0' && W.b2 === 'b2 = 0.71∠0°' && (await heads())[1] === '50 %');
+    const sLab = k => text(page, '#v' + k);
+    const W0 = 36;
+    // the v1.3.0 check table
+    const CASES = [
+      ['Through, ℓ = λ/4, Forward', '#view=devices&device=through&drive=fwd', null, null, async (P, L21, L12) => near(L21.w0, W0, 0.1) && near(L21.wEnd, W0, 0.5) && near(L12.wEnd, W0, 0.5) && P.S11.dotted && P.S22.dotted
+        && (await sLab('s21')) === 'S21 1.00∠−90°' && (await sLab('s12')) === 'S12 1.00∠−90°', 'b2 = 1.00∠−90°', '|b2|² = 1.0'],
+      ['Attenuator, 3 dB, Forward', '#view=devices&device=atten&drive=fwd', 'att', '3', async (P) => near(P.S21.w1, W0 * 0.5012, 0.02) && near(P.S12.w1, W0 * 0.5012, 0.02) && (await sLab('s21')) === 'S21 0.71',
+        'b2 = 0.71∠0°', '|b2|² = 0.50'],
+      ['Amplifier, +3 dB, Forward', '#view=devices&device=amp&drive=fwd', 'gain', '3', async (P) => { const x = await cross(); return near(P.S21.w1, W0 * 1.995, 0.05) && P.S12.blocked && x && x.s === 's12' && x.outside && x.red; },
+        'b2 = 1.41∠0°', '|b2|² = 2.0'],
+      ['Amplifier, +10 dB, Forward', '#view=devices&device=amp&drive=fwd', 'gain', '10', async (P) => P.S21.cap && near(P.S21.w1, 3 * W0, 0.01) && await page.evaluate(() => !!document.querySelector('#stage .pathg.s21 .brk')),
+        'b2 = 3.16∠0°', '|b2|² = 10'],
+      ['Amplifier, +10 dB, Reverse', '#view=devices&device=amp&drive=rev', null, null, async (P) => { const x = await cross(); return P.S12.blocked && P.S12.live && P.S12.gop === 1 && !P.S21.live && near(P.S21.gop, 0.22, 1e-9)
+        && x && x.s === 's12' && x.strong && (await waves()).a2 === 'a2 = 1∠0°'; }, 'b1 = 0', '|b1|² = 0'],
+      ['Isolator, 0.5 dB, Forward', '#view=devices&device=iso&drive=fwd', null, null, async (P) => near(P.S21.w1, W0 * 0.8913, 0.02) && P.S12.blocked && !!(await cross()), 'b2 = 0.94∠0°', '|b2|² = 0.89'],
+      ['Custom (S11 0.30∠40°, S21 = S12 0.60∠−70°, S22 0.40∠−20°), Forward (S11 U-turn max(3, 0.09 W0) = 3.24)', '#view=devices&device=custom&drive=fwd', null, null, async (P) => near(P.S11.w1, Math.max(3, W0 * 0.09), 0.01) && P.S11.live && !P.S22.live && near(P.S22.gop, 0.22, 1e-9)
+        && near(P.S21.w1, W0 * 0.36, 0.02) && near(P.S12.w1, W0 * 0.36, 0.02) && (await waves()).b1 === 'b1 = 0.30∠40°', 'b2 = 0.60∠−70°', '|b2|² = 0.36'] ];
+    for(const [name, hs, ctl, v, lanes, wave, power] of CASES){
+      await goto(page, hs); if(ctl) await setInput(page, '#' + ctl, v);
+      const P = await paths(), L21 = await laneW('s21'), L12 = await laneW('s12'), W = await waves(), out = hs.includes('drive=rev') ? 'b1' : 'b2';
+      check(name + ': lanes and U-turns as specified', await lanes(P, L21, L12), { P, L21, L12 });
+      check(name + ': ' + wave + ', ' + power, W[out] === wave && (await powerLine()) === power, { W, p: await powerLine() });
+    }
+    // general rules
+    await goto(page, '#view=devices&device=atten&drive=fwd');
+    { const L = await laneW('s21'); check('taper: a lane starts at W0 = 36 for the input power 1 and narrows linearly (3 dB: towards ½ W0 at the exit)', near(L.w0, 36, 0.1) && L.wEnd < L.w0 && L.wEnd > 18, L); }
+    const noText = await page.evaluate(() => { const box = document.querySelector('#stage .box').getBoundingClientRect();
+      return [...document.querySelectorAll('#stage svg text')].filter(t => { const r = t.getBoundingClientRect(); return r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top; }).map(t => t.id).sort().join(','); });
+    check('inside the box: only the four S labels (no "Two-Port", dB caption, ruler or isolator text)', noText === 'vs11,vs12,vs21,vs22', noText);
+    check('the box is a plain rounded rectangle (rx 14, 3 px border); no header line', await page.evaluate(() => { const b = document.querySelector('#stage .box');
+      return b.getAttribute('rx') === '14' && b.getAttribute('stroke-width') === '3' && !document.querySelector('#stage .headline, #stage .boxTitle, #boxCaption'); }));
+    check('port layout: a1 in (top) and b1 out (bottom) at port 1; b2 out (top) and a2 in (bottom) at port 2; "Port 1/2" between their wires', await page.evaluate(() => {
+      const y = q => { const r = document.querySelector('#stage .wave[data-q="' + q + '"]').getBoundingClientRect(); return (r.top + r.bottom) / 2; }, x = q => document.querySelector('#stage .wave[data-q="' + q + '"]').getBoundingClientRect();
+      const box = document.querySelector('#stage .box').getBoundingClientRect(), ports = [...document.querySelectorAll('#stage .port')].map(e => e.getBoundingClientRect());
+      return y('a1') < y('b1') && y('b2') < y('a2') && x('a1').right <= box.left + 1 && x('b1').right <= box.left + 1 && x('b2').left >= box.right - 1 && x('a2').left >= box.right - 1
+        && ports.length === 2 && ports[0].top > y('a1') && ports[0].bottom < y('b1') && ports[1].top > y('b2') && ports[1].bottom < y('a2'); }));
+    check('no crossing paths: S21 lane straight along the top, S12 along the bottom', await page.evaluate(() => { const a = document.querySelector('#stage .lane.s21').getBoundingClientRect(), b = document.querySelector('#stage .lane.s12').getBoundingClientRect(); return a.bottom < b.top; }));
+    check('Forward: S21 lane and S11 U-turn solid; S12 and S22 faded to 22 %; undriven a2 wire dotted', await (async () => { const P = await paths(), g = await ghostW();
+      return P.S21.live && P.S11.live && P.S21.gop === 1 && near(P.S12.gop, 0.22, 1e-9) && near(P.S22.gop, 0.22, 1e-9) && g.a2 && !g.a1; })());
+    check('S labels: S21 above the top lane, S12 below the bottom lane, S11 above S22 (staggered)', await page.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect();
+      const t = document.querySelector('#stage .lane.s21').getBoundingClientRect(), b = document.querySelector('#stage .lane.s12').getBoundingClientRect();
+      return R('vs21').bottom <= t.top && R('vs12').top >= b.bottom && R('vs11').bottom <= R('vs22').top; }));
+    check('S11 0 drawn as a faint dotted U (2 px, 45 % opacity) when |S| < 0.05', await (async () => { const P = await paths(); return P.S11.dotted && near(P.S11.op, 0.45, 1e-9) && (await sLab('s11')) === 'S11 0'; })());
+    check('the driven output label (b2 in Forward) is 22 px bold; its |b2|² line 18 px regular', JSON.stringify(await outLabel()) === '{"size":22,"weight":"700"}' && +(await page.getAttribute('#wb1', 'font-size')) === 18
+      && +(await page.getAttribute('#pb2', 'font-size')) === 18 && (await page.getAttribute('#pb2', 'font-weight')) === '400');
+    check('panel: the power only (power out = |b2|² = 50 %); caption about normalized waves; never "power wave"', (await heads())[1] === '50 %' && (await keys())[1] === 'power out = |b2|²'
+      && (await text(page, '#panel')).includes('a, b = normalized waves (a = V⁺/√Z0). Power = |wave|².') && !/power wave/i.test(await page.evaluate(() => document.body.innerText)));
+    check('numeric line: [0 ; 0.71∠0°] = [S] · [1∠0° ; 0]', (await text(page, '#numLine')) === '[0 ; 0.71∠0°] = [S] · [1∠0° ; 0]', await text(page, '#numLine'));
     check('Attenuator: badges R ✓ S ✓ L ✗ P ✓', (await badges()) === '1101');
-    await page.keyboard.press('ArrowRight'); await page.waitForTimeout(80);
-    P = await paths(); T = await stageTexts(page); W = await waves();
-    check('Amplifier 10 dB, Forward: b1 = 0, b2 = 3.16∠0°; |b2|² = 10 × input', W.b1 === 'b1 = 0' && W.b2 === 'b2 = 3.16∠0°' && (await heads())[1] === '10 × input');
-    check('Amplifier: S21 3.16 capped at 3× with a break mark', P.S21.cap && P.S21.w === 24 && T.includes('S21 3.16') && await page.evaluate(() => !!document.querySelector('#stage .brk')));
-    check('Amplifier: S12 dotted ghost with ✕', P.S12.ghost && await crossOn());
-    const chev = () => page.evaluate(() => { const g = document.querySelector('#stage .pathg.s21'), c = g.querySelector('.chev'), p = g.querySelector('.path'), r = c.getBBox(), w = parseFloat(getComputedStyle(p).strokeWidth);
-      return { fill: c.getAttribute('fill'), fits: Math.max(r.width, r.height) <= w + 0.5 }; });
-    check('Amplifier 10 dB: the S21 direction triangle is background-coloured inside the thick band (item 6)', JSON.stringify(await chev()) === '{"fill":"var(--bg)","fits":true}', await chev());
-    check('Amplifier: gain shown, "+10 dB …" in the box', T.some(t => t.startsWith('+10 dB')));
-    await setInput(page, '#gain', '20');
-    await setInput(page, '#gain', '30');
-    check('Amplifier 30 dB (maximum): the triangle is still background-coloured inside the band', JSON.stringify(await chev()) === '{"fill":"var(--bg)","fits":true}');
-    await setInput(page, '#gain', '20');
-    check('Amplifier: gain slider updates the box and the waves (+20 dB, b2 = 10.0∠0°, 100 × input)', (await stageTexts(page)).some(t => t.startsWith('+20 dB')) && (await waves()).b2 === 'b2 = 10.0∠0°' && (await heads())[1] === '100 × input');
-    check('Amplifier: badges all ✗', (await badges()) === '0000');
+    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '30');
+    { const P = await paths(); check('Amplifier 30 dB (max): S21 still capped at 3 W0 with the break mark; b2 = 31.6∠0°, |b2|² = 1000; badges all ✗', P.S21.cap && near(P.S21.w1, 108, 0.01)
+      && (await waves()).b2 === 'b2 = 31.6∠0°' && (await powerLine()) === '|b2|² = 1000' && (await badges()) === '0000'); }
     await setInput(page, '#gain', '10');
-    await page.keyboard.press('ArrowRight'); await page.waitForTimeout(80);
-    P = await paths(); W = await waves();
-    check('Isolator: S12 blocked with a red ✕; badges R ✗ S ✗ L ✗ P ✓', P.S12.ghost && await crossOn() && (await badges()) === '0001');
-    check('Isolator Forward: b1 = 0; b2 follows the forward loss (0.5 dB → 0.94∠0°, 89 %)', W.b1 === 'b1 = 0' && W.b2 === 'b2 = 0.94∠0°' && (await heads())[1] === '89 %');
-    await setInput(page, '#isoIL', '1');
-    check('Isolator Forward: 1 dB forward loss → b2 = 0.89∠0°, 79 %', (await waves()).b2 === 'b2 = 0.89∠0°' && (await heads())[1] === '79 %');
-    await setInput(page, '#isoIL', '0.5');
-    await setInput(page, '#isoI', '20');
-    check('Isolator: 20 dB isolation draws S12 0.10 (thin, no ✕)', near((await paths()).S12.v, 0.1, 1e-9) && !(await crossOn()) && (await stageTexts(page)).includes('S12 0.10'));
-    // Reverse check cases
+    await goto(page, '#view=devices&device=iso&drive=fwd'); await setInput(page, '#isoI', '20');
+    { const P = await paths(); check('Isolator, 20 dB isolation: S12 0.10 is a thin lane, not blocked (no ✕)', near(P.S12.v, 0.1, 1e-9) && !P.S12.blocked && !(await cross()) && (await sLab('s12')) === 'S12 0.10'); }
     await click(page, '#drive_rev');
-    check('Reverse button: hash &drive=rev', (await page.evaluate(() => location.hash)) === '#view=devices&device=iso&drive=rev');
-    W = await waves(); P = await paths();
-    check('Isolator Reverse, 20 dB: a2 = 1∠0°, b1 = |S12| = 0.10∠0°, b2 = 0', W.a2 === 'a2 = 1∠0°' && W.a1 === 'a1 = 0' && W.b1 === 'b1 = 0.10∠0°' && W.b2 === 'b2 = 0', W);
-    check('Reverse: S12, S22 at full strength; S21, S11 faded', P.S12.live && P.S22.live && !P.S21.live && !P.S11.live && P.S21.gop === 0.25);
-    check('Reverse panel: power out = |b1|² = 1.0 %; the driven output label is now b1 (22 px bold)', (await keys())[1] === 'power out = |b1|²' && (await heads())[1] === '1.0 %'
-      && JSON.stringify(await outLabel()) === '{"size":22,"weight":"700"}' && +(await page.getAttribute('#wb2', 'font-size')) === 18);
-    await setInput(page, '#isoI', '60'); await page.evaluate(() => { const r = document.getElementById('isoI'); r.value = 61; r.dispatchEvent(new Event('input', { bubbles: true })); }); await page.waitForTimeout(60);
-    check('Isolator Reverse, ∞ isolation: b1 = 0, shown blocked (✕), box shows ∞ placeholder', (await waves()).b1 === 'b1 = 0' && await crossOn() && (await page.inputValue('#isoIN')) === '');
+    { const W = await waves(); check('Isolator Reverse, 20 dB: a2 = 1∠0°, b1 = 0.10∠0°, |b1|² = 0.010; power out 1.0 %', W.a2 === 'a2 = 1∠0°' && W.b1 === 'b1 = 0.10∠0°' && (await powerLine()) === '|b1|² = 0.010' && (await heads())[1] === '1.0 %', W); }
+    await page.evaluate(() => { const r = document.getElementById('isoI'); r.value = 61; r.dispatchEvent(new Event('input', { bubbles: true })); }); await page.waitForTimeout(60);
+    check('Isolator Reverse, ∞ isolation: b1 = 0, |b1|² = 0, blocked with ✕', (await waves()).b1 === 'b1 = 0' && (await powerLine()) === '|b1|² = 0' && !!(await cross()));
     await page.keyboard.press('PageUp'); await page.waitForTimeout(80);
     check('Previous keeps the drive (Amplifier, Reverse)', (await page.evaluate(() => location.hash)) === '#view=devices&device=amp&drive=rev');
-    W = await waves();
-    check('Amplifier Reverse: b1 = 0, blocked with ✕; b2 = S22·a2 = 0', W.b1 === 'b1 = 0' && W.b2 === 'b2 = 0' && await crossOn() && (await heads())[1] === '0 %');
-    check('numeric line (Amplifier, Reverse): [0 ; 0] = [S] · [0 ; 1∠0°]', (await text(page, '#numLine')) === '[0 ; 0] = [S] · [0 ; 1∠0°]');
-    await page.keyboard.press('PageUp'); await page.waitForTimeout(80);
-    check('Attenuator Reverse: b1 = 0.71∠0°, 50 %', (await waves()).b1 === 'b1 = 0.71∠0°' && (await heads())[1] === '50 %');
-    await page.keyboard.press('PageUp'); await page.waitForTimeout(80);
-    W = await waves();
-    check('Through Reverse: b1 = 1.00∠−90°, b2 = 0', W.b1 === 'b1 = 1.00∠−90°' && W.b2 === 'b2 = 0', W);
-    await click(page, '#drive_fwd');
+    await page.keyboard.press('PageUp'); await page.keyboard.press('PageUp'); await page.waitForTimeout(80);
+    { const W = await waves(); check('Through Reverse: b1 = 1.00∠−90°, |b1|² = 1.0, b2 = 0', W.b1 === 'b1 = 1.00∠−90°' && (await powerLine()) === '|b1|² = 1.0' && W.b2 === 'b2 = 0', W); }
     await page.goto(URL0 + '#view=devices&device=custom&drive=rev'); await page.waitForTimeout(150);
     check('hash round-trip: #view=devices&device=custom&drive=rev restores Custom in Reverse', (await page.getAttribute('#dev_custom', 'aria-pressed')) === 'true'
       && (await page.getAttribute('#drive_rev', 'aria-pressed')) === 'true' && (await page.evaluate(() => location.hash)) === '#view=devices&device=custom&drive=rev');
     await click(page, '#drive_fwd');
-    check('Custom: four entry rows and the reciprocal link', (await page.$$('#panel .srow')).length === 4 && await page.isChecked('#crecip'));
     await setInput(page, '#cs21', '0.8');
-    P = await paths();
-    check('Custom: linked S12 follows S21 (0.80); the S12 row is locked', near(P.S12.v, 0.8, 1e-9) && near(P.S21.v, 0.8, 1e-9) && await page.isDisabled('#cs12'));
-    await setInput(page, '#cs21a', '0');
-    check('Custom: |S| angle shown only where it isn\'t 0; the wave shows ∠0° (b2 = 0.80∠0°)', (await stageTexts(page)).includes('S21 0.80') && (await waves()).b2 === 'b2 = 0.80∠0°');
+    { const P = await paths(); check('Custom: linked S12 follows S21 (0.80); the S12 row is locked', near(P.S12.v, 0.8, 1e-9) && near(P.S21.v, 0.8, 1e-9) && await page.isDisabled('#cs12')); }
     check('Devices: no 3-decimal numbers on the diagram', !(await stageTexts(page)).some(t => /\d\.\d{3}/.test(t)));
     check('Matrix equation entries 30 px; numeric line 22 px', await page.evaluate(() => [...document.querySelectorAll('#stage .ment')].every(e => +e.getAttribute('font-size') === 30)
       && +document.getElementById('numLine').getAttribute('font-size') === 22));
     await ctx.close(); }
 
-  console.log('Devices: wave-to-power link (v1.2.1 items 1, 2)');
+  console.log('Devices layout (v1.3.0 items 1, 6)');
   { const { ctx, page } = await open(browser); await present(page);
-    const lab = () => page.evaluate(() => { const d = location.hash.includes('drive=rev') ? '1' : '2', w = document.getElementById('wb' + d), p = document.getElementById('pb' + d);
-      const other = document.getElementById('pb' + (d === '1' ? '2' : '1'));
-      return { wave: w.textContent, power: p ? p.textContent : null, wSize: +w.getAttribute('font-size'), wWeight: w.getAttribute('font-weight'), pSize: p ? +p.getAttribute('font-size') : 0,
-        pWeight: p ? p.getAttribute('font-weight') : null, same: p ? p.getAttribute('fill') === w.getAttribute('fill') : false, below: p ? p.getBoundingClientRect().top >= w.getBoundingClientRect().bottom - 2 : false, otherSingle: !other }; });
-    const cap = () => page.evaluate(() => { const c = document.getElementById('boxCaption'); if(!c) return null; const lines = c.tagName === 'g' ? [...c.querySelectorAll(':scope > text')] : [c];
-      const box = document.querySelector('#stage .box').getBoundingClientRect(), r = c.getBoundingClientRect(), hl = document.querySelector('#stage .headline').getBoundingClientRect();
-      const db = c.querySelector('tspan[font-weight="700"]');
-      return { text: lines.map(t => t.textContent).join(' / '), lines: lines.length, inside: r.left >= box.left + 16 && r.right <= box.right - 16 && r.bottom <= hl.top,
-        dbSize: db ? +db.getAttribute('font-size') : 0, dbFill: db ? db.getAttribute('fill') : null }; });
-    const CASES = [['amp', 'fwd', 'gain', '3', 'b2 = 1.41∠0°', '|b2|² = 2.0', '+3 dB = 2.0× power = 1.41× wave'],
-                   ['amp', 'fwd', 'gain', '10', 'b2 = 3.16∠0°', '|b2|² = 10', '+10 dB = 10× power = 3.16× wave'],
-                   ['amp', 'fwd', 'gain', '20', 'b2 = 10.0∠0°', '|b2|² = 100', '+20 dB = 100× power = 10.0× wave'],
-                   ['atten', 'fwd', 'att', '3', 'b2 = 0.71∠0°', '|b2|² = 0.50', '−3 dB = 0.50× power = 0.71× wave'],
-                   ['atten', 'fwd', 'att', '6', 'b2 = 0.50∠0°', '|b2|² = 0.25', '−6 dB = 0.25× power = 0.50× wave'],
-                   ['through', 'fwd', null, null, 'b2 = 1.00∠−90°', '|b2|² = 1.0', null],
-                   ['through', 'rev', null, null, 'b1 = 1.00∠−90°', '|b1|² = 1.0', null],
-                   ['iso', 'rev', null, null, 'b1 = 0', '|b1|² = 0', null]];
-    for(const [d, r, ctl, v, wave, power, caption] of CASES){
-      await goto(page, '#view=devices&device=' + d + '&drive=' + r); if(ctl) await setInput(page, '#' + ctl, v);
-      const L = await lab(), C = await cap(), name = d + (v ? ' ' + v + ' dB' : '') + ' ' + (r === 'fwd' ? 'Forward' : 'Reverse');
-      check(name + ': arrow "' + wave + '" / "' + power + '" (line 2 18 px regular, same colour, under line 1; line 1 22 px bold; other output single-line)',
-        L.wave === wave && L.power === power && L.wSize === 22 && L.wWeight === '700' && L.pSize === 18 && L.pWeight === '400' && L.same && L.below && L.otherSingle, L);
-      if(caption) check(name + ': box caption "' + caption + '" on one line inside the header band; dB term larger and coloured', C && C.text === caption && C.lines === 1 && C.inside && C.dbSize > 20
-        && C.dbFill === (d === 'amp' ? 'var(--s21)' : 'var(--s22)'), C);
-      else if(d === 'through') check(name + ': through-line ruler and βℓ caption unchanged', (await stageTexts(page)).includes('ℓ = λ/4') && (await stageTexts(page)).includes('βℓ = 2πℓ/λ = 90°') && !C);
-    }
-    await goto(page, '#view=devices&device=iso&drive=fwd');
-    let C = await cap();
-    check('Isolator: forward line "→ forward: −0.5 dB = 0.89× power = 0.94× wave" (broken after the dB term to fit); reverse line "← reverse: blocked"',
-      C.text.replace(' / ', ' ') === '→ forward: −0.5 dB = 0.89× power = 0.94× wave' && C.inside && (await stageTexts(page)).includes('← reverse: blocked'), C);
-    await setInput(page, '#isoIL', '3'); C = await cap();
-    check('Isolator caption updates live: 3 dB forward loss → −3 dB = 0.50× power = 0.71× wave', C.text.replace(' / ', ' ') === '→ forward: −3 dB = 0.50× power = 0.71× wave' && C.inside, C);
-    const fits = [];
-    for(const [d, ctl, vals] of [['amp', 'gain', ['0', '0.5', '3', '10', '20', '30']], ['atten', 'att', ['0', '0.5', '3', '6', '20', '40']], ['iso', 'isoIL', ['0', '0.1', '0.5', '1', '3']]]){
-      await goto(page, '#view=devices&device=' + d + '&drive=fwd');
-      for(const v of vals){ await setInput(page, '#' + ctl, v); const c = await cap(); if(!c.inside) fits.push(d + ' ' + v + ': ' + c.text); } }
-    check('box caption fits inside the header band for every control value from minimum to maximum', fits.length === 0, fits);
-    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '30'); C = await cap();
-    check('Amplifier 30 dB (max): +30 dB = 1000× power = 31.6× wave; b2 = 31.6∠0° / |b2|² = 1000', C.text === '+30 dB = 1000× power = 31.6× wave' && (await lab()).wave === 'b2 = 31.6∠0°' && (await lab()).power === '|b2|² = 1000', C);
-    await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '40'); C = await cap();
-    check('Attenuator 40 dB (max): −40 dB = 0.00010× power = 0.010× wave', C.text === '−40 dB = 0.00010× power = 0.010× wave', C);
-    check('side panel headline unchanged: power out = |b2|²', (await page.evaluate(() => document.getElementById('roPower').previousSibling.textContent)) === 'power out = |b2|²');
-    await ctx.close(); }
-
-  console.log('Devices layout (v1.2.0 items 2, 3)');
-  { const { ctx, page } = await open(browser); await present(page);
-    const gi = [];
-    for(const hs of STOPS.slice(1, 6).concat(REV_STOPS)){ await goto(page, hs); (await devGapIssues(page)).forEach(x => gi.push(hs.replace('#view=devices&', '') + ': ' + x)); }
-    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '30'); (await devGapIssues(page)).forEach(x => gi.push('amp 30 dB: ' + x));
-    await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '40'); (await devGapIssues(page)).forEach(x => gi.push('atten 40 dB: ' + x));
-    await goto(page, '#view=devices&device=custom&drive=fwd'); await setInput(page, '#cs11a', '-180'); await setInput(page, '#cs11', '1.25'); (await devGapIssues(page)).forEach(x => gi.push('custom S11 1.25∠180°: ' + x));
-    check('gaps: box→b labels ≥ 24, labels→matrix ≥ 16, numeric→badges ≥ 12, badges→bottom ≥ 12; header ≤ 90 (every device, Forward and Reverse)', gi.length === 0, gi.slice(0, 10));
-    check('labels ≥ 16 px from the left edge and the divider (all devices F/R; Custom 0.60∠−70°, 0.30∠40°, 0.40∠−20°; amp 30 dB; S11 1.25∠180°)', !gi.some(x => /edge|divider/.test(x)));
+    const gi = [], add = async st => (await devGapIssues(page)).forEach(x => gi.push(st + ': ' + x));
+    for(const hs of STOPS.slice(1, 6).concat(REV_STOPS)){ await goto(page, hs); await add(hs.replace('#view=devices&', '')); }
+    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '30'); await add('amp 30 dB'); await click(page, '#drive_rev'); await add('amp 30 dB rev'); await click(page, '#drive_fwd');
+    await goto(page, '#view=devices&device=custom&drive=fwd'); for(const k of ['s11', 's21', 's22']) await setInput(page, '#c' + k, '0.98'); await add('custom all |S| 0.98');
+    await click(page, '#drive_rev'); await add('custom all |S| 0.98 rev');
+    check('box→matrix ≥ 16, numeric→badges ≥ 12, badges→bottom ≥ 12; no text inside the box but the S labels (every device, Forward and Reverse; amp 30 dB; Custom |S| ≈ 1)', gi.length === 0, gi.slice(0, 10));
+    check('every label ≥ 16 px from the left edge and the divider', !gi.some(x => /edge|divider/.test(x)));
     await ctx.close(); }
 
   console.log('View 3 — Cascade (check case)');
@@ -426,7 +372,8 @@ const alignIssues = page => page.evaluate(() => {
     await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '40'); await fn('attenuator 40 dB (max loss)');
     await goto(page, '#view=devices&device=atten&drive=rev'); await fn('attenuator 40 dB, reverse'); await setInput(page, '#att', '3');
     await goto(page, '#view=devices&device=iso&drive=fwd'); await setInput(page, '#isoIL', '3'); await fn('isolator 3 dB forward loss'); await setInput(page, '#isoIL', '0.5');
-    await goto(page, '#view=devices&device=custom&drive=fwd');
+    await goto(page, '#view=devices&device=custom&drive=fwd'); for(const k of ['s11', 's21', 's22']) await setInput(page, '#c' + k, '0.98'); await fn('custom all |S| 0.98');
+    await click(page, '#drive_rev'); await fn('custom all |S| 0.98, reverse'); await click(page, '#drive_fwd');
     await goto(page, '#view=cascade'); await page.click('#stage [data-blk="2"]'); await page.waitForTimeout(60); await fn('cascade, Custom block selected');
     await page.click('#stage [data-add]'); await page.waitForTimeout(60); await click(page, '#add_amp'); await fn('cascade, 4 blocks');
     await page.click('#stage [data-del="3"]'); await page.waitForTimeout(60); };
@@ -497,10 +444,17 @@ const alignIssues = page => page.evaluate(() => {
     const shot = async name => { await page.waitForTimeout(120); await page.screenshot({ path: path.join(SHOT_DIR, name + '.png') }); console.log('  wrote ' + name + '.png'); };
     fs.readdirSync(SHOT_DIR).filter(f => f.endsWith('.png')).forEach(f => fs.unlinkSync(path.join(SHOT_DIR, f)));
     await goto(page, '#view=reflections'); await setInput(page, '#z02Box', '150', 'change'); await shot('view1_reflections_Z02_150');
-    for(const d of ['through', 'atten', 'amp', 'iso', 'custom']){ await goto(page, '#view=devices&device=' + d + '&drive=fwd'); await shot('view2_devices_' + d + '_forward'); }
-    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '3'); await page.evaluate(() => document.activeElement.blur()); await shot('view2_devices_amp_3dB_forward');
-    await setInput(page, '#gain', '10'); await page.evaluate(() => document.activeElement.blur());
-    for(const d of ['through', 'amp', 'custom']){ await goto(page, '#view=devices&device=' + d + '&drive=rev'); await shot('view2_devices_' + d + '_reverse'); }
+    // the v1.3.0 check table, one screenshot per row (names match the mock-up SVGs d_*.svg), plus one in the dark theme
+    const blur = () => page.evaluate(() => document.activeElement && document.activeElement.blur());
+    await goto(page, '#view=devices&device=through&drive=fwd'); await shot('d_through');
+    await goto(page, '#view=devices&device=atten&drive=fwd'); await shot('d_atten');
+    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '3'); await blur(); await shot('d_amp3');
+    await setInput(page, '#gain', '10'); await blur(); await shot('d_amp10');
+    await goto(page, '#view=devices&device=amp&drive=rev'); await shot('d_amp_rev');
+    await goto(page, '#view=devices&device=iso&drive=fwd'); await shot('d_iso');
+    await goto(page, '#view=devices&device=custom&drive=fwd'); await shot('d_custom');
+    await page.keyboard.press('t'); await page.waitForTimeout(80); await shot('d_custom_dark'); await page.keyboard.press('t');
+    for(const d of ['through', 'custom']){ await goto(page, '#view=devices&device=' + d + '&drive=rev'); await shot('view2_devices_' + d + '_reverse'); }
     await goto(page, '#view=devices&device=through&drive=fwd');
     await goto(page, '#view=cascade'); await shot('view3_cascade_check_case');
     await page.click('#stage [data-add]'); await page.waitForTimeout(60); await click(page, '#add_iso'); await shot('view3_cascade_4_blocks');
