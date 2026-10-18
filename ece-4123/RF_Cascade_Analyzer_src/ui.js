@@ -53,12 +53,29 @@ function txt(x, y, s, opts){
   return el('text', { x, y, 'font-size': size, 'text-anchor': opts.anchor || 'start', fill: opts.fill || 'var(--txt)', 'font-weight': opts.weight || 600,
     'dominant-baseline': 'central', class: opts.cls, id: opts.id }, parts);
 }
+/* Text made of coloured runs [[text, fill], …] at (x, y), as one <text> element. Subscripts as in txt(). */
+function richTxt(x, y, runs, opts){
+  opts = opts || {};
+  const size = opts.size || FS.label, subSize = Math.max(size * SUB_SCALE, FS.small);
+  const run = ([t, fill]) => el('tspan', { fill: fill || 'var(--txt)' }, String(t).split(/(_[A-Za-z0-9]+)/).map(p => p.startsWith('_')
+    ? el('tspan', { 'font-size': n2(subSize), 'baseline-shift': 'sub' }, esc(p.slice(1))) : esc(p)).join(''));
+  return el('text', { x, y, 'font-size': size, 'text-anchor': opts.anchor || 'start', fill: 'var(--txt)', 'font-weight': opts.weight || 600,
+    'dominant-baseline': 'central', class: opts.cls, id: opts.id }, runs.map(run).join(''));
+}
 // Approximate drawn width of text s at size (monospace; subscript markers do not count).
 const textW = (s, size) => String(s).replace(/_/g, '').length * GLYPH_W * (size || FS.label);
 // The drawing root: an SVG of design width DESIGN_W and height H, scaled to the drawing area.
 const svgRoot = (H, label, inner) => el('svg', { class: 'vis', viewBox: '0 0 ' + DESIGN_W + ' ' + n2(H), role: 'img', 'aria-label': label }, inner);
 // Section heading at the top-left of a panel.
 const heading = (x, y, s) => txt(x, y, s, { size: FS.label, fill: 'var(--mut)', cls: 'heading' });
+// Two significant figures, as on the slides ("3.0", "0.50", "75", "100", "10"); "0" for zero, "∞" for infinity.
+function sig2(v){
+  if(v === Infinity) return '∞'; if(Math.abs(v) < 1e-9) return '0';
+  v = +v.toPrecision(2); const d = 1 - Math.floor(Math.log10(Math.abs(v)) + 1e-12);   // round first: 0.999 → 1.0
+  return d <= 0 ? fx(Math.round(v / 10 ** -d) * 10 ** -d, 0) : fx(v, d);
+}
+// A fraction as a percentage to 2 significant figures with a space before the sign ("75 %", "100 %", "0.50 %").
+const pct2 = f => sig2(f * 100) + ' %';
 // ── END SVG PRIMITIVES ────────────────────────────────────────
 
 // ── MARKS ─────────────────────────────────────────────────────

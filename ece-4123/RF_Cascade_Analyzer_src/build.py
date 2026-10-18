@@ -22,7 +22,8 @@ import sys
 # ── RELEASE ───────────────────────────────────────────────────────────
 VERSION = '1.1.0'
 RELEASED = '2026-10-18'
-CHANGELOG = ('Rework to three views (Reflections, Devices, Cascade) after review of PR #43: the six Lecture steps, '
+CHANGELOG = ('Normalized waves on Devices; forward/reverse; polish (2 significant figures, Cascade alignment, larger '
+             'Devices drawing, readable reflection paths). Rework to three views (Reflections, Devices, Cascade) after review of PR #43: the six Lecture steps, '
              'the step rail and the old Lab (cascade and divider tables, source EMF/Zs) are replaced; Devices keeps the '
              'two-port path diagram with path width proportional to |S|; Cascade adds the power-flow band and dB budget. '
              'Earlier in v1.1.0: fixes PF-1 (open load read as a short), PF-2 (Deg/Rad switch changed the network), PF-3 '

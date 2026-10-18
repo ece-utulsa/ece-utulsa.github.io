@@ -14,8 +14,9 @@ const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
 const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.1.0.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
-const STOPS = ['#view=reflections', '#view=devices&device=through', '#view=devices&device=atten', '#view=devices&device=amp',
-               '#view=devices&device=iso', '#view=devices&device=custom', '#view=cascade'];
+const STOPS = ['#view=reflections', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
+               '#view=devices&device=iso&drive=fwd', '#view=devices&device=custom&drive=fwd', '#view=cascade'];
+const REV_STOPS = STOPS.slice(1, 6).map(x => x.replace('drive=fwd', 'drive=rev'));
 const MIN_LABEL = 18, HEAD = 46;                          // text sizes at 1280×720 (px)
 let pass = 0, fail = 0;
 
@@ -62,6 +63,7 @@ async function overlapIssues(page){
     for(const g of ink){
       const cs = getComputedStyle(g); if(cs.display === 'none' || cs.visibility === 'hidden') continue;
       const stroked = cs.stroke !== 'none' && parseFloat(cs.strokeWidth) > 0, hw = (stroked ? parseFloat(cs.strokeWidth) / 2 : 0) * k;
+      if(!stroked && (cs.fill === 'none' || g.tagName === 'line')) continue;   // draws nothing (e.g. a zero-width data marker)
       let L; try { L = g.getTotalLength(); } catch(e){ continue; }
       const M = g.getScreenCTM(), pt = svg.createSVGPoint(), hits = new Set();
       for(let s = 0; s <= L; s += 1.5){ const p = g.getPointAtLength(s); pt.x = p.x; pt.y = p.y; const q = pt.matrixTransform(M);
@@ -93,6 +95,21 @@ const layoutIssues = page => page.evaluate(() => {
   return bad;
 });
 
+// ── ALIGNMENT ── Cascade: reflected arrows and values centred on their junction (the forward-power marker's x), budget
+// values centred on their block, within ±6 px on screen.
+const alignIssues = page => page.evaluate(() => {
+  const bad = [], cxOf = e => { const r = e.getBoundingClientRect(); return (r.left + r.right) / 2; };
+  const svg = document.querySelector('#stage svg'), M = svg.getScreenCTM();
+  const blocks = [...document.querySelectorAll('#stage .block')];
+  for(let k = 0; ; k++){ const j = document.querySelector('#stage [data-q="fwd' + k + '"]'); if(!j) break;
+    const jx = +j.getAttribute('x1') * M.a + M.e, arrow = document.querySelector('#stage [data-q="refl' + k + '"]'), val = document.getElementById('refl' + k);
+    if(Math.abs(cxOf(arrow) - jx) > 6) bad.push('reflected arrow ' + k + ' off by ' + (cxOf(arrow) - jx).toFixed(1));
+    if(k > 0 && Math.abs(cxOf(val) - jx) > 6) bad.push('reflected value ' + k + ' off by ' + (cxOf(val) - jx).toFixed(1));
+    if(k === 0 && Math.abs(cxOf(val) - jx) > 6 && val.getBoundingClientRect().left > svg.getBoundingClientRect().left + 8) bad.push('back-to-source value off by ' + (cxOf(val) - jx).toFixed(1)); }
+  blocks.forEach((b, i) => { const v = document.getElementById('bud' + i); if(Math.abs(cxOf(v) - cxOf(b)) > 6) bad.push('budget ' + i + ' off by ' + (cxOf(v) - cxOf(b)).toFixed(1)); });
+  return bad;
+});
+
 (async () => {
   const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
   const html = fs.readFileSync(FILE, 'utf8');
@@ -114,74 +131,128 @@ const layoutIssues = page => page.evaluate(() => {
     await present(page); await goto(page, '#view=reflections');
     await setInput(page, '#z02Box', '150', 'change');
     const T = await stageTexts(page), pInc = await dq(page, 'P_inc'), pRef = await dq(page, 'P_refl'), pTr = await dq(page, 'P_trans');
-    check('Z02 = 150: |Γ| 0.50, VSWR 3.00 (side panel)', (await text(page, '#roGamma')) === '0.50' && (await text(page, '#roVswr')) === '3.00');
-    check('Z02 = 150: reflected 25 %, transmitted 75 %, on the arrows', T.includes('Reflected 25.0%') && T.includes('Transmitted 75.0%') && T.includes('Incident 100.0%'), T);
+    check('Z02 = 150: |Γ| 0.50, VSWR 3.0 (side panel, 2 significant figures)', (await text(page, '#roGamma')) === '0.50' && (await text(page, '#roVswr')) === '3.0');
+    check('Z02 = 150: reflected 25 %, transmitted 75 %, on the arrows', T.includes('Reflected 25 %') && T.includes('Transmitted 75 %') && T.includes('Incident 100 %'), T);
     check('Z02 = 150: arrow thickness ∝ power (25 % and 75 % of the incident)', near(+pRef['data-th'], 0.25 * +pInc['data-th'], 0.02) && near(+pTr['data-th'], 0.75 * +pInc['data-th'], 0.02));
     check('Z02 = 150: Vmax 1.5 and Vmin 0.5 at their true heights', near(+(await dq(page, 'Vmax'))['data-v'], 1.5, 1e-9) && near(+(await dq(page, 'Vmin'))['data-v'], 0.5, 1e-9)
       && await page.evaluate(() => { const e = document.querySelector('[data-q="envelope"]'), A = +e.getAttribute('data-a'), yc = +e.getAttribute('data-yc');
         const y = q => +document.querySelector('[data-q="' + q + '"]').getAttribute('y1'); return Math.abs(y('Vmax') - (yc - 1.5 * A)) < 0.02 && Math.abs(y('Vmin') - (yc - 0.5 * A)) < 0.02; }));
-    check('heading: VSWR = Vmax / Vmin = 1.50 / 0.50 = 3.00', (await text(page, '.vswrLine')) === 'VSWR = Vmax / Vmin = 1.50 / 0.50 = 3.00', await text(page, '.vswrLine'));
+    check('heading: VSWR = Vmax / Vmin = 1.5 / 0.50 = 3.0', (await text(page, '.vswrLine')) === 'VSWR = Vmax / Vmin = 1.5 / 0.50 = 3.0', await text(page, '.vswrLine'));
+    check('Vmax / Vmin labels "Vmax 1.5", "Vmin 0.50" in the neutral text colour (not an S colour)', T.includes('Vmax 1.5') && T.includes('Vmin 0.50')
+      && await page.evaluate(() => [...document.querySelectorAll('#stage .level')].every(e => e.getAttribute('stroke') === 'var(--txt)')
+        && [...document.querySelectorAll('#stage text')].filter(t => /^Vm(ax|in)/.test(t.textContent)).every(t => t.getAttribute('fill') === 'var(--txt)')));
     check('Z02 drawn is the control value', (await text(page, '#z02Label')).endsWith('= 150 Ω'));
     check('distance ticks 1λ … interface', ['1λ', '3λ/4', 'λ/2', 'λ/4', 'interface'].every(t => T.includes(t)));
     check('no power bar, no complex Γ', !(await page.$('#stage [data-q="P_deliv"]')) && !/∠/.test(await text(page, '#panel')));
     await click(page, '#bShort');
     let t2 = await stageTexts(page);
-    check('Short: transmitted 0 % (ghost), VSWR ∞, envelope touches 0', t2.includes('Transmitted 0.0%') && (await dq(page, 'P_trans'))['data-ghost'] === '1'
+    check('Short: transmitted 0 % (ghost), VSWR ∞, envelope touches 0', t2.includes('Transmitted 0 %') && (await dq(page, 'P_trans'))['data-ghost'] === '1'
       && (await text(page, '#roVswr')) === '∞' && +(await dq(page, 'Vmin'))['data-v'] === 0 && (await text(page, '#z02Label')).includes('0 (short)'));
     await click(page, '#bOpen');
-    check('Open: transmitted 0 %, VSWR ∞, Γ = +1', (await stageTexts(page)).includes('Transmitted 0.0%') && (await text(page, '#roVswr')) === '∞' && (await text(page, '#roGamma')) === '1.00');
+    check('Open: transmitted 0 %, VSWR ∞, |Γ| 1.0', (await stageTexts(page)).includes('Transmitted 0 %') && (await text(page, '#roVswr')) === '∞' && (await text(page, '#roGamma')) === '1.0');
     await click(page, '#bMatch');
     t2 = await stageTexts(page);
-    check('Matched: reflected arrow is a ghost only, flat envelope, VSWR 1', (await dq(page, 'P_refl'))['data-ghost'] === '1' && t2.includes('Reflected 0.0%')
-      && (await text(page, '#roVswr')) === '1.00' && +(await dq(page, 'envelope'))['data-v'] === 0);
+    check('Matched: reflected arrow is a ghost only, flat envelope, VSWR 1.0', (await dq(page, 'P_refl'))['data-ghost'] === '1' && t2.includes('Reflected 0 %')
+      && (await text(page, '#roVswr')) === '1.0' && +(await dq(page, 'envelope'))['data-v'] === 0);
     await setInput(page, '#z02Box', 'abc', 'change');
-    check('invalid Z02 text is flagged and ignored', (await page.getAttribute('#z02Box', 'aria-invalid')) === 'true' && (await text(page, '#roVswr')) === '1.00');
+    check('invalid Z02 text is flagged and ignored', (await page.getAttribute('#z02Box', 'aria-invalid')) === 'true' && (await text(page, '#roVswr')) === '1.0');
+    await setInput(page, '#z02Box', '150', 'change'); await page.keyboard.press('p'); await page.waitForTimeout(50);
+    const d0 = await page.getAttribute('#snap', 'd'); await page.keyboard.press('t'); await page.waitForTimeout(80);
+    const d1 = await page.getAttribute('#snap', 'd'), dark = await page.evaluate(() => !document.body.classList.contains('light'));
+    check('snapshot wave: the same phase in the dark and the light theme (theme change does not move it)', dark && d0 === d1);
     await ctx.close(); }
 
   console.log('View 2 — Devices');
   { const { ctx, page } = await open(browser);
     await present(page);
     const paths = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stage .path')].map(e => [e.getAttribute('data-q'),
-      { v: +e.getAttribute('data-v'), w: parseFloat(getComputedStyle(e).strokeWidth), ghost: e.getAttribute('data-ghost') === '1', cap: e.getAttribute('data-capped') === '1' }])));
+      { v: +e.getAttribute('data-v'), w: parseFloat(getComputedStyle(e).strokeWidth), ghost: e.getAttribute('data-ghost') === '1', cap: e.getAttribute('data-capped') === '1',
+        op: +e.getAttribute('opacity'), live: e.parentElement.getAttribute('data-live') === '1', gop: +(e.parentElement.getAttribute('opacity') || 1) }])));
     const badges = () => page.evaluate(() => [...document.querySelectorAll('#stage .badge')].map(b => b.getAttribute('data-on')).join(''));
     const crossOn = () => page.evaluate(() => !!document.querySelector('#stage .xmark'));
+    const waves = () => page.evaluate(() => Object.fromEntries(['a1', 'a2', 'b1', 'b2'].map(k => [k, document.getElementById('w' + k).textContent])));
+    const ghostW = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stage .wave')].map(e => [e.getAttribute('data-q'), e.getAttribute('data-ghost') === '1'])));
+    const heads = async () => [await text(page, '#roWave'), await text(page, '#roPower')];
+    const keys = async () => [await page.evaluate(() => document.getElementById('roWave').previousSibling.textContent), await page.evaluate(() => document.getElementById('roPower').previousSibling.textContent)];
+    // Forward check cases
     await goto(page, '#view=devices&device=through');
-    let P = await paths(), T = await stageTexts(page);
-    check('Through: S21 = S12 = 1 drawn at full width 8; S11, S22 ghosts labelled 0', P.S21.w === 8 && P.S12.w === 8 && P.S11.ghost && P.S22.ghost && T.filter(t => t === '0').length === 2);
+    check('Devices defaults to Forward; hash gains &drive=fwd', (await page.evaluate(() => location.hash)) === STOPS[1] && (await page.getAttribute('#drive_fwd', 'aria-pressed')) === 'true');
+    let W = await waves(), P = await paths(), T = await stageTexts(page);
+    check('Through ℓ = λ/4, Forward: a1 = 1∠0°, a2 = 0, b1 = 0, b2 = 1.00∠−90°', JSON.stringify(W) === JSON.stringify({ a1: 'a1 = 1∠0°', a2: 'a2 = 0', b1: 'b1 = 0', b2: 'b2 = 1.00∠−90°' }), W);
+    check('Through Forward: zero waves a2, b1 drawn as ghosts', JSON.stringify(await ghostW()) === JSON.stringify({ a1: false, b1: true, a2: true, b2: false }));
+    check('Through Forward panel: b2 = 1.00∠−90°, power out = |b2|² = 100 %', JSON.stringify(await heads()) === '["1.00∠−90°","100 %"]' && (await keys())[1] === 'power out = |b2|²');
+    check('Forward: S11, S21 at full strength; S12, S22 faded to 25 %', P.S11.live && P.S21.live && !P.S12.live && !P.S22.live && P.S12.gop === 0.25 && P.S22.gop === 0.25);
+    check('numeric line: [0 ; 1.00∠−90°] = [S] · [1∠0° ; 0]', (await text(page, '#numLine')) === '[0 ; 1.00∠−90°] = [S] · [1∠0° ; 0]', await text(page, '#numLine'));
+    check('caption: "a, b = normalized waves (a = V⁺/√Z0). Power = |wave|²."; never "power wave"', (await text(page, '#panel')).includes('a, b = normalized waves (a = V⁺/√Z0). Power = |wave|².')
+      && !/power wave/i.test(await page.evaluate(() => document.body.innerText)));
+    check('Through: S21 = S12 = 1 drawn at full width 8; S11, S22 ghosts labelled 0 at ≥ 60 % opacity', P.S21.w === 8 && P.S12.w === 8 && P.S11.ghost && P.S22.ghost && P.S11.op >= 0.6 && T.filter(t => t === '0').length === 2);
+    check('|S| printed on every path (S11, S21, S12, S22)', await page.evaluate(() => ['vs11', 'vs21', 'vs12', 'vs22'].every(id => !!document.getElementById(id))));
     check('Through: ℓ = λ/4 ruler and βℓ = 2πℓ/λ = 90° in the box; S21 1.00∠−90°', T.includes('ℓ = λ/4') && T.includes('βℓ = 2πℓ/λ = 90°') && T.includes('S21 1.00∠−90°'), T);
     check('Through: "Two-Port" in the box header, above the paths', await page.evaluate(() => { const t = document.querySelector('.boxTitle').getBoundingClientRect();
       return [...document.querySelectorAll('#stage .path')].every(p => p.getBoundingClientRect().top > t.bottom); }));
-    check('Through: badges Reciprocal ✓ Symmetric ✓ Lossless ✓ Passive ✓', (await badges()) === '1111');
+    check('Through: badges Reciprocal ✓ Symmetric ✓ Lossless ✓ Passive ✓; badge text ≥ 18 px', (await badges()) === '1111'
+      && await page.evaluate(() => [...document.querySelectorAll('#stage .badge text')].every(t => +t.getAttribute('font-size') >= 18)));
     await setInput(page, '#len', '0.3');
-    check('Through: ℓ = 0.30λ gives βℓ = 108° and S21 1.00∠−108°', (await stageTexts(page)).includes('βℓ = 2πℓ/λ = 108°') && (await stageTexts(page)).includes('S21 1.00∠−108°'));
+    check('Through: ℓ = 0.30λ gives βℓ = 108°, S21 1.00∠−108° and b2 = 1.00∠−108°', (await stageTexts(page)).includes('βℓ = 2πℓ/λ = 108°') && (await stageTexts(page)).includes('S21 1.00∠−108°') && (await heads())[0] === '1.00∠−108°');
+    await setInput(page, '#len', '0.25');
     await page.keyboard.press('PageDown'); await page.waitForTimeout(80);
-    check('PageDown moves on even with the slider focused (Attenuator); slider value unchanged', (await page.evaluate(() => location.hash)) === '#view=devices&device=atten');
-    P = await paths(); T = await stageTexts(page);
-    check('Attenuator 6 dB: S21, S12 = 0.50 drawn thinner (width 4)', near(P.S21.w, 4, 0.02) && near(P.S12.w, 4, 0.02) && T.includes('S21 0.50'), P);
-    check('Attenuator: "−6 dB" in the box; panel: Power through 25.1% (|S21|² at 6 dB)', T.includes('−6 dB') && (await text(page, '#roDev')) === '25.1%');
+    check('PageDown moves on even with the slider focused (Attenuator), keeping Forward', (await page.evaluate(() => location.hash)) === STOPS[2]);
+    P = await paths(); T = await stageTexts(page); W = await waves();
+    check('Attenuator opens at 3 dB: "−3 dB" in the box; S21, S12 = 0.71 drawn thinner', T.includes('−3 dB') && near(P.S21.w, 8 * 0.7079, 0.02) && T.includes('S21 0.71'), P);
+    check('Attenuator 3 dB, Forward: b1 = 0, b2 = 0.71∠0°; power out = |b2|² = 50 %', W.b1 === 'b1 = 0' && W.b2 === 'b2 = 0.71∠0°' && JSON.stringify(await heads()) === '["0.71∠0°","50 %"]');
     check('Attenuator: badges R ✓ S ✓ L ✗ P ✓', (await badges()) === '1101');
     await page.keyboard.press('ArrowRight'); await page.waitForTimeout(80);
-    P = await paths(); T = await stageTexts(page);
-    check('Amplifier 10 dB: S21 3.16 capped at 3× with a break mark', P.S21.cap && P.S21.w === 24 && T.includes('S21 3.16') && await page.evaluate(() => !!document.querySelector('#stage .brk')));
+    P = await paths(); T = await stageTexts(page); W = await waves();
+    check('Amplifier 10 dB, Forward: b1 = 0, b2 = 3.16∠0°; |b2|² = 10 × input', W.b1 === 'b1 = 0' && W.b2 === 'b2 = 3.16∠0°' && JSON.stringify(await heads()) === '["3.16∠0°","10 × input"]');
+    check('Amplifier: S21 3.16 capped at 3× with a break mark', P.S21.cap && P.S21.w === 24 && T.includes('S21 3.16') && await page.evaluate(() => !!document.querySelector('#stage .brk')));
     check('Amplifier: S12 dotted ghost with ✕', P.S12.ghost && await crossOn());
-    check('Amplifier: gain shown, "+10 dB" in the box and in the panel', T.includes('+10 dB') && (await text(page, '#roDev')) === '+10 dB');
+    check('Amplifier: gain shown, "+10 dB" in the box', T.includes('+10 dB'));
     await setInput(page, '#gain', '20');
-    check('Amplifier: gain slider updates box and panel (+20 dB)', (await stageTexts(page)).includes('+20 dB') && (await text(page, '#roDev')) === '+20 dB');
+    check('Amplifier: gain slider updates the box and the waves (+20 dB, b2 = 10.00∠0°, 100 × input)', (await stageTexts(page)).includes('+20 dB') && JSON.stringify(await heads()) === '["10.00∠0°","100 × input"]');
     check('Amplifier: badges all ✗', (await badges()) === '0000');
+    await setInput(page, '#gain', '10');
     await page.keyboard.press('ArrowRight'); await page.waitForTimeout(80);
-    P = await paths();
+    P = await paths(); W = await waves();
     check('Isolator: S12 blocked with a red ✕; badges R ✗ S ✗ L ✗ P ✓', P.S12.ghost && await crossOn() && (await badges()) === '0001');
+    check('Isolator Forward: b1 = 0; b2 follows the forward loss (0.5 dB → 0.94∠0°, 89 %)', W.b1 === 'b1 = 0' && W.b2 === 'b2 = 0.94∠0°' && (await heads())[1] === '89 %');
+    await setInput(page, '#isoIL', '1');
+    check('Isolator Forward: 1 dB forward loss → b2 = 0.89∠0°, 79 %', (await waves()).b2 === 'b2 = 0.89∠0°' && (await heads())[1] === '79 %');
+    await setInput(page, '#isoIL', '0.5');
     await setInput(page, '#isoI', '20');
     check('Isolator: 20 dB isolation draws S12 0.10 (thin, no ✕)', near((await paths()).S12.v, 0.1, 1e-9) && !(await crossOn()) && (await stageTexts(page)).includes('S12 0.10'));
-    await page.keyboard.press('ArrowRight'); await page.waitForTimeout(80);
+    // Reverse check cases
+    await click(page, '#drive_rev');
+    check('Reverse button: hash &drive=rev', (await page.evaluate(() => location.hash)) === '#view=devices&device=iso&drive=rev');
+    W = await waves(); P = await paths();
+    check('Isolator Reverse, 20 dB: a2 = 1∠0°, b1 = |S12| = 0.10∠0°, b2 = 0', W.a2 === 'a2 = 1∠0°' && W.a1 === 'a1 = 0' && W.b1 === 'b1 = 0.10∠0°' && W.b2 === 'b2 = 0', W);
+    check('Reverse: S12, S22 at full strength; S21, S11 faded', P.S12.live && P.S22.live && !P.S21.live && !P.S11.live && P.S21.gop === 0.25);
+    check('Reverse panel: b1 =, power out = |b1|²', JSON.stringify(await keys()) === '["b1 =","power out = |b1|²"]' && (await heads())[1] === '1.0 %');
+    await setInput(page, '#isoI', '60'); await page.evaluate(() => { const r = document.getElementById('isoI'); r.value = 61; r.dispatchEvent(new Event('input', { bubbles: true })); }); await page.waitForTimeout(60);
+    check('Isolator Reverse, ∞ isolation: b1 = 0, shown blocked (✕), box shows ∞ placeholder', (await waves()).b1 === 'b1 = 0' && await crossOn() && (await page.inputValue('#isoIN')) === '');
+    await page.keyboard.press('PageUp'); await page.waitForTimeout(80);
+    check('Previous keeps the drive (Amplifier, Reverse)', (await page.evaluate(() => location.hash)) === '#view=devices&device=amp&drive=rev');
+    W = await waves();
+    check('Amplifier Reverse: b1 = 0, blocked with ✕; b2 = S22·a2 = 0', W.b1 === 'b1 = 0' && W.b2 === 'b2 = 0' && await crossOn() && (await heads())[0] === '0');
+    check('numeric line (Amplifier, Reverse): [0 ; 0] = [S] · [0 ; 1∠0°]', (await text(page, '#numLine')) === '[0 ; 0] = [S] · [0 ; 1∠0°]');
+    await page.keyboard.press('PageUp'); await page.waitForTimeout(80);
+    check('Attenuator Reverse: b1 = 0.71∠0°, 50 %', (await waves()).b1 === 'b1 = 0.71∠0°' && (await heads())[1] === '50 %');
+    await page.keyboard.press('PageUp'); await page.waitForTimeout(80);
+    W = await waves();
+    check('Through Reverse: b1 = 1.00∠−90°, b2 = 0', W.b1 === 'b1 = 1.00∠−90°' && W.b2 === 'b2 = 0', W);
+    await click(page, '#drive_fwd');
+    await page.goto(URL0 + '#view=devices&device=custom&drive=rev'); await page.waitForTimeout(150);
+    check('hash round-trip: #view=devices&device=custom&drive=rev restores Custom in Reverse', (await page.getAttribute('#dev_custom', 'aria-pressed')) === 'true'
+      && (await page.getAttribute('#drive_rev', 'aria-pressed')) === 'true' && (await page.evaluate(() => location.hash)) === '#view=devices&device=custom&drive=rev');
+    await click(page, '#drive_fwd');
     check('Custom: four entry rows and the reciprocal link', (await page.$$('#panel .srow')).length === 4 && await page.isChecked('#crecip'));
     await setInput(page, '#cs21', '0.8');
     P = await paths();
     check('Custom: linked S12 follows S21 (0.80); the S12 row is locked', near(P.S12.v, 0.8, 1e-9) && near(P.S21.v, 0.8, 1e-9) && await page.isDisabled('#cs12'));
     await setInput(page, '#cs21a', '0');
-    check('Custom: angle shown only where it isn\'t 0', (await stageTexts(page)).includes('S21 0.80'));
+    check('Custom: |S| angle shown only where it isn\'t 0; the wave shows ∠0° (b2 = 0.80∠0°)', (await stageTexts(page)).includes('S21 0.80') && (await waves()).b2 === 'b2 = 0.80∠0°');
     check('Devices: no 3-decimal numbers on the diagram', !(await stageTexts(page)).some(t => /\d\.\d{3}/.test(t)));
-    check('Matrix equation entries ≈ 30 px', await page.evaluate(() => [...document.querySelectorAll('#stage .ment')].every(e => Math.abs(e.getBoundingClientRect().height - 0) > 0 && +e.getAttribute('font-size') === 30)));
+    check('Matrix equation entries 30 px; numeric line 22 px', await page.evaluate(() => [...document.querySelectorAll('#stage .ment')].every(e => +e.getAttribute('font-size') === 30)
+      && +document.getElementById('numLine').getAttribute('font-size') === 22));
     await ctx.close(); }
 
   console.log('View 3 — Cascade (check case)');
@@ -191,10 +262,13 @@ const layoutIssues = page => page.evaluate(() => {
     check('forward power at junctions 0…3: 1.0, 10, 5.0, 4.6', JSON.stringify(await ids('fwd')) === '["1.0","10","5.0","4.6"]', await ids('fwd'));
     const r = await ids('refl');
     check('reflected power at junctions 1…3: 0.17, 0.34, 0.51; at the source: 0', JSON.stringify(r) === '["back to source 0","0.17","0.34","0.51"]', r);
-    check('band height ∝ forward power; reflected arrows ∝ |b|² at the stated scale', await page.evaluate(() => {
+    const al = await alignIssues(page);
+    check('alignment: each reflected arrow and value centred under its junction, each budget value under its block (±6 px)', al.length === 0, al);
+    check('band height ∝ forward power; reflected arrows ∝ |b|², exaggerated by the factor the caption states', await page.evaluate(() => {
       const f = [0, 1, 2, 3].map(k => document.querySelector('[data-q="fwd' + k + '"]')), ok1 = f.every(e => Math.abs(+e.dataset.th - +e.dataset.v * +e.dataset.ref) < 0.02);
       const b = [1, 2, 3].map(k => document.querySelector('[data-q="refl' + k + '"]')), ok2 = b.every(e => Math.abs(+e.dataset.th - +e.dataset.v * +e.dataset.ref) < 0.02);
-      return ok1 && ok2 && /3× thicker/.test(document.querySelector('.caption').textContent); }));
+      const m = /drawn ([\d.]+)× thicker/.exec(document.querySelector('.caption').textContent), sc = +f[0].dataset.ref;
+      return ok1 && ok2 && !!m && b.every(e => Math.abs(+e.dataset.ref / sc - +m[1]) < 0.051); }));
     const lines = await page.$$eval('#chainS .sline', l => l.map(x => x.textContent));
     check('whole chain: S21 2.01∠−45° (+6.1 dB), S11 0 (source sees a match), S22 0.20∠30°, S12 0',
       JSON.stringify(lines) === JSON.stringify(['S212.01∠−45° (+6.1 dB)', 'S110 (source sees a match)', 'S220.20∠30°', 'S120']), lines);
@@ -207,11 +281,19 @@ const layoutIssues = page => page.evaluate(() => {
     check('editing the knob updates the chain (−6 dB block)', (await page.$$eval('#stage .keyv', e => e.map(x => x.textContent)))[1] === '−6 dB');
     await click(page, '#toCustom');
     check('"Edit S-parameters" converts the block to Custom with its values', (await text(page, '#panel .sec')) === 'Block 2 · Custom' && near(+(await page.inputValue('#ks21m')), 0.501187, 1e-5));
+    check('"+" sits after the last block, below the wire (not on the wire between the last block and the load)', await page.evaluate(() => {
+      const p = document.querySelector('#stage [data-add] circle'), blocks = [...document.querySelectorAll('#stage .block')], last = blocks[blocks.length - 1];
+      const load = document.querySelector('#stage .load'), wire = document.querySelector('#stage .wire'), cx = +p.getAttribute('cx'), cy = +p.getAttribute('cy'), r = +p.getAttribute('r');
+      return cx > +last.getAttribute('x') + +last.getAttribute('width') && cx < +load.getAttribute('x') && cy - r > +wire.getAttribute('y1'); }));
     await page.click('#stage [data-add]'); await page.waitForTimeout(60);
     check('"+" opens the type menu', (await page.$$('.addmenu button')).length === 5);
     await click(page, '#add_iso');
-    check('adding a 4th block (Isolator) selects it; "+" is gone at 4', (await page.$$('#stage [data-blk]')).length === 4 && !(await page.$('#stage [data-add]')) && (await text(page, '#panel .sec')) === 'Block 4 · Isolator');
+    check('adding a 4th block (Isolator) selects it; "+" is disabled and greyed at 4', (await page.$$('#stage [data-blk]')).length === 4 && (await page.getAttribute('#stage [data-add]', 'aria-disabled')) === 'true'
+      && (await page.getAttribute('#stage [data-add]', 'opacity')) === '0.35' && (await text(page, '#panel .sec')) === 'Block 4 · Isolator');
+    await page.click('#stage [data-add]', { force: true }); await page.waitForTimeout(60);
+    check('the disabled "+" does not open the menu', !(await page.$('.addmenu')));
     check('no overlaps with 4 blocks', (await overlapIssues(page)).length === 0, await overlapIssues(page));
+    check('alignment with 4 blocks (±6 px)', (await alignIssues(page)).length === 0, await alignIssues(page));
     await page.click('#stage [data-del="3"]'); await page.waitForTimeout(60);
     check('× removes a block', (await page.$$('#stage [data-blk]')).length === 3);
     await click(page, '#lShort');
@@ -221,14 +303,18 @@ const layoutIssues = page => page.evaluate(() => {
     await ctx.close(); }
 
   console.log('Overlaps, sizes and layout');
-  const states = async (page, fn) => { for(const hs of STOPS){ await goto(page, hs); await fn(hs); }
+  const states = async (page, fn) => { for(const hs of STOPS.concat(REV_STOPS)){ await goto(page, hs); await fn(hs); }
     await goto(page, '#view=reflections');
     for(const b of ['#bShort', '#bOpen', '#bMatch']){ await click(page, b); await fn('reflections ' + b); }
     await setInput(page, '#z02Box', '52', 'change'); await fn('reflections Z02 = 52');
     await goto(page, '#view=devices&device=iso'); await setInput(page, '#isoI', '20'); await fn('isolator 20 dB');
     await goto(page, '#view=devices&device=amp'); await setInput(page, '#gain', '30'); await fn('amplifier 30 dB');
     await goto(page, '#view=devices&device=custom'); await setInput(page, '#cs11a', '-180'); await setInput(page, '#cs11', '1.25'); await fn('custom S11 1.25∠180°');
-    await goto(page, '#view=cascade'); await page.click('#stage [data-blk="2"]'); await page.waitForTimeout(60); await fn('cascade, Custom block selected'); };
+    await goto(page, '#view=devices&device=amp&drive=rev'); await fn('amplifier 30 dB, reverse');
+    await goto(page, '#view=devices&device=custom&drive=fwd');
+    await goto(page, '#view=cascade'); await page.click('#stage [data-blk="2"]'); await page.waitForTimeout(60); await fn('cascade, Custom block selected');
+    await page.click('#stage [data-add]'); await page.waitForTimeout(60); await click(page, '#add_amp'); await fn('cascade, 4 blocks');
+    await page.click('#stage [data-del="3"]'); await page.waitForTimeout(60); };
   for(const [vw, label, f, pres] of [[{ width: 1280, height: 720 }, 'presentation 1280×720', 1, true], [{ width: 1920, height: 1080 }, 'presentation 1920×1080', 1.5, true],
                                      [{ width: 1366, height: 768 }, 'windowed 1366×768', 1, false]]){
     const { ctx, page, log } = await open(browser, { viewport: vw });
@@ -296,9 +382,9 @@ const layoutIssues = page => page.evaluate(() => {
     const shot = async name => { await page.waitForTimeout(120); await page.screenshot({ path: path.join(SHOT_DIR, name + '.png') }); console.log('  wrote ' + name + '.png'); };
     fs.readdirSync(SHOT_DIR).filter(f => f.endsWith('.png')).forEach(f => fs.unlinkSync(path.join(SHOT_DIR, f)));
     await goto(page, '#view=reflections'); await setInput(page, '#z02Box', '150', 'change'); await shot('view1_reflections_Z02_150');
-    await click(page, '#bShort'); await shot('view1_reflections_short');
-    await click(page, '#bMatch'); await shot('view1_reflections_matched');
-    for(const d of ['through', 'atten', 'amp', 'iso', 'custom']){ await goto(page, '#view=devices&device=' + d); await shot('view2_devices_' + d); }
+    for(const d of ['through', 'atten', 'amp', 'iso', 'custom']){ await goto(page, '#view=devices&device=' + d + '&drive=fwd'); await shot('view2_devices_' + d + '_forward'); }
+    for(const d of ['through', 'amp']){ await goto(page, '#view=devices&device=' + d + '&drive=rev'); await shot('view2_devices_' + d + '_reverse'); }
+    await goto(page, '#view=devices&device=through&drive=fwd');
     await goto(page, '#view=cascade'); await shot('view3_cascade_check_case');
     await ctx.close();
   }

@@ -1,5 +1,5 @@
 /* RF Cascade Analyzer — application shell: the three views as tabs (Reflections, Devices, Cascade), Next/Previous
-   (which also step through the device list inside Devices), the URL hash, clicker and keyboard keys, presentation
+   (which also step through the device list inside Devices; they keep the Forward/Reverse drive), the URL hash, clicker and keyboard keys, presentation
    mode, the theme, and the View 1 snapshot-wave animation with pause and reduced motion. */
 /* ============================================================
    TABLE OF CONTENTS
@@ -22,7 +22,7 @@ const VIEW = {
   devices: { draw: drawDevices, panel: panelDevices, sync: syncDevices },
   cascade: { draw: drawCascade, panel: panelCascade, sync: syncCascade },
 };
-const HASH_RE = /^#?view=(reflections|devices|cascade)(?:&device=(through|atten|amp|iso|custom))?$/;
+const HASH_RE = /^#?view=(reflections|devices|cascade)(?:&device=(through|atten|amp|iso|custom)(?:&drive=(fwd|rev))?)?$/;
 const TEXT_TYPES = ['text', 'number', 'search', 'email', 'url', 'tel', 'password'];
 // ── END CONSTANTS ─────────────────────────────────────────────
 
@@ -62,7 +62,8 @@ function renderTop(){
   $('prevBtn').disabled = i === 0; $('nextBtn').disabled = i === STOPS.length - 1;
   $('devbar').classList.toggle('hidden', app.view !== 'devices');
   DEVICES.forEach(d => { const b = $('dev_' + d); b.setAttribute('aria-pressed', String(d === D.dev)); b.classList.toggle('on', d === D.dev); });
-  $('drawCol').setAttribute('aria-label', VIEW_NAME[app.view] + (app.view === 'devices' ? ': ' + DEV_NAME[D.dev] : ''));
+  ['fwd', 'rev'].forEach(r => $('drive_' + r).setAttribute('aria-pressed', String(r === D.drive)));
+  $('drawCol').setAttribute('aria-label', VIEW_NAME[app.view] + (app.view === 'devices' ? ': ' + DEV_NAME[D.dev] + ', ' + (D.drive === 'fwd' ? 'forward' : 'reverse') : ''));
 }
 // ── END RENDERING ─────────────────────────────────────────────
 
@@ -71,9 +72,9 @@ function renderTop(){
 const STOPS = [['reflections', null]].concat(DEVICES.map(d => ['devices', d]), [['cascade', null]]);
 // Index of the current stop.
 const stopIndex = () => STOPS.findIndex(([v, d]) => v === app.view && (d === null || d === D.dev));
-// Show view v (and device d in Devices).
-function show(v, d){
-  if(d) D.dev = d;
+// Show view v (and device d and drive r in Devices).
+function show(v, d, r){
+  if(d) D.dev = d; if(r) D.drive = r;
   const changed = v !== app.view; app.view = v; K.menu = false;
   if(changed) $('panel').replaceChildren();
   redraw(true); syncHash();
@@ -83,11 +84,11 @@ function next(){ const i = stopIndex(); if(i < STOPS.length - 1) show(...STOPS[i
 function prev(){ const i = stopIndex(); if(i > 0) show(...STOPS[i - 1]); }
 // Mirror the view (and device) in the URL hash without adding history entries.
 function syncHash(){
-  const want = '#view=' + app.view + (app.view === 'devices' ? '&device=' + D.dev : '');
+  const want = '#view=' + app.view + (app.view === 'devices' ? '&device=' + D.dev + '&drive=' + D.drive : '');
   if(location.hash !== want) history.replaceState(null, '', want);
 }
-// [view, device] from the URL hash, or null.
-function readHash(){ const m = HASH_RE.exec(location.hash); return m ? [m[1], m[2] || null] : null; }
+// [view, device, drive] from the URL hash, or null.
+function readHash(){ const m = HASH_RE.exec(location.hash); return m ? [m[1], m[2] || null, m[3] || null] : null; }
 // ── END NAVIGATION ────────────────────────────────────────────
 
 // ── ANIMATION ─────────────────────────────────────────────────
@@ -190,7 +191,10 @@ function onTabKey(e){
 function start(){
   $('tabs').replaceChildren(...VIEWS.map((v, i) => h('button', { type: 'button', id: 'tab_' + v, text: VIEW_NAME[v], attrs: { role: 'tab', 'aria-controls': 'main', 'aria-label': VIEW_NAME[v] + ' (Alt+' + (i + 1) + ')' },
     onclick: () => show(v), onkeydown: onTabKey })));
-  $('devbar').replaceChildren(...DEVICES.map(d => h('button', { type: 'button', id: 'dev_' + d, text: DEV_NAME[d], onclick: () => show('devices', d) })));
+  $('devbar').replaceChildren(...DEVICES.map(d => h('button', { type: 'button', id: 'dev_' + d, text: DEV_NAME[d], onclick: () => show('devices', d) })),
+    h('span', { cls: 'spacer' }), h('div', { cls: 'seg', attrs: { role: 'group', 'aria-label': 'Drive one port at a time' } },
+      h('button', { type: 'button', id: 'drive_fwd', text: 'Forward', attrs: { 'aria-label': 'Forward: a1 = 1, a2 = 0' }, onclick: () => show('devices', null, 'fwd') }),
+      h('button', { type: 'button', id: 'drive_rev', text: 'Reverse', attrs: { 'aria-label': 'Reverse: a2 = 1, a1 = 0' }, onclick: () => show('devices', null, 'rev') })));
   $('prevBtn').addEventListener('click', prev); $('nextBtn').addEventListener('click', next);
   $('pauseBtn').addEventListener('click', () => setPaused(!app.paused));
   $('themeBtn').addEventListener('click', toggleTheme);
@@ -200,11 +204,11 @@ function start(){
   document.addEventListener('keydown', onKey, true);
   document.addEventListener('fullscreenchange', onFullscreenChange);
   document.addEventListener('visibilitychange', syncAnim);
-  window.addEventListener('hashchange', () => { const hs = readHash(); if(hs) show(hs[0], hs[1]); });
+  window.addEventListener('hashchange', () => { const hs = readHash(); if(hs) show(hs[0], hs[1], hs[2]); });
   let rz = 0; new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(relayout); }).observe($('stage'));
   updateSizes(false); applyTheme();
   setPaused(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const hs = readHash(); show(hs ? hs[0] : 'reflections', hs ? hs[1] : null);
+  const hs = readHash(); show(hs ? hs[0] : 'reflections', hs ? hs[1] : null, hs ? hs[2] : null);
 }
 start();
 // ── END START-UP ──────────────────────────────────────────────

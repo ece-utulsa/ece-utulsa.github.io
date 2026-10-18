@@ -1,14 +1,16 @@
 /* RF Cascade Analyzer — View 2, Devices: the two-port path diagram (kept from v1.1.0 Step 2, Naming) for one device at
-   a time. The four S-parameter paths run through or around the box, coloured, with stroke width proportional to |S|
-   (capped at 3× with a break mark; a zero entry is a faint dotted ghost labelled 0). Below: the matrix equation and
-   the four property badges. Next/Previous step through the device list. */
+   a time, driven one port at a time (Forward: a1 = 1∠0°, a2 = 0; Reverse: a2 = 1∠0°, a1 = 0, slide 12). The port
+   arrows carry the normalized waves a = V⁺/√Z0 and b = V⁻/√Z0 (no units; power is |wave|²). The four S-parameter paths
+   run through or around the box, coloured, with stroke width proportional to |S| (capped at 3× with a break mark; a
+   zero entry is a dotted ghost labelled 0); the paths the drive does not use fade. Below: the matrix equation with a
+   numeric line for the current drive, and the four property badges. Next/Previous step through the device list. */
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — device list, path widths, layout
    2. State            — per-device parameters, current device
-   3. Two-port drawing — box, header glyph, paths, labels, port waves
-   4. Matrix and badges
-   5. Panel            — the device's controls, one headline, one line of explanation
+   3. Two-port drawing — box, header glyph, paths, labels, normalized waves at the ports
+   4. Matrix and badges — symbolic equation, numeric line for the drive, property badges
+   5. Panel            — the wave and its power, the device's controls, one line of explanation
    ============================================================ */
 
 // ── CONSTANTS ─────────────────────────────────────────────────
@@ -19,7 +21,11 @@ const PATH_CAP = 3;              // widths above 3× are capped and drawn with a
 const S_ZERO = 0.005;            // |S| below this is drawn as a ghost and labelled 0
 const ISO_MAX = 60;              // isolator reverse-isolation slider: 0..60 dB, then ∞
 const MAG_MAX = 2;               // Custom |S| slider range
-const LY_D = { bx: 210, bw: 480, top: 40, head: 126, inset: 30, loop: 24, arrow: 110, mat: 140, matGap: 92, badge: 30 };
+const LY_D = { bx: 165, bw: 570, top: 8, head: 126, inset: 30, loop: 24, arrow: 140, below: 240, mat: 172, num: 72, badge: 26 };
+const FADE = 0.25;               // opacity of the paths the current drive does not use
+const GHOST_OP = 0.75;           // opacity of a zero (ghost) path: readable on a projector
+const FS_NUM = 22;               // numeric line under the matrix equation
+const DRIVE_PATHS = { fwd: ['s11', 's21'], rev: ['s12', 's22'] };   // paths excited by a1 (Forward) or a2 (Reverse)
 const FRACTIONS = [[1 / 8, 'λ/8'], [1 / 4, 'λ/4'], [3 / 8, '3λ/8'], [1 / 2, 'λ/2'], [5 / 8, '5λ/8'], [3 / 4, '3λ/4'], [7 / 8, '7λ/8'], [1, 'λ'], [0, '0']];
 const BADGES = [['reciprocal', 'Reciprocal'], ['symmetric', 'Symmetric'], ['lossless', 'Lossless'], ['passive', 'Passive']];
 // ── END CONSTANTS ─────────────────────────────────────────────
@@ -27,7 +33,7 @@ const BADGES = [['reciprocal', 'Reciprocal'], ['symmetric', 'Symmetric'], ['loss
 // ── STATE ─────────────────────────────────────────────────────
 // A Custom entry set { s11: [mag, deg], ... } (the Teaching example: reciprocal, lossy, not symmetric).
 const customDefault = () => ({ s11: [0.3, 40], s21: [0.6, -70], s12: [0.6, -70], s22: [0.4, -20] });
-const D = { dev: 'through', through: { l: 0.25 }, atten: { A: 6 }, amp: { G: 10 }, iso: { IL: 0.5, I: Infinity },
+const D = { dev: 'through', drive: 'fwd', through: { l: 0.25 }, atten: { A: 3 }, amp: { G: 10 }, iso: { IL: 0.5, I: Infinity },
             custom: { e: customDefault(), recip: true } };
 // S of a Custom entry set.
 const customS = e => devPolar(e.s11, e.s21, e.s12, e.s22);
@@ -50,14 +56,24 @@ function sText(c){
 }
 // Signed dB text with one decimal ("+10 dB", "−6 dB"; whole numbers lose the ".0").
 function dbText(db){ if(db === Infinity) return '∞ dB'; const r = Math.round(db * 10) / 10, t = Number.isInteger(r) ? fx(r, 0) : fx(r, 1); return (r > 0 ? '+' : '') + t + ' dB'; }
+// A normalized-wave value: "0" for zero, else |w| to 2 decimals with the angle always shown ("0.71∠0°"); the unit drive
+// wave is written "1∠0°".
+function waveText(c){
+  const m = cabs(c); if(m < S_ZERO) return '0';
+  const a = Math.round(wrapDeg(carg(c) * DEG)), ang = ANGLE_SIGN + fx(a === -HALF_TURN ? HALF_TURN : a, 0) + '°';
+  return (Math.abs(m - 1) < 1e-12 && Math.abs(a) < 1e-9 ? '1' : fx(m, 2)) + ang;
+}
+// The waves at the ports for the current drive (port 2 or 1 terminated in Z0, so the other incident wave is 0).
+const deviceWaves = S => drive(S, D.drive, ZERO);
 // ── END STATE ─────────────────────────────────────────────────
 
 // ── TWO-PORT DRAWING ──────────────────────────────────────────
-// A thin line arrow from x0 to x1 along y (the waves a and b at the ports).
-function lineArrow(x0, x1, y, col, cls){
+// A thin line arrow from x0 to x1 along y (a normalized wave at a port); a ghost (dotted, faint) when the wave is 0.
+function lineArrow(x0, x1, y, col, ghost, q, v){
   const dir = Math.sign(x1 - x0);
-  return el('path', { d: 'M' + n2(x0) + ' ' + n2(y) + 'H' + n2(x1 - dir * 12), stroke: col, 'stroke-width': 3, fill: 'none', class: cls })
-    + el('path', { d: 'M' + n2(x1) + ' ' + n2(y) + 'l' + n2(-dir * 14) + ' -8v16Z', fill: col, class: cls });
+  return el('g', { class: 'wave', opacity: ghost ? 0.4 : null, 'data-q': q, 'data-v': q ? +v.toPrecision(12) : null, 'data-ghost': ghost ? 1 : null },
+    el('path', { d: 'M' + n2(x0) + ' ' + n2(y) + 'H' + n2(x1 - dir * 12), stroke: col, 'stroke-width': 3, fill: 'none', 'stroke-dasharray': ghost ? DOTS : null })
+    + el('path', { d: 'M' + n2(x1) + ' ' + n2(y) + 'l' + n2(-dir * 14) + ' -8v16Z', fill: ghost ? 'none' : col, stroke: col, 'stroke-width': ghost ? 1.5 : 0 }));
 }
 // The device's glyph in the box header (below the "Two-Port" title).
 function headerGlyph(kind, p, cx, y0){
@@ -73,10 +89,10 @@ function headerGlyph(kind, p, cx, y0){
   return txt(cx, y0 + 76, '[S] set by hand', { anchor: 'middle' });
 }
 /* The two-port path diagram for device kind/params p in a drawing H units tall: box with a "Two-Port" header, the
-   a1, b1, a2, b2 waves at the ports and the four S paths. */
+   normalized waves a1, b1, a2, b2 at the ports (values for the current drive) and the four S paths. */
 function drawTwoPort(H, kind, p){
-  const S = deviceS(kind, p), bx = LY_D.bx, bw = LY_D.bw, by = LY_D.top, cx = bx + bw / 2;
-  const matY = H - LY_D.mat, bb = matY - LY_D.matGap, yA = by + LY_D.head + LY_D.inset, yB = bb - LY_D.inset, mid = (yA + yB) / 2, xl = bx + LY_D.loop, xr = bx + bw - LY_D.loop;
+  const S = deviceS(kind, p), w = deviceWaves(S), on = DRIVE_PATHS[D.drive], bx = LY_D.bx, bw = LY_D.bw, by = LY_D.top, cx = bx + bw / 2;
+  const bb = H - LY_D.below, yA = by + LY_D.head + LY_D.inset, yB = bb - LY_D.inset, mid = (yA + yB) / 2, xl = bx + LY_D.loop, xr = bx + bw - LY_D.loop;
   let s = el('rect', { x: bx, y: by, width: bw, height: bb - by, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 2.5, rx: 8, class: 'box' });
   s += el('line', { x1: bx, y1: by + LY_D.head, x2: bx + bw, y2: by + LY_D.head, stroke: 'var(--line)', 'stroke-width': 1.5 });
   s += txt(cx, by + 18, 'Two-Port', { anchor: 'middle', fill: 'var(--mut)', cls: 'boxTitle' });
@@ -88,29 +104,33 @@ function drawTwoPort(H, kind, p){
               s21: ['M' + bx + ' ' + n2(yA) + 'L' + (bx + bw) + ' ' + n2(yB), at(bx, yA, bx + bw, yB, 0.22), slope],
               s12: ['M' + (bx + bw) + ' ' + n2(yA) + 'L' + bx + ' ' + n2(yB), at(bx + bw, yA, bx, yB, 0.22), Math.PI - slope] };
   const width = k => { const m = cabs(S[k]); return m < S_ZERO ? 0 : PATH_W1 * Math.min(m, PATH_CAP); };
-  const order = S_KEYS.slice().sort((a, b) => width(b) - width(a));   // thick paths first, thin ones on top
-  for(const k of order){ const m = cabs(S[k]), w = width(k), ghost = w === 0, capped = m > PATH_CAP;
-    s += el('path', { d: P[k][0], fill: 'none', stroke: 'var(--' + k + ')', 'stroke-width': ghost ? 2 : w, 'stroke-dasharray': ghost ? DOTS : null, 'stroke-linecap': ghost ? 'round' : 'butt',
-      opacity: ghost ? 0.55 : 0.9, class: 'path ' + k, 'data-q': S_NAME[k], 'data-v': +m.toPrecision(12), 'data-ref': PATH_W1, 'data-ghost': ghost ? 1 : null, 'data-capped': capped ? 1 : null });
-    if(!ghost) s += chevron(P[k][1][0], P[k][1][1], P[k][2], Math.max(9, w / 2 + 6), 'var(--' + k + ')');
+  const order = S_KEYS.slice().sort((a, b) => (on.includes(a) - on.includes(b)) || (width(b) - width(a)));   // driven paths on top; thick first
+  for(const k of order){ const m = cabs(S[k]), wd = width(k), ghost = wd === 0, capped = m > PATH_CAP, live = on.includes(k);
+    let g = el('path', { d: P[k][0], fill: 'none', stroke: 'var(--' + k + ')', 'stroke-width': ghost ? 2.5 : wd, 'stroke-dasharray': ghost ? DOTS : null, 'stroke-linecap': ghost ? 'round' : 'butt',
+      opacity: ghost ? GHOST_OP : 0.9, class: 'path ' + k, 'data-q': S_NAME[k], 'data-v': +m.toPrecision(12), 'data-ref': PATH_W1, 'data-ghost': ghost ? 1 : null, 'data-capped': capped ? 1 : null });
+    if(!ghost) g += chevron(P[k][1][0], P[k][1][1], P[k][2], Math.max(9, wd / 2 + 6), 'var(--' + k + ')');
     if(capped){ const [x, y] = k === 's21' ? at(bx, yA, bx + bw, yB, 0.7) : k === 's12' ? at(bx + bw, yA, bx, yB, 0.7) : [k === 's11' ? xl : xr, mid + 30];
-      s += breakMark(x, y, k === 's21' ? slope : k === 's12' ? Math.PI - slope : Math.PI / 2, w); } }
+      g += breakMark(x, y, k === 's21' ? slope : k === 's12' ? Math.PI - slope : Math.PI / 2, wd); }
+    s += el('g', { class: 'pathg ' + k, 'data-s': k, 'data-live': live ? 1 : 0, opacity: live ? null : FADE }, g); }
   // a blocked reverse path: a red ✕ on S12 when it is zero but S21 is not
   if(cabs(S.s12) < S_ZERO && cabs(S.s21) >= S_ZERO){ const [x, y] = at(bx + bw, yA, bx, yB, 0.72); s += crossMark(x, y, 12, 'var(--s22)'); }
-  // labels: S11/S22 beside their loops (two lines); S21 at the top of the upper triangle and S12 at the foot of the lower
-  // one, where the triangles are widest and clear of a thick path
+  // |S| on every path: S11/S22 beside their loops (two lines); S21 at the top of the upper triangle and S12 at the foot
+  // of the lower one, where the triangles are widest and clear of a thick path
   const lab2 = (x, k, anchor) => txt(x, mid - 12, S_NAME[k], { anchor, fill: 'var(--' + k + ')', cls: 'slabel' }) + txt(x, mid + 12, sText(S[k]), { anchor, fill: 'var(--' + k + ')', cls: 'slabel', id: 'v' + k });
   s += lab2(xl + 18, 's11', 'start') + lab2(xr - 18, 's22', 'end');
   s += txt(cx, yA, 'S21 ' + sText(S.s21), { anchor: 'middle', fill: 'var(--s21)', cls: 'slabel', id: 'vs21' });
   s += txt(cx, yB, 'S12 ' + sText(S.s12), { anchor: 'middle', fill: 'var(--s12)', cls: 'slabel', id: 'vs12' });
-  // waves at the ports: a in at the top, b out at the bottom
-  const xa = LY_D.arrow;
-  s += lineArrow(bx - xa, bx, yA, 'var(--neutral)', 'wave') + txt(bx - xa - 10, yA, 'a_1', { anchor: 'end' });
-  s += lineArrow(bx, bx - xa, yB, 'var(--neutral)', 'wave') + txt(bx - xa - 10, yB, 'b_1', { anchor: 'end' });
-  s += lineArrow(bx + bw + xa, bx + bw, yA, 'var(--neutral)', 'wave') + txt(bx + bw + xa + 10, yA, 'a_2');
-  s += lineArrow(bx + bw, bx + bw + xa, yB, 'var(--neutral)', 'wave') + txt(bx + bw + xa + 10, yB, 'b_2');
-  s += txt(bx - xa / 2, yA - 36, 'Port 1', { anchor: 'middle', fill: 'var(--mut)' }) + txt(bx + bw + xa / 2, yA - 36, 'Port 2', { anchor: 'middle', fill: 'var(--mut)' });
-  return { svg: s, S, matY };
+  // normalized waves at the ports: a in at the top (label above), b out at the bottom (label below), values for the drive;
+  // the a labels keep 16 units off the box, clear of a thick S21 or S12 where it leaves the corner
+  const xa = LY_D.arrow, fwd = D.drive === 'fwd', colB1 = fwd ? 'var(--s11)' : 'var(--s12)', colB2 = fwd ? 'var(--s21)' : 'var(--s22)';
+  const wave = (x0, x1, y, name, c, col, labX, anchor, above) => lineArrow(x0, x1, y, col, cabs(c) < S_ZERO, name, cabs(c))
+    + txt(labX, y + (above ? -32 : 32), name.replace(/(\d)$/, '_$1') + ' = ' + waveText(c), { anchor, fill: col, cls: 'wlabel', id: 'w' + name });
+  s += wave(bx - xa, bx, yA, 'a1', w.a1, 'var(--neutral)', bx - 16, 'end', true);
+  s += wave(bx, bx - xa, yB, 'b1', w.b1, colB1, bx - 8, 'end', false);
+  s += wave(bx + bw + xa, bx + bw, yA, 'a2', w.a2, 'var(--neutral)', bx + bw + 16, 'start', true);
+  s += wave(bx + bw, bx + bw + xa, yB, 'b2', w.b2, colB2, bx + bw + 8, 'start', false);
+  s += txt(bx - xa / 2, yA - 68, 'Port 1', { anchor: 'middle', fill: 'var(--mut)' }) + txt(bx + bw + xa / 2, yA - 68, 'Port 2', { anchor: 'middle', fill: 'var(--mut)' });
+  return { svg: s, S, w };
 }
 // ── END TWO-PORT DRAWING ──────────────────────────────────────
 
@@ -124,32 +144,36 @@ function matrixEq(cx, cy){
   return el('g', { class: 'matrix' }, col(x0, 'b_1', 'b_2') + txt(x0 + cw * 1.3, cy, '=', { anchor: 'middle', size: fs }) + brk(mx, cw * 2.2)
     + ent('s11', 0, 0) + ent('s12', 1, 0) + ent('s21', 0, 1) + ent('s22', 1, 1) + col(mx + cw * 2.6, 'a_1', 'a_2'));
 }
+// The numeric line under the matrix: the computed b vector = [S] · the drive vector, in the same colours.
+function numericLine(w, cx, y){
+  const fwd = D.drive === 'fwd', cb1 = fwd ? 'var(--s11)' : 'var(--s12)', cb2 = fwd ? 'var(--s21)' : 'var(--s22)';
+  return richTxt(cx, y, [['[', null], [waveText(w.b1), cb1], [' ; ', null], [waveText(w.b2), cb2], ['] = [S] · [', null], [waveText(w.a1), null], [' ; ', null], [waveText(w.a2), null], [']', null]],
+    { anchor: 'middle', size: FS_NUM, cls: 'numline', id: 'numLine' });
+}
 // The four property badges in one row centred on y (Passive uses σmax ≤ 1).
 function badgeRow(S, y){
-  const P = properties(S), bw = 196, gap = 16, x0 = (DESIGN_W - 4 * bw - 3 * gap) / 2;
+  const P = properties(S), bw = 212, bh = 42, gap = 10, x0 = (DESIGN_W - 4 * bw - 3 * gap) / 2;
   return BADGES.map(([k, name], i) => { const on = P[k], x = x0 + i * (bw + gap);
     return el('g', { class: 'badge', 'data-badge': k, 'data-on': on ? 1 : 0 },
-      el('rect', { x, y: y - 18, width: bw, height: 36, rx: 7, fill: 'none', stroke: on ? 'var(--txt)' : 'var(--mut)', 'stroke-width': 2, 'stroke-dasharray': on ? null : '6 4' })
-      + txt(x + bw / 2, y, name + ' ' + (on ? '✓' : '✗'), { anchor: 'middle', fill: on ? 'var(--txt)' : 'var(--mut)' })); }).join('');
+      el('rect', { x, y: y - bh / 2, width: bw, height: bh, rx: 8, fill: 'none', stroke: on ? 'var(--txt)' : 'var(--mut)', 'stroke-width': 2, 'stroke-dasharray': on ? null : '6 4' })
+      + txt(x + bw / 2, y, name + ' ' + (on ? '✓' : '✗'), { anchor: 'middle', size: 20, fill: on ? 'var(--txt)' : 'var(--mut)' })); }).join('');
 }
 // The whole Devices drawing.
 function drawDevices(H){
   const p = D[D.dev], tp = drawTwoPort(H, D.dev, p);
-  return svgRoot(H, DEV_NAME[D.dev] + ': two-port with its four S-parameter paths', tp.svg + matrixEq(DESIGN_W / 2, tp.matY) + badgeRow(tp.S, H - LY_D.badge));
+  return svgRoot(H, DEV_NAME[D.dev] + ', ' + (D.drive === 'fwd' ? 'forward' : 'reverse') + ' drive: two-port with its normalized waves and four S-parameter paths',
+    tp.svg + matrixEq(DESIGN_W / 2, H - LY_D.mat) + numericLine(tp.w, DESIGN_W / 2, H - LY_D.num) + badgeRow(tp.S, H - LY_D.badge));
 }
 // ── END MATRIX AND BADGES ─────────────────────────────────────
 
 // ── PANEL ─────────────────────────────────────────────────────
-// The headline readout of the current device: [key, value].
-function deviceHead(){
-  const S = deviceS(D.dev, D[D.dev]);
-  switch(D.dev){
-    case 'through': return ['Phase of S21', fx(Math.round(wrapDeg(carg(S.s21) * DEG)), 0) + '°'];
-    case 'amp': return ['Gain', dbText(D.amp.G)];
-    case 'iso': return ['Power back through', fmtPct(cabs(S.s12) ** 2)];
-  }
-  return ['Power through', fmtPct(cabs(S.s21) ** 2)];
+/* The two readouts of the current device: the transmitted normalized wave (b2 in Forward, b1 in Reverse), then its
+   power |b|² as a percentage of the input, or as a ratio ("10 × input") when the device has gain. */
+function deviceHeads(){
+  const w = deviceWaves(deviceS(D.dev, D[D.dev])), out = D.drive === 'fwd' ? 'b2' : 'b1', c = w[out], pw = cabs(c) ** 2;
+  return [[out + ' =', waveText(c)], ['power out = |' + out + '|²', pw > 1 + 1e-9 ? sig2(pw) + ' × input' : pct2(pw)]];
 }
+const WAVE_CAPTION = 'a, b = normalized waves (a = V⁺/√Z0). Power = |wave|².';
 const DEV_NOTE = { through: 'A matched line only delays the wave: S21 = 1∠−βℓ, and βℓ grows with the length.',
   atten: 'A matched attenuator: nothing reflects, and the same loss applies in both directions.',
   amp: 'Power out of port 2 is the gain times the power in; nothing gets back through (S12 = 0).',
@@ -195,8 +219,13 @@ function deviceControls(){
   }
   return sEditor(D.custom, 'c', redraw);
 }
-// Side panel of the Devices view.
-function panelDevices(){ const [k, v] = deviceHead(); return [headline(k, v, 'roDev'), ...deviceControls(), note(DEV_NOTE[D.dev])]; }
-// Refresh the headline after a control moved (the panel is not rebuilt, so focus stays on the control).
-function syncDevices(){ const [k, v] = deviceHead(), e = document.getElementById('roDev'); if(e){ e.textContent = v; e.previousSibling.textContent = k; } }
+// Side panel of the Devices view: the wave, then its power; the controls; one line of explanation; the wave caption.
+function panelDevices(){
+  const [[k1, v1], [k2, v2]] = deviceHeads();
+  return [headline(k1, v1, 'roWave'), headline(k2, v2, 'roPower'), ...deviceControls(), note(DEV_NOTE[D.dev]), note(WAVE_CAPTION)];
+}
+// Refresh the readouts after a control moved (the panel is not rebuilt, so focus stays on the control).
+function syncDevices(){
+  deviceHeads().forEach(([k, v], i) => { const e = document.getElementById(i ? 'roPower' : 'roWave'); if(e){ e.textContent = v; e.previousSibling.textContent = k; } });
+}
 // ── END PANEL ─────────────────────────────────────────────────

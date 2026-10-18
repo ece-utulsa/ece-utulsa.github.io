@@ -26,6 +26,8 @@ const zFromPos = p => (p <= 0 ? 0 : p >= Z02_POS ? Infinity : +Math.pow(10, Z02_
 const posFromZ = z => (z === Infinity ? Z02_POS : z < 1 ? 0 : Math.min(Z02_POS - 1, Math.round(1 + (Z02_POS - 2) * Math.log10(z) / Z02_DEC)));
 // Γ at the interface (real): +1 for an open.
 const gammaR = () => (R.z02 === Infinity ? 1 : gammaInterface(Z01, R.z02));
+// VSWR to 2 significant figures; ∞ at |Γ| = 1.
+const vswr2 = gm => { const v = vswr(gm); return v.kind === 'num' ? sig2(v.v) : '∞'; };
 // Z02 as text for the drawing and the number box.
 const z02Text = () => (R.z02 === Infinity ? '∞ (open)' : R.z02 === 0 ? '0 (short)' : fx(R.z02, R.z02 < 10 ? 1 : 0) + ' Ω');
 // ── END STATE ─────────────────────────────────────────────────
@@ -58,15 +60,15 @@ function drawReflections(H){
   // band arrows: thickness ∝ power (incident = full thickness T)
   const off = Math.max(22, T * 1.7) / 2 + 14;
   s += bandArrow(LY_R.x0, xi, yI, T, { col: 'var(--neutral)', q: 'P_inc', v: 1, ref: T, op: 0.6 });
-  s += txt(LY_R.x0, yI - off, 'Incident ' + fmtPct(1));
+  s += txt(LY_R.x0, yI - off, 'Incident ' + pct2(1));
   s += bandArrow(xi, LY_R.x1, yI, split.deliv > 1e-9 ? T * split.deliv : 0, { col: 'var(--s21)', q: 'P_trans', v: split.deliv, ref: T });
-  s += txt(xi + 24, yI - off, 'Transmitted ' + fmtPct(split.deliv), { fill: 'var(--s21)' });
+  s += txt(xi + 24, yI - off, 'Transmitted ' + pct2(split.deliv), { fill: 'var(--s21)' });
   s += bandArrow(xi, LY_R.x0, yR, split.refl > 1e-9 ? T * split.refl : 0, { col: 'var(--s11)', q: 'P_refl', v: split.refl, ref: T });
-  s += txt(xi - 16, yR + Math.max(22, T * split.refl * 1.7) / 2 + 14, 'Reflected ' + fmtPct(split.refl), { anchor: 'end', fill: 'var(--s11)' });
+  s += txt(xi - 16, yR + Math.max(22, T * split.refl * 1.7) / 2 + 14, 'Reflected ' + pct2(split.refl), { anchor: 'end', fill: 'var(--s11)' });
   // standing wave in Region 1
   const G = geoR(H), vmax = 1 + gm, vmin = 1 - gm;
   s += heading(12, G.top + 14, 'Standing wave in Region 1');
-  s += txt(888, G.top + 14, 'VSWR = V_max / V_min = ' + fx(vmax, 2) + ' / ' + fx(vmin, 2) + ' = ' + fmtVswr(gm), { anchor: 'end', cls: 'vswrLine' });
+  s += txt(888, G.top + 14, 'VSWR = V_max / V_min = ' + sig2(vmax) + ' / ' + sig2(vmin) + ' = ' + vswr2(gm), { anchor: 'end', cls: 'vswrLine' });
   let top = '', bot = '';
   for(let k = 0; k <= WAVE_N; k++){ const d = k / WAVE_N, v = envelope(C(g, 0), d) * G.A, x = n2(xOfDR(G, d));
     top += (k ? 'L' : 'M') + x + ' ' + n2(G.yc - v); bot = 'L' + x + ' ' + n2(G.yc + v) + bot; }
@@ -76,10 +78,10 @@ function drawReflections(H){
   s += el('path', { id: 'snap', d: snapPath(G, g, app.tNow), fill: 'none', stroke: 'var(--txt)', 'stroke-width': 1.5, opacity: 0.4, class: 'snap' });
   // V_max and V_min levels: dashed lines at their true heights, labels in the left margin (V_max above, V_min below, so
   // they never meet even when the lines coincide)
-  const lvl = (v, q, col, above) => { const y = G.yc - v * G.A;
-    return el('line', { x1: LY_R.plotL, y1: y, x2: LY_R.plotR, y2: y, stroke: col, 'stroke-width': 2, 'stroke-dasharray': '6 5', class: 'level', 'data-q': q, 'data-v': +v.toPrecision(12) })
-      + txt(LY_R.plotL - 10, y + (above ? -LY_R.lvlOff : LY_R.lvlOff), (q === 'Vmax' ? 'V_max ' : 'V_min ') + fx(v, 2), { anchor: 'end', fill: col }); };
-  s += lvl(vmax, 'Vmax', 'var(--s21)', true) + lvl(vmin, 'Vmin', 'var(--s22)', false);
+  const lvl = (v, q, col, above, dash) => { const y = G.yc - v * G.A;
+    return el('line', { x1: LY_R.plotL, y1: y, x2: LY_R.plotR, y2: y, stroke: col, 'stroke-width': 2, 'stroke-dasharray': dash, class: 'level', 'data-q': q, 'data-v': +v.toPrecision(12) })
+      + txt(LY_R.plotL - 10, y + (above ? -LY_R.lvlOff : LY_R.lvlOff), (q === 'Vmax' ? 'V_max ' : 'V_min ') + sig2(v), { anchor: 'end', fill: col }); };
+  s += lvl(vmax, 'Vmax', 'var(--txt)', true, '8 5') + lvl(vmin, 'Vmin', 'var(--txt)', false, '2 5');
   // distance axis: 1λ … interface
   s += el('line', { x1: LY_R.plotL, y1: G.yAxis - 8, x2: LY_R.plotR, y2: G.yAxis - 8, stroke: 'var(--mut)', 'stroke-width': 1.5 });
   s += el('line', { x1: LY_R.plotR, y1: G.plotTop, x2: LY_R.plotR, y2: G.yAxis - 8, stroke: 'var(--s22)', 'stroke-width': 3, 'stroke-dasharray': DASH, class: 'iface' });
@@ -103,7 +105,7 @@ function panelReflections(){
   const rng = h('input', { type: 'range', id: 'z02', min: 0, max: Z02_POS, step: 1, value: posFromZ(R.z02), attrs: { 'aria-label': 'Z02', 'aria-valuetext': 'Z02 ' + z02Text() } });
   rng.addEventListener('input', () => { R.z02 = zFromPos(+rng.value); box.value = R.z02 === Infinity ? '∞' : String(R.z02); box.classList.remove('invalid'); redraw(false); });
   const pre = R.z02 === Z01 ? 'm' : R.z02 === 0 ? 's' : R.z02 === Infinity ? 'o' : '';
-  return [h('div', { cls: 'heads' }, headline('|Γ|', fx(gm, 2), 'roGamma'), headline('VSWR', fmtVswr(gm), 'roVswr')),
+  return [h('div', { cls: 'heads' }, headline('|Γ|', sig2(gm), 'roGamma'), headline('VSWR', vswr2(gm), 'roVswr')),
     h('div', { cls: 'ctl' }, h('label', { htmlFor: 'z02', text: 'Z02, Region 2 (Ω)' }), h('div', { cls: 'row' }, rng, box)),
     h('div', { cls: 'btnrow' }, pbtn('bMatch', 'Matched (50)', pre === 'm', () => set(Z01)), pbtn('bShort', 'Short (0)', pre === 's', () => set(0)),
       pbtn('bOpen', 'Open (∞)', pre === 'o', () => set(Infinity))),
@@ -112,7 +114,7 @@ function panelReflections(){
 // Refresh the panel's readouts and preset buttons after a slider move (the panel itself is not rebuilt).
 function syncReflections(){
   const gm = Math.abs(gammaR()), set = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  set('roGamma', fx(gm, 2)); set('roVswr', fmtVswr(gm));
+  set('roGamma', sig2(gm)); set('roVswr', vswr2(gm));
   const pre = { bMatch: R.z02 === Z01, bShort: R.z02 === 0, bOpen: R.z02 === Infinity };
   for(const id in pre){ const b = document.getElementById(id); if(b) b.setAttribute('aria-pressed', String(pre[id])); }
   const r = document.getElementById('z02'); if(r) r.setAttribute('aria-valuetext', 'Z02 ' + z02Text());

@@ -8,13 +8,13 @@
 | `engine.js` | Complex arithmetic, Γ/VSWR/envelope, cascade (E11), Γ_in (E7), wave propagation (E5), G_T (E13), badge tests, presets, parsing, number formats. Kept from v1.1.0 unchanged, including the divider and Lab helpers the three views no longer call (future scope) |
 | `ui.js` | Text sizes, the 900-unit drawing space, SVG primitives (text, band arrows, chevrons, ✕ and break marks), HTML control builders |
 | `reflections.js` | View 1, Reflections: interface power arrows, standing wave in Region 1, the Z02 control |
-| `devices.js` | View 2, Devices: the two-port path diagram (path width ∝ \|S\|), matrix equation, property badges, per-device controls, the Custom S editor |
+| `devices.js` | View 2, Devices: the two-port path diagram (path width ∝ \|S\|) driven Forward or Reverse, the normalized waves a, b on the port arrows, matrix equation with its numeric line, property badges, per-device controls, the Custom S editor |
 | `cascade.js` | View 3, Cascade: chain builder, power-flow band and reflected arrows, budget, block editor, load |
 | `main.js` | Tabs, Next/Previous (views and devices), URL hash, keys (clicker keys), presentation mode, theme, animation, start-up |
 | `fonts/` | IBM Plex Mono 400 and 600, latin subset (SIL OFL 1.1), embedded as base64 |
 | `build.py` | Concatenates the scripts in one strict-mode function (no globals), embeds the fonts, fills the release fields |
 | `tests/engine.test.js` | Node tests of the engine against hand cases |
-| `tests/browser.test.js` | Playwright/Chromium tests of the built page: check cases, no-overlap bounding-box test, keys, hash, text sizes, overflow, no network; `--shots` writes `screenshots/` |
+| `tests/browser.test.js` | Playwright/Chromium tests of the built page: check cases, no-overlap bounding-box test (both drives), Cascade alignment test, keys, hash (including `drive=`), text sizes, overflow, no network; `--shots` writes `screenshots/` |
 | `screenshots/` | 1280×720 presentation screenshots in the Projector theme |
 
 ## Build and test

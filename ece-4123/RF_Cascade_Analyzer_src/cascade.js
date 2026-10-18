@@ -22,7 +22,7 @@ const MATCH_EPS = 0.01;          // |S11| below this: "source sees a match"
 const RIVER_ROOM = 140;          // the flow panel's height less its tallest band (heading, values, reflected arrows)
 const RIVER_UNIT = 36;           // band height for power 1 when nothing in the chain is larger
 const REFL_X = 3, REFL_MAX = 30; // reflected arrows are drawn REFL_X× the band scale, reduced so none is thicker than REFL_MAX
-const LY_K = { src: 48, srcR: 26, chainY: 100, bh: 80, bw: 120, left: 100, loadW: 100, plus: 40, s2: 184, s3up: 150 };
+const LY_K = { src: 48, srcR: 26, chainY: 100, bh: 80, bw: 120, left: 100, loadW: 100, plusR: 16, plusDy: 46, s2: 184, s3up: 96 };
 // Tallest band (units) for a drawing H units tall; the band scale is the smaller of RIVER_UNIT and this over the largest power.
 const riverMax = H => H - LY_K.s3up - LY_K.s2 - RIVER_ROOM;
 // ── END CONSTANTS ─────────────────────────────────────────────
@@ -39,8 +39,6 @@ const loadText = () => (K.load.kind === 'open' ? '∞ (open)' : K.load.kind === 
 // ── END STATE ─────────────────────────────────────────────────
 
 // ── SOLUTION ──────────────────────────────────────────────────
-// Two significant figures ("1.0", "10", "0.17"); "0" for zero.
-function sig2(v){ if(v < 1e-9) return '0'; const d = 1 - Math.floor(Math.log10(v)); return d <= 0 ? fx(Math.round(v / 10 ** -d) * 10 ** -d, 0) : fx(v, d); }
 // The block's one key value as text (+10 dB, −3 dB, λ/4 …).
 function keyValue(b){
   switch(b.type){
@@ -60,14 +58,13 @@ function solveChain(){
 // ── END SOLUTION ──────────────────────────────────────────────
 
 // ── DRAWING ───────────────────────────────────────────────────
-// x positions: source centre, each block's left edge, the "+" centre (or null), the load's left edge, junction x's.
+/* x positions: each block's left edge, the load's left edge, the junction x's (junction 0 between the source and block
+   1, junction N at the load), and the "+" centre: just after the last block, below the wire (it is not a chain element). */
 function chainGeo(){
-  const N = K.blocks.length, plus = N < MAX_BLOCKS, loadX = DESIGN_W - 12 - LY_K.loadW, span = loadX - LY_K.left;
-  const gap = (span - N * LY_K.bw - (plus ? LY_K.plus : 0)) / (N + 1 + (plus ? 1 : 0));
+  const N = K.blocks.length, loadX = DESIGN_W - 12 - LY_K.loadW, span = loadX - LY_K.left, gap = (span - N * LY_K.bw) / (N + 1);
   const bx = K.blocks.map((_, i) => LY_K.left + gap + i * (LY_K.bw + gap));
-  const plusX = plus ? LY_K.left + gap + N * (LY_K.bw + gap) + LY_K.plus / 2 : null;
   const jx = [(LY_K.src + LY_K.srcR + bx[0]) / 2].concat(bx.map((x, i) => (i < N - 1 ? (x + LY_K.bw + bx[i + 1]) / 2 : (x + LY_K.bw + loadX) / 2)));
-  return { N, bx, plusX, loadX, jx };
+  return { N, bx, loadX, jx, plusX: bx[N - 1] + LY_K.bw + gap / 2, plusY: LY_K.chainY + LY_K.plusDy };
 }
 // A clickable group on the drawing (role=button, keyboard focusable).
 const btnG = (attrs, label, inner) => el('g', Object.assign({ role: 'button', tabindex: 0, 'aria-label': label, class: 'hit' }, attrs), inner);
@@ -86,9 +83,12 @@ function drawChain(G){
       + txt(cx, top + 54, keyValue(b), { anchor: 'middle', fill: b.type === 'amp' ? 'var(--s21)' : 'var(--txt)', cls: 'keyv' }));
     if(G.N > 1) s += btnG({ 'data-del': i }, 'Remove block ' + (i + 1),
       el('circle', { cx: x + LY_K.bw, cy: top, r: 12, fill: 'var(--bg)', stroke: 'var(--mut)', 'stroke-width': 1.5 }) + crossMark(x + LY_K.bw, top, 5, 'var(--mut)')); });
-  if(G.plusX !== null) s += btnG({ 'data-add': 1, 'aria-expanded': K.menu ? 'true' : 'false' }, 'Add a block',
-    el('circle', { cx: G.plusX, cy: y, r: 18, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 2 })
-    + el('path', { d: 'M' + (G.plusX - 9) + ' ' + y + 'h18M' + G.plusX + ' ' + (y - 9) + 'v18', stroke: 'var(--txt)', 'stroke-width': 3 }));
+  // "+" after the last block, below the wire; disabled and greyed at MAX_BLOCKS
+  const full = G.N >= MAX_BLOCKS, px = G.plusX, py = G.plusY, pc = full ? 'var(--mut)' : 'var(--txt)';
+  s += btnG({ 'data-add': 1, 'aria-expanded': K.menu ? 'true' : 'false', 'aria-disabled': full ? 'true' : null, opacity: full ? 0.35 : null },
+    full ? 'Add a block (the chain is full: ' + MAX_BLOCKS + ' blocks)' : 'Add a block after block ' + G.N,
+    el('circle', { cx: px, cy: py, r: LY_K.plusR, fill: 'var(--panel)', stroke: pc, 'stroke-width': 2 })
+    + el('path', { d: 'M' + n2(px - 8) + ' ' + py + 'h16M' + n2(px) + ' ' + (py - 8) + 'v16', stroke: pc, 'stroke-width': 3 }));
   s += el('rect', { x: G.loadX, y: top, width: LY_K.loadW, height: LY_K.bh, rx: 8, fill: 'var(--bg2)', stroke: 'var(--txt)', 'stroke-width': 2, class: 'load' });
   s += txt(G.loadX + LY_K.loadW / 2, top + 24, 'Load', { anchor: 'middle' }) + txt(G.loadX + LY_K.loadW / 2, top + 54, K.load.kind === 'open' ? '∞' : loadText().replace(' (short)', ' Ω'), { anchor: 'middle', id: 'loadVal' });
   return s;
@@ -121,8 +121,8 @@ function drawFlow(G, sol, H){
   sol.refl.forEach((p, k) => { const t = p > 1e-6 ? p * sc * rx : 0, x = G.jx[k], aw = k === 0 ? 30 : 36;
     s += bandArrow(x + aw, x - aw, yb, t, { col: 'var(--s11)', q: 'refl' + k, v: p, ref: sc * rx });
     const yt = yb + Math.max(22, t * 1.7) / 2 + 14;
-    if(k === 0) s += txt(8, yt, 'back to source ' + sig2(p), { fill: 'var(--s11)', cls: 'reflv', id: 'refl0' });
-    else s += txt(x, yt, sig2(p), { anchor: 'middle', fill: 'var(--s11)', cls: 'reflv', id: 'refl' + k }); });
+    const t0 = k === 0 ? 'back to source ' + sig2(p) : sig2(p), xt = Math.max(x, textW(t0) / 2 + 4);   // centred on the junction
+    s += txt(xt, yt, t0, { anchor: 'middle', fill: 'var(--s11)', cls: 'reflv', id: 'refl' + k }); });
   return s;
 }
 // "Budget": each block's |S21| in dB under it, and the transducer gain G_T in dB delivered to the load.
@@ -155,14 +155,14 @@ function cascadeActivate(t){
   const g = t.closest && t.closest('[data-blk],[data-del],[data-add]'); if(!g) return false;
   if(g.dataset.del !== undefined) removeBlock(+g.dataset.del);
   else if(g.dataset.blk !== undefined) selectBlock(+g.dataset.blk);
-  else { K.menu = !K.menu; redraw(true); }
+  else if(K.blocks.length < MAX_BLOCKS){ K.menu = !K.menu; redraw(true); }
   return true;
 }
 // The "+" menu: an HTML list of block types over the drawing, at the "+" position (fractions of the drawing).
 function addMenu(H){
   if(!K.menu || K.blocks.length >= MAX_BLOCKS) return null;
   const G = chainGeo();
-  return h('div', { cls: 'addmenu', attrs: { role: 'menu', 'aria-label': 'Add a block', style: 'left:' + n2(100 * (G.plusX - 60) / DESIGN_W) + '%;top:' + n2(100 * (LY_K.chainY + 24) / H) + '%' } },
+  return h('div', { cls: 'addmenu', attrs: { role: 'menu', 'aria-label': 'Add a block', style: 'left:' + n2(100 * Math.min(G.plusX - 60, DESIGN_W - 170) / DESIGN_W) + '%;top:' + n2(100 * (G.plusY + 20) / H) + '%' } },
     BLOCK_TYPES.map(t => h('button', { type: 'button', id: 'add_' + t, text: DEV_NAME[t], attrs: { role: 'menuitem' }, onclick: () => addBlock(t) })));
 }
 // ── END INTERACTION ───────────────────────────────────────────

@@ -58,6 +58,7 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type
 #main{ flex:1; min-height:0; display:grid; grid-template-columns:1fr calc(380px * var(--k)) }
 #drawCol{ display:flex; flex-direction:column; min-width:0; min-height:0 }
 #devbar{ flex:none; height:calc(48px * var(--k)); display:flex; gap:calc(6px * var(--k)); align-items:center; padding:0 calc(12px * var(--k)) }
+#devbar .spacer{ flex:1 } .seg{ display:inline-flex } .seg button{ border-radius:0 } .seg button:first-child{ border-radius:6px 0 0 6px } .seg button:last-child{ border-radius:0 6px 6px 0 }
 #stage{ position:relative; flex:1; min-height:0; min-width:0 }
 #stage svg.vis{ position:absolute; inset:0; width:100%; height:100%; display:block }
 #stage [role=button]{ cursor:pointer } #stage [role=button]:focus{ outline:none } #stage [role=button]:focus-visible .block, #stage [role=button]:focus-visible circle{ stroke:var(--focus); stroke-width:5 }
