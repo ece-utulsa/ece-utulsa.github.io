@@ -7,7 +7,7 @@
    1. Constants        — design width, text sizes, S colours and names
    2. Sizes            — HTML text sizes (CSS variables) for windowed and presentation views
    3. SVG primitives   — escaping, elements, text, the drawing root
-   4. Marks            — band arrows, chevrons, ✕ marks, break marks
+   4. Marks            — band arrows, ✕ marks
    5. HTML controls    — element builder, sliders with number boxes, readouts
    ============================================================ */
 
@@ -92,22 +92,10 @@ function bandArrow(x0, x1, y, th, opts){
     'fill-opacity': ghost ? null : (opts.op || 0.85), class: 'band ' + (opts.cls || ''), 'data-q': opts.q, 'data-v': opts.q ? +(+opts.v).toPrecision(12) : null,
     'data-ref': opts.q ? n2(opts.ref) : null, 'data-th': opts.q ? n2(ghost ? 0 : th) : null, 'data-ghost': ghost ? 1 : null });
 }
-// A small filled chevron (direction mark) at (x, y) pointing along angle ang (radians), size r.
-function chevron(x, y, ang, r, col){
-  const p = (a, d) => n2(x + d * Math.cos(ang + a)) + ' ' + n2(y + d * Math.sin(ang + a));
-  return el('path', { d: 'M' + p(0, r) + 'L' + p(2.4, r) + 'L' + p(-2.4, r) + 'Z', fill: col, class: 'chev' });
-}
 // A ✕ mark of half-size r at (x, y): a blocked path.
 function crossMark(x, y, r, col){
   return el('path', { d: 'M' + n2(x - r) + ' ' + n2(y - r) + 'L' + n2(x + r) + ' ' + n2(y + r) + 'M' + n2(x + r) + ' ' + n2(y - r) + 'L' + n2(x - r) + ' ' + n2(y + r),
     stroke: col, 'stroke-width': 4, 'stroke-linecap': 'round', class: 'xmark' });
-}
-// A break mark (two short bars across a capped path) at (x, y) across direction ang, for a path of width w.
-function breakMark(x, y, ang, w){
-  const nx = -Math.sin(ang), ny = Math.cos(ang), tx = Math.cos(ang), ty = Math.sin(ang), L = w / 2 + 6;
-  let d = '';
-  for(const o of [-4, 4]) d += 'M' + n2(x + o * tx - L * nx) + ' ' + n2(y + o * ty - L * ny) + 'L' + n2(x + o * tx + L * nx) + ' ' + n2(y + o * ty + L * ny);
-  return el('path', { d, stroke: 'var(--bg)', 'stroke-width': 3, class: 'brk' });
 }
 // ── END MARKS ─────────────────────────────────────────────────
 
