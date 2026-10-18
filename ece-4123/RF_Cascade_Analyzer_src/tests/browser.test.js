@@ -111,7 +111,7 @@ const plusIssues = page => page.evaluate(() => {
 // badges → bottom of the screen ≥ 12; every a/b label ≥ 16 from the drawing's left edge and from the drawing/panel divider.
 const devGapIssues = page => page.evaluate(() => {
   const bad = [], R = e => e.getBoundingClientRect(), svg = R(document.querySelector('#stage svg')), box = R(document.querySelector('#stage .box'));
-  const labs = ['wa1', 'wa2', 'wb1', 'wb2'].map(id => [id, R(document.getElementById(id))]), b = labs.filter(([id]) => id[1] === 'b').map(([, r]) => r);
+  const labs = ['wa1', 'wa2', 'wb1', 'wb2', 'pb1', 'pb2'].filter(id => document.getElementById(id)).map(id => [id, R(document.getElementById(id))]), b = labs.filter(([id]) => id[1] === 'b').map(([, r]) => r);   // pb: the |b|² line
   const mat = R(document.querySelector('#stage .matrix')), num = R(document.getElementById('numLine')), badges = [...document.querySelectorAll('#stage .badge')].map(R);
   const g = (name, v, min) => { if(v < min - 0.05) bad.push(name + ' ' + v.toFixed(1) + ' < ' + min); };
   b.forEach(r => g('box→b label', r.top - box.bottom, 24)); b.forEach(r => g('b label→matrix', mat.top - r.bottom, 16));

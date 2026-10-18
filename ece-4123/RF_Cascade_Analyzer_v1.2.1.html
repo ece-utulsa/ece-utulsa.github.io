@@ -761,7 +761,7 @@ const MAG_MAX = 2;               // Custom |S| slider range
    names holds: badges 12 above the bottom, numeric line 12 above the badges, the matrix above it, wave labels 16 above
    the matrix and 24 below the box. The box is what is left above. edge: wave labels keep 16 from the drawing's sides. */
 const LY_D = { bx: 165, bw: 570, top: 8, head: 86, inset: 22, loop: 24, edge: 16, badgeH: 42, gapEdge: 12, numH: 30, gapNum: 12,
-               matHalf: 54, gapMat: 8, labH: 76, gapLab: 18, gapBox: 24, aUp: 26, portUp: 58 };
+               matHalf: 54, gapMat: 8, labH: 76, gapLab: 22, gapBox: 24, aUp: 26, portUp: 58 };
 // Vertical positions for a drawing H units tall: badge, numeric line and matrix centres, wave-label row, box bottom.
 function geoD(H){
   const L = LY_D, badge = H - L.gapEdge - L.badgeH / 2, num = badge - L.badgeH / 2 - L.gapNum - L.numH / 2;
@@ -857,9 +857,9 @@ function headerGlyph(kind, p, cx, y0){
    normalized waves a1, b1, a2, b2 at the ports (values for the current drive) and the four S paths. */
 function drawTwoPort(H, kind, p){
   const S = deviceS(kind, p), w = deviceWaves(S), on = DRIVE_PATHS[D.drive], bx = LY_D.bx, bw = LY_D.bw, by = LY_D.top, cx = bx + bw / 2;
-  const G = geoD(H), bb = G.bb, head = headOf(kind), yA = by + head + LY_D.inset, yB = bb - LY_D.inset, mid = (yA + yB) / 2, xl = bx + LY_D.loop, xr = bx + bw - LY_D.loop;
+  const G = geoD(H), bb = G.bb, hd = headOf(kind), yA = by + hd + LY_D.inset, yB = bb - LY_D.inset, mid = (yA + yB) / 2, xl = bx + LY_D.loop, xr = bx + bw - LY_D.loop;
   let s = el('rect', { x: bx, y: by, width: bw, height: bb - by, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 2.5, rx: 8, class: 'box' });
-  s += el('line', { x1: bx, y1: by + head, x2: bx + bw, y2: by + head, stroke: 'var(--line)', 'stroke-width': 1.5, class: 'headline' });
+  s += el('line', { x1: bx, y1: by + hd, x2: bx + bw, y2: by + hd, stroke: 'var(--line)', 'stroke-width': 1.5, class: 'headline' });
   s += txt(bx + 14, by + 18, 'Two-Port', { fill: 'var(--mut)', cls: 'boxTitle' });
   s += headerGlyph(kind, p, cx, by);
   // paths: [key, d, chevron point, chevron angle]
