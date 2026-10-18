@@ -14,11 +14,11 @@
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — settle / edge limits, file format, import caps, truth-table budget
-   2. Helpers          — part output reading, state copies, feedback loops, Import field checks
+   2. Helpers          — part output reading, state copies, feedback loops, time slicing, Import field checks
    3. Subsystems       — registry, part definitions, expansion and depth, flip-flop clocks, saved inner state
    4. Circuit          — parts, wires, labels, change events, simulation, file format, validation
       4.1 Subsystems   — make, ungroup and delete subsystem blocks
-   5. Checker          — checkVectors: experiment vectors on a private copy
+   5. Checker          — checkVectors: experiment vectors on a private copy, in time slices
    6. Truth table      — truthTable: every switch combination, in time slices
    7. Export           — window.DLB namespace
    ============================================================ */
@@ -34,7 +34,8 @@ const IMPORT_MAX_PARTS = 500;    // a circuit file may hold at most this many pa
 const IMPORT_MAX_WIRES = 2000;   // ... and this many wires (SEC-DL-004)
 const ERRORS_MAX = 12;       // validation stops collecting after this many problems
 const TT_MAX_IN = 8;         // truth table: at most 2^8 = 256 rows
-const TT_SLICE_MS = 25;      // truth table: work per task before yielding (W3C Long Tasks limit is 50 ms)
+const SLICE_MS = 10;         // checker and truth table: work per task before yielding; one more update (at most
+                             // WORK_MAX evaluations) still fits under the W3C Long Tasks limit of 50 ms (CQ-DL-041)
 const WIRE_ROUTE_KEYS = ['mx','my','ax','bx'];   // optional wire route offsets kept in the file
 const SUBS_MAX = 50;         // subsystem definitions in one file
 const PORTS_MAX = 16;        // inputs, and outputs, on one subsystem block
@@ -46,7 +47,12 @@ const SAVED_PART_LEN = 3;    // a subsystem's saved inner part is [id, state, pr
 const OUT_TYPES = ['PROBE','LED'];   // parts that become a subsystem's outputs (MANUAL_INPUTS become its inputs)
 const PORT_GAP_OUT = 40;     // a port made for a wire crossing the subsystem boundary sits this far right of an output pin ...
 const PORT_GAP_IN = 3 * PORT_GAP_OUT;   // ... and this far left of an input pin (room for the switch body and its wire)
-const NAME_BAD = /[\p{Cc}\p{Cf}]/u;   // control and format characters (bidi overrides, zero-width) in a subsystem name
+// Characters refused in text that shows on the board (SEC-DL-016, -019): a subsystem name refuses control and format
+// characters (bidi overrides, zero-width) and the line and paragraph separators; a part label refuses bidi controls.
+const NAME_BAD = /[\p{Cc}\p{Cf}\u2028\u2029]/u;
+const LABEL_BAD = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/u;
+const BIDI_ONLY = new RegExp('^' + LABEL_BAD.source + '$', 'u');
+const CODE_DIGITS = 4;       // a code point is named U+ and at least this many hex digits
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── HELPERS ───────────────────────────────────────────────────
@@ -109,6 +115,23 @@ function hasLoop(comps, wires){
 // True if a circuit can hold state: a flip-flop, counter, register, the SR LATCH, a block with memory inside, or a
 // feedback loop built from gates (DL-016).
 const hasMemory = (comps, wires) => comps.some(s => { const d = DEFS[s.type]; return !!(d.seq || d.mem) || s.type === 'SR'; }) || hasLoop(comps, wires);
+// Time slicer for a long simulation job (checker, truth table): await the returned function after each update. Once
+// SLICE_MS of work has run (or at once, given now = true) it calls onYield (progress), then releases the main thread
+// before the next update, so no task runs much past one update (CQ-DL-041, SEC-DL-018).
+function slicer(onYield){
+  let start = performance.now();
+  return async now => { if(!now && performance.now() - start < SLICE_MS) return; if(onYield) onYield();
+    await new Promise(r => setTimeout(r, 0)); start = performance.now(); };
+}
+// The first character of text t that pattern re refuses, named for a message ("a bidirectional control character
+// (U+202E)"), or null when there is none.
+function badChar(t, re){
+  const m = re.exec(t); if(!m) return null;
+  const c = m[0], code = 'U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(CODE_DIGITS, '0');
+  const kind = /\p{Cc}/u.test(c) ? 'a control character' : c === '\u2028' ? 'a line separator' : c === '\u2029' ? 'a paragraph separator'
+    : BIDI_ONLY.test(c) ? 'a bidirectional control character' : 'a formatting character';
+  return kind + ' (' + code + ')';
+}
 // Check a board's (or a subsystem's) parts and wires from a file; report through err with `at` before each place.
 // defFor(type) gives a part's pins, or null for an unknown type. legacy: a two-pin-LED file, whose wires into the LED
 // cathode (pin 1) are allowed here and dropped by load(). Returns the parts by id.
@@ -124,6 +147,7 @@ function checkNet(comps, wires, at, defFor, legacy, err){
     else if(ids.has(s.id)) err(where+': duplicate id '+s.id+'.'); else ids.set(s.id, s);
     if(s.rot !== undefined && !(Number.isInteger(s.rot) && s.rot >= 0 && s.rot < QUARTER_TURNS)) err(where+': rot must be an integer 0..'+(QUARTER_TURNS-1)+'.');
     if(s.label !== undefined && s.label !== null && (typeof s.label !== 'string' || s.label.length > LABEL_MAX)) err(where+': label must be text of at most '+LABEL_MAX+' characters.');
+    else if(typeof s.label === 'string' && badChar(s.label, LABEL_BAD)) err(where+': label holds '+badChar(s.label, LABEL_BAD)+'.');
     if(s.color !== undefined && s.color !== null && !(typeof s.color === 'string' && own(LED_COLORS, s.color))) err(where+': unknown LED color.');
     if(s.prevClk !== undefined && !isBit(s.prevClk)) err(where+': prevClk must be 0 or 1.');
     if(d && !d.sub){ const why = stateProblem(d, s.state); if(why) err(where+': '+why+'.'); }
@@ -253,7 +277,8 @@ function newComp(s, state){
 function subNameProblem(name, table){
   if(typeof name !== 'string' || !name.trim()) return 'A subsystem needs a name.';
   if(name.length > LABEL_MAX) return 'A subsystem name has at most '+LABEL_MAX+' characters.';
-  if(NAME_BAD.test(name) || name !== name.trim()) return 'A subsystem name cannot start or end with a space or hold control or formatting characters.';
+  const bad = badChar(name, NAME_BAD); if(bad) return 'A subsystem name cannot hold '+bad+'.';
+  if(name !== name.trim()) return 'A subsystem name cannot start or end with a space.';
   if(table && table.has(name)) return 'There is already a subsystem called "'+name+'".';
   return null;
 }
@@ -311,6 +336,7 @@ class Circuit {
   labelProblem(c, t){
     if(typeof t !== 'string') return 'A label must be text.';
     if(t.length > LABEL_MAX) return 'A label has at most '+LABEL_MAX+' characters.';
+    const bad = badChar(t, LABEL_BAD); if(bad) return 'A label cannot hold '+bad+'.';
     if(!SIGNAL_TYPES.includes(c.type)) return null;
     if(!t) return 'A '+DEFS[c.type].name+' needs a label: the timing diagram, truth table and checker name signals by label.';
     const clash = this.comps.find(o => o !== c && SIGNAL_TYPES.includes(o.type) && o.label === t);
@@ -619,9 +645,11 @@ class Circuit {
    Runs on a private copy of the circuit — the student's board is never touched (DL-004).
    Flip-flops start from reset and the named switches start LOW (so a switch left HIGH on the board
    is not an edge, DL-003); other switches keep their positions.
-   inputs by SWITCH label, outputs by PROBE/LED label. Returns {ok, rows, missing, duplicates}:
-   a name used by two parts is reported, never resolved silently (DL-011, CQ-DL-010). */
-function checkVectors(ckt, vectors){
+   inputs by SWITCH label, outputs by PROBE/LED label. Resolves to {ok, rows, missing, duplicates}:
+   a name used by two parts is reported, never resolved silently (DL-011, CQ-DL-010).
+   Async: the board is copied at the call, then the vectors run in time slices (slicer) so the page stays responsive
+   on a board that spends the whole work budget on every update (CQ-DL-041, SEC-DL-018). */
+async function checkVectors(ckt, vectors){
   const inNames = Object.keys(vectors[0].in), outNames = Object.keys(vectors[0].out);
   const isOut = c => OUT_TYPES.includes(c.type);   // parts the checker reads
   const count = (pred, n) => ckt.comps.filter(c => pred(c) && c.label === n).length;   // parts of a kind carrying label n
@@ -629,17 +657,19 @@ function checkVectors(ckt, vectors){
   inNames.forEach(n => { const k = count(c => c.type==='SW', n); if(!k) missing.push('SWITCH "'+n+'"'); else if(k > 1) duplicates.push('SWITCH "'+n+'"'); });
   outNames.forEach(n => { const k = count(isOut, n); if(!k) missing.push('PROBE "'+n+'"'); else if(k > 1) duplicates.push('PROBE/LED "'+n+'"'); });
   if(missing.length || duplicates.length) return { ok:false, rows:[], missing, duplicates };
-  const sim = new Circuit(); sim.load(ckt.toJSON());
+  const copy = ckt.toJSON(), pause = slicer(), sim = new Circuit();
+  await pause(true); sim.load(copy); await pause();   // the press's own task ends at the copy
   const bySw = {}, byOut = {};
   for(const c of sim.comps){ if(c.type==='SW') bySw[c.label] = c; if(isOut(c)) byOut[c.label] = c; }
   inNames.forEach(n => { bySw[n].state.on = 0; });   // named inputs start LOW so the first vector's transitions are real
-  sim.resetState();
-  const rows = vectors.map(v => {
+  sim.resetState(); await pause();
+  const rows = [];
+  for(const v of vectors){
     inNames.forEach(n => bySw[n].state.on = v.in[n]); sim.update();
     const got = {}; let ok = true;
     outNames.forEach(n => { const o = byOut[n]; got[n] = o.type==='LED' ? readOut(sim, o) : o.inv[0]; if(got[n] !== v.out[n]) ok = false; });
-    return { in:v.in, want:v.out, got, ok };
-  });
+    rows.push({ in:v.in, want:v.out, got, ok }); await pause();
+  }
   return { ok: rows.every(r=>r.ok), rows, missing, duplicates };
 }
 // ── END CHECKER ───────────────────────────────────────────────
@@ -651,8 +681,8 @@ function checkVectors(ckt, vectors){
    does from reset -- flagged so the student knows the table is not the whole story. A latch built from gates counts:
    any feedback loop flags the table (DL-016). Clocks are held LOW; drive
    sequential parts from a switch to tabulate them.
-   Async: rows are computed in slices of TT_SLICE_MS and the main thread is released between slices (CQ-DL-008).
-   onProgress(done, total) is called after each slice. The board is copied at the call; it is never changed. */
+   Async: rows are computed in time slices (slicer) and the main thread is released between them, also between a
+   row's reset and its update (CQ-DL-008, CQ-DL-041). onProgress(done, total) is called after each slice. The board is copied at the call; it is never changed. */
 async function truthTable(ckt, onProgress){
   const byLab = (a,b) => a.label.localeCompare(b.label, undefined, { numeric:true });   // label order, I2 before I10
   const ins = ckt.comps.filter(c => c.type==='SW').sort(byLab), outs = ckt.comps.filter(c => OUT_TYPES.includes(c.type)).sort(byLab);
@@ -660,21 +690,18 @@ async function truthTable(ckt, onProgress){
   if(!ins.length || !outs.length) return Object.assign(head, { rows: [], seq: false, tooMany: false });
   if(ins.length > TT_MAX_IN) return Object.assign(head, { rows: [], seq: false, tooMany: true });
   const seq = hasMemory(ckt.comps, ckt.wires);
-  const sim = new Circuit(); sim.load(ckt.toJSON());
-  const sw = ins.map(c => sim.comp(c.id)), pr = outs.map(c => sim.comp(c.id)), n = ins.length, total = 1 << n, rows = [];
+  const copy = ckt.toJSON(), sim = new Circuit(), n = ins.length, total = 1 << n, rows = [];
+  const pause = slicer(() => { if(onProgress) onProgress(rows.length, total); });
+  await pause(true); sim.load(copy); await pause();   // the press's own task ends at the copy
+  const sw = ins.map(c => sim.comp(c.id)), pr = outs.map(c => sim.comp(c.id));
   const manual = sim.comps.filter(c => MANUAL_INPUTS.includes(c.type));
-  let sliceStart = performance.now();
   for(let k=0; k<total; k++){
     manual.forEach(c => { c.state.on = 0; });
-    sim.resetState();
+    sim.resetState(); await pause();
     const bits = rowBits(k, n);
     sw.forEach((c,j) => { c.state.on = bits[j]; }); sim.update();
     rows.push({ in: bits, out: pr.map(o => readOut(sim, o)), unstable: sim.unstable });
-    if(performance.now() - sliceStart > TT_SLICE_MS && k < total-1){
-      if(onProgress) onProgress(k+1, total);
-      await new Promise(r => setTimeout(r, 0));
-      sliceStart = performance.now();
-    }
+    if(k < total-1) await pause();
   }
   if(onProgress) onProgress(total, total);
   return Object.assign(head, { rows, seq, tooMany: false });

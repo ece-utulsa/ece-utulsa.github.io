@@ -145,10 +145,13 @@ function experiments(ckt, gotoSim){
     const res = h('div','res'); const acts = h('div','acts');
     const go = h('button','btn','Open board'); go.onclick = gotoSim; acts.append(go);
     if(ex.vec){ const chk = h('button','btn','Check'); acts.append(chk);
-      chk.onclick = ()=>{ const r = checkVectors(ckt, ex.vec); res.replaceChildren(); res.className = 'res '+(r.ok?'ok':'bad');
+      // Check runs in time slices (CQ-DL-041): the button is disabled meanwhile, so a second press is ignored. The rule
+      // is judged on the board as it was at the press, like the vectors.
+      chk.onclick = async ()=>{ if(chk.disabled) return; chk.disabled = true; let r, why;
+        try { why = ex.rule ? ex.rule(ckt) : null; r = await checkVectors(ckt, ex.vec); } finally { chk.disabled = false; }
+        res.replaceChildren(); res.className = 'res '+(r.ok?'ok':'bad');
         if(r.missing.length){ res.append('Missing on board: '+r.missing.join(', ')); return; }
         if(r.duplicates.length){ res.append('Two parts share a label: '+r.duplicates.join(', ')+'. Rename one so the checker knows which to use.'); return; }
-        const why = ex.rule ? ex.rule(ckt) : null;
         if(why){ res.className = 'res bad'; res.append('FAIL \u2014 '+why); return; }
         res.append(r.ok ? 'PASS — all '+r.rows.length+' vectors match.' : 'FAIL — '+r.rows.filter(x=>!x.ok).length+' of '+r.rows.length+' vectors differ.', resultTable(r)); }; }
     card.append(acts, res); cards.append(card);

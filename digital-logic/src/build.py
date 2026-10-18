@@ -28,12 +28,10 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = 'v1.3.0'
-RELEASED = '2026-10-17'
-CHANGELOG = ('Gate fix pass: no phantom clock edge after Undo; simulation work and subsystem nesting bounded; '
-             'Import bounds every library subsystem and checks port lists first; startup notice for a board that '
-             'cannot be restored; 7-SEG 6 and 9 as the 7448; memory note for gate-built latches; demo wires clear '
-             'of labels; code-quality residue')
+VERSION = 'v1.3.1'
+RELEASED = '2026-10-18'
+CHANGELOG = ('Minor fix pass: Experiments Check and the truth table run in time slices (no long task); MUX select '
+             'wire routed round the block; line separators refused in subsystem names, bidi controls in labels')
 TOOL = 'Digital Logic Breadboard'
 # ── END RELEASE ───────────────────────────────────────────────────────
 
