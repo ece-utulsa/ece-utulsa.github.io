@@ -36,13 +36,18 @@ const app = {
 // ── END APP STATE ─────────────────────────────────────────────
 
 // ── RENDERING ─────────────────────────────────────────────────
-// Height of the drawing in design units for the drawing area's current aspect.
-function drawH(){ const st = $('stage'); return st.clientWidth > 0 ? DESIGN_W * st.clientHeight / st.clientWidth : 0; }
+/* Drawing scale (CSS px per design unit) and left offset: the drawing fills the stage's width but never grows past ×1
+   in a window, or past the presentation factor (×1 at 720 p); a wider stage centres it. */
+function drawBox(){ const st = $('stage'), s = Math.min(st.clientWidth / DESIGN_W, app.present ? window.innerHeight / BASE_H : 1);
+  return { s, off: (st.clientWidth - DESIGN_W * s) / 2 }; }
+// Height of the drawing in design units: the stage's full height at the drawing scale.
+function drawH(){ const st = $('stage'); return st.clientWidth > 0 ? st.clientHeight / drawBox().s : 0; }
 // Draw the current view (and the Cascade "+" menu over it).
 function renderDrawing(){
   const H = drawH(); if(H <= 0) return;
   $('stage').innerHTML = VIEW[app.view].draw(H);
-  if(app.view === 'cascade'){ const m = addMenu(H); if(m) $('stage').append(m); }
+  const b = drawBox(), sv = $('stage').querySelector('svg.vis'); sv.style.width = DESIGN_W * b.s + 'px'; sv.style.left = b.off + 'px';
+  if(app.view === 'cascade'){ const m = addMenu(); if(m) $('stage').append(m); }
 }
 /* Redraw after a state change. full: also rebuild the panel (a button or a mode changed); otherwise only the
    panel's readouts are refreshed, so a slider being dragged keeps focus. Focus on a drawing element is restored. */

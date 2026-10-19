@@ -1,7 +1,8 @@
 /* RF Cascade Analyzer — UI helpers: text sizes, SVG drawing primitives (text, band arrows, chevrons, ✕ marks) that
    carry data-q / data-v for the developer tests, and HTML control builders shared by the three views.
    Every drawing is made in a design space 900 units wide (DESIGN_W); its height follows the drawing area's aspect.
-   At 1280×720 in presentation mode the drawing area is 900 px wide, so one design unit is one CSS pixel there. */
+   At 1280×720 in presentation mode the drawing area is 900 px wide, so one design unit is one CSS pixel there; the drawing
+   never grows past that in a window (main.js drawScale), so its text keeps the same on-screen size at any window size. */
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — design width, text sizes, S colours and names
@@ -14,8 +15,9 @@
 // ── CONSTANTS ─────────────────────────────────────────────────
 const DESIGN_W = 900;            // drawing width in design units (the mock-ups' drawing area at 1280×720)
 const BASE_H = 720;              // presentation sizes are given for a 720 px tall viewport, scaled with the height
-const FS = { label: 18, small: 18, head: 46, title: 20, mat: 30 };   // text sizes (design units / px at 720 p)
-const SUB_SCALE = 0.8;           // subscript size relative to its text (never below FS.small)
+const FS = { label: 16, small: 14, big: 18, head: 32, title: 20, panel: 15, mat: 18 };   // text sizes (design units / px at 720 p)
+const SUB_SCALE = 0.8;           // letter subscript size relative to its text (never below FS.small)
+const SUB_DIGITS = '₀₁₂₃₄₅₆₇₈₉';  // digit subscripts are written inline (Z₀₁, S₂₁), so they never drop below the line
 const GLYPH_W = 0.6;             // IBM Plex Mono advance width (em), to place text without measuring
 const DASH = '10 7', DOTS = '2 7';
 const S_KEYS = ['s11', 's21', 's12', 's22'];
@@ -28,7 +30,7 @@ const S_NAME = { s11: 'S11', s21: 'S21', s12: 'S12', s22: 'S22' };
 function updateSizes(present){
   const k = present ? window.innerHeight / BASE_H : 1, r = document.documentElement.style;
   r.setProperty('--k', String(k));
-  r.setProperty('--fl', FS.label * k + 'px'); r.setProperty('--fh', FS.head * k + 'px'); r.setProperty('--ft', FS.title * k + 'px');
+  r.setProperty('--fl', FS.panel * k + 'px'); r.setProperty('--fh', FS.head * k + 'px'); r.setProperty('--ft', FS.title * k + 'px');
 }
 // ── END SIZES ─────────────────────────────────────────────────
 
@@ -44,12 +46,15 @@ function el(tag, attrs, inner){
     s += ' ' + k + '="' + esc(typeof v === 'number' && !k.startsWith('data-') ? n2(v) : v) + '"'; }
   return inner === undefined ? s + '/>' : s + '>' + inner + '</' + tag + '>';
 }
+// A subscript part "_21" or "_max": digits as inline subscript characters, letters as a smaller lowered tspan.
+const subPart = (p, subSize) => (/^_\d+$/.test(p) ? esc(p.slice(1).replace(/\d/g, d => SUB_DIGITS[d]))
+  : el('tspan', { 'font-size': n2(subSize), 'baseline-shift': 'sub' }, esc(p.slice(1))));
 /* Text at (x, y), vertically centred. opts: size, anchor (start|middle|end), fill, weight, cls, id.
-   "S_21" or "a_1": the part after "_" up to a space or symbol is drawn as a subscript. */
+   "S_21" or "V_max": the part after "_" up to a space or symbol is drawn as a subscript. */
 function txt(x, y, s, opts){
   opts = opts || {};
   const size = opts.size || FS.label, subSize = Math.max(size * SUB_SCALE, FS.small);
-  const parts = String(s).split(/(_[A-Za-z0-9]+)/).map(p => p.startsWith('_') ? el('tspan', { 'font-size': n2(subSize), 'baseline-shift': 'sub' }, esc(p.slice(1))) : esc(p)).join('');
+  const parts = String(s).split(/(_[A-Za-z0-9]+)/).map(p => (p.startsWith('_') ? subPart(p, subSize) : esc(p))).join('');
   return el('text', { x, y, 'font-size': size, 'text-anchor': opts.anchor || 'start', fill: opts.fill || 'var(--txt)', 'font-weight': opts.weight || 600,
     'dominant-baseline': 'central', class: opts.cls, id: opts.id }, parts);
 }

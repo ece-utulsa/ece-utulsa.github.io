@@ -27,7 +27,7 @@ const REFL_X = 3, REFL_MAX = 30; // reflected arrows are drawn REFL_X× the band
    and values (below). Budget rows from its top: heading and total (headY), the dB (bud1) and power factor (bud2). */
 const LY_K = { edge: 16, src: 52, srcR: 26, chainY: 100, bh: 80, bw: 120, left: 100, loadW: 100, plusR: 16, plusW: 40, s2: 176, s3up: 104,
                headY: 14, cap1: 38, cap2: 62, arY: 90, arDy: 24, jGap: 30, jUp: 16, below: 100, bud1: 42, bud2: 68 };
-const FS_CAP = 16;               // caption lines under the flow heading (muted)
+const FS_CAP = 14;               // caption lines under the flow heading (muted)
 const RERE = '↺';                // marks a junction whose forward power includes waves reflected back from later blocks
 // Top of the band area below the flow panel's top, with nA lines of river arithmetic.
 const riverTop = nA => LY_K.arY + (nA - 1) * LY_K.arDy + LY_K.jGap + LY_K.jUp;
@@ -39,7 +39,7 @@ const riverMax = (H, nA) => H - LY_K.s3up - LY_K.s2 - riverTop(nA) - LY_K.below;
 // The briefing's check case: Amplifier 10 dB → Attenuator 3 dB → Custom → 100 Ω.
 const K = { blocks: [{ type: 'amp', p: { G: 10 } }, { type: 'atten', p: { A: 3 } },
                      { type: 'custom', p: { e: { s11: [0.2, 30], s21: [0.9, -45], s12: [0.9, -45], s22: [0.2, 30] }, recip: true } }],
-            sel: 0, menu: false, load: { kind: 'value', z: 100 } };
+            sel: 0, menu: false, load: { kind: 'value', z: 100 }, est: null };   // est: the S entry set in the editor
 // Load impedance object.
 const loadOf = () => (K.load.kind === 'open' ? OPEN_LOAD : zLoad(C(K.load.kind === 'short' ? 0 : K.load.kind === 'match' ? Z0_CASC : K.load.z, 0)));
 // Load as text.
@@ -197,33 +197,36 @@ function cascadeActivate(t){
   else if(K.blocks.length < MAX_BLOCKS){ K.menu = !K.menu; redraw(true); }
   return true;
 }
-// The "+" menu: an HTML list of block types over the drawing, at the "+" position (fractions of the drawing).
-function addMenu(H){
+// The "+" menu: an HTML list of block types over the drawing, at the "+" position (placed in px by the drawing scale).
+function addMenu(){
   if(!K.menu || K.blocks.length >= MAX_BLOCKS) return null;
-  const G = chainGeo();
-  return h('div', { cls: 'addmenu', attrs: { role: 'menu', 'aria-label': 'Add a block', style: 'left:' + n2(100 * Math.min(G.plusX - 60, DESIGN_W - 170) / DESIGN_W) + '%;top:' + n2(100 * (G.plusY + 20) / H) + '%' } },
+  const G = chainGeo(), b = drawBox();
+  return h('div', { cls: 'addmenu', attrs: { role: 'menu', 'aria-label': 'Add a block', style: 'left:' + n2(b.off + b.s * Math.min(G.plusX - 60, DESIGN_W - 170)) + 'px;top:' + n2(b.s * (G.plusY + 20)) + 'px' } },
     BLOCK_TYPES.map(t => h('button', { type: 'button', id: 'add_' + t, text: DEV_NAME[t], attrs: { role: 'menuitem' }, onclick: () => addBlock(t) })));
 }
 // ── END INTERACTION ───────────────────────────────────────────
 
 // ── PANEL ─────────────────────────────────────────────────────
-// Convert the selected preset block to Custom with its current S-parameters.
-function toCustom(b){
+// A block's current S as a Custom entry set { e: { s11: [mag, deg], … }, recip } (6 significant figures).
+function entriesOf(b){
   const S = deviceS(b.type, b.p), e = {};
   for(const k of S_KEYS){ const m = cabs(S[k]); e[k] = [+m.toPrecision(6), m < S_ZERO ? 0 : +wrapDeg(carg(S[k]) * DEG).toPrecision(6)]; }
-  b.type = 'custom'; b.p = { e, recip: cabs(csub(S.s12, S.s21)) <= EPS_BADGE };
-  redraw(true);
+  return { e, recip: cabs(csub(S.s12, S.s21)) <= EPS_BADGE };
 }
-// The selected block's editor: a preset's one knob and "edit S-parameters", or the Custom S entries.
+/* The selected block's editor, shown as soon as the block is selected: a preset's one knob (when it has one) and all
+   four S entries with the reciprocal link, filled with the block's values and following the knob live (syncCascade).
+   Editing an S entry turns a preset into Custom with those values (its knob goes). K.est is the entry set shown. */
 function blockEditor(){
   const i = K.sel, b = K.blocks[i], set = (k, v) => { b.p[k] = v; redraw(false); };
   const title = h('div', { cls: 'sec', text: 'Block ' + (i + 1) + ' · ' + DEV_NAME[b.type] });
-  if(b.type === 'custom') return [title, ...sEditor(b.p, 'k', redraw)];
+  if(b.type === 'custom'){ K.est = b.p; return [title, ...sEditor(b.p, 'k', redraw)]; }
   const knob = { through: () => slider({ id: 'kLen', label: 'Line length ℓ/λ', min: 0, max: 1, step: 0.01, value: b.p.l, unit: 'λ', onset: v => set('l', v) }),
     atten: () => slider({ id: 'kAtt', label: 'Attenuation', min: 0, max: 40, step: 0.5, value: b.p.A, unit: 'dB', onset: v => set('A', v) }),
     amp: () => slider({ id: 'kGain', label: 'Gain', min: 0, max: 30, step: 0.5, value: b.p.G, unit: 'dB', onset: v => set('G', v) }),
     iso: () => slider({ id: 'kIL', label: 'Forward loss', min: 0, max: 3, step: 0.1, value: b.p.IL, unit: 'dB', onset: v => set('IL', v) }) }[b.type]();
-  return [title, knob, h('button', { type: 'button', id: 'toCustom', text: 'Edit S-parameters', onclick: () => toCustom(b) })];
+  const st = K.est = entriesOf(b);
+  const changed = full => { if(b.type !== 'custom'){ b.type = 'custom'; b.p = st; redraw(true); } else redraw(full); };
+  return [title, knob, ...sEditor(st, 'k', changed)];
 }
 // "Whole chain as one two-port": overall S21 (|S|∠ and dB), S11 (with the match note), S22, S12.
 function chainLines(){
@@ -247,6 +250,11 @@ function panelCascade(){
 }
 // Refresh the chain readouts after a control moved.
 function syncCascade(){
+  const blk = K.blocks[K.sel];
+  if(blk && blk.type !== 'custom' && K.est){ Object.assign(K.est, entriesOf(blk));   // a preset's S entries follow its knob
+    const put = (id, v) => { const e = document.getElementById(id); if(e && e !== document.activeElement) e.value = +(+v).toPrecision(6); };
+    for(const k of S_KEYS){ put('k' + k, K.est.e[k][0]); put('k' + k + 'm', K.est.e[k][0]); put('k' + k + 'a', K.est.e[k][1]); }
+    const rc = document.getElementById('krecip'); if(rc) rc.checked = K.est.recip; }
   const lines = document.querySelectorAll('#chainS .sv'); chainLines().forEach(([, v], i) => { if(lines[i]) lines[i].textContent = v; });
   const lk = K.load.kind; [['lMatch', 'match'], ['lShort', 'short'], ['lOpen', 'open']].forEach(([id, k]) => { const b = document.getElementById(id); if(b) b.setAttribute('aria-pressed', String(lk === k)); });
 }

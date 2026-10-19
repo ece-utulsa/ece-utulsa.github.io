@@ -1,15 +1,17 @@
 /* RF Cascade Analyzer — View 1, Reflections: what happens at an interface between two regions (Z01 = 50 Ω and Z02).
-   Panel 1, power at the interface: band arrows whose thickness is proportional to power. Panel 2, voltage on the lines:
-   2λ of Region 1 and Region 2 running on to ∞ (no further reflections), with the incident, reflected, total and
-   transmitted waves (animated), the standing-wave envelope, and a readout of V⁺ + V⁻ = Vₜ at the interface. Both regions
-   are real, so Γ and τ = 1 + Γ are real and shown signed; both regions have the same propagation speed (same λ). */
+   Top (about 30 %), power at the interface: band arrows whose thickness is proportional to power, incident and
+   transmitted on one row, reflected on a row of its own. Bottom (about 70 %), voltage on the lines: 2λ of Region 1 and
+   Region 2 fading out on to ∞, with the envelope, the total wave in Region 1 and the transmitted wave in Region 2
+   (animated; the incident and reflected waves on request), and a small readout of V⁺ + V⁻ = Vₜ in the top-right corner.
+   Titles, the legend and the caption are in the side panel. Both regions are real, so Γ and τ = 1 + Γ are real and
+   shown signed; both regions have the same propagation speed (same λ). */
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — reference impedance, slider taper, layout
    2. State            — Z02 (Ω, or ∞ for an open), incident/reflected switch, number formats
    3. Power panel      — regions, interface, band arrows
-   4. Voltage panel    — geometry, curves, envelope, levels, legend, interface readout, axis, caption
-   5. Panel            — Γ and VSWR, the Z02 control, τ, the incident/reflected switch
+   4. Voltage panel    — geometry, curves, envelope, Vmax / Vmin labels, interface readout, axis
+   5. Panel            — Γ and VSWR, the Z02 control, τ, the notes, the incident/reflected switch and the legend
    ============================================================ */
 
 // ── CONSTANTS ─────────────────────────────────────────────────
@@ -22,17 +24,19 @@ const R1_LAMBDA = 2;             // Region 1 drawn: 2λ
 const R2_LAMBDA = 0.75;          // Region 2 drawn: 0.75λ, then the curves fade out
 const R2_FADE = 40;              // fade length (units) after Region 2's drawn part
 const A_MAX = 2;                 // the largest possible amplitude (open: total and transmitted reach 2)
-const FS_CAPTION = 16;           // the caption under the voltage panel (muted)
-const FS_READ = 22;              // interface readout, line 1
+const FS_READ = [18, 15];        // interface readout: line 1 (bold), line 2
+const FS_TICK = 14;              // distance-axis labels
 /* Layout (design units = px at 1280×720). split: the power panel's share of the height. Power panel: region boxes from
-   regTop, band arrows. Voltage panel rows: heading, legend, readout box, region tint (labels in its top band), curves,
-   axis, caption; the tint's top band holds the region labels and (two lines, inside Region 2) the "continues to ∞" caption. plotL..xi: Region 1 (2λ); the interface at xi (70 % of the width); Region 2 to its right. */
-const LY_R = { split: 0.38, edge: 16, regTop: 32, regLab: 46, labGap: 38, yInc: 0.465, reflUp: 60, band: 40, x0: 40, xi: 450, x1: 860,
-               plotL: 130, iface: 630, headY: 14, legY: 50, readTop: 66, readH: 66, tintGap: 6, tintBand: 74, axisUp: 66, capUp: 27, lvlOff: 18 };
+   regTop with their labels at regLab; incident (and transmitted) band at yI, reflected band rowGap below the incident
+   head at its thickest; arrow labels labUp above / below their band. Voltage panel: the readout box (readH) in the
+   top-right corner, above the region tints; plotL..iface: Region 1 (2λ), the interface at 70 % of the width; the
+   distance axis axisUp above the bottom. */
+const LY_R = { split: 0.28, edge: 16, regTop: 4, regLab: 20, band: 28, x0: 40, xi: 450, x1: 860, yI0: 73, rowGap: 10, labUp: 28, minBot: 173,
+               plotL: 130, iface: 630, readTop: 6, readH: 54, readPad: 8, tintGap: 6, tintPad: 6, axisUp: 37, lvlOff: 11, lvlGap: 28 };
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── STATE ─────────────────────────────────────────────────────
-const R = { z02: 150, vr: true };   // vr: show the incident and reflected curves
+const R = { z02: 150, vr: false };   // vr: show the incident and reflected curves (off by default)
 // Slider position -> Z02 (0, 1..1000 Ω on a log taper, ∞).
 const zFromPos = p => (p <= 0 ? 0 : p >= Z02_POS ? Infinity : +Math.pow(10, Z02_DEC * (p - 1) / (Z02_POS - 2)).toPrecision(3));
 // Z02 -> slider position.
@@ -53,24 +57,23 @@ const zNum = z => String(+z.toPrecision(3));
 // ── END STATE ─────────────────────────────────────────────────
 
 // ── POWER PANEL ───────────────────────────────────────────────
-// Panel 1: the two regions, the interface and the three power arrows (thickness ∝ power, incident = full thickness).
+/* The two regions, the interface and the three power arrows (thickness ∝ power, incident = full thickness). Incident
+   and transmitted share the upper row; the reflected arrow has its own lower row, rowGap clear of the incident head
+   at the thickest. Extra height goes between the rows and above them. */
 function powerPanel(H){
-  const gm = Math.abs(gammaR()), split = powerSplit(gm), T = LY_R.band, xi = LY_R.xi;
-  const off = Math.max(22, T * 1.7) / 2 + 14;   // arrow label above its arrow's centre
-  // the incident arrow's labels stay labGap below the region labels (which carry a subscript)
-  const regBot = H * LY_R.split - 8, yI = Math.max(LY_R.regTop + LY_R.yInc * (regBot - LY_R.regTop), LY_R.regLab + LY_R.labGap + off), yR = regBot - LY_R.reflUp;
-  let s = heading(LY_R.edge, 14, 'Power at the interface (incident power = 100 %)');
-  s += el('rect', { x: 8, y: LY_R.regTop, width: xi - 8, height: regBot - LY_R.regTop, fill: 'var(--bg2)', stroke: 'var(--line)', rx: 6 });
-  s += el('rect', { x: xi, y: LY_R.regTop, width: DESIGN_W - 8 - xi, height: regBot - LY_R.regTop, fill: 'var(--panel)', stroke: 'var(--line)', rx: 6 });
-  s += txt(24, LY_R.regLab, 'Region 1 · Z_01 = 50 Ω');
-  s += txt(xi + 24, LY_R.regLab, 'Region 2 · Z_02 = ' + z02Text(), { id: 'z02Label' });
-  s += el('line', { x1: xi, y1: LY_R.regTop, x2: xi, y2: regBot, stroke: 'var(--s22)', 'stroke-width': 3, 'stroke-dasharray': DASH, class: 'iface' });
-  s += bandArrow(LY_R.x0, xi, yI, T, { col: 'var(--neutral)', q: 'P_inc', v: 1, ref: T, op: 0.6 });
-  s += txt(LY_R.x0, yI - off, 'Incident power ' + pct2(1), { id: 'pInc' });
-  s += bandArrow(xi, LY_R.x1, yI, split.deliv > 1e-9 ? T * split.deliv : 0, { col: 'var(--s21)', q: 'P_trans', v: split.deliv, ref: T });
-  s += txt(xi + 24, yI - off, 'Transmitted power 1 − |Γ|² = ' + pct2(split.deliv), { fill: 'var(--s21)', id: 'pTrans' });
-  s += bandArrow(xi, LY_R.x0, yR, split.refl > 1e-9 ? T * split.refl : 0, { col: 'var(--s11)', q: 'P_refl', v: split.refl, ref: T });
-  s += txt(xi - 16, yR + Math.max(22, T * split.refl * 1.7) / 2 + 14, 'Reflected power |Γ|² = ' + pct2(split.refl), { anchor: 'end', fill: 'var(--s11)', id: 'pRefl' });
+  const L = LY_R, gm = Math.abs(gammaR()), split = powerSplit(gm), T = L.band, xi = L.xi, head = Math.max(22, T * 1.7) / 2;
+  const regBot = H * L.split - 6, spare = Math.max(0, regBot - L.minBot), yI = L.yI0 + spare * 0.3, yR = yI + 2 * head + L.rowGap + spare * 0.4;
+  let s = el('rect', { x: 8, y: L.regTop, width: xi - 8, height: regBot - L.regTop, fill: 'var(--bg2)', stroke: 'var(--line)', rx: 6 });
+  s += el('rect', { x: xi, y: L.regTop, width: DESIGN_W - 8 - xi, height: regBot - L.regTop, fill: 'var(--panel)', stroke: 'var(--line)', rx: 6 });
+  s += txt(24, L.regLab, 'Region 1 · Z_01 = 50 Ω');
+  s += txt(xi + 24, L.regLab, 'Region 2 · Z_02 = ' + z02Text(), { id: 'z02Label' });
+  s += el('line', { x1: xi, y1: L.regTop, x2: xi, y2: regBot, stroke: 'var(--s22)', 'stroke-width': 3, 'stroke-dasharray': DASH, class: 'iface' });
+  s += bandArrow(L.x0, xi, yI, T, { col: 'var(--neutral)', q: 'P_inc', v: 1, ref: T, op: 0.6 });
+  s += txt(L.x0, yI - L.labUp, 'Incident ' + pct2(1), { id: 'pInc' });
+  s += bandArrow(xi, L.x1, yI, split.deliv > 1e-9 ? T * split.deliv : 0, { col: 'var(--s21)', q: 'P_trans', v: split.deliv, ref: T });
+  s += txt(xi + 24, yI - L.labUp, 'Transmitted 1 − |Γ|² = ' + pct2(split.deliv), { fill: 'var(--s21)', id: 'pTrans' });
+  s += bandArrow(xi, L.x0, yR, split.refl > 1e-9 ? T * split.refl : 0, { col: 'var(--s11)', q: 'P_refl', v: split.refl, ref: T });
+  s += txt(xi - 16, yR + L.labUp, 'Reflected |Γ|² = ' + pct2(split.refl), { anchor: 'end', fill: 'var(--s11)', id: 'pRefl' });
   return s;
 }
 // ── END POWER PANEL ───────────────────────────────────────────
@@ -78,8 +81,8 @@ function powerPanel(H){
 // ── VOLTAGE PANEL ─────────────────────────────────────────────
 // Geometry of the voltage panel for a drawing H units tall.
 function geoV(H){
-  const L = LY_R, top = H * L.split + 4, tintTop = top + L.readTop + L.readH + L.tintGap, yAxis = H - L.axisUp;
-  const plotTop = tintTop + L.tintBand, A = (yAxis - 8 - plotTop) / (2 * A_MAX), ppl = (L.iface - L.plotL) / R1_LAMBDA;
+  const L = LY_R, top = H * L.split + 2, tintTop = top + L.readTop + L.readH + L.tintGap, plotTop = tintTop + L.tintPad, yAxis = H - L.axisUp;
+  const A = (yAxis - 8 - plotTop) / (2 * A_MAX), ppl = (L.iface - L.plotL) / R1_LAMBDA;
   return { top, tintTop, plotTop, yAxis, A, yc: plotTop + A_MAX * A, ppl, xi: L.iface, x2: L.iface + R2_LAMBDA * ppl };
 }
 // x of a point d wavelengths into Region 1 (from the interface, leftwards), or x wavelengths into Region 2.
@@ -101,43 +104,26 @@ function wavePathsV(G, t){
   return { inc: curve(G, xR1, R1_LAMBDA, d => Math.cos(wt + tw * d)), ref: curve(G, xR1, R1_LAMBDA, d => g * Math.cos(wt - tw * d)),
            tot: curve(G, xR1, R1_LAMBDA, d => Math.cos(wt + tw * d) + g * Math.cos(wt - tw * d)), tr: curve(G, xR2, r2Len(G), x => tau * Math.cos(wt - tw * x)) };
 }
-// The legend row: a coloured swatch and a name per curve, left-aligned.
-function legend(y){
-  const items = [['incident v⁺', 'var(--grey)', '6 4', 2], ['reflected v⁻', 'var(--s11)', '6 4', 2], ['total (Region 1)', 'var(--txt)', null, 3.5],
-                 ['transmitted vₜ', 'var(--s21)', null, 3.5], ['envelope', 'var(--s12)', null, 0]];
-  let x = LY_R.edge, s = '';
-  for(const [name, col, dash, w] of items){
-    s += w ? el('line', { x1: x, y1: y, x2: x + 18, y2: y, stroke: col, 'stroke-width': w, 'stroke-dasharray': dash, class: 'swatch' })
-           : el('rect', { x, y: y - 6, width: 18, height: 12, fill: col, 'fill-opacity': 0.25, stroke: col, 'stroke-width': 2, class: 'swatch' });
-    s += txt(x + 24, y, name, { weight: 400 }); x += 24 + textW(name) + 14;
-  }
-  return el('g', { class: 'legend' }, s);
-}
 /* The interface readout: V⁺ + V⁻ = Vₜ with the numbers (line 1, bold), and the transmitted power from Vₜ (line 2), in a
-   rounded box centred on the interface (kept inside the drawing). */
-function readout(G, y0){
-  const g = gammaR(), tau = tauR(), z = R.z02, l1 = 'V⁺ + V⁻ = Vₜ\u00a0\u00a0 1 + ' + term(g) + ' = ' + coef(tau);
+   small rounded box in the voltage panel's top-right corner, above the curves (it can never meet one). */
+function readout(y0){
+  const g = gammaR(), tau = tauR(), z = R.z02, [f1, f2] = FS_READ, l1 = 'V⁺ + V⁻ = Vₜ   1 + ' + term(g) + ' = ' + coef(tau);
   const l2 = z === 0 ? 'Vₜ = 0 → Pₜ = 0 %' : z === Infinity ? 'Pₜ = 0 % (Z02 = ∞)' : Math.abs(g) < 0.005 ? 'Pₜ = 100 %'
-    : 'Pₜ = Vₜ² · Z01/Z02 = ' + coef(tau) + '² × 50/' + zNum(z) + ' = ' + pct2(tau * tau * Z01 / z);
-  const w = Math.max(textW(l1, FS_READ), textW(l2)) + 28, rh = LY_R.readH, x = Math.min(Math.max(G.xi - w / 2, LY_R.edge - 4), DESIGN_W - LY_R.edge + 4 - w);
-  return el('g', { class: 'readout' }, el('rect', { x, y: y0, width: w, height: rh, rx: 10, fill: 'var(--panel)', stroke: 'var(--line)', 'stroke-width': 1.5 })
-    + txt(x + w / 2, y0 + 20, l1, { anchor: 'middle', size: FS_READ, weight: 700, id: 'readV', cls: 'readv' })
-    + txt(x + w / 2, y0 + 47, l2, { anchor: 'middle', weight: 400, id: 'readP' }))
+    : 'Pₜ = Vₜ²·Z01/Z02 = ' + coef(tau) + '² × 50/' + zNum(z) + ' = ' + pct2(tau * tau * Z01 / z);
+  const w = Math.max(textW(l1, f1), textW(l2, f2)) + 2 * LY_R.readPad, rh = LY_R.readH, x = DESIGN_W - LY_R.edge - w;
+  return el('g', { class: 'readout' }, el('rect', { x, y: y0, width: w, height: rh, rx: 8, fill: 'var(--panel)', stroke: 'var(--line)', 'stroke-width': 1.5 })
+    + txt(x + w / 2, y0 + 16, l1, { anchor: 'middle', size: f1, weight: 700, id: 'readV', cls: 'readv' })
+    + txt(x + w / 2, y0 + 38, l2, { anchor: 'middle', size: f2, weight: 400, id: 'readP' }))
     + el('g', { 'data-q': 'Gamma', 'data-v': +g.toPrecision(12) }, '') + el('g', { 'data-q': 'tau', 'data-v': +tau.toPrecision(12) }, '');
 }
 // Panel 2: the voltage on the lines.
 function voltagePanel(H){
   const G = geoV(H), g = gammaR(), gm = Math.abs(g), tau = tauR(), vmax = 1 + gm, vmin = 1 - gm, L = LY_R, x2f = xR2(G, r2Len(G));
-  let s = heading(L.edge, G.top + L.headY, 'Voltage on the lines (incident amplitude = 1)');
-  s += txt(DESIGN_W - L.edge, G.top + L.headY, 'VSWR = V_max/V_min = ' + sig2(vmax) + '/' + sig2(vmin) + ' = ' + vswr2(gm), { anchor: 'end', cls: 'vswrLine' });
-  s += legend(G.top + L.legY);
-  // region tints and labels (labels in the tint's top band, above the curves)
+  // region tints (the top panel names the regions)
   const tintBot = G.yAxis - 4;
-  s += el('rect', { x: L.plotL - 6, y: G.tintTop, width: G.xi - L.plotL + 6, height: tintBot - G.tintTop, fill: 'var(--bg2)', stroke: 'none', class: 'tint' });
+  let s = el('rect', { x: L.plotL - 6, y: G.tintTop, width: G.xi - L.plotL + 6, height: tintBot - G.tintTop, fill: 'var(--bg2)', stroke: 'none', class: 'tint' });
   s += el('rect', { x: G.xi, y: G.tintTop, width: DESIGN_W - L.edge + 4 - G.xi, height: tintBot - G.tintTop, fill: 'var(--panel)', stroke: 'none', class: 'tint' });
-  s += txt(L.plotL, G.tintTop + 13, 'Region 1 · 50 Ω', { fill: 'var(--mut)', weight: 400 });
-  s += txt(DESIGN_W - L.edge, G.tintTop + 13, 'Region 2 · ' + (R.z02 === Infinity ? '∞' : zNum(R.z02)) + ' Ω', { anchor: 'end', fill: 'var(--mut)', weight: 400 });
-  // zero line, envelope (Region 1: ±|1 + Γe^(−j2βd)|; Region 2: ±|τ|, flat), V_max / V_min levels
+  // zero line, envelope (Region 1: ±|1 + Γe^(−j2βd)|; Region 2: ±|τ|, flat)
   s += el('line', { x1: L.plotL, y1: G.yc, x2: x2f, y2: G.yc, stroke: 'var(--line)', 'stroke-width': 1, class: 'zero' });
   let top = '', bot = '';
   const n = WAVE_N * R1_LAMBDA;
@@ -145,14 +131,15 @@ function voltagePanel(H){
     top += (k ? 'L' : 'M') + x + ' ' + n2(G.yc - v); bot = 'L' + x + ' ' + n2(G.yc + v) + bot; }
   const at = Math.abs(tau) * G.A, xe = n2(xR2(G, R2_LAMBDA));
   top += 'L' + xe + ' ' + n2(G.yc - at); bot = 'L' + xe + ' ' + n2(G.yc + at) + 'L' + n2(G.xi) + ' ' + n2(G.yc + at) + bot;
-  s += el('path', { d: top + bot + 'Z', fill: 'var(--s12)', 'fill-opacity': 0.14, stroke: 'none', class: 'shade' });
-  s += el('path', { d: top, fill: 'none', stroke: 'var(--s12)', 'stroke-width': 2.5, class: 'envelope', 'data-q': 'envelope', 'data-v': +gm.toPrecision(12), 'data-a': n2(G.A), 'data-yc': n2(G.yc), 'data-tau': +Math.abs(tau).toPrecision(12) });
-  s += el('path', { d: 'M' + bot.slice(1), fill: 'none', stroke: 'var(--s12)', 'stroke-width': 2.5, class: 'envelope' });
-  const lvl = (v, q, above, dash) => { const y = G.yc - v * G.A;
-    return el('line', { x1: L.plotL, y1: y, x2: G.xi, y2: y, stroke: 'var(--txt)', 'stroke-width': 1.5, 'stroke-dasharray': dash, class: 'level', 'data-q': q, 'data-v': +v.toPrecision(12) })
-      + txt(L.plotL - 10, y + (above ? -L.lvlOff : L.lvlOff), (q === 'Vmax' ? 'V_max ' : 'V_min ') + sig2(v), { anchor: 'end' }); };
-  s += lvl(vmax, 'Vmax', true, '8 5') + lvl(vmin, 'Vmin', false, '2 5');
-  // the waves: Region 2's fade out over its last R2_FADE units (a mask), then an arrow on to ∞
+  s += el('path', { d: top + bot + 'Z', fill: 'var(--s12)', 'fill-opacity': 0.12, stroke: 'none', class: 'shade' });
+  s += el('path', { d: top, fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, class: 'envelope', 'data-q': 'envelope', 'data-v': +gm.toPrecision(12), 'data-a': n2(G.A), 'data-yc': n2(G.yc), 'data-tau': +Math.abs(tau).toPrecision(12) });
+  s += el('path', { d: 'M' + bot.slice(1), fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, class: 'envelope' });
+  // V_max and V_min: short labels at the left end of the envelope (V_max just above its level, V_min just below; spread
+  // apart when the two levels are close, as when matched)
+  const off = Math.max(L.lvlOff, (L.lvlGap - (vmax - vmin) * G.A) / 2), lvl = (v, q, dy) => el('g', { class: 'level', 'data-q': q, 'data-v': +v.toPrecision(12), 'data-y': n2(G.yc - v * G.A) },
+    txt(L.plotL - 8, G.yc - v * G.A + dy, (q === 'Vmax' ? 'V_max ' : 'V_min ') + sig2(v), { anchor: 'end', id: 'lv' + q }));
+  s += lvl(vmax, 'Vmax', -off) + lvl(vmin, 'Vmin', off);
+  // the waves: Region 2's fade out over its last R2_FADE units (a mask), then a small arrow on to ∞
   const P = wavePathsV(G, app.tNow), x2 = xR2(G, R2_LAMBDA);
   s += el('defs', {}, el('linearGradient', { id: 'r2fade', gradientUnits: 'userSpaceOnUse', x1: x2, y1: 0, x2: x2f, y2: 0 },
       el('stop', { offset: 0, 'stop-color': '#fff' }) + el('stop', { offset: 1, 'stop-color': '#000' }))
@@ -160,28 +147,26 @@ function voltagePanel(H){
       el('rect', { x: G.xi - 4, y: G.plotTop - 10, width: x2 - G.xi + 4, height: G.yAxis - G.plotTop + 20, fill: '#fff' })
       + el('rect', { x: x2, y: G.plotTop - 10, width: x2f - x2, height: G.yAxis - G.plotTop + 20, fill: 'url(#r2fade)' })));
   const vr = R.vr ? null : 'none';
-  s += el('path', { id: 'vInc', d: P.inc, fill: 'none', stroke: 'var(--grey)', 'stroke-width': 2, 'stroke-dasharray': '6 4', display: vr, class: 'vcurve', 'data-q': 'V_inc', 'data-v': 1 });
-  s += el('path', { id: 'vRef', d: P.ref, fill: 'none', stroke: 'var(--s11)', 'stroke-width': 2, 'stroke-dasharray': '6 4', display: vr, class: 'vcurve', 'data-q': 'V_refl', 'data-v': +g.toPrecision(12) });
-  s += el('path', { id: 'vTot', d: P.tot, fill: 'none', stroke: 'var(--txt)', 'stroke-width': 3.5, 'stroke-linejoin': 'round', class: 'vcurve', 'data-q': 'V_tot' });
-  s += el('path', { id: 'vTr', d: P.tr, fill: 'none', stroke: 'var(--s21)', 'stroke-width': 3.5, 'stroke-linejoin': 'round', mask: 'url(#r2mask)', class: 'vcurve', 'data-q': 'V_trans', 'data-v': +tau.toPrecision(12) });
-  s += el('path', { d: 'M' + n2(x2f + 2) + ' ' + n2(G.yc) + 'H' + n2(DESIGN_W - L.edge - 12), stroke: 'var(--mut)', 'stroke-width': 2, fill: 'none', class: 'toinf' })
-    + el('path', { d: 'M' + n2(DESIGN_W - L.edge) + ' ' + n2(G.yc) + 'l-14 -7v14Z', fill: 'var(--mut)', class: 'toinf' });
-  ['Region 2 continues to ∞ —', 'no further reflections'].forEach((t, i) => { s += txt(DESIGN_W - L.edge, G.tintTop + 37 + 22 * i, t, { anchor: 'end', size: FS_CAPTION, fill: 'var(--mut)', weight: 400, cls: 'caption16 toinfCap' }); });
-  // the interface and the readout above it
-  s += el('line', { x1: G.xi, y1: G.plotTop - 4, x2: G.xi, y2: G.yAxis - 8, stroke: 'var(--s22)', 'stroke-width': 3, 'stroke-dasharray': DASH, class: 'iface' });
-  s += readout(G, G.top + L.readTop);
+  s += el('path', { id: 'vInc', d: P.inc, fill: 'none', stroke: 'var(--grey)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4', display: vr, class: 'vcurve', 'data-q': 'V_inc', 'data-v': 1 });
+  s += el('path', { id: 'vRef', d: P.ref, fill: 'none', stroke: 'var(--s11)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4', display: vr, class: 'vcurve', 'data-q': 'V_refl', 'data-v': +g.toPrecision(12) });
+  s += el('path', { id: 'vTot', d: P.tot, fill: 'none', stroke: 'var(--txt)', 'stroke-width': 3, 'stroke-linejoin': 'round', class: 'vcurve', 'data-q': 'V_tot' });
+  s += el('path', { id: 'vTr', d: P.tr, fill: 'none', stroke: 'var(--s21)', 'stroke-width': 3, 'stroke-linejoin': 'round', mask: 'url(#r2mask)', class: 'vcurve', 'data-q': 'V_trans', 'data-v': +tau.toPrecision(12) });
+  s += el('path', { d: 'M' + n2(x2f + 2) + ' ' + n2(G.yc) + 'H' + n2(DESIGN_W - L.edge - 10), stroke: 'var(--mut)', 'stroke-width': 1.5, fill: 'none', class: 'toinf' })
+    + el('path', { d: 'M' + n2(DESIGN_W - L.edge) + ' ' + n2(G.yc) + 'l-10 -5v10Z', fill: 'var(--mut)', class: 'toinf' });
+  // the interface, and the readout in the top-right corner
+  s += el('line', { x1: G.xi, y1: G.tintTop, x2: G.xi, y2: G.yAxis - 8, stroke: 'var(--s22)', 'stroke-width': 3, 'stroke-dasharray': DASH, class: 'iface' });
+  s += readout(G.top + L.readTop);
   // distance axis: Region 1 2λ … interface, Region 2 λ/4, λ/2
   s += el('line', { x1: L.plotL, y1: G.yAxis - 8, x2: x2f, y2: G.yAxis - 8, stroke: 'var(--mut)', 'stroke-width': 1.5 });
-  const tk = (x, t, anchor, tx) => el('line', { x1: x, y1: G.yAxis - 14, x2: x, y2: G.yAxis - 2, stroke: 'var(--mut)', 'stroke-width': 1.5 })
-    + txt(tx === undefined ? x : tx, G.yAxis + 14, t, { anchor, fill: 'var(--mut)', weight: 400 });
+  const tk = (x, t, anchor, tx) => el('line', { x1: x, y1: G.yAxis - 13, x2: x, y2: G.yAxis - 3, stroke: 'var(--mut)', 'stroke-width': 1.5 })
+    + txt(tx === undefined ? x : tx, G.yAxis + 12, t, { anchor, size: FS_TICK, fill: 'var(--mut)', weight: 400 });
   [[2, '2λ'], [1.5, '3λ/2'], [1, 'λ'], [0.5, 'λ/2']].forEach(([d, t]) => { s += tk(xR1(G, d), t, 'middle'); });
   s += tk(G.xi, 'interface', 'end', G.xi - 6);
   [[0.25, 'λ/4'], [0.5, 'λ/2']].forEach(([x, t]) => { s += tk(xR2(G, x), t, 'middle'); });
-  s += txt(L.edge, H - L.capUp, 'Both regions have the same propagation speed (same λ). Region 2 is infinitely long.', { size: FS_CAPTION, fill: 'var(--mut)', weight: 400, cls: 'caption16' });
   return s;
 }
 // The whole drawing for a drawing H units tall.
-function drawReflections(H){ return svgRoot(H, 'Power at the interface, and the incident, reflected, total and transmitted voltage on the lines', powerPanel(H) + voltagePanel(H)); }
+function drawReflections(H){ return svgRoot(H, 'Power at the interface, and the total and transmitted voltage on the lines', powerPanel(H) + voltagePanel(H)); }
 // Move the four waves to time t (animation frame).
 function tickReflections(H, t){
   const P = wavePathsV(geoV(H), t), set = (id, d) => { const e = document.getElementById(id); if(e) e.setAttribute('d', d); };
@@ -190,7 +175,10 @@ function tickReflections(H, t){
 // ── END VOLTAGE PANEL ─────────────────────────────────────────
 
 // ── PANEL ─────────────────────────────────────────────────────
-// Side panel: Γ (signed) and VSWR, the Z02 slider with its box, Matched / Short / Open, τ, the incident/reflected switch.
+// The voltage panel's legend, in the side panel: name and swatch style (template.html .sw.*).
+const LEGEND = [['incident v⁺', 'inc'], ['reflected v⁻', 'refl'], ['total (Region 1)', 'tot'], ['transmitted vₜ', 'tr'], ['envelope', 'env']];
+/* Side panel: Γ (signed) and VSWR, the Z02 slider with its box, Matched / Short / Open, τ, the power note, the voltage
+   panel's title, the incident/reflected switch, the legend and the caption. */
 function panelReflections(){
   const g = gammaR(), gm = Math.abs(g), set = z => { R.z02 = z; redraw(true); };
   const box = h('input', { type: 'text', id: 'z02Box', value: R.z02 === Infinity ? '∞' : String(R.z02), attrs: { 'aria-label': 'Z02 in ohms (∞ or "open" for an open)', inputmode: 'decimal' } });
@@ -207,8 +195,11 @@ function panelReflections(){
     h('div', { cls: 'btnrow' }, pbtn('bMatch', 'Matched (50)', pre === 'm', () => set(Z01)), pbtn('bShort', 'Short (0)', pre === 's', () => set(0)),
       pbtn('bOpen', 'Open (∞)', pre === 'o', () => set(Infinity))),
     h('p', { cls: 'tauline', id: 'roTau', text: 'τ = 1 + Γ = ' + coef(tauR()) }),
+    note('Power at the interface — arrow thickness = share of the power (incident = 100 %)'),
+    h('div', { cls: 'sec', text: 'Voltage on the lines (incident amplitude = 1)' }),
     h('label', { cls: 'chk' }, vr, ' Show incident and reflected'),
-    note('Thickness of each arrow is its share of the power.')];
+    h('ul', { cls: 'legend', attrs: { 'aria-label': 'Curves' } }, LEGEND.map(([name, cls]) => h('li', {}, h('span', { cls: 'sw ' + cls }), name))),
+    h('p', { cls: 'cap', text: 'Both regions have the same propagation speed (same λ). Region 2 is infinitely long.' })];
 }
 // Refresh the panel's readouts and preset buttons after a slider move (the panel itself is not rebuilt).
 function syncReflections(){

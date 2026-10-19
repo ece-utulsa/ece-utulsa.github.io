@@ -20,9 +20,13 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.4.0'
+VERSION = '1.4.1'
 RELEASED = '2026-10-19'
-CHANGELOG = ('\n    v1.4.0 - Reflections: titled power panel; voltage panel with incident, reflected, total and transmitted waves '
+CHANGELOG = ('\n    v1.4.1 - Declutter: smaller text at all window sizes; Reflections — separate power rows, voltage plot '
+             'enlarged, titles/legend/caption to the side panel, VSWR equation and extra labels removed, incident/reflected '
+             'off by default; Devices — one port line per side, waves as arrows beside it, thinner paths, smaller matrix; '
+             'Cascade — S-parameter editor shown on selection.'
+             '\n    v1.4.0 - Reflections: titled power panel; voltage panel with incident, reflected, total and transmitted waves '
              '(Region 2 to ∞) and V⁺ + V⁻ = Vₜ readout; signed Γ and τ. Devices: S values moved into a numeric matrix row; '
              'power line clear of the port labels; waves neutral/text colour, path colours for S only. Cascade: junction '
              'powers labelled × input; dB with power factor; river arithmetic; budget shows dB adding.'
