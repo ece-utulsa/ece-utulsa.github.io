@@ -25,12 +25,12 @@
 /* ── THEMES ── standard dark (windowed) and light Projector (presentation default); T toggles */
 :root{
   --bg:#0f1218; --bg2:#161b22; --panel:#1c222b; --line:#2f3845; --txt:#e6ebf2; --mut:#a7b1c2; --focus:#ffd479;
-  --s11:#ffb02e; --s21:#3ddc84; --s12:#a5a3ff; --s22:#ff7070; --neutral:#e6ebf2; --bad:#ff8a80;
+  --s11:#ffb02e; --s21:#3ddc84; --s12:#a5a3ff; --s22:#ff7070; --neutral:#e6ebf2; --grey:#8b95a5; --bad:#ff8a80;
   --k:1; --fl:18px; --fh:46px; --ft:20px;
 }
 body.light{
   --bg:#ffffff; --bg2:#eef1f5; --panel:#f6f8fb; --line:#b8c0cc; --txt:#111827; --mut:#4b5563; --focus:#1d4ed8;
-  --s11:#b45309; --s21:#15803d; --s12:#6d28d9; --s22:#dc2626; --neutral:#111827; --bad:#b91c1c;
+  --s11:#b45309; --s21:#15803d; --s12:#6d28d9; --s22:#dc2626; --neutral:#111827; --grey:#6b7280; --bad:#b91c1c;
 }
 *{ box-sizing:border-box; margin:0; padding:0 }
 html,body{ height:100%; overflow:hidden }
@@ -61,7 +61,7 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type
 #devbar{ flex:none; height:calc(48px * var(--k)); display:flex; gap:calc(6px * var(--k)); align-items:center; padding:0 calc(12px * var(--k)) }
 #devbar .spacer{ flex:1 } .seg{ display:inline-flex } .seg button{ border-radius:0 } .seg button:first-child{ border-radius:6px 0 0 6px } .seg button:last-child{ border-radius:0 6px 6px 0 }
 #stage{ position:relative; flex:1; min-height:0; min-width:0 }
-#stage svg.vis{ position:absolute; inset:0; width:100%; height:100%; display:block }
+#stage svg.vis{ position:absolute; top:0; left:0; width:100%; height:100%; display:block }   /* width and left set by main.js (scale cap) */
 #stage [role=button]{ cursor:pointer } #stage [role=button]:focus{ outline:none } #stage [role=button]:focus-visible .block, #stage [role=button]:focus-visible circle{ stroke:var(--focus); stroke-width:5 }
 .addmenu{ position:absolute; display:flex; flex-direction:column; gap:4px; background:var(--panel); border:2px solid var(--txt); border-radius:8px; padding:6px; z-index:2 }
 .addmenu button{ text-align:left }
@@ -71,6 +71,11 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type
 .ctl{ display:flex; flex-direction:column; gap:.2em } .ctl .row{ display:flex; gap:.4em; align-items:center }
 .btnrow{ display:flex; gap:.4em; flex-wrap:wrap }
 .note{ color:var(--mut) }
+.cap{ color:var(--mut); font-size:calc(13px * var(--k)) }
+/* Reflections legend (side panel): a swatch per curve, as drawn */
+.legend{ list-style:none; display:flex; flex-direction:column; gap:.15em } .legend li{ display:flex; align-items:center; gap:.5em }
+.sw{ display:inline-block; width:1.6em; height:0; border-top:3px solid var(--txt) } .sw.inc{ border-top:2px dashed var(--grey) } .sw.refl{ border-top:2px dashed var(--s11) }
+.sw.tr{ border-top-color:var(--s21) } .sw.env{ height:.7em; border:1.5px solid var(--s12); background:color-mix(in srgb, var(--s12) 15%, transparent) }
 .sec{ color:var(--mut); font-weight:600; border-top:1px solid var(--line); padding-top:.4em }
 .sec:first-child{ border-top:0; padding-top:0 }
 .srows{ display:flex; flex-direction:column; gap:.3em } .srow{ display:flex; gap:.35em; align-items:center } .srow input[type=number]{ width:3.6em }

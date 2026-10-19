@@ -22,7 +22,8 @@ const MATCH_EPS = 0.01;          // |S11| below this: "source sees a match"
 const RIVER_ROOM = 140;          // the flow panel's height less its tallest band (heading, values, reflected arrows)
 const RIVER_UNIT = 36;           // band height for power 1 when nothing in the chain is larger
 const REFL_X = 3, REFL_MAX = 30; // reflected arrows are drawn REFL_X× the band scale, reduced so none is thicker than REFL_MAX
-const LY_K = { src: 48, srcR: 26, chainY: 100, bh: 80, bw: 120, left: 100, loadW: 100, plusR: 16, plusW: 40, s2: 184, s3up: 96 };
+// Layout (design units = px at 1280×720): as v1.3.0, with labels 16 from the drawing's edges (edge).
+const LY_K = { edge: 16, src: 52, srcR: 26, chainY: 100, bh: 80, bw: 120, left: 100, loadW: 100, plusR: 16, s2: 184, s3up: 106 };
 // Tallest band (units) for a drawing H units tall; the band scale is the smaller of RIVER_UNIT and this over the largest power.
 const riverMax = H => H - LY_K.s3up - LY_K.s2 - RIVER_ROOM;
 // ── END CONSTANTS ─────────────────────────────────────────────
@@ -31,7 +32,7 @@ const riverMax = H => H - LY_K.s3up - LY_K.s2 - RIVER_ROOM;
 // The briefing's check case: Amplifier 10 dB → Attenuator 3 dB → Custom → 100 Ω.
 const K = { blocks: [{ type: 'amp', p: { G: 10 } }, { type: 'atten', p: { A: 3 } },
                      { type: 'custom', p: { e: { s11: [0.2, 30], s21: [0.9, -45], s12: [0.9, -45], s22: [0.2, 30] }, recip: true } }],
-            sel: 0, menu: false, load: { kind: 'value', z: 100 } };
+            sel: 0, menu: false, load: { kind: 'value', z: 100 }, est: null };   // menu: false, or the junction the "+" menu inserts at; est: the S entry set in the editor
 // Load impedance object.
 const loadOf = () => (K.load.kind === 'open' ? OPEN_LOAD : zLoad(C(K.load.kind === 'short' ? 0 : K.load.kind === 'match' ? Z0_CASC : K.load.z, 0)));
 // Load as text.
@@ -58,21 +59,20 @@ function solveChain(){
 // ── END SOLUTION ──────────────────────────────────────────────
 
 // ── DRAWING ───────────────────────────────────────────────────
-/* x positions: each block's left edge, the load's left edge, the junction x's (junction 0 between the source and block
-   1, junction N at the load), and the "+" centre. The "+" has its own slot on the wire after the last block, with the
-   same gap on both sides (the slot is kept at 4 blocks, where the "+" is disabled). */
+/* x positions: each block's left edge, the load's left edge, and the junction x's (junction 0 between the source and
+   block 1, junction N at the load), with equal gaps. Each junction carries a "+" on the wire to insert a block there. */
 function chainGeo(){
-  const N = K.blocks.length, loadX = DESIGN_W - 12 - LY_K.loadW, span = loadX - LY_K.left, gap = (span - N * LY_K.bw - LY_K.plusW) / (N + 2);
+  const N = K.blocks.length, loadX = DESIGN_W - LY_K.edge - LY_K.loadW, span = loadX - LY_K.left, gap = (span - N * LY_K.bw) / (N + 1);
   const bx = K.blocks.map((_, i) => LY_K.left + gap + i * (LY_K.bw + gap));
   const jx = [(LY_K.src + LY_K.srcR + bx[0]) / 2].concat(bx.map((x, i) => (i < N - 1 ? (x + LY_K.bw + bx[i + 1]) / 2 : (x + LY_K.bw + loadX) / 2)));
-  return { N, bx, loadX, jx, gap, plusX: bx[N - 1] + LY_K.bw + gap + LY_K.plusW / 2, plusY: LY_K.chainY };
+  return { N, bx, loadX, jx, gap };
 }
 // A clickable group on the drawing (role=button, keyboard focusable).
 const btnG = (attrs, label, inner) => el('g', Object.assign({ role: 'button', tabindex: 0, 'aria-label': label, class: 'hit' }, attrs), inner);
 // "Build the chain": source, blocks (type and key value, × to remove, the selected one highlighted), "+", load.
 function drawChain(G){
   const y = LY_K.chainY, top = y - LY_K.bh / 2;
-  let s = heading(12, 14, 'Build the chain');
+  let s = heading(LY_K.edge, 14, 'Build the chain');
   s += el('line', { x1: LY_K.src + LY_K.srcR, y1: y, x2: G.loadX, y2: y, stroke: 'var(--mut)', 'stroke-width': 2, class: 'wire' });
   s += el('circle', { cx: LY_K.src, cy: y, r: LY_K.srcR, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 2.5 });
   s += el('path', { d: 'M' + (LY_K.src - 14) + ' ' + y + 'c5 -12 9 -12 14 0s9 12 14 0', fill: 'none', stroke: 'var(--txt)', 'stroke-width': 2.5 });
@@ -84,12 +84,13 @@ function drawChain(G){
       + txt(cx, top + 54, keyValue(b), { anchor: 'middle', fill: b.type === 'amp' ? 'var(--s21)' : 'var(--txt)', cls: 'keyv' }));
     if(G.N > 1) s += btnG({ 'data-del': i }, 'Remove block ' + (i + 1),
       el('circle', { cx: x + LY_K.bw, cy: top, r: 12, fill: 'var(--bg)', stroke: 'var(--mut)', 'stroke-width': 1.5 }) + crossMark(x + LY_K.bw, top, 5, 'var(--mut)')); });
-  // "+" in its own slot on the wire after the last block; disabled and greyed at MAX_BLOCKS ("Up to 4 blocks")
-  const full = G.N >= MAX_BLOCKS, px = G.plusX, py = G.plusY, pc = full ? 'var(--mut)' : 'var(--txt)';
-  s += btnG({ 'data-add': 1, 'aria-expanded': K.menu ? 'true' : 'false', 'aria-disabled': full ? 'true' : null, opacity: full ? 0.35 : null },
-    full ? 'Add a block: up to ' + MAX_BLOCKS + ' blocks' : 'Add a block after block ' + G.N,
-    el('title', {}, full ? 'Up to ' + MAX_BLOCKS + ' blocks' : 'Add a block') + el('circle', { cx: px, cy: py, r: LY_K.plusR, fill: 'var(--panel)', stroke: pc, 'stroke-width': 2 })
-    + el('path', { d: 'M' + n2(px - 8) + ' ' + py + 'h16M' + n2(px) + ' ' + (py - 8) + 'v16', stroke: pc, 'stroke-width': 3 }));
+  // a "+" on the wire at every junction: insert a block there (before block 1, between blocks, before the load); none at
+  // MAX_BLOCKS, where a note says so
+  if(G.N >= MAX_BLOCKS) s += txt(DESIGN_W - LY_K.edge, 14, 'Up to ' + MAX_BLOCKS + ' blocks: remove one to add another', { anchor: 'end', size: FS.small, fill: 'var(--mut)', weight: 400, id: 'fullNote' });
+  else G.jx.forEach((px, k) => { const py = y, where = k === 0 ? 'before block 1' : k === G.N ? 'after block ' + G.N : 'between blocks ' + k + ' and ' + (k + 1);
+    s += btnG({ 'data-add': k, 'aria-expanded': K.menu === k ? 'true' : 'false' }, 'Add a block ' + where,
+      el('title', {}, 'Add a block here') + el('circle', { cx: px, cy: py, r: LY_K.plusR, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 2 })
+      + el('path', { d: 'M' + n2(px - 8) + ' ' + py + 'h16M' + n2(px) + ' ' + (py - 8) + 'v16', stroke: 'var(--txt)', 'stroke-width': 3 })); });
   s += el('rect', { x: G.loadX, y: top, width: LY_K.loadW, height: LY_K.bh, rx: 8, fill: 'var(--bg2)', stroke: 'var(--txt)', 'stroke-width': 2, class: 'load' });
   s += txt(G.loadX + LY_K.loadW / 2, top + 24, 'Load', { anchor: 'middle' }) + txt(G.loadX + LY_K.loadW / 2, top + 54, K.load.kind === 'open' ? '∞' : loadText().replace(' (short)', ' Ω'), { anchor: 'middle', id: 'loadVal' });
   return s;
@@ -98,8 +99,8 @@ function drawChain(G){
 function drawFlow(G, sol, H){
   const RM = riverMax(H), y0 = LY_K.s2, pmax = Math.max(...sol.fwd), sc = Math.min(RIVER_UNIT, RM / Math.max(pmax, 1e-9));
   const yr = y0 + 60 + RM / 2, rmax = Math.max(...sol.refl), rx = Math.min(REFL_X, REFL_MAX / Math.max(sc * rmax, 1e-9));
-  let s = heading(12, y0 + 14, 'Power flow (input = 1)');
-  s += txt(888, y0 + 14, 'reflected arrows drawn ' + (rx === REFL_X ? REFL_X : fx(rx, 1)) + '× thicker', { anchor: 'end', fill: 'var(--mut)', weight: 400, cls: 'caption' });
+  let s = heading(LY_K.edge, y0 + 14, 'Power flow (input = 1)');
+  s += txt(DESIGN_W - LY_K.edge, y0 + 14, 'reflected arrows drawn ' + (rx === REFL_X ? REFL_X : fx(rx, 1)) + '× thicker', { anchor: 'end', fill: 'var(--mut)', weight: 400, cls: 'caption' });
   // band outline: constant across each junction gap, tapering across each block, arrowhead into the load
   const hk = sol.fwd.map(p => p * sc), x0 = LY_K.src + LY_K.srcR, pts = [[x0, hk[0]]];
   G.bx.forEach((x, i) => { pts.push([x, hk[i]], [x + LY_K.bw, hk[i + 1]]); });
@@ -122,19 +123,19 @@ function drawFlow(G, sol, H){
   sol.refl.forEach((p, k) => { const t = p > 1e-6 ? p * sc * rx : 0, x = G.jx[k], aw = k === 0 ? 30 : 36;
     s += bandArrow(x + aw, x - aw, yb, t, { col: 'var(--s11)', q: 'refl' + k, v: p, ref: sc * rx });
     const yt = yb + Math.max(22, t * 1.7) / 2 + 14;
-    const t0 = k === 0 ? 'back to source ' + sig2(p) : sig2(p), xt = Math.max(x, textW(t0) / 2 + 4);   // centred on the junction
+    const t0 = k === 0 ? 'back to source ' + sig2(p) : sig2(p), xt = Math.max(x, textW(t0) / 2 + LY_K.edge);   // centred on the junction
     s += txt(xt, yt, t0, { anchor: 'middle', fill: 'var(--s11)', cls: 'reflv', id: 'refl' + k }); });
   return s;
 }
 // "Budget": each block's |S21| in dB under it, and the transducer gain G_T in dB delivered to the load.
 function drawBudget(G, sol, H){
   const y0 = H - LY_K.s3up, y1 = y0 + 50;
-  let s = heading(12, y0 + 14, 'Budget');
+  let s = heading(LY_K.edge, y0 + 14, 'Budget');
   sol.devs.forEach((S, i) => { const db = dbOf(cabs(S.s21)), col = db > 0.05 ? 'var(--s21)' : db < -0.05 ? 'var(--s22)' : 'var(--txt)';
     s += txt(G.bx[i] + LY_K.bw / 2, y1, db === -Infinity ? '−∞ dB' : (db > 0.05 ? '+' : '') + fx(db, 1) + ' dB', { anchor: 'middle', fill: col, cls: 'budget', id: 'bud' + i }); });
   const gt = sol.GT > 1e-12 ? 10 * Math.log10(sol.GT) : -Infinity;
-  s += txt(892, y1, '= ' + (gt === -Infinity ? '−∞' : (gt > 0.05 ? '+' : '') + fx(gt, 1)) + ' dB', { anchor: 'end', cls: 'budget', id: 'budTotal' });
-  s += txt(892, y1 + 28, 'delivered to load', { anchor: 'end', fill: 'var(--mut)', weight: 400 });
+  s += txt(DESIGN_W - LY_K.edge, y1, '= ' + (gt === -Infinity ? '−∞' : (gt > 0.05 ? '+' : '') + fx(gt, 1)) + ' dB', { anchor: 'end', cls: 'budget', id: 'budTotal' });
+  s += txt(DESIGN_W - LY_K.edge, y1 + 28, 'delivered to load', { anchor: 'end', fill: 'var(--mut)', weight: 400 });
   return s;
 }
 // The whole Cascade drawing.
@@ -149,43 +150,45 @@ function drawCascade(H){
 function selectBlock(i){ K.sel = i; K.menu = false; redraw(true); }
 // Remove block i (at least one block stays).
 function removeBlock(i){ if(K.blocks.length <= 1) return; K.blocks.splice(i, 1); K.sel = Math.min(K.sel, K.blocks.length - 1); K.menu = false; redraw(true); }
-// Add a block of the given type at the end and select it.
-function addBlock(type){ if(K.blocks.length >= MAX_BLOCKS) return; K.blocks.push({ type, p: BLOCK_DEFAULT[type]() }); K.sel = K.blocks.length - 1; K.menu = false; redraw(true); }
+// Insert a block of the given type at the junction the "+" menu was opened from (0: before block 1, N: after the last)
+// and select it.
+function addBlock(type){ if(K.blocks.length >= MAX_BLOCKS || K.menu === false) return; const at = K.menu;
+  K.blocks.splice(at, 0, { type, p: BLOCK_DEFAULT[type]() }); K.sel = at; K.menu = false; redraw(true); }
 // A click or Enter/Space on the drawing: select, remove or "+". Returns true when handled.
 function cascadeActivate(t){
   const g = t.closest && t.closest('[data-blk],[data-del],[data-add]'); if(!g) return false;
   if(g.dataset.del !== undefined) removeBlock(+g.dataset.del);
   else if(g.dataset.blk !== undefined) selectBlock(+g.dataset.blk);
-  else if(K.blocks.length < MAX_BLOCKS){ K.menu = !K.menu; redraw(true); }
+  else if(K.blocks.length < MAX_BLOCKS){ const k = +g.dataset.add; K.menu = K.menu === k ? false : k; redraw(true); }
   return true;
 }
-// The "+" menu: an HTML list of block types over the drawing, at the "+" position (fractions of the drawing).
-function addMenu(H){
-  if(!K.menu || K.blocks.length >= MAX_BLOCKS) return null;
-  const G = chainGeo();
-  return h('div', { cls: 'addmenu', attrs: { role: 'menu', 'aria-label': 'Add a block', style: 'left:' + n2(100 * Math.min(G.plusX - 60, DESIGN_W - 170) / DESIGN_W) + '%;top:' + n2(100 * (G.plusY + 20) / H) + '%' } },
+// The "+" menu: an HTML list of block types over the drawing, under the "+" it was opened from (placed in px by the
+// drawing scale).
+function addMenu(){
+  if(K.menu === false || K.blocks.length >= MAX_BLOCKS) return null;
+  const G = chainGeo(), b = drawBox(), px = G.jx[K.menu];
+  return h('div', { cls: 'addmenu', attrs: { role: 'menu', 'aria-label': 'Add a block', style: 'left:' + n2(b.off + b.s * Math.min(Math.max(px - 60, LY_K.edge), DESIGN_W - 170)) + 'px;top:' + n2(b.s * (LY_K.chainY + 20)) + 'px' } },
     BLOCK_TYPES.map(t => h('button', { type: 'button', id: 'add_' + t, text: DEV_NAME[t], attrs: { role: 'menuitem' }, onclick: () => addBlock(t) })));
 }
 // ── END INTERACTION ───────────────────────────────────────────
 
 // ── PANEL ─────────────────────────────────────────────────────
-// Convert the selected preset block to Custom with its current S-parameters.
-function toCustom(b){
-  const S = deviceS(b.type, b.p), e = {};
-  for(const k of S_KEYS){ const m = cabs(S[k]); e[k] = [+m.toPrecision(6), m < S_ZERO ? 0 : +wrapDeg(carg(S[k]) * DEG).toPrecision(6)]; }
-  b.type = 'custom'; b.p = { e, recip: cabs(csub(S.s12, S.s21)) <= EPS_BADGE };
-  redraw(true);
-}
-// The selected block's editor: a preset's one knob and "edit S-parameters", or the Custom S entries.
+// A block's current S as a Custom entry set (devices.js sEntries).
+const entriesOf = b => sEntries(deviceS(b.type, b.p));
+/* The selected block's editor, shown as soon as the block is selected: a preset's one knob (when it has one) and all
+   four S entries with the reciprocal link, filled with the block's values and following the knob live (syncCascade).
+   Editing an S entry turns a preset into Custom with those values (its knob goes). K.est is the entry set shown. */
 function blockEditor(){
   const i = K.sel, b = K.blocks[i], set = (k, v) => { b.p[k] = v; redraw(false); };
   const title = h('div', { cls: 'sec', text: 'Block ' + (i + 1) + ' · ' + DEV_NAME[b.type] });
-  if(b.type === 'custom') return [title, ...sEditor(b.p, 'k', redraw)];
+  if(b.type === 'custom'){ K.est = b.p; return [title, ...sEditor(b.p, 'k', redraw)]; }
   const knob = { through: () => slider({ id: 'kLen', label: 'Line length ℓ/λ', min: 0, max: 1, step: 0.01, value: b.p.l, unit: 'λ', onset: v => set('l', v) }),
     atten: () => slider({ id: 'kAtt', label: 'Attenuation', min: 0, max: 40, step: 0.5, value: b.p.A, unit: 'dB', onset: v => set('A', v) }),
     amp: () => slider({ id: 'kGain', label: 'Gain', min: 0, max: 30, step: 0.5, value: b.p.G, unit: 'dB', onset: v => set('G', v) }),
     iso: () => slider({ id: 'kIL', label: 'Forward loss', min: 0, max: 3, step: 0.1, value: b.p.IL, unit: 'dB', onset: v => set('IL', v) }) }[b.type]();
-  return [title, knob, h('button', { type: 'button', id: 'toCustom', text: 'Edit S-parameters', onclick: () => toCustom(b) })];
+  const st = K.est = entriesOf(b);
+  const changed = full => { if(b.type !== 'custom'){ b.type = 'custom'; b.p = st; redraw(true); } else redraw(full); };
+  return [title, knob, ...sEditor(st, 'k', changed)];
 }
 // "Whole chain as one two-port": overall S21 (|S|∠ and dB), S11 (with the match note), S22, S12.
 function chainLines(){
@@ -209,6 +212,11 @@ function panelCascade(){
 }
 // Refresh the chain readouts after a control moved.
 function syncCascade(){
+  const blk = K.blocks[K.sel];
+  if(blk && blk.type !== 'custom' && K.est){ Object.assign(K.est, entriesOf(blk));   // a preset's S entries follow its knob
+    const put = (id, v) => { const e = document.getElementById(id); if(e && e !== document.activeElement) e.value = +(+v).toPrecision(6); };
+    for(const k of S_KEYS){ put('k' + k, K.est.e[k][0]); put('k' + k + 'm', K.est.e[k][0]); put('k' + k + 'a', K.est.e[k][1]); }
+    const rc = document.getElementById('krecip'); if(rc) rc.checked = K.est.recip; }
   const lines = document.querySelectorAll('#chainS .sv'); chainLines().forEach(([, v], i) => { if(lines[i]) lines[i].textContent = v; });
   const lk = K.load.kind; [['lMatch', 'match'], ['lShort', 'short'], ['lOpen', 'open']].forEach(([id, k]) => { const b = document.getElementById(id); if(b) b.setAttribute('aria-pressed', String(lk === k)); });
 }

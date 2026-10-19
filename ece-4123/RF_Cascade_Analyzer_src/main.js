@@ -22,7 +22,7 @@ const VIEW = {
   devices: { draw: drawDevices, panel: panelDevices, sync: syncDevices },
   cascade: { draw: drawCascade, panel: panelCascade, sync: syncCascade },
 };
-const HASH_RE = /^#?view=(reflections|devices|cascade)(?:&device=(through|atten|amp|iso|custom)(?:&drive=(fwd|rev))?)?$/;
+const HASH_RE = /^#?view=(reflections|devices|cascade)(?:&device=(through|atten|amp|iso|custom)(?:&drive=(fwd|rev))?)?(?:&vr=([01]))?$/;
 const TEXT_TYPES = ['text', 'number', 'search', 'email', 'url', 'tel', 'password'];
 // ── END CONSTANTS ─────────────────────────────────────────────
 
@@ -36,19 +36,24 @@ const app = {
 // ── END APP STATE ─────────────────────────────────────────────
 
 // ── RENDERING ─────────────────────────────────────────────────
-// Height of the drawing in design units for the drawing area's current aspect.
-function drawH(){ const st = $('stage'); return st.clientWidth > 0 ? DESIGN_W * st.clientHeight / st.clientWidth : 0; }
+/* Drawing scale (CSS px per design unit) and left offset: the drawing fills the stage's width but never grows past ×1
+   in a window, or past the presentation factor (×1 at 720 p); a wider stage centres it. */
+function drawBox(){ const st = $('stage'), s = Math.min(st.clientWidth / DESIGN_W, app.present ? window.innerHeight / BASE_H : 1);
+  return { s, off: (st.clientWidth - DESIGN_W * s) / 2 }; }
+// Height of the drawing in design units: the stage's full height at the drawing scale.
+function drawH(){ const st = $('stage'); return st.clientWidth > 0 ? st.clientHeight / drawBox().s : 0; }
 // Draw the current view (and the Cascade "+" menu over it).
 function renderDrawing(){
   const H = drawH(); if(H <= 0) return;
   $('stage').innerHTML = VIEW[app.view].draw(H);
-  if(app.view === 'cascade'){ const m = addMenu(H); if(m) $('stage').append(m); }
+  const b = drawBox(), sv = $('stage').querySelector('svg.vis'); sv.style.width = DESIGN_W * b.s + 'px'; sv.style.left = b.off + 'px';
+  if(app.view === 'cascade'){ const m = addMenu(); if(m) $('stage').append(m); }
 }
 /* Redraw after a state change. full: also rebuild the panel (a button or a mode changed); otherwise only the
    panel's readouts are refreshed, so a slider being dragged keeps focus. Focus on a drawing element is restored. */
 function redraw(full){
   const a = document.activeElement, id = a && a.id, dk = a && a.closest && a.closest('#stage [data-blk],#stage [data-add]');
-  const key = dk ? (dk.dataset.blk !== undefined ? '[data-blk="' + dk.dataset.blk + '"]' : '[data-add]') : null;
+  const key = dk ? (dk.dataset.blk !== undefined ? '[data-blk="' + dk.dataset.blk + '"]' : '[data-add="' + dk.dataset.add + '"]') : null;
   renderDrawing();
   if(full){ $('panel').replaceChildren(...VIEW[app.view].panel()); } else VIEW[app.view].sync();
   const back = key ? $('stage').querySelector(key) : id ? $(id) : null;
@@ -72,9 +77,9 @@ function renderTop(){
 const STOPS = [['reflections', null]].concat(DEVICES.map(d => ['devices', d]), [['cascade', null]]);
 // Index of the current stop.
 const stopIndex = () => STOPS.findIndex(([v, d]) => v === app.view && (d === null || d === D.dev));
-// Show view v (and device d and drive r in Devices).
-function show(v, d, r){
-  if(d) D.dev = d; if(r) D.drive = r;
+// Show view v (and device d and drive r in Devices; vr: show the incident and reflected curves in Reflections, '1' or '0').
+function show(v, d, r, vr){
+  if(d) D.dev = d; if(r) D.drive = r; if(vr) R.vr = vr === '1';
   const changed = v !== app.view; app.view = v; K.menu = false;
   if(changed) $('panel').replaceChildren();
   redraw(true); syncHash();
@@ -84,11 +89,11 @@ function next(){ const i = stopIndex(); if(i < STOPS.length - 1) show(...STOPS[i
 function prev(){ const i = stopIndex(); if(i > 0) show(...STOPS[i - 1]); }
 // Mirror the view (and device) in the URL hash without adding history entries.
 function syncHash(){
-  const want = '#view=' + app.view + (app.view === 'devices' ? '&device=' + D.dev + '&drive=' + D.drive : '');
+  const want = '#view=' + app.view + (app.view === 'devices' ? '&device=' + D.dev + '&drive=' + D.drive : '') + (app.view === 'reflections' ? '&vr=' + (R.vr ? 1 : 0) : '');
   if(location.hash !== want) history.replaceState(null, '', want);
 }
-// [view, device, drive] from the URL hash, or null.
-function readHash(){ const m = HASH_RE.exec(location.hash); return m ? [m[1], m[2] || null, m[3] || null] : null; }
+// [view, device, drive, vr] from the URL hash, or null.
+function readHash(){ const m = HASH_RE.exec(location.hash); return m ? [m[1], m[2] || null, m[3] || null, m[4] || null] : null; }
 // ── END NAVIGATION ────────────────────────────────────────────
 
 // ── ANIMATION ─────────────────────────────────────────────────
@@ -156,7 +161,7 @@ function onKey(e){
   if(k === 'PageDown' || k === 'PageUp'){ e.preventDefault(); e.stopPropagation(); if(k === 'PageDown') next(); else prev(); return; }
   if(e.ctrlKey || e.metaKey) return;
   if(e.altKey){ const m = /^Digit([1-3])$/.exec(e.code); if(m){ e.preventDefault(); show(VIEWS[+m[1] - 1]); } return; }
-  if(k === 'Escape' && K.menu){ e.preventDefault(); K.menu = false; redraw(true); return; }
+  if(k === 'Escape' && K.menu !== false){ e.preventDefault(); K.menu = false; redraw(true); return; }
   if(!onControl(t)){
     if(k === 'ArrowRight'){ e.preventDefault(); next(); return; }
     if(k === 'ArrowLeft'){ e.preventDefault(); prev(); return; }
@@ -204,11 +209,11 @@ function start(){
   document.addEventListener('keydown', onKey, true);
   document.addEventListener('fullscreenchange', onFullscreenChange);
   document.addEventListener('visibilitychange', syncAnim);
-  window.addEventListener('hashchange', () => { const hs = readHash(); if(hs) show(hs[0], hs[1], hs[2]); });
+  window.addEventListener('hashchange', () => { const hs = readHash(); if(hs) show(...hs); });
   let rz = 0; new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(relayout); }).observe($('stage'));
   updateSizes(false); applyTheme();
   setPaused(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const hs = readHash(); show(hs ? hs[0] : 'reflections', hs ? hs[1] : null, hs ? hs[2] : null);
+  const hs = readHash(); show(...(hs || ['reflections', null, null, null]));
 }
 start();
 // ── END START-UP ──────────────────────────────────────────────
