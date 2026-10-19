@@ -136,17 +136,19 @@ const devGapIssues = page => page.evaluate(() => {
   g('matrix rows from left edge', Math.min(mat.left, num.left) - svg.left, 16); g('matrix rows from divider', svg.right - Math.max(mat.right, num.right), 16);
   g('row 1 → row 2', num.top - mat.bottom, 4);
   const pl = [...document.querySelectorAll('#stage .portline')], cyOf = e => { const r = R(e); return (r.top + r.bottom) / 2; };
-  const yT = cyOf(document.querySelector('#stage .lane.s21')), yB = cyOf(document.querySelector('#stage .lane.s12'));
+  const ends = k => { const e = document.querySelector('#stage .lane.' + k), M = e.getScreenCTM(), xs = e.getAttribute('d').match(/-?[\d.]+/g).map(Number).filter((_, i) => i % 2 === 0), P = (x, y) => new DOMPoint(x, y).matrixTransform(M); return [P(0, 0), P(Math.max(...xs), 0)]; };
+  const yT = ends('s21')[0].y, yB = ends('s21')[1].y;   // the a nodes (top) and b nodes (bottom)
   if(pl.length !== 4) bad.push('port wires: ' + pl.length);
   if(document.querySelectorAll('#stage .term').length !== 4) bad.push('terminal dots: ' + document.querySelectorAll('#stage .term').length);
   pl.forEach(l => { const r = R(l), cs = getComputedStyle(l), port = l.dataset.port;
     if(cs.strokeDasharray !== 'none' || l.closest('[opacity]') || l.getAttribute('stroke') !== 'var(--txt)' || +l.getAttribute('stroke-width') !== 3) bad.push('port line ' + port + ' not solid');
     const y = (r.top + r.bottom) / 2; if(Math.min(Math.abs(y - yT), Math.abs(y - yB)) > 1) bad.push('port wire ' + port + ' not in line with a lane');
     if(port === '1' ? (Math.abs(r.left - svg.left - 21 * k) > 1 || Math.abs(r.right - box.left) > 2) : (Math.abs(svg.right - r.right - 21 * k) > 1 || Math.abs(r.left - box.right) > 2)) bad.push('port line ' + port + ' ends'); });
-  const inkR = [...document.querySelectorAll('#stage .lane, #stage .uturn, #stage .brk')].map(e => { const r = R(e), sw = parseFloat(getComputedStyle(e).strokeWidth) || 0, o = e.classList.contains('uturn') ? sw / 2 * k : 0;
-    return { l: r.left - o, r: r.right + o, t: r.top - o, b: r.bottom + o }; });
+  // the paths' outlines sampled on screen (lanes may be diagonal, so their boxes say nothing), less half a stroke
+  const ink = [...document.querySelectorAll('#stage .lane, #stage .uturn, #stage .brk')].flatMap(e => { const M = e.getScreenCTM(), Ln = e.getTotalLength(), o = e.classList.contains('lane') ? 0 : (parseFloat(getComputedStyle(e).strokeWidth) || 0) / 2 * k, out = [];
+    for(let t = 0; t <= Ln; t += 1.5){ const p = e.getPointAtLength(t), q = new DOMPoint(p.x, p.y).matrixTransform(M); out.push([q.x, q.y, o]); } return out; });
   ['vs11', 'vs21', 'vs12', 'vs22'].forEach(id => { const t = R(document.getElementById(id));
-    inkR.forEach(q => { const dx = Math.max(q.l - t.right, t.left - q.r, 0), dy = Math.max(q.t - t.bottom, t.top - q.b, 0); if(Math.max(dx, dy) < 8 * k - 0.5) bad.push(id + ' within 8 px of a path'); }); });
+    const dmin = Math.min(...ink.map(([x, y, o]) => Math.hypot(Math.max(t.left - x, 0, x - t.right), Math.max(t.top - y, 0, y - t.bottom)) - o)); if(dmin < 8 * k - 0.5) bad.push(id + ' within 8 px of a path (' + dmin.toFixed(1) + ')'); });
   const texts = [...document.querySelectorAll('#stage svg text')].filter(t => !t.closest('.matrix, .badge, .numrow'));
   texts.forEach(t => { const r = R(t), name = t.id || t.textContent.slice(0, 12); g(name + ' from left edge', r.left - svg.left, 16); g(name + ' from divider', svg.right - r.right, 16);
     const inside = r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top, sLab = /^vs(11|21|12|22)$/.test(t.id);
@@ -299,7 +301,7 @@ const alignIssues = page => page.evaluate(() => {
     // lanes (S21, S12) and U-turns (S11, S22): |S|, end width, blocked / capped flags, the group's drive state and opacity
     const paths = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stage .lane, #stage .uturn')].map(e => [e.getAttribute('data-q'),
       { v: +e.getAttribute('data-v'), w1: +e.getAttribute('data-w1'), lane: e.classList.contains('lane'), blocked: e.getAttribute('data-blocked') === '1', cap: e.getAttribute('data-capped') === '1',
-        dotted: !!e.getAttribute('stroke-dasharray'), op: +(e.getAttribute('opacity') || 1), live: e.parentElement.getAttribute('data-live') === '1', gop: +(e.parentElement.getAttribute('opacity') || 1) }])));
+        dotted: !!e.getAttribute('stroke-dasharray'), op: +(e.getAttribute('opacity') || 1), live: e.closest('.pathg').getAttribute('data-live') === '1', gop: +(e.closest('.pathg').getAttribute('opacity') || 1) }])));
     // a lane's drawn width (design units) at its entry and just before its arrowhead
     const laneW = k => page.evaluate(k => { const e = document.querySelector('#stage .lane.' + k);
       const n = e.getAttribute('d').match(/-?[\d.]+/g).map(Number), pts = []; for(let i = 0; i < n.length; i += 2) pts.push([n[i], n[i + 1]]);
@@ -344,23 +346,28 @@ const alignIssues = page => page.evaluate(() => {
     check('inside the box: only the four S labels (no "Two-Port", dB caption, ruler or isolator text)', noText === 'vs11,vs12,vs21,vs22', noText);
     check('the box is a plain rounded rectangle (rx 14, 3 px border); no header line', await page.evaluate(() => { const b = document.querySelector('#stage .box');
       return b.getAttribute('rx') === '14' && b.getAttribute('stroke-width') === '3' && !document.querySelector('#stage .headline, #stage .boxTitle, #boxCaption'); }));
-    check('port layout (two-port symbol, signal flow): two terminal wires per port with dots at the outer ends, in line with the S21 (top) and S12 (bottom) lanes; "Port 1/2" above the wires; a1 in above and b1 out below at port 1, b2 out above and a2 in below at port 2; S11 loops from port 1 top to bottom, S22 from port 2 bottom to top', await page.evaluate(() => {
+    check('port layout (textbook two-port signal-flow graph): two terminal wires per port with dots at the outer ends — the top wires at the a nodes, the bottom wires at the b nodes; "Port 1/2" above the wires; a1 and a2 in above the top wires, b1 and b2 out below the bottom wires; S21 a1 → b2 and S12 a2 → b1 cross; S11 runs down port 1 (a1 → b1), S22 down port 2 (a2 → b2)', await page.evaluate(() => {
       const q = s => document.querySelector('#stage ' + s), r = n => q('.wave[data-q="' + n + '"]').getBoundingClientRect(), cy = e => { const b = e.getBoundingClientRect(); return (b.top + b.bottom) / 2; };
       const dir = n => -Math.sign(+q('.wave[data-q="' + n + '"] path:last-child').getAttribute('d').match(/^M(-?[\d.]+) -?[\d.]+l(-?[\d.]+)/)[2]);
-      const yT = cy(q('.lane.s21')), yB = cy(q('.lane.s12')), box = q('.box').getBoundingClientRect();
+      const ends = k => { const e = document.querySelector('#stage .lane.' + k), M = e.getScreenCTM(), xs = e.getAttribute('d').match(/-?[\d.]+/g).map(Number).filter((_, i) => i % 2 === 0), P = (x, y) => new DOMPoint(x, y).matrixTransform(M); return [P(0, 0), P(Math.max(...xs), 0)]; };
+      const [a1, b2] = ends('s21'), [a2, b1] = ends('s12'), yT = a1.y, yB = b2.y, box = q('.box').getBoundingClientRect();
       const wires = n => [...document.querySelectorAll('#stage .portline[data-port="' + n + '"]')].map(cy).sort((a, b) => a - b);
       const ports = [...document.querySelectorAll('#stage .port')].map(e => e.getBoundingClientRect()), u11 = q('.uturn.s11').getBoundingClientRect(), u22 = q('.uturn.s22').getBoundingClientRect();
-      const inLine = (w) => w.length === 2 && Math.abs(w[0] - yT) < 1 && Math.abs(w[1] - yB) < 1;
+      const inLine = (w) => w.length === 2 && Math.abs(w[0] - yT) < 1 && Math.abs(w[1] - yB) < 1, near = (p, x, y) => Math.abs(p.x - x) < 16 && Math.abs(p.y - y) < 1;
       return inLine(wires(1)) && inLine(wires(2)) && document.querySelectorAll('#stage .term').length === 4
-        && r('a1').bottom <= yT && r('b1').top >= yB && r('b2').bottom <= yT && r('a2').top >= yB && dir('a1') === 1 && dir('b1') === -1 && dir('b2') === 1 && dir('a2') === -1
+        && near(a1, box.left, yT) && near(b2, box.right, yB) && near(a2, box.right, yT) && near(b1, box.left, yB) && Math.abs(a2.y - yT) < 1 && Math.abs(b1.y - yB) < 1
+        && r('a1').bottom <= yT && r('a2').bottom <= yT && r('b1').top >= yB && r('b2').top >= yB && dir('a1') === 1 && dir('b1') === -1 && dir('a2') === -1 && dir('b2') === 1
         && ['a1', 'b1', 'b2', 'a2'].every(n => Math.abs(r(n).width - 120) < 2) && ports.length === 2 && ports.every(p => p.bottom <= yT)
         && u11.left >= box.left - 1 && u11.top >= yT && u11.bottom <= yB && u11.bottom - u11.top > 0.6 * (yB - yT) && u22.right <= box.right + 1 && u22.top >= yT && u22.bottom <= yB; }));
-    check('no crossing paths: S21 lane straight along the top, S12 along the bottom', await page.evaluate(() => { const a = document.querySelector('#stage .lane.s21').getBoundingClientRect(), b = document.querySelector('#stage .lane.s12').getBoundingClientRect(); return a.bottom < b.top; }));
+    check('paths stay inside the box (the crossing diagonals start inset from the a corners)', await page.evaluate(() => { const box = document.querySelector('#stage .box').getBoundingClientRect();
+      // sampled outline points (a rotated lane's bounding box is the box of its rotated rectangle, not of the shape)
+      return [...document.querySelectorAll('#stage .lane')].every(e => { const M = e.getScreenCTM(), Ln = e.getTotalLength();
+        for(let t = 0; t <= Ln; t += 1){ const p = e.getPointAtLength(t), q = new DOMPoint(p.x, p.y).matrixTransform(M); if(q.x < box.left - 0.5 || q.x > box.right + 0.5 || q.y < box.top || q.y > box.bottom) return false; } return true; }); }));
     check('Forward: S21 lane and S11 U-turn solid; S12 and S22 faded to 22 %; undriven a2 wire dotted', await (async () => { const P = await paths(), g = await ghostW();
       return P.S21.live && P.S11.live && P.S21.gop === 1 && near(P.S12.gop, 0.22, 1e-9) && near(P.S22.gop, 0.22, 1e-9) && g.a2 && !g.a1; })());
-    check('S tags: S21 above the top lane, S12 below the bottom lane, S11 and S22 between the lanes (S11 left of S22)', await page.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect();
-      const t = document.querySelector('#stage .lane.s21').getBoundingClientRect(), b = document.querySelector('#stage .lane.s12').getBoundingClientRect();
-      return R('vs21').bottom <= t.top && R('vs12').top >= b.bottom && ['vs11', 'vs22'].every(id => R(id).top >= t.bottom && R(id).bottom <= b.top) && R('vs11').right < R('vs22').left; }));
+    check('S tags: S21 and S12 above the crossing, each beside its own diagonal near its a node (S21 left, S12 right); S11 left of S22 at mid height; all inside the box', await page.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect(), c = r => [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
+      const box = document.querySelector('#stage .box').getBoundingClientRect(), midY = (box.top + box.bottom) / 2, [x21, y21] = c(R('vs21')), [x12, y12] = c(R('vs12'));
+      return y21 < midY && y12 < midY && x21 < x12 && R('vs11').right < R('vs22').left && ['vs11', 'vs21', 'vs12', 'vs22'].every(id => { const r = R(id); return r.left > box.left && r.right < box.right && r.top > box.top && r.bottom < box.bottom; }); }));
     check('S11 0 drawn as a faint dotted U (2 px, 45 % opacity) when |S| < 0.05; tag "S11" in the box, "0" in the matrix', await (async () => { const P = await paths(); return P.S11.dotted && near(P.S11.op, 0.45, 1e-9) && (await sLab('s11')) === 'S11' && (await ent('s11')) === '0'; })());
     check('the driven output label (b2 in Forward) is 18 px bold, the others 16 px; its |b2|² line 16 px regular', JSON.stringify(await outLabel()) === '{"size":18,"weight":"700"}' && +(await page.getAttribute('#wb1', 'font-size')) === 16
       && +(await page.getAttribute('#pb2', 'font-size')) === 16 && (await page.getAttribute('#pb2', 'font-weight')) === '400');
@@ -407,9 +414,9 @@ const alignIssues = page => page.evaluate(() => {
       check('B.4 ' + name + ': row 2 ' + want, got === want && drawn === want && same, { got, drawn, W });
     }
     await goto(page, '#view=devices&device=through&drive=fwd');
-    check('B.1 Through Forward: "|b2|² = 1.0" above "b2 = 1.00∠−90°", clear of "Port 2"', await page.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect();
+    check('B.1 Through Forward: "|b2|² = 1.0" on the outer side of "b2 = 1.00∠−90°" (below it: b2 is on the bottom wire), clear of "Port 2"', await page.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect();
       const p = R('pb2'), w = R('wb2'), port = [...document.querySelectorAll('#stage .port')][1].getBoundingClientRect();
-      return p.bottom <= w.top && !(p.left < port.right && port.left < p.right && p.top < port.bottom && port.top < p.bottom) && document.getElementById('pb2').textContent === '|b₂|² = 1.0'; }));
+      return p.top >= w.bottom && !(p.left < port.right && port.left < p.right && p.top < port.bottom && port.top < p.bottom) && document.getElementById('pb2').textContent === '|b₂|² = 1.0'; }));
     check('B.2 no S value inside the box; each name tag once', await page.evaluate(S => { const f = eval(S); return ['s11', 's21', 's12', 's22'].every(k => f(document.getElementById('v' + k).textContent) === 'S' + k.slice(1))
       && [...document.querySelectorAll('#stage svg text')].filter(t => /^S(11|21|12|22)$/.test(f(t.textContent)) && !t.closest('.matrix')).length === 4; }, SUBS));
     await goto(page, '#view=devices&device=through&drive=rev');
