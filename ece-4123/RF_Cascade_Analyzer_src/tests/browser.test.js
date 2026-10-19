@@ -243,7 +243,13 @@ const alignIssues = page => page.evaluate(() => {
         && near(G.yc - G.env[G.env.length - 1][1], G.tau * G.A, 0.05), { amp2, tA: G.tau * G.A, env: envAt(G.tr[0][0]) });
       if(z === '16.7') check('16.7 Ω: at d = 0 the reflected wave is opposite in sign to the incident (−0.50 ×)', (G.ref[0][1] - G.yc) * (G.inc[0][1] - G.yc) <= 0 && near(G.ref[0][1] - G.yc, -0.5 * (G.inc[0][1] - G.yc), 1));
       if(z === '0') check('Short: total 0 at d = 0, λ/2, λ, 3λ/2, 2λ; Region 2 flat at 0', [0, 60, 120, 180, 240].every(i => near(G.tot[i][1], G.yc, 1)) && G.tr.every(p => near(p[1], G.yc, 1)));
-      if(z === 'open') check('Open: total at d = 0 is twice the incident (amplitude 2); Region 2 amplitude 2', near(G.tot[0][1] - G.yc, 2 * (G.inc[0][1] - G.yc), 1) && near(amp2, 2 * G.A, 1));
+      if(z === 'open') check('Open: total at d = 0 is twice the incident (amplitude 2: τ = 2 is the voltage across the open)', near(G.tot[0][1] - G.yc, 2 * (G.inc[0][1] - G.yc), 1));
+      if(z === 'open' || z === '0'){   // Douglas, 2026-10-19: nothing travels into Region 2 at an open or a short
+        const E = await page.evaluate(() => { const m = document.getElementById('vIf'), t = document.getElementById('vTot').getAttribute('d').match(/^M(-?[\d.]+) (-?[\d.]+)/);
+          return { hidden: getComputedStyle(document.getElementById('vTr')).display === 'none', toinf: !!document.querySelector('#stage .toinf'), my: m ? +m.getAttribute('cy') : null, mx: m ? +m.getAttribute('cx') : null, ty: +t[2], tx: +t[1],
+            note: [...document.querySelectorAll('#stage .endnote')].map(e => e.textContent).join(' / '), env2: document.querySelector('[data-q="envelope"]').getAttribute('d').split('L').length }; });
+        check((z === 'open' ? 'Open' : 'Short') + ': no transmitted wave or Region 2 envelope; a marker on the interface at the voltage there (with the total); note "' + E.note + '"', E.hidden && !E.toinf && E.my !== null && near(E.mx, E.tx, 0.01) && near(E.my, E.ty, 1)
+          && E.note === (z === 'open' ? 'Open circuit: / V = 2V⁺, I = 0 / no power enters / Region 2' : 'Short circuit: / V = 0, I = 2I⁺ / no power enters / Region 2') && E.env2 === 241, E); }
       if(z === '50') check('Matched: reflected flat at 0; envelope flat at 1 on both sides', G.ref.every(p => near(p[1], G.yc, 0.5)) && G.env.every(p => near(G.yc - p[1], G.A, 0.05)));
     }
     // the total and the transmitted wave meet at the interface at every instant (5 times, running)

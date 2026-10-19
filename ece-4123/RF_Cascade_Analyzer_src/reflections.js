@@ -3,6 +3,8 @@
    transmitted on one row, reflected on a row of its own. Bottom (about 70 %), voltage on the lines: 2λ of Region 1 and
    Region 2 fading out on to ∞, with the envelope, the total wave in Region 1 and the transmitted wave in Region 2
    (animated; the incident and reflected waves on request), and a small readout of V⁺ + V⁻ = Vₜ in the top-right corner.
+   At an open or a short nothing travels into Region 2: a marker on the interface shows the voltage there and a note
+   says what happens (open: V = 2V⁺, I = 0; short: V = 0, I = 2I⁺).
    Titles, the legend and the caption are in the side panel. Both regions are real, so Γ and τ = 1 + Γ are real and
    shown signed; both regions have the same propagation speed (same λ). */
 /* ============================================================
@@ -98,11 +100,13 @@ function curve(G, xOf, uMax, f){
 const r2Len = G => R2_LAMBDA + R2_FADE / G.ppl;
 /* The four instantaneous waves at time t (s). d: distance into Region 1, x: into Region 2, β = 2π/λ.
    Incident cos(ωt + βd), reflected Γ·cos(ωt − βd), total their sum, transmitted τ·cos(ωt − βx). At the interface the
-   total is (1 + Γ)cos ωt = τ cos ωt, the transmitted wave there: the two lines meet at every instant. */
+   total is (1 + Γ)cos ωt = τ cos ωt, the transmitted wave there: the two lines meet at every instant. yIf: that voltage's
+   height, for the interface marker drawn at an open or a short. */
 function wavePathsV(G, t){
   const g = gammaR(), tau = tauR(), wt = 2 * Math.PI * WAVE_HZ * t, tw = 2 * Math.PI;
   return { inc: curve(G, xR1, R1_LAMBDA, d => Math.cos(wt + tw * d)), ref: curve(G, xR1, R1_LAMBDA, d => g * Math.cos(wt - tw * d)),
-           tot: curve(G, xR1, R1_LAMBDA, d => Math.cos(wt + tw * d) + g * Math.cos(wt - tw * d)), tr: curve(G, xR2, r2Len(G), x => tau * Math.cos(wt - tw * x)) };
+           tot: curve(G, xR1, R1_LAMBDA, d => Math.cos(wt + tw * d) + g * Math.cos(wt - tw * d)), tr: curve(G, xR2, r2Len(G), x => tau * Math.cos(wt - tw * x)),
+           yIf: n2(G.yc - G.A * tau * Math.cos(wt)) };   // the voltage at the interface, τ cos ωt
 }
 /* The interface readout: V⁺ + V⁻ = Vₜ with the numbers (line 1, bold), and the transmitted power from Vₜ (line 2), in a
    small rounded box in the voltage panel's top-right corner, above the curves (it can never meet one). */
@@ -116,6 +120,11 @@ function readout(y0){
     + txt(x + w / 2, y0 + 38, l2, { anchor: 'middle', size: f2, weight: 400, id: 'readP' }))
     + el('g', { 'data-q': 'Gamma', 'data-v': +g.toPrecision(12) }, '') + el('g', { 'data-q': 'tau', 'data-v': +tau.toPrecision(12) }, '');
 }
+// An open or a short at the interface: no line beyond it, so no wave travels into Region 2.
+const endZ = () => R.z02 === Infinity || R.z02 === 0;
+/* What happens at an open or a short, written in Region 2: the voltage there (2V⁺ or 0), the current (0 or 2I⁺), and
+   that no power enters Region 2. */
+const END_NOTE = { open: ['Open circuit:', 'V = 2V⁺, I = 0', 'no power enters', 'Region 2'], short: ['Short circuit:', 'V = 0, I = 2I⁺', 'no power enters', 'Region 2'] };
 // Panel 2: the voltage on the lines.
 function voltagePanel(H){
   const G = geoV(H), g = gammaR(), gm = Math.abs(g), tau = tauR(), vmax = 1 + gm, vmin = 1 - gm, L = LY_R, x2f = xR2(G, r2Len(G));
@@ -129,8 +138,8 @@ function voltagePanel(H){
   const n = WAVE_N * R1_LAMBDA;
   for(let k = 0; k <= n; k++){ const d = R1_LAMBDA * (1 - k / n), v = envelope(C(g, 0), d) * G.A, x = n2(xR1(G, d));
     top += (k ? 'L' : 'M') + x + ' ' + n2(G.yc - v); bot = 'L' + x + ' ' + n2(G.yc + v) + bot; }
-  const at = Math.abs(tau) * G.A, xe = n2(xR2(G, R2_LAMBDA));
-  top += 'L' + xe + ' ' + n2(G.yc - at); bot = 'L' + xe + ' ' + n2(G.yc + at) + 'L' + n2(G.xi) + ' ' + n2(G.yc + at) + bot;
+  const at = Math.abs(tau) * G.A, xe = n2(xR2(G, R2_LAMBDA)), end = endZ();
+  if(!end){ top += 'L' + xe + ' ' + n2(G.yc - at); bot = 'L' + xe + ' ' + n2(G.yc + at) + 'L' + n2(G.xi) + ' ' + n2(G.yc + at) + bot; }   // Region 2: flat at |τ|
   s += el('path', { d: top + bot + 'Z', fill: 'var(--s12)', 'fill-opacity': 0.12, stroke: 'none', class: 'shade' });
   s += el('path', { d: top, fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, class: 'envelope', 'data-q': 'envelope', 'data-v': +gm.toPrecision(12), 'data-a': n2(G.A), 'data-yc': n2(G.yc), 'data-tau': +Math.abs(tau).toPrecision(12) });
   s += el('path', { d: 'M' + bot.slice(1), fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, class: 'envelope' });
@@ -150,12 +159,15 @@ function voltagePanel(H){
   s += el('path', { id: 'vInc', d: P.inc, fill: 'none', stroke: 'var(--grey)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4', display: vr, class: 'vcurve', 'data-q': 'V_inc', 'data-v': 1 });
   s += el('path', { id: 'vRef', d: P.ref, fill: 'none', stroke: 'var(--s11)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4', display: vr, class: 'vcurve', 'data-q': 'V_refl', 'data-v': +g.toPrecision(12) });
   s += el('path', { id: 'vTot', d: P.tot, fill: 'none', stroke: 'var(--txt)', 'stroke-width': 3, 'stroke-linejoin': 'round', class: 'vcurve', 'data-q': 'V_tot' });
-  s += el('path', { id: 'vTr', d: P.tr, fill: 'none', stroke: 'var(--s21)', 'stroke-width': 3, 'stroke-linejoin': 'round', mask: 'url(#r2mask)', class: 'vcurve', 'data-q': 'V_trans', 'data-v': +tau.toPrecision(12) });
-  s += el('path', { d: 'M' + n2(x2f + 2) + ' ' + n2(G.yc) + 'H' + n2(DESIGN_W - L.edge - 10), stroke: 'var(--mut)', 'stroke-width': 1.5, fill: 'none', class: 'toinf' })
+  s += el('path', { id: 'vTr', d: P.tr, fill: 'none', stroke: 'var(--s21)', 'stroke-width': 3, 'stroke-linejoin': 'round', mask: 'url(#r2mask)', display: end ? 'none' : null, class: 'vcurve', 'data-q': 'V_trans', 'data-v': +tau.toPrecision(12) });
+  if(!end) s += el('path', { d: 'M' + n2(x2f + 2) + ' ' + n2(G.yc) + 'H' + n2(DESIGN_W - L.edge - 10), stroke: 'var(--mut)', 'stroke-width': 1.5, fill: 'none', class: 'toinf' })
     + el('path', { d: 'M' + n2(DESIGN_W - L.edge) + ' ' + n2(G.yc) + 'l-10 -5v10Z', fill: 'var(--mut)', class: 'toinf' });
+  else (R.z02 === 0 ? END_NOTE.short : END_NOTE.open).forEach((t, i) => { s += txt((G.xi + DESIGN_W - L.edge) / 2, G.plotTop + 28 + 22 * i, t, { anchor: 'middle', weight: i ? 400 : 600, cls: 'endnote' }); });
   // the interface, and the readout in the top-right corner
   s += el('line', { x1: G.xi, y1: G.tintTop, x2: G.xi, y2: G.yAxis - 8, stroke: 'var(--s22)', 'stroke-width': 3, 'stroke-dasharray': DASH, class: 'iface' });
   s += readout(G.top + L.readTop);
+  // at an open or a short: a marker on the interface at the voltage there (τ cos ωt: ±2 for an open, 0 for a short)
+  if(end) s += el('circle', { id: 'vIf', cx: G.xi, cy: P.yIf, r: 7, fill: 'var(--txt)', stroke: 'var(--panel)', 'stroke-width': 2, 'data-q': 'V_if', 'data-v': +tau.toPrecision(12) });
   // distance axis: Region 1 2λ … interface, Region 2 λ/4, λ/2
   s += el('line', { x1: L.plotL, y1: G.yAxis - 8, x2: x2f, y2: G.yAxis - 8, stroke: 'var(--mut)', 'stroke-width': 1.5 });
   const tk = (x, t, anchor, tx) => el('line', { x1: x, y1: G.yAxis - 13, x2: x, y2: G.yAxis - 3, stroke: 'var(--mut)', 'stroke-width': 1.5 })
@@ -171,6 +183,7 @@ function drawReflections(H){ return svgRoot(H, 'Power at the interface, and the 
 function tickReflections(H, t){
   const P = wavePathsV(geoV(H), t), set = (id, d) => { const e = document.getElementById(id); if(e) e.setAttribute('d', d); };
   set('vInc', P.inc); set('vRef', P.ref); set('vTot', P.tot); set('vTr', P.tr);
+  const m = document.getElementById('vIf'); if(m) m.setAttribute('cy', P.yIf);
 }
 // ── END VOLTAGE PANEL ─────────────────────────────────────────
 
