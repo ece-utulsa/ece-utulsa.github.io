@@ -2,7 +2,7 @@
    the gates, not the blind Test suite. They read the built page only through the DOM (text, data-q / data-v
    attributes, the URL hash); the page has no test hooks.
 
-   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.4.1.html] [--shots]
+   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.5.0.html] [--shots]
    --shots also writes the 1280×720 presentation screenshots to ../screenshots/.
    Set CHROMIUM=/path/to/chromium to use a particular browser binary. */
 'use strict';
@@ -11,7 +11,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
-const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.4.1.html'));
+const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.5.0.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
 const STOPS = ['#view=reflections&vr=0', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
@@ -108,16 +108,18 @@ const edgeIssues = page => page.evaluate(() => {
     if(window.innerHeight - r.bottom < 15.5) bad.push(n + ' bottom ' + (window.innerHeight - r.bottom).toFixed(1)); });
   return bad;
 });
-// ── CASCADE "+" ── the "+" sits on the wire between the last block and the Load with ≥ 8 px clear on each side, and does
-// not overlap any block, the Load or a × button (v1.2.0 item 5).
+// ── CASCADE "+" ── a "+" on the wire at every junction (before block 1, between blocks, before the Load), each ≥ 8 px
+// clear of the source, the blocks and the Load, and overlapping no × button; none at 4 blocks (Douglas, 2026-10-19).
 const plusIssues = page => page.evaluate(() => {
-  const bad = [], p = document.querySelector('#stage [data-add] circle').getBoundingClientRect(), wire = document.querySelector('#stage .wire').getBoundingClientRect();
-  const blocks = [...document.querySelectorAll('#stage .block')].map(b => b.getBoundingClientRect()), last = blocks[blocks.length - 1], load = document.querySelector('#stage .load').getBoundingClientRect();
-  const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-  if(p.left - last.right < 8) bad.push('too close to the last block: ' + (p.left - last.right).toFixed(1));
-  if(load.left - p.right < 8) bad.push('too close to the Load: ' + (load.left - p.right).toFixed(1));
-  if(!(p.top < wire.top + 1 && p.bottom > wire.bottom - 1)) bad.push('not on the wire');
-  blocks.concat([load], [...document.querySelectorAll('#stage [data-del]')].map(d => d.getBoundingClientRect())).forEach((r, i) => { if(hit(p, r)) bad.push('overlaps element ' + i); });
+  const bad = [], R = e => e.getBoundingClientRect(), wire = R(document.querySelector('#stage .wire')), pl = [...document.querySelectorAll('#stage [data-add] circle')].map(R);
+  const blocks = [...document.querySelectorAll('#stage .block')].map(R), load = R(document.querySelector('#stage .load')), src = R(document.querySelector('#stage circle'));
+  const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom, full = blocks.length >= 4;
+  if(pl.length !== (full ? 0 : blocks.length + 1)) bad.push('"+" count ' + pl.length);
+  const left = [src].concat(blocks), right = blocks.concat([load]);
+  pl.forEach((p, k) => { if(p.left - left[k].right < 8) bad.push('"+" ' + k + ' too close on the left: ' + (p.left - left[k].right).toFixed(1));
+    if(right[k].left - p.right < 8) bad.push('"+" ' + k + ' too close on the right: ' + (right[k].left - p.right).toFixed(1));
+    if(!(p.top < wire.top + 1 && p.bottom > wire.bottom - 1)) bad.push('"+" ' + k + ' not on the wire');
+    [...document.querySelectorAll('#stage [data-del]')].map(R).forEach((r, i) => { if(hit(p, r)) bad.push('"+" ' + k + ' overlaps × ' + i); }); });
   return bad;
 });
 // ── DEVICES LAYOUT ── on screen, in px: box → matrix ≥ 16; numeric row → badges ≥ 12; badges → bottom of the screen
@@ -160,7 +162,7 @@ const devGapIssues = page => page.evaluate(() => {
   return bad;
 });
 // ── ALIGNMENT ── Cascade: reflected arrows and values centred on their junction (the forward-power marker's x), budget
-// values and river arithmetic centred on their block, within ±6 px on screen.
+// values centred on their block, within ±6 px on screen.
 const alignIssues = page => page.evaluate(() => {
   const bad = [], cxOf = e => { const r = e.getBoundingClientRect(); return (r.left + r.right) / 2; };
   const svg = document.querySelector('#stage svg'), M = svg.getScreenCTM();
@@ -170,9 +172,8 @@ const alignIssues = page => page.evaluate(() => {
     if(Math.abs(cxOf(arrow) - jx) > 6) bad.push('reflected arrow ' + k + ' off by ' + (cxOf(arrow) - jx).toFixed(1));
     if(k > 0 && Math.abs(cxOf(val) - jx) > 6) bad.push('reflected value ' + k + ' off by ' + (cxOf(val) - jx).toFixed(1));
     if(k === 0 && Math.abs(cxOf(val) - jx) > 6 && val.getBoundingClientRect().left > svg.getBoundingClientRect().left + 8) bad.push('back-to-source value off by ' + (cxOf(val) - jx).toFixed(1)); }
-  blocks.forEach((b, i) => { const v = document.getElementById('bud' + i), a = document.getElementById('ar' + i);
-    if(Math.abs(cxOf(v) - cxOf(b)) > 6) bad.push('budget ' + i + ' off by ' + (cxOf(v) - cxOf(b)).toFixed(1));
-    if(Math.abs(cxOf(a) - cxOf(b)) > 6) bad.push('arithmetic ' + i + ' off by ' + (cxOf(a) - cxOf(b)).toFixed(1)); });
+  blocks.forEach((b, i) => { const v = document.getElementById('bud' + i);
+    if(Math.abs(cxOf(v) - cxOf(b)) > 6) bad.push('budget ' + i + ' off by ' + (cxOf(v) - cxOf(b)).toFixed(1)); });
   return bad;
 });
 
@@ -182,22 +183,22 @@ const alignIssues = page => page.evaluate(() => {
 
   console.log('Load');
   { const { ctx, page, log } = await open(browser);
-    check('version v1.4.1: header comment, Released, meta, title; changelog v1.4.1 on top, then v1.4.0, v1.3.0, v1.2.1, v1.2.0 and v1.1.0 as history',
-      /Version: v1\.4\.1/.test(html) && /Released: 2026-10-19/.test(html) && /<meta name="version" content="v1\.4\.1">/.test(html) && /<title>RF Cascade Analyzer v1\.4\.1<\/title>/.test(html)
-      && /v1\.4\.1 - Declutter: smaller text at all window sizes; Reflections — separate power rows, voltage plot\s+enlarged, titles\/legend\/caption to the side panel, VSWR equation and extra labels removed, incident\/reflected\s+off by default; Devices — one port line per side, waves as arrows beside it, thinner paths, smaller matrix;\s+Cascade — S-parameter editor shown on selection\./.test(html)
-      && ['v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
-      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.0)|content="v1\.(1\.0|2\.[01]|3\.0|4\.0)"/.test(html));
-    check('footer: v1.4.1 · released 2026-10-19 · Author: Claude Code', (await text(page, 'footer')).includes('v1.4.1 · released 2026-10-19 · Author: Claude Code'));
+    check('version v1.5.0: header comment, Released, meta, title; changelog v1.5.0 on top, then v1.4.1, v1.4.0, v1.3.0, v1.2.1, v1.2.0 and v1.1.0 as history',
+      /Version: v1\.5\.0/.test(html) && /Released: 2026-10-19/.test(html) && /<meta name="version" content="v1\.5\.0">/.test(html) && /<title>RF Cascade Analyzer v1\.5\.0<\/title>/.test(html)
+      && /v1\.5\.0 - Devices: two-port drawn as the textbook signal-flow graph \(each port two terminal wires, a in on\s+top, b out on the bottom; S21 and S12 crossing, S11 and S22 down each side\); wave arrows always solid;\s+S-parameters adjustable on every device\. Reflections: an open or a short ends the line \(a marker at the\s+interface, nothing enters Region 2\)\. Cascade: the v1\.3\.0 drawing restored, with the S-parameter editor kept;\s+a block can be inserted at any junction of the chain\./.test(html)
+      && ['v1.5.0', 'v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
+      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.[01])|content="v1\.(1\.0|2\.[01]|3\.0|4\.[01])"/.test(html));
+    check('footer: v1.5.0 · released 2026-10-19 · Author: Claude Code', (await text(page, 'footer')).includes('v1.5.0 · released 2026-10-19 · Author: Claude Code'));
     const stamp = async () => page.evaluate(() => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
       const btns = [...document.querySelectorAll('#top button')].filter(b => b.getBoundingClientRect().width), last = btns[btns.length - 1].getBoundingClientRect(), top = document.getElementById('top').getBoundingClientRect();
       return { text: v.textContent, fs: parseFloat(cs.fontSize), mut: cs.color === getComputedStyle(document.querySelector('.note') || document.body).color || cs.color !== getComputedStyle(document.body).color,
-        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.4.1'),
+        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.5.0'),
         oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; });
     let st = await stamp();
-    check('stamp "v1.4.1" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.4.1' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
+    check('stamp "v1.5.0" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.5.0' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
     const wBtn = await page.evaluate(() => [...document.querySelectorAll('#top button')].map(b => Math.round(b.getBoundingClientRect().width)).join(','));
     await present(page); st = await stamp();
-    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.4.1"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
+    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.5.0"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
     await page.keyboard.press('t'); await page.waitForTimeout(60); st = await stamp();
     check('presentation (dark): stamp still visible', st.shown && st.body && await page.evaluate(() => !document.body.classList.contains('light')));
     await page.keyboard.press('t'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
@@ -456,27 +457,22 @@ const alignIssues = page => page.evaluate(() => {
   { const { ctx, page } = await open(browser);
     await present(page); await goto(page, '#view=cascade');
     const ids = async pre => Promise.all([0, 1, 2, 3].map(k => text(page, '#' + pre + k)));
-    const dt = async pre => page.evaluate(pre => [0, 1, 2, 3].map(k => { const e = document.getElementById(pre + k); return e ? e.dataset.text : null; }), pre);
-    const budget = () => page.evaluate(() => [0, 1, 2].map(i => [...document.querySelectorAll('#bud' + i + ' text')].map(t => t.textContent).join(' / ')));
-    const C5 = async (name, fwd, refl, ar, rere) => {
-      const f = await ids('fwd'), r = await dt('refl'), a = (await dt('ar')).slice(0, 3), b = await budget(), tot = await text(page, '#budTotal'), rc = await text(page, '#rereCap');
-      check('C.5 ' + name + ': forward ' + fwd.join(' / ') + '; reflected ' + refl.join(' / ') + '; arithmetic ' + ar.join('; ') + '; budget',
-        JSON.stringify(f) === JSON.stringify(fwd.map(x => x + ' × input')) && JSON.stringify(r) === JSON.stringify(refl) && JSON.stringify(a) === JSON.stringify(ar)
-        && JSON.stringify(b) === JSON.stringify(['+10.0 dB / = ×10', '−3.0 dB / = ×0.50', '−0.9 dB / = ×0.81']) && tot === '+10.0 − 3.0 − 0.9 = +6.1 dB delivered to load'
-        && (rere ? rc === '↺ forward power here includes waves reflected back from later in the chain.' : rc === null), { f, r, a, b, tot, rc }); };
-    check('heading "Forward power at each junction (input power = 1)"; the thickness caption under it', (await stageTexts(page)).includes('Forward power at each junction (input power = 1)')
-      && /^reflected arrows drawn [\d.]+× thicker$/.test(await text(page, '#thickCap')));
-    await C5('100 Ω load', ['1', '10', '5.0', '4.6'], ['back to source 0', '0.17 × input', '0.34 × input', '0.51 × input'], ['1 × 10 = 10', '10 × 0.50 = 5.0', '× 0.81 ↺'], true);
+    check('forward power at junctions 0…3: 1.0, 10, 5.0, 4.6 (v1.3.0 labels, restored)', JSON.stringify(await ids('fwd')) === '["1.0","10","5.0","4.6"]', await ids('fwd'));
+    const r = await ids('refl');
+    check('reflected power at junctions 1…3: 0.17, 0.34, 0.51; at the source: 0', JSON.stringify(r) === '["back to source 0","0.17","0.34","0.51"]', r);
+    check('heading "Power flow (input = 1)"; the thickness caption on its line', (await stageTexts(page)).includes('Power flow (input = 1)') && /^reflected arrows drawn [\d.]+× thicker$/.test(await text(page, '.caption')));
+    check('budget: +10.0, −3.0, −0.9, = +6.1 dB delivered to load', JSON.stringify(await Promise.all(['#bud0', '#bud1', '#bud2', '#budTotal'].map(x => text(page, x)))) === JSON.stringify(['+10.0 dB', '−3.0 dB', '−0.9 dB', '= +6.1 dB'])
+      && (await stageTexts(page)).includes('delivered to load'));
     await click(page, '#lMatch');
-    await C5('matched load', ['1', '10', '5.0', '4.1'], ['back to source 0', '0.10 × input', '0.20 × input', '0'], ['1 × 10 = 10', '10 × 0.50 = 5.0', '5.0 × 0.81 = 4.1'], false);
-    check('matched load: no overlaps; alignment ±6 px', (await overlapIssues(page)).length === 0 && (await alignIssues(page)).length === 0, (await overlapIssues(page)).concat(await alignIssues(page)));
+    check('matched load: forward 1.0 / 10 / 5.0 / 4.1; no overlaps; alignment ±6 px', JSON.stringify(await ids('fwd')) === '["1.0","10","5.0","4.1"]' && (await overlapIssues(page)).length === 0 && (await alignIssues(page)).length === 0,
+      (await overlapIssues(page)).concat(await alignIssues(page)));
     await setInput(page, '#loadZ', '100');
     const al = await alignIssues(page);
     check('alignment: each reflected arrow and value centred under its junction, each budget value under its block (±6 px)', al.length === 0, al);
     check('band height ∝ forward power; reflected arrows ∝ |b|², exaggerated by the factor the caption states', await page.evaluate(() => {
       const f = [0, 1, 2, 3].map(k => document.querySelector('[data-q="fwd' + k + '"]')), ok1 = f.every(e => Math.abs(+e.dataset.th - +e.dataset.v * +e.dataset.ref) < 0.02);
       const b = [1, 2, 3].map(k => document.querySelector('[data-q="refl' + k + '"]')), ok2 = b.every(e => Math.abs(+e.dataset.th - +e.dataset.v * +e.dataset.ref) < 0.02);
-      const m = /drawn ([\d.]+)× thicker/.exec(document.getElementById('thickCap').textContent), sc = +f[0].dataset.ref;
+      const m = /drawn ([\d.]+)× thicker/.exec(document.querySelector('#stage .caption').textContent), sc = +f[0].dataset.ref;
       return ok1 && ok2 && !!m && b.every(e => Math.abs(+e.dataset.ref / sc - +m[1]) < 0.051); }));
     const lines = await page.$$eval('#chainS .sline', l => l.map(x => x.textContent));
     check('whole chain: S21 2.01∠−45° (+6.1 dB), S11 0 (source sees a match), S22 0.20∠30°, S12 0',
@@ -489,23 +485,24 @@ const alignIssues = page => page.evaluate(() => {
     check('no "Edit S-parameters" button; the S entries show with the knob (Attenuator 6 dB: S21 0.501187)', !(await page.$('#toCustom')) && near(+(await page.inputValue('#ks21m')), 0.501187, 1e-5) && !!(await page.$('#kAtt')));
     await setInput(page, '#ks11a', '0');
     check('editing an S entry converts the block to Custom with its values (knob gone)', (await text(page, '#panel .sec')) === 'Block 2 · Custom' && near(+(await page.inputValue('#ks21m')), 0.501187, 1e-5) && !(await page.$('#kAtt')));
-    check('"+" has its own slot on the wire after the last block, before the Load, clear of both (item 5)', (await plusIssues(page)).length === 0, await plusIssues(page));
-    await page.click('#stage [data-add]'); await page.waitForTimeout(60);
-    check('"+" opens the type menu', (await page.$$('.addmenu button')).length === 5);
+    check('a "+" on the wire at every junction (before block 1, between blocks, before the Load), clear of the source, blocks, Load and × buttons', (await plusIssues(page)).length === 0, await plusIssues(page));
+    const order = () => page.$$eval('#stage .block', e => e.map(x => x.parentElement.getAttribute('aria-label').replace(/^Block \d+: | \(selected\)$/g, '')));
+    await page.click('#stage [data-add="1"]'); await page.waitForTimeout(60);
+    check('the "+" between blocks 1 and 2 opens the type menu under it', (await page.$$('.addmenu button')).length === 5 && (await page.getAttribute('#stage [data-add="1"]', 'aria-expanded')) === 'true');
     await click(page, '#add_iso');
-    check('adding a 4th block (Isolator) selects it; "+" is disabled and greyed at 4', (await page.$$('#stage [data-blk]')).length === 4 && (await page.getAttribute('#stage [data-add]', 'aria-disabled')) === 'true'
-      && (await page.getAttribute('#stage [data-add]', 'opacity')) === '0.35' && (await text(page, '#panel .sec')) === 'Block 4 · Isolator');
-    await page.click('#stage [data-add]', { force: true }); await page.waitForTimeout(60);
-    check('the disabled "+" does not open the menu', !(await page.$('.addmenu')));
-    check('4 blocks: the "+" tooltip reads "Up to 4 blocks"; still clear of blocks, Load and × buttons', (await page.textContent('#stage [data-add] title')) === 'Up to 4 blocks' && (await plusIssues(page)).length === 0, await plusIssues(page));
+    check('inserting an Isolator there makes it block 2 (selected), the rest move along; at 4 blocks no "+" and the note "Up to 4 blocks"', JSON.stringify(await order()) === JSON.stringify(['Amplifier +10 dB', 'Isolator −0.5 dB', 'Custom −6 dB', 'Custom −0.9 dB'])
+      && (await text(page, '#panel .sec')) === 'Block 2 · Isolator' && (await page.$$('#stage [data-add]')).length === 0 && (await text(page, '#fullNote')) === 'Up to 4 blocks: remove one to add another', await order());
     check('no overlaps with 4 blocks', (await overlapIssues(page)).length === 0, await overlapIssues(page));
     check('alignment with 4 blocks (±6 px)', (await alignIssues(page)).length === 0, await alignIssues(page));
-    await page.click('#stage [data-del="3"]'); await page.waitForTimeout(60);
-    check('× removes a block; the "+" is enabled again and still clear', (await page.$$('#stage [data-blk]')).length === 3 && !(await page.getAttribute('#stage [data-add]', 'aria-disabled')) && (await plusIssues(page)).length === 0);
+    await page.click('#stage [data-del="1"]'); await page.waitForTimeout(60);
+    check('× removes a block; the four "+" are back and still clear', (await page.$$('#stage [data-blk]')).length === 3 && (await page.$$('#stage [data-add]')).length === 4 && (await plusIssues(page)).length === 0);
+    await page.click('#stage [data-add="0"]'); await page.waitForTimeout(60); await click(page, '#add_through');
+    check('the "+" before block 1 inserts at the front', (await order())[0] === 'Through line ℓ = λ/4' && (await text(page, '#panel .sec')) === 'Block 1 · Through line', await order());
+    await page.click('#stage [data-del="0"]'); await page.waitForTimeout(60);
     await click(page, '#lShort');
-    check('Short load: the block sum and G_T differ, so both are shown: "blocks: +3.1 dB · delivered to load: −∞ dB"; Load shows 0 Ω', (await text(page, '#budTotal')) === 'blocks: +3.1 dB · delivered to load: −∞ dB' && (await text(page, '#loadVal')) === '0 Ω', await text(page, '#budTotal'));
+    check('Short load: −∞ dB delivered; Load shows 0 Ω', (await text(page, '#budTotal')) === '= −∞ dB' && (await text(page, '#loadVal')) === '0 Ω', await text(page, '#budTotal'));
     await click(page, '#lOpen');
-    check('Open load: Load shows ∞; −∞ dB delivered', (await text(page, '#loadVal')) === '∞' && (await text(page, '#budTotal')) === 'blocks: +3.1 dB · delivered to load: −∞ dB');
+    check('Open load: Load shows ∞; −∞ dB delivered', (await text(page, '#loadVal')) === '∞' && (await text(page, '#budTotal')) === '= −∞ dB');
     await ctx.close(); }
 
   console.log('Devices S editor (every device)');
@@ -558,7 +555,7 @@ const alignIssues = page => page.evaluate(() => {
     await click(page, '#lMatch'); await fn('cascade, matched load'); await setInput(page, '#loadZ', '100');
     await page.keyboard.press('t'); await page.waitForTimeout(60); await fn('cascade, dark'); await goto(page, '#view=devices&device=custom&drive=fwd'); await fn('devices custom, dark');
     await goto(page, '#view=reflections&vr=1'); await fn('reflections, dark'); await page.keyboard.press('t'); await page.waitForTimeout(60); await goto(page, '#view=cascade');
-    await page.click('#stage [data-add]'); await page.waitForTimeout(60); await click(page, '#add_amp'); await fn('cascade, 4 blocks');
+    await page.click('#stage [data-add="3"]'); await page.waitForTimeout(60); await click(page, '#add_amp'); await fn('cascade, 4 blocks');
     await page.click('#stage [data-del="3"]'); await page.waitForTimeout(60); };
   for(const [vw, label, pres, sizes] of [[{ width: 1280, height: 720 }, 'presentation 1280×720', true, true], [{ width: 1920, height: 1080 }, 'windowed 1920×1080', false, true],
                                          [{ width: 1920, height: 1080 }, 'presentation 1920×1080', true, false], [{ width: 1366, height: 768 }, 'windowed 1366×768', false, false]]){
@@ -569,7 +566,7 @@ const alignIssues = page => page.evaluate(() => {
       if(sizes){ const r = await sizeReport(page); r.bad.forEach(x => sz.push(st + ': ' + x));
         ['svg', 'panel'].forEach(key => { mm[key][0] = Math.min(mm[key][0], r.mm[key][0]); mm[key][1] = Math.max(mm[key][1], r.mm[key][1]); }); mm.head = Math.max(mm.head, r.mm.head); }
       (await edgeIssues(page)).forEach(x => ed.push(st + ': ' + x)); });
-    check(label + ': no text overlaps a drawn element or another label (every view and device, both themes, both C.5 chains, 4 blocks; Reflections 5 cases, switch on and off, 8 instants)', ov.length === 0, ov.slice(0, 12));
+    check(label + ': no text overlaps a drawn element or another label (every view and device, both themes, both load cases, 4 blocks; Reflections 5 cases, switch on and off, 8 instants)', ov.length === 0, ov.slice(0, 12));
     check(label + ': every label ≥ 16 px from the screen edges and the drawing/panel divider (all views)', ed.length === 0, ed.slice(0, 12));
     if(sizes){ check(label + ': drawn text 14–18 px, side-panel text 13–16 px, headlines ≤ 32 px', sz.length === 0, sz.slice(0, 8));
       console.log('       font sizes on screen: drawing ' + mm.svg.map(x => x.toFixed(1)).join('–') + ' px, side panel ' + mm.panel.map(x => x.toFixed(1)).join('–') + ' px, headlines ' + mm.head.toFixed(1) + ' px'); }

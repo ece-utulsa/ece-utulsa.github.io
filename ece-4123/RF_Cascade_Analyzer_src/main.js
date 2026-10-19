@@ -53,7 +53,7 @@ function renderDrawing(){
    panel's readouts are refreshed, so a slider being dragged keeps focus. Focus on a drawing element is restored. */
 function redraw(full){
   const a = document.activeElement, id = a && a.id, dk = a && a.closest && a.closest('#stage [data-blk],#stage [data-add]');
-  const key = dk ? (dk.dataset.blk !== undefined ? '[data-blk="' + dk.dataset.blk + '"]' : '[data-add]') : null;
+  const key = dk ? (dk.dataset.blk !== undefined ? '[data-blk="' + dk.dataset.blk + '"]' : '[data-add="' + dk.dataset.add + '"]') : null;
   renderDrawing();
   if(full){ $('panel').replaceChildren(...VIEW[app.view].panel()); } else VIEW[app.view].sync();
   const back = key ? $('stage').querySelector(key) : id ? $(id) : null;
@@ -161,7 +161,7 @@ function onKey(e){
   if(k === 'PageDown' || k === 'PageUp'){ e.preventDefault(); e.stopPropagation(); if(k === 'PageDown') next(); else prev(); return; }
   if(e.ctrlKey || e.metaKey) return;
   if(e.altKey){ const m = /^Digit([1-3])$/.exec(e.code); if(m){ e.preventDefault(); show(VIEWS[+m[1] - 1]); } return; }
-  if(k === 'Escape' && K.menu){ e.preventDefault(); K.menu = false; redraw(true); return; }
+  if(k === 'Escape' && K.menu !== false){ e.preventDefault(); K.menu = false; redraw(true); return; }
   if(!onControl(t)){
     if(k === 'ArrowRight'){ e.preventDefault(); next(); return; }
     if(k === 'ArrowLeft'){ e.preventDefault(); prev(); return; }

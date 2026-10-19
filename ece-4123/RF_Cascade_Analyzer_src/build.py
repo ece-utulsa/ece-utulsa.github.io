@@ -20,9 +20,14 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.4.1'
+VERSION = '1.5.0'
 RELEASED = '2026-10-19'
-CHANGELOG = ('\n    v1.4.1 - Declutter: smaller text at all window sizes; Reflections — separate power rows, voltage plot '
+CHANGELOG = ('\n    v1.5.0 - Devices: two-port drawn as the textbook signal-flow graph (each port two terminal wires, a in on '
+             'top, b out on the bottom; S21 and S12 crossing, S11 and S22 down each side); wave arrows always solid; '
+             'S-parameters adjustable on every device. Reflections: an open or a short ends the line (a marker at the '
+             'interface, nothing enters Region 2). Cascade: the v1.3.0 drawing restored, with the S-parameter editor kept; '
+             'a block can be inserted at any junction of the chain.'
+             '\n    v1.4.1 - Declutter: smaller text at all window sizes; Reflections — separate power rows, voltage plot '
              'enlarged, titles/legend/caption to the side panel, VSWR equation and extra labels removed, incident/reflected '
              'off by default; Devices — one port line per side, waves as arrows beside it, thinner paths, smaller matrix; '
              'Cascade — S-parameter editor shown on selection.'
