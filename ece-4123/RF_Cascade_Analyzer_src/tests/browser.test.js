@@ -317,7 +317,9 @@ const alignIssues = page => page.evaluate(() => {
       return { s: x.getAttribute('data-s'), outside: r.right <= box.left + 1 || r.left >= box.right - 1, strong: !x.closest('[opacity]'), red: x.querySelector('path').getAttribute('stroke') === 'var(--bad)' }; });
     const waves = () => page.evaluate(S => { const f = eval(S); return Object.fromEntries(['a1', 'a2', 'b1', 'b2'].map(k => [k, f(document.getElementById('w' + k).textContent)])); }, SUBS);
     const powerLine = () => page.evaluate(S => { const e = document.getElementById(location.hash.includes('drive=rev') ? 'pb1' : 'pb2'); return e ? eval(S)(e.textContent) : null; }, SUBS);
-    const ghostW = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stage .wave')].map(e => [e.getAttribute('data-q'), e.getAttribute('data-ghost') === '1'])));
+    // a wave arrow drawn solid: no dashes, no fading, a filled head (Douglas: solid even when the wave is 0)
+    const solidW = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stage .wave')].map(e => [e.getAttribute('data-q'),
+      !e.closest('[opacity]') && [...e.querySelectorAll('path')].every(p => !p.getAttribute('stroke-dasharray')) && e.querySelector('path:last-child').getAttribute('fill') !== 'none'])));
     const heads = async () => [null, await text(page, '#roPower')];
     const keys = async () => [null, await page.evaluate(() => document.getElementById('roPower').previousSibling.textContent)];
     const outLabel = () => page.evaluate(() => { const d = location.hash.includes('drive=rev') ? 'wb1' : 'wb2', e = document.getElementById(d); return { size: +e.getAttribute('font-size'), weight: e.getAttribute('font-weight') }; });
@@ -369,8 +371,8 @@ const alignIssues = page => page.evaluate(() => {
       // sampled outline points (a rotated lane's bounding box is the box of its rotated rectangle, not of the shape)
       return [...document.querySelectorAll('#stage .lane')].every(e => { const M = e.getScreenCTM(), Ln = e.getTotalLength();
         for(let t = 0; t <= Ln; t += 1){ const p = e.getPointAtLength(t), q = new DOMPoint(p.x, p.y).matrixTransform(M); if(q.x < box.left - 0.5 || q.x > box.right + 0.5 || q.y < box.top || q.y > box.bottom) return false; } return true; }); }));
-    check('Forward: S21 lane and S11 U-turn solid; S12 and S22 faded to 22 %; undriven a2 wire dotted', await (async () => { const P = await paths(), g = await ghostW();
-      return P.S21.live && P.S11.live && P.S21.gop === 1 && near(P.S12.gop, 0.22, 1e-9) && near(P.S22.gop, 0.22, 1e-9) && g.a2 && !g.a1; })());
+    check('Forward: S21 lane and S11 U-turn solid; S12 and S22 faded to 22 %; all four wave arrows solid, even a2 = 0 and b1 = 0', await (async () => { const P = await paths(), g = await solidW();
+      return P.S21.live && P.S11.live && P.S21.gop === 1 && near(P.S12.gop, 0.22, 1e-9) && near(P.S22.gop, 0.22, 1e-9) && g.a1 && g.a2 && g.b1 && g.b2 && (await waves()).a2 === 'a2 = 0'; })());
     check('S tags: S21 and S12 above the crossing, each beside its own diagonal near its a node (S21 left, S12 right); S11 left of S22 at mid height; all inside the box', await page.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect(), c = r => [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
       const box = document.querySelector('#stage .box').getBoundingClientRect(), midY = (box.top + box.bottom) / 2, [x21, y21] = c(R('vs21')), [x12, y12] = c(R('vs12'));
       return y21 < midY && y12 < midY && x21 < x12 && R('vs11').right < R('vs22').left && ['vs11', 'vs21', 'vs12', 'vs22'].every(id => { const r = R(id); return r.left > box.left && r.right < box.right && r.top > box.top && r.bottom < box.bottom; }); }));
@@ -429,7 +431,7 @@ const alignIssues = page => page.evaluate(() => {
     check('B.1 Through Reverse: "|b1|² = 1.0" below "b1 = 1.00∠−90°"', await page.evaluate(() => document.getElementById('pb1').getBoundingClientRect().top >= document.getElementById('wb1').getBoundingClientRect().bottom));
     // B.3 colours: b wires, labels, power line and entries the text colour; a grey; S entries their path colours — the same in Forward and Reverse, both themes
     const cols = () => page.evaluate(() => { const c = e => getComputedStyle(e).fill, body = getComputedStyle(document.body).color;
-      const b = ['wb1', 'wb2', 'n_b1', 'n_b2'].map(id => c(document.getElementById(id))).concat([...document.querySelectorAll('#stage .wave[data-q^="b"] path')].map(e => e.getAttribute('stroke') === 'var(--txt)' ? body : 'x'));
+      const b = ['wb1', 'wb2', 'n_b1', 'n_b2'].map(id => c(document.getElementById(id))).concat([...document.querySelectorAll('#stage .wave[data-q^="b"] path')].map(e => (e.getAttribute('stroke') || e.getAttribute('fill')) === 'var(--txt)' ? body : 'x'));
       const a = ['wa1', 'wa2', 'n_a1', 'n_a2'].map(id => document.getElementById(id).getAttribute('fill'));
       const sOk = ['s11', 's21', 's12', 's22'].every(k => document.getElementById('n_' + k).getAttribute('fill') === 'var(--' + k + ')' && document.getElementById('v' + k).getAttribute('fill') === 'var(--' + k + ')');
       const pw = document.querySelector('#stage .plabel'); return { b: b.every(x => x === body) && c(pw) === body, a: a.every(x => x === 'var(--grey)'), sOk, body }; });
@@ -504,6 +506,20 @@ const alignIssues = page => page.evaluate(() => {
     check('Short load: the block sum and G_T differ, so both are shown: "blocks: +3.1 dB · delivered to load: −∞ dB"; Load shows 0 Ω', (await text(page, '#budTotal')) === 'blocks: +3.1 dB · delivered to load: −∞ dB' && (await text(page, '#loadVal')) === '0 Ω', await text(page, '#budTotal'));
     await click(page, '#lOpen');
     check('Open load: Load shows ∞; −∞ dB delivered', (await text(page, '#loadVal')) === '∞' && (await text(page, '#budTotal')) === 'blocks: +3.1 dB · delivered to load: −∞ dB');
+    await ctx.close(); }
+
+  console.log('Devices S editor (every device)');
+  { const { ctx, page } = await open(browser); await present(page);
+    const S = () => page.evaluate(() => Object.fromEntries(['s11', 's21', 's12', 's22'].map(k => [k, [+document.getElementById('c' + k + 'm').value, +document.getElementById('c' + k + 'a').value]])));
+    for(const [d, k, m, a] of [['through', 's21', 1, -90], ['atten', 's21', 0.707946, 0], ['amp', 's21', 3.16228, 0], ['iso', 's21', 0.944061, 0]]){
+      await goto(page, '#view=devices&device=' + d + '&drive=fwd'); const v = await S();
+      check(d + ': its knob and all four S entries shown (' + k.toUpperCase() + ' ' + m + '∠' + a + '°)', near(v[k][0], m, 1e-5) && near(v[k][1], a, 1e-6) && !!(await page.$('#crecip')), v); }
+    await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '6');
+    check('moving the Attenuator knob to 6 dB updates S21 and S12 live (0.501187), panel not rebuilt', near((await S()).s21[0], 0.501187, 1e-5) && near((await S()).s12[0], 0.501187, 1e-5) && !!(await page.$('#att')));
+    await setInput(page, '#cs11m', '0.2');
+    check('editing S11 on the Attenuator switches to Custom with those values (S11 0.2, S21 0.501187); hash device=custom', (await page.evaluate(() => location.hash)) === '#view=devices&device=custom&drive=fwd'
+      && (await page.getAttribute('#dev_custom', 'aria-pressed')) === 'true' && !(await page.$('#att')) && near((await S()).s11[0], 0.2, 1e-9) && near((await S()).s21[0], 0.501187, 1e-5)
+      && (await text(page, '#n_s11')) === '0.20' && (await text(page, '#n_s21')) === '0.50');
     await ctx.close(); }
 
   console.log('Cascade S editor (v1.4.1 C.2)');

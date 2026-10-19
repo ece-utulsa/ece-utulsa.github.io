@@ -207,12 +207,8 @@ function addMenu(){
 // ── END INTERACTION ───────────────────────────────────────────
 
 // ── PANEL ─────────────────────────────────────────────────────
-// A block's current S as a Custom entry set { e: { s11: [mag, deg], … }, recip } (6 significant figures).
-function entriesOf(b){
-  const S = deviceS(b.type, b.p), e = {};
-  for(const k of S_KEYS){ const m = cabs(S[k]); e[k] = [+m.toPrecision(6), m < S_ZERO ? 0 : +wrapDeg(carg(S[k]) * DEG).toPrecision(6)]; }
-  return { e, recip: cabs(csub(S.s12, S.s21)) <= EPS_BADGE };
-}
+// A block's current S as a Custom entry set (devices.js sEntries).
+const entriesOf = b => sEntries(deviceS(b.type, b.p));
 /* The selected block's editor, shown as soon as the block is selected: a preset's one knob (when it has one) and all
    four S entries with the reciprocal link, filled with the block's values and following the knob live (syncCascade).
    Editing an S entry turns a preset into Custom with those values (its knob goes). K.est is the entry set shown. */

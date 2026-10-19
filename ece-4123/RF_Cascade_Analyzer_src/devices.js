@@ -59,9 +59,15 @@ const BADGES = [['reciprocal', 'Reciprocal'], ['symmetric', 'Symmetric'], ['loss
 // A Custom entry set { s11: [mag, deg], ... } (the Teaching example: reciprocal, lossy, not symmetric).
 const customDefault = () => ({ s11: [0.3, 40], s21: [0.6, -70], s12: [0.6, -70], s22: [0.4, -20] });
 const D = { dev: 'through', drive: 'fwd', through: { l: 0.25 }, atten: { A: 3 }, amp: { G: 10 }, iso: { IL: 0.5, I: Infinity },
-            custom: { e: customDefault(), recip: true } };
+            custom: { e: customDefault(), recip: true }, est: null };   // est: a preset's S entries shown in the panel
 // S of a Custom entry set.
 const customS = e => devPolar(e.s11, e.s21, e.s12, e.s22);
+// A two-port's S as a Custom entry set { e: { s11: [mag, deg], … }, recip } (6 significant figures).
+function sEntries(S){
+  const e = {};
+  for(const k of S_KEYS){ const m = cabs(S[k]); e[k] = [+m.toPrecision(6), m < S_ZERO ? 0 : +wrapDeg(carg(S[k]) * DEG).toPrecision(6)]; }
+  return { e, recip: cabs(csub(S.s12, S.s21)) <= EPS_BADGE };
+}
 // S of device kind with parameters p.
 function deviceS(kind, p){
   switch(kind){
@@ -94,12 +100,13 @@ const deviceWaves = S => drive(S, D.drive, ZERO);
 // ── END STATE ─────────────────────────────────────────────────
 
 // ── TWO-PORT DRAWING ──────────────────────────────────────────
-// A thin line arrow from x0 to x1 along y (a normalized wave beside its port line); faint and dotted when the wave is 0.
-function lineArrow(x0, x1, y, col, ghost, q, v){
+// A thin solid line arrow from x0 to x1 along y (a normalized wave beside its port wire); solid even when the wave is 0
+// (its label says "= 0").
+function lineArrow(x0, x1, y, col, q, v){
   const dir = Math.sign(x1 - x0);
-  return el('g', { class: 'wave', opacity: ghost ? 0.3 : null, 'data-q': q, 'data-v': q ? +v.toPrecision(12) : null, 'data-ghost': ghost ? 1 : null },
-    el('path', { d: 'M' + n2(x0) + ' ' + n2(y) + 'H' + n2(x1 - dir * 10), stroke: col, 'stroke-width': 2.5, fill: 'none', 'stroke-dasharray': ghost ? DOTS : null })
-    + el('path', { d: 'M' + n2(x1) + ' ' + n2(y) + 'l' + n2(-dir * 12) + ' -6v12Z', fill: ghost ? 'none' : col, stroke: col, 'stroke-width': ghost ? 1.5 : 0 }));
+  return el('g', { class: 'wave', 'data-q': q, 'data-v': q ? +v.toPrecision(12) : null },
+    el('path', { d: 'M' + n2(x0) + ' ' + n2(y) + 'H' + n2(x1 - dir * 10), stroke: col, 'stroke-width': 2.5, fill: 'none' })
+    + el('path', { d: 'M' + n2(x1) + ' ' + n2(y) + 'l' + n2(-dir * 12) + ' -6v12Z', fill: col }));
 }
 // Width of a path for power p = |S|²: W0·p, capped at W_CAP·W0.
 const pathW = p => W0 * Math.min(p, W_CAP);
@@ -166,10 +173,10 @@ function drawTwoPort(H, kind, p){
   const xL = L.edge, xR = DESIGN_W - L.edge, wire2 = (x0, x1, y, port, xd) => el('line', { x1: x0, y1: y, x2: x1, y2: y, stroke: 'var(--txt)', 'stroke-width': 3, class: 'portline', 'data-port': port })
     + el('circle', { cx: xd, cy: y, r: L.termR, fill: 'var(--txt)', class: 'term' });
   for(const y of [yT, yB]) s += wire2(xL + L.termR, xl, y, 1, xL + L.termR) + wire2(xr, xR - L.termR, y, 2, xR - L.termR);
-  // wave arrows beside the wires (a grey, in above the top wire; b text colour, out below the bottom wire) and their
+  // wave arrows beside the wires, always solid (a grey, in above the top wire; b text colour, out below the bottom wire) and their
   // labels on the outer side; the driven output bold, its power line below it
   const aU = yT - L.wOff, aD = yB + L.wOff, p1 = xl - L.armGap, p2 = xr + L.armGap, col = n => (n[0] === 'a' ? 'var(--grey)' : 'var(--txt)');
-  const wire = (x0, x1, y, name) => lineArrow(x0, x1, y, col(name), cabs(w[name]) < S_ZERO, name, cabs(w[name]));
+  const wire = (x0, x1, y, name) => lineArrow(x0, x1, y, col(name), name, cabs(w[name]));
   const wlab = (name, x, y, anchor, big) => txt(x, y, name.replace(/(\d)$/, '_$1') + ' = ' + waveText(w[name]), { anchor, fill: col(name), size: big ? FS_OUT : FS.label, weight: big ? 700 : 600, cls: 'wlabel' + (big ? ' out' : ''), id: 'w' + name });
   const plab = (name, x, y, anchor) => txt(x, y, '|' + name.replace(/(\d)$/, '_$1') + '|² = ' + (cabs(w[name]) < S_ZERO ? '0' : sig2(cabs(w[name]) ** 2)), { anchor, fill: 'var(--txt)', size: FS.label, weight: 400, cls: 'plabel', id: 'p' + name });
   s += wire(p1 - L.arrowL, p1, aU, 'a1') + wlab('a1', p1, aU - L.labOff, 'end', false);
@@ -284,23 +291,33 @@ function sEditor(st, pre, changed){
   link.addEventListener('change', () => { st.recip = link.checked; if(link.checked) st.e.s12 = st.e.s21.slice(); changed(true); });
   return [h('div', { cls: 'srows' }, S_KEYS.map(row)), h('label', { cls: 'chk' }, link, ' reciprocal (S12 = S21)')];
 }
-// The controls of the current device.
+/* The controls of the current device: a preset's knob(s) and all four S entries with the reciprocal link, filled with the
+   device's S and following the knob live (syncDevices); editing an S entry switches to Custom with those values. Custom:
+   the S entries alone. D.est is the preset entry set shown. */
 function deviceControls(){
   const set = (k, v) => { D[D.dev][k] = v; redraw(false); };
-  switch(D.dev){
-    case 'through': return [slider({ id: 'len', label: 'Line length ℓ/λ', min: 0, max: 1, step: 0.01, value: D.through.l, unit: 'λ', onset: v => set('l', v) })];
-    case 'atten': return [slider({ id: 'att', label: 'Attenuation', min: 0, max: 40, step: 0.5, value: D.atten.A, unit: 'dB', onset: v => set('A', v) })];
-    case 'amp': return [slider({ id: 'gain', label: 'Gain', min: 0, max: 30, step: 0.5, value: D.amp.G, unit: 'dB', onset: v => set('G', v) })];
-    case 'iso': return [slider({ id: 'isoIL', label: 'Forward loss', min: 0, max: 3, step: 0.1, value: D.iso.IL, unit: 'dB', onset: v => set('IL', v) }),
+  if(D.dev === 'custom'){ D.est = null; return sEditor(D.custom, 'c', redraw); }
+  const knobs = { through: () => [slider({ id: 'len', label: 'Line length ℓ/λ', min: 0, max: 1, step: 0.01, value: D.through.l, unit: 'λ', onset: v => set('l', v) })],
+    atten: () => [slider({ id: 'att', label: 'Attenuation', min: 0, max: 40, step: 0.5, value: D.atten.A, unit: 'dB', onset: v => set('A', v) })],
+    amp: () => [slider({ id: 'gain', label: 'Gain', min: 0, max: 30, step: 0.5, value: D.amp.G, unit: 'dB', onset: v => set('G', v) })],
+    iso: () => [slider({ id: 'isoIL', label: 'Forward loss', min: 0, max: 3, step: 0.1, value: D.iso.IL, unit: 'dB', onset: v => set('IL', v) }),
       slider({ id: 'isoI', label: 'Reverse isolation (top = ∞)', min: 0, max: ISO_MAX, smax: ISO_MAX + 1, step: 1, value: D.iso.I, unit: 'dB',
         toSlider: v => (v === Infinity ? ISO_MAX + 1 : v), fromSlider: q => (q > ISO_MAX ? Infinity : q), fmt: v => (v === Infinity ? 'infinite isolation' : v + ' dB'),
         numText: v => (v === Infinity ? '' : v), placeholder: '∞',
-        onset: v => set('I', v) })];
-  }
-  return sEditor(D.custom, 'c', redraw);
+        onset: v => set('I', v) })] }[D.dev]();
+  const st = D.est = sEntries(deviceS(D.dev, D[D.dev]));
+  const changed = full => { if(D.dev !== 'custom'){ D.custom = st; show('devices', 'custom'); } else redraw(full); };
+  return [...knobs, ...sEditor(st, 'c', changed), note('Editing an S entry switches to Custom with these values.')];
 }
 // Side panel of the Devices view: the power out; the controls; one line of explanation; the wave caption.
 function panelDevices(){ const [k, v] = devicePower(); return [headline(k, v, 'roPower'), ...deviceControls(), note(DEV_NOTE[D.dev]), note(WAVE_CAPTION)]; }
-// Refresh the readouts after a control moved (the panel is not rebuilt, so focus stays on the control).
-function syncDevices(){ const [k, v] = devicePower(), e = document.getElementById('roPower'); if(e){ e.textContent = v; e.previousSibling.textContent = k; } }
+// Refresh the readouts after a control moved (the panel is not rebuilt, so focus stays on the control); a preset's S
+// entries follow its knob.
+function syncDevices(){
+  const [k, v] = devicePower(), e = document.getElementById('roPower'); if(e){ e.textContent = v; e.previousSibling.textContent = k; }
+  if(D.dev !== 'custom' && D.est){ Object.assign(D.est, sEntries(deviceS(D.dev, D[D.dev])));
+    const put = (id, x) => { const b = document.getElementById(id); if(b && b !== document.activeElement) b.value = +(+x).toPrecision(6); };
+    for(const kk of S_KEYS){ put('c' + kk, D.est.e[kk][0]); put('c' + kk + 'm', D.est.e[kk][0]); put('c' + kk + 'a', D.est.e[kk][1]); }
+    const rc = document.getElementById('crecip'); if(rc) rc.checked = D.est.recip; }
+}
 // ── END PANEL ─────────────────────────────────────────────────

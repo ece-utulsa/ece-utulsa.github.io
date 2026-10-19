@@ -19,7 +19,7 @@ const FS = { label: 16, small: 14, big: 18, head: 32, title: 20, panel: 15, mat:
 const SUB_SCALE = 0.8;           // letter subscript size relative to its text (never below FS.small)
 const SUB_DIGITS = '₀₁₂₃₄₅₆₇₈₉';  // digit subscripts are written inline (Z₀₁, S₂₁), so they never drop below the line
 const GLYPH_W = 0.6;             // IBM Plex Mono advance width (em), to place text without measuring
-const DASH = '10 7', DOTS = '2 7';
+const DASH = '10 7';
 const S_KEYS = ['s11', 's21', 's12', 's22'];
 const S_NAME = { s11: 'S11', s21: 'S21', s12: 'S12', s22: 'S22' };
 // ── END CONSTANTS ─────────────────────────────────────────────
