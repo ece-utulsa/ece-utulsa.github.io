@@ -70,6 +70,8 @@ function gammaLoad(ZL, Z0){
 }
 // Γ at an interface from region 1 (Z01) into region 2 (Z02), both real (E1).
 const gammaInterface = (Z01, Z02) => (Z02 - Z01) / (Z02 + Z01);
+// Voltage transmission coefficient τ = 1 + Γ at that interface (v1.4.0): Z02 = ∞ (open) gives 2, Z02 = 0 (short) gives 0.
+const tauInterface = (Z01, Z02) => (Z02 === Infinity ? 2 : 1 + gammaInterface(Z01, Z02));
 // VSWR of a reflection magnitude (E2): { kind:'num', v } for |Γ| < 1, { kind:'inf' } for |Γ| = 1 and
 // { kind:'over' } for |Γ| > 1, where VSWR is not defined (PF-3; v1.0.0 showed a negative VSWR).
 function vswr(g){

@@ -2,7 +2,7 @@
    the gates, not the blind Test suite. They read the built page only through the DOM (text, data-q / data-v
    attributes, the URL hash); the page has no test hooks.
 
-   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.3.0.html] [--shots]
+   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.4.0.html] [--shots]
    --shots also writes the 1280×720 presentation screenshots to ../screenshots/.
    Set CHROMIUM=/path/to/chromium to use a particular browser binary. */
 'use strict';
@@ -11,10 +11,10 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
-const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.3.0.html'));
+const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.4.0.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
-const STOPS = ['#view=reflections', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
+const STOPS = ['#view=reflections&vr=1', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
                '#view=devices&device=iso&drive=fwd', '#view=devices&device=custom&drive=fwd', '#view=cascade'];
 const REV_STOPS = STOPS.slice(1, 6).map(x => x.replace('drive=fwd', 'drive=rev'));
 const MIN_LABEL = 18, HEAD = 46;                          // text sizes at 1280×720 (px)
@@ -61,7 +61,7 @@ async function overlapIssues(page){
       if(a.l < b.r && b.l < a.r && a.tp < b.b && b.tp < a.b) bad.push('text/text: "' + a.t + '" × "' + b.t + '"'); }
     const ink = [...svg.querySelectorAll('path, line, rect, circle')];
     for(const g of ink){
-      const cs = getComputedStyle(g); if(cs.display === 'none' || cs.visibility === 'hidden') continue;
+      const cs = getComputedStyle(g); if(cs.display === 'none' || cs.visibility === 'hidden' || g.closest('defs, mask')) continue;   // mask shapes draw nothing
       const stroked = cs.stroke !== 'none' && parseFloat(cs.strokeWidth) > 0, hw = (stroked ? parseFloat(cs.strokeWidth) / 2 : 0) * k;
       if(!stroked && (cs.fill === 'none' || g.tagName === 'line')) continue;   // draws nothing (e.g. a zero-width data marker)
       let L; try { L = g.getTotalLength(); } catch(e){ continue; }
@@ -77,7 +77,8 @@ async function overlapIssues(page){
 async function sizeIssues(page, f){
   return page.evaluate(([MIN, HEAD, f]) => {
     const bad = [], svg = document.querySelector('#stage svg'), k = svg ? svg.getBoundingClientRect().width / svg.viewBox.baseVal.width : 1;
-    if(svg) svg.querySelectorAll('text').forEach(t => { const fs = parseFloat(t.getAttribute('font-size')) * k; if(fs < MIN * f - 0.3) bad.push('svg ' + fs.toFixed(1) + ' "' + t.textContent.slice(0, 20) + '"');
+    // captions (class caption16) are ~16 px muted by design (v1.4.0 A.2, C.3)
+    if(svg) svg.querySelectorAll('text').forEach(t => { const fs = parseFloat(t.getAttribute('font-size')) * k; if(fs < (t.classList.contains('caption16') ? 16 : MIN) * f - 0.3) bad.push('svg ' + fs.toFixed(1) + ' "' + t.textContent.slice(0, 20) + '"');
       t.querySelectorAll('tspan').forEach(s => { const ss = parseFloat(s.getAttribute('font-size')) * k; if(ss < MIN * f - 0.3) bad.push('sub ' + ss.toFixed(1)); }); });
     const vis = e => { const r = e.getBoundingClientRect(); return r.width && r.height && !e.closest('.hidden,dialog,#stage svg'); };   // #verStamp is 14 px by design (v1.2.0 1c)
     const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -95,6 +96,15 @@ const layoutIssues = page => page.evaluate(() => {
   return bad;
 });
 
+// ── CLEARANCE ── every drawn label ≥ 16 px from the screen's left and bottom edges and from the drawing/panel divider
+// (v1.4.0, all views).
+const edgeIssues = page => page.evaluate(() => {
+  const bad = [], svg = document.querySelector('#stage svg').getBoundingClientRect();
+  document.querySelectorAll('#stage svg text').forEach(t => { const r = t.getBoundingClientRect(), n = '"' + t.textContent.slice(0, 16) + '"'; if(!r.width) return;
+    if(r.left - svg.left < 15.5) bad.push(n + ' left ' + (r.left - svg.left).toFixed(1)); if(svg.right - r.right < 15.5) bad.push(n + ' divider ' + (svg.right - r.right).toFixed(1));
+    if(window.innerHeight - r.bottom < 15.5) bad.push(n + ' bottom ' + (window.innerHeight - r.bottom).toFixed(1)); });
+  return bad;
+});
 // ── CASCADE "+" ── the "+" sits on the wire between the last block and the Load with ≥ 8 px clear on each side, and does
 // not overlap any block, the Load or a × button (v1.2.0 item 5).
 const plusIssues = page => page.evaluate(() => {
@@ -107,16 +117,22 @@ const plusIssues = page => page.evaluate(() => {
   blocks.concat([load], [...document.querySelectorAll('#stage [data-del]')].map(d => d.getBoundingClientRect())).forEach((r, i) => { if(hit(p, r)) bad.push('overlaps element ' + i); });
   return bad;
 });
-// ── DEVICES LAYOUT ── on screen, in px: box → matrix ≥ 16; numeric line → badges ≥ 12; badges → bottom of the screen
-// ≥ 12; every label ≥ 16 from the drawing's left edge and from the drawing/panel divider; inside the box no text but the
-// four S labels, which stay inside it (v1.3.0 items 1, 6).
+// ── DEVICES LAYOUT ── on screen, in px: box → matrix ≥ 16; numeric row → badges ≥ 12; badges → bottom of the screen
+// ≥ 12; every label and both matrix rows ≥ 16 from the drawing's left edge and from the drawing/panel divider; inside
+// the box no text but the four S name tags, which stay inside it (v1.3.0 items 1, 6; v1.4.0 B.2); between a port's two
+// wires no text but its Port label (v1.4.0 B.1).
 const devGapIssues = page => page.evaluate(() => {
   const bad = [], R = e => e.getBoundingClientRect(), svg = R(document.querySelector('#stage svg')), box = R(document.querySelector('#stage .box'));
-  const mat = R(document.querySelector('#stage .matrix')), num = R(document.getElementById('numLine')), badges = [...document.querySelectorAll('#stage .badge')].map(R);
+  const mat = R(document.querySelector('#stage .matrix')), num = R(document.getElementById('numRow')), badges = [...document.querySelectorAll('#stage .badge')].map(R);
   const g = (name, v, min) => { if(v < min - 0.05) bad.push(name + ' ' + v.toFixed(1) + ' < ' + min); };
   g('box→matrix', mat.top - box.bottom, 16);
-  g('numeric line→badges', Math.min(...badges.map(r => r.top)) - num.bottom, 12); g('badges→screen bottom', window.innerHeight - Math.max(...badges.map(r => r.bottom)), 12);
-  const texts = [...document.querySelectorAll('#stage svg text')].filter(t => !t.closest('.matrix, .badge') && t.id !== 'numLine');
+  g('numeric row→badges', Math.min(...badges.map(r => r.top)) - num.bottom, 12); g('badges→screen bottom', window.innerHeight - Math.max(...badges.map(r => r.bottom)), 12);
+  g('matrix rows from left edge', Math.min(mat.left, num.left) - svg.left, 16); g('matrix rows from divider', svg.right - Math.max(mat.right, num.right), 16);
+  g('row 1 → row 2', num.top - mat.bottom, 4);
+  const wy = q => { const r = R(document.querySelector('#stage .wave[data-q="' + q + '"]')); return (r.top + r.bottom) / 2; };
+  [...document.querySelectorAll('#stage svg text')].filter(t => !t.closest('.matrix, .badge, .numrow') && !t.classList.contains('port')).forEach(t => { const r = R(t), c = (r.top + r.bottom) / 2;
+    if((r.right <= box.left && c > wy('a1') && c < wy('b1')) || (r.left >= box.right && c > wy('b2') && c < wy('a2'))) bad.push('between the wires: "' + t.textContent + '"'); });
+  const texts = [...document.querySelectorAll('#stage svg text')].filter(t => !t.closest('.matrix, .badge, .numrow'));
   texts.forEach(t => { const r = R(t), name = t.id || t.textContent.slice(0, 12); g(name + ' from left edge', r.left - svg.left, 16); g(name + ' from divider', svg.right - r.right, 16);
     const inside = r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top, sLab = /^vs(11|21|12|22)$/.test(t.id);
     if(inside && !sLab) bad.push('text inside the box: "' + t.textContent + '"');
@@ -126,7 +142,7 @@ const devGapIssues = page => page.evaluate(() => {
   return bad;
 });
 // ── ALIGNMENT ── Cascade: reflected arrows and values centred on their junction (the forward-power marker's x), budget
-// values centred on their block, within ±6 px on screen.
+// values and river arithmetic centred on their block, within ±6 px on screen.
 const alignIssues = page => page.evaluate(() => {
   const bad = [], cxOf = e => { const r = e.getBoundingClientRect(); return (r.left + r.right) / 2; };
   const svg = document.querySelector('#stage svg'), M = svg.getScreenCTM();
@@ -136,7 +152,9 @@ const alignIssues = page => page.evaluate(() => {
     if(Math.abs(cxOf(arrow) - jx) > 6) bad.push('reflected arrow ' + k + ' off by ' + (cxOf(arrow) - jx).toFixed(1));
     if(k > 0 && Math.abs(cxOf(val) - jx) > 6) bad.push('reflected value ' + k + ' off by ' + (cxOf(val) - jx).toFixed(1));
     if(k === 0 && Math.abs(cxOf(val) - jx) > 6 && val.getBoundingClientRect().left > svg.getBoundingClientRect().left + 8) bad.push('back-to-source value off by ' + (cxOf(val) - jx).toFixed(1)); }
-  blocks.forEach((b, i) => { const v = document.getElementById('bud' + i); if(Math.abs(cxOf(v) - cxOf(b)) > 6) bad.push('budget ' + i + ' off by ' + (cxOf(v) - cxOf(b)).toFixed(1)); });
+  blocks.forEach((b, i) => { const v = document.getElementById('bud' + i), a = document.getElementById('ar' + i);
+    if(Math.abs(cxOf(v) - cxOf(b)) > 6) bad.push('budget ' + i + ' off by ' + (cxOf(v) - cxOf(b)).toFixed(1));
+    if(Math.abs(cxOf(a) - cxOf(b)) > 6) bad.push('arithmetic ' + i + ' off by ' + (cxOf(a) - cxOf(b)).toFixed(1)); });
   return bad;
 });
 
@@ -146,22 +164,22 @@ const alignIssues = page => page.evaluate(() => {
 
   console.log('Load');
   { const { ctx, page, log } = await open(browser);
-    check('version v1.3.0: header comment, Released, meta, title; changelog v1.3.0 on top, then v1.2.1, v1.2.0 and v1.1.0 as history',
-      /Version: v1\.3\.0/.test(html) && /Released: 2026-10-18/.test(html) && /<meta name="version" content="v1\.3\.0">/.test(html) && /<title>RF Cascade Analyzer v1\.3\.0<\/title>/.test(html)
-      && /v1\.3\.0 - Devices: two-port redrawn as straight power-tapered lanes \(S21 top, S12 bottom\) with reflection\s+U-turns; no text inside the box; labels outside\./.test(html)
-      && html.indexOf('v1.3.0 - ') < html.indexOf('v1.2.1 - ') && html.indexOf('v1.2.1 - ') < html.indexOf('v1.2.0 - ') && html.indexOf('v1.2.0 - ') < html.indexOf('v1.1.0 - ')
-      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01])|content="v1\.(1\.0|2\.[01])"/.test(html));
-    check('footer: v1.3.0 · released 2026-10-18 · Author: Claude Code', (await text(page, 'footer')).includes('v1.3.0 · released 2026-10-18 · Author: Claude Code'));
+    check('version v1.4.0: header comment, Released, meta, title; changelog v1.4.0 on top, then v1.3.0, v1.2.1, v1.2.0 and v1.1.0 as history',
+      /Version: v1\.4\.0/.test(html) && /Released: 2026-10-19/.test(html) && /<meta name="version" content="v1\.4\.0">/.test(html) && /<title>RF Cascade Analyzer v1\.4\.0<\/title>/.test(html)
+      && /v1\.4\.0 - Reflections: titled power panel; voltage panel with incident, reflected, total and transmitted waves\s+\(Region 2 to ∞\) and V⁺ \+ V⁻ = Vₜ readout; signed Γ and τ\. Devices: S values moved into a numeric matrix row;\s+power line clear of the port labels; waves neutral\/text colour, path colours for S only\. Cascade: junction\s+powers labelled × input; dB with power factor; river arithmetic; budget shows dB adding\./.test(html)
+      && html.indexOf('v1.4.0 - ') < html.indexOf('v1.3.0 - ') && html.indexOf('v1.3.0 - ') < html.indexOf('v1.2.1 - ') && html.indexOf('v1.2.1 - ') < html.indexOf('v1.2.0 - ') && html.indexOf('v1.2.0 - ') < html.indexOf('v1.1.0 - ')
+      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0)|content="v1\.(1\.0|2\.[01]|3\.0)"/.test(html));
+    check('footer: v1.4.0 · released 2026-10-19 · Author: Claude Code', (await text(page, 'footer')).includes('v1.4.0 · released 2026-10-19 · Author: Claude Code'));
     const stamp = async () => page.evaluate(() => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
       const btns = [...document.querySelectorAll('#top button')].filter(b => b.getBoundingClientRect().width), last = btns[btns.length - 1].getBoundingClientRect(), top = document.getElementById('top').getBoundingClientRect();
       return { text: v.textContent, fs: parseFloat(cs.fontSize), mut: cs.color === getComputedStyle(document.querySelector('.note') || document.body).color || cs.color !== getComputedStyle(document.body).color,
-        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.3.0'),
+        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.4.0'),
         oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; });
     let st = await stamp();
-    check('stamp "v1.3.0" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.3.0' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
+    check('stamp "v1.4.0" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.4.0' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
     const wBtn = await page.evaluate(() => [...document.querySelectorAll('#top button')].map(b => Math.round(b.getBoundingClientRect().width)).join(','));
     await present(page); st = await stamp();
-    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.3.0"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
+    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.4.0"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
     await page.keyboard.press('t'); await page.waitForTimeout(60); st = await stamp();
     check('presentation (dark): stamp still visible', st.shown && st.body && await page.evaluate(() => !document.body.classList.contains('light')));
     await page.keyboard.press('t'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
@@ -174,43 +192,75 @@ const alignIssues = page => page.evaluate(() => {
     check('no console errors or warnings over every stop', log.console.length === 0, log.console);
     await ctx.close(); }
 
-  console.log('View 1 — Reflections');
+  console.log('View 1 — Reflections (v1.4.0 A.6)');
   { const { ctx, page } = await open(browser);
-    await present(page); await goto(page, '#view=reflections');
-    await setInput(page, '#z02Box', '150', 'change');
-    const T = await stageTexts(page), pInc = await dq(page, 'P_inc'), pRef = await dq(page, 'P_refl'), pTr = await dq(page, 'P_trans');
-    check('Z02 = 150: |Γ| 0.50, VSWR 3.0 (side panel, 2 significant figures)', (await text(page, '#roGamma')) === '0.50' && (await text(page, '#roVswr')) === '3.0');
-    check('Z02 = 150: reflected 25 %, transmitted 75 %, on the arrows', T.includes('Reflected 25 %') && T.includes('Transmitted 75 %') && T.includes('Incident 100 %'), T);
-    check('Z02 = 150: arrow thickness ∝ power (25 % and 75 % of the incident)', near(+pRef['data-th'], 0.25 * +pInc['data-th'], 0.02) && near(+pTr['data-th'], 0.75 * +pInc['data-th'], 0.02));
-    check('Z02 = 150: Vmax 1.5 and Vmin 0.5 at their true heights', near(+(await dq(page, 'Vmax'))['data-v'], 1.5, 1e-9) && near(+(await dq(page, 'Vmin'))['data-v'], 0.5, 1e-9)
-      && await page.evaluate(() => { const e = document.querySelector('[data-q="envelope"]'), A = +e.getAttribute('data-a'), yc = +e.getAttribute('data-yc');
-        const y = q => +document.querySelector('[data-q="' + q + '"]').getAttribute('y1'); return Math.abs(y('Vmax') - (yc - 1.5 * A)) < 0.02 && Math.abs(y('Vmin') - (yc - 0.5 * A)) < 0.02; }));
-    check('heading: VSWR = Vmax / Vmin = 1.5 / 0.50 = 3.0', (await text(page, '.vswrLine')) === 'VSWR = Vmax / Vmin = 1.5 / 0.50 = 3.0', await text(page, '.vswrLine'));
-    check('Vmax / Vmin labels "Vmax 1.5", "Vmin 0.50" in the neutral text colour (not an S colour)', T.includes('Vmax 1.5') && T.includes('Vmin 0.50')
-      && await page.evaluate(() => [...document.querySelectorAll('#stage .level')].every(e => e.getAttribute('stroke') === 'var(--txt)')
-        && [...document.querySelectorAll('#stage text')].filter(t => /^Vm(ax|in)/.test(t.textContent)).every(t => t.getAttribute('fill') === 'var(--txt)')));
-    check('Z02 drawn is the control value', (await text(page, '#z02Label')).endsWith('= 150 Ω'));
-    check('distance ticks 1λ … interface', ['1λ', '3λ/4', 'λ/2', 'λ/4', 'interface'].every(t => T.includes(t)));
-    check('no power bar, no complex Γ', !(await page.$('#stage [data-q="P_deliv"]')) && !/∠/.test(await text(page, '#panel')));
-    await click(page, '#bShort');
-    let t2 = await stageTexts(page);
-    check('Short: transmitted 0 % (ghost), VSWR ∞, envelope touches 0', t2.includes('Transmitted 0 %') && (await dq(page, 'P_trans'))['data-ghost'] === '1'
-      && (await text(page, '#roVswr')) === '∞' && +(await dq(page, 'Vmin'))['data-v'] === 0 && (await text(page, '#z02Label')).includes('0 (short)'));
-    await click(page, '#bOpen');
-    check('Open: transmitted 0 %, VSWR ∞, |Γ| 1.0', (await stageTexts(page)).includes('Transmitted 0 %') && (await text(page, '#roVswr')) === '∞' && (await text(page, '#roGamma')) === '1.0');
-    await click(page, '#bMatch');
-    t2 = await stageTexts(page);
-    check('Matched: reflected arrow is a ghost only, flat envelope, VSWR 1.0', (await dq(page, 'P_refl'))['data-ghost'] === '1' && t2.includes('Reflected 0 %')
-      && (await text(page, '#roVswr')) === '1.0' && +(await dq(page, 'envelope'))['data-v'] === 0);
-    await setInput(page, '#z02Box', 'abc', 'change');
-    check('invalid Z02 text is flagged and ignored', (await page.getAttribute('#z02Box', 'aria-invalid')) === 'true' && (await text(page, '#roVswr')) === '1.0');
-    await setInput(page, '#z02Box', '150', 'change'); await page.keyboard.press('p'); await page.waitForTimeout(50);
-    const d0 = await page.getAttribute('#snap', 'd'); await page.keyboard.press('t'); await page.waitForTimeout(80);
-    const d1 = await page.getAttribute('#snap', 'd'), dark = await page.evaluate(() => !document.body.classList.contains('light'));
-    check('snapshot wave: the same phase in the dark and the light theme (theme change does not move it)', dark && d0 === d1);
+    await present(page); await goto(page, '#view=reflections'); await page.keyboard.press('p'); await page.waitForTimeout(50);
+    // the curves' points (design units) and the plot's centre line and scale
+    const geo = () => page.evaluate(() => { const pts = e => { const n = e.getAttribute('d').match(/-?[\d.]+/g).map(Number), p = [];
+        for(let i = 0; i < n.length; i += 2) p.push([n[i], n[i + 1]]); return p; }, by = id => pts(document.getElementById(id));
+      const e = document.querySelector('[data-q="envelope"]');
+      return { inc: by('vInc'), ref: by('vRef'), tot: by('vTot'), tr: by('vTr'), env: pts(e), yc: +e.dataset.yc, A: +e.dataset.a, tau: +e.dataset.tau }; });
+    const qv = async q => { const a = await dq(page, q); return a && a['data-v'] !== undefined ? +a['data-v'] : null; };
+    const flat = t => t.replace(/\s+/g, ' ');
+    const A6 = [
+      ['150', '+0.50', '1.50', '1 + 0.50 = 1.50', 'Pₜ = Vₜ² · Z01/Z02 = 1.50² × 50/150 = 75 %', ['25 %', '75 %'], null, '3.0', 'VSWR = Vmax/Vmin = 1.5/0.50 = 3.0'],
+      ['16.7', '−0.50', '0.50', '1 + (−0.50) = 0.50', 'Pₜ = Vₜ² · Z01/Z02 = 0.50² × 50/16.7 = 75 %', ['25 %', '75 %'], null, '3.0', 'VSWR = Vmax/Vmin = 1.5/0.50 = 3.0'],
+      ['50', '0', '1.00', '1 + 0 = 1.00', 'Pₜ = 100 %', ['0 %', '100 %'], 'P_refl', '1.0', 'VSWR = Vmax/Vmin = 1.0/1.0 = 1.0'],
+      ['0', '−1.00', '0', '1 + (−1.00) = 0', 'Vₜ = 0 → Pₜ = 0 %', ['100 %', '0 %'], 'P_trans', '∞', 'VSWR = Vmax/Vmin = 2.0/0 = ∞'],
+      ['open', '+1.00', '2.00', '1 + 1.00 = 2.00', 'Pₜ = 0 % (Z02 = ∞)', ['100 %', '0 %'], 'P_trans', '∞', 'VSWR = Vmax/Vmin = 2.0/0 = ∞'] ];
+    for(const [z, gm, tau, l1, l2, [pr, pt], ghost, vs, vline] of A6){
+      await setInput(page, '#z02Box', z, 'change');
+      const T = { g: await text(page, '#roGamma'), vs: await text(page, '#roVswr'), tau: await text(page, '#roTau'), r1: await text(page, '#readV'), r2: await text(page, '#readP'),
+        inc: await text(page, '#pInc'), refl: await text(page, '#pRefl'), tr: await text(page, '#pTrans'), vl: await text(page, '.vswrLine') };
+      const gh = await page.evaluate(() => ['P_inc', 'P_refl', 'P_trans'].filter(q => document.querySelector('[data-q="' + q + '"]').getAttribute('data-ghost') === '1').join(','));
+      check('Z02 = ' + z + ': Γ ' + gm + ', τ ' + tau + ', VSWR ' + vs + ' (panel); readout "' + l1 + '" / "' + l2 + '"; arrows 100 / ' + pr + ' / ' + pt + (ghost ? ' (' + ghost + ' ghost)' : '') + '; ' + vline,
+        T.g === gm && T.vs === vs && T.tau === 'τ = 1 + Γ = ' + tau && flat(T.r1) === 'V⁺ + V⁻ = Vₜ ' + l1 && T.r1.includes('Vₜ\u00a0\u00a0 1') && T.r2 === l2
+        && T.inc === 'Incident power 100 %' && T.refl === 'Reflected power |Γ|² = ' + pr && T.tr === 'Transmitted power 1 − |Γ|² = ' + pt && gh === (ghost || '') && T.vl === vline, T);
+      const g = await qv('Gamma'), t = await qv('tau');
+      check('Z02 = ' + z + ': data hooks Gamma, tau, V_inc = 1, V_refl = Γ, V_trans = τ, V_tot (no value)', near(t, 1 + g, 1e-9) && (await qv('V_inc')) === 1 && near(await qv('V_refl'), g, 1e-12)
+        && near(await qv('V_trans'), t, 1e-12) && (await dq(page, 'V_tot'))['data-v'] === undefined && !!(await dq(page, 'Vmax')) && !!(await dq(page, 'Vmin')));
+      const G = await geo(), amp2 = Math.max(...G.tr.filter(p => p[0] <= G.tr[0][0] + 0.75 * (G.tr[0][0] - G.inc[G.inc.length - 1][0]) / 2 + 0.01).map(p => Math.abs(p[1] - G.yc)));
+      const envAt = x => G.env.filter(p => Math.abs(p[0] - x) < 0.02).map(p => G.yc - p[1]);
+      check('Z02 = ' + z + ': Region 2 amplitude and its envelope = |τ|; Region 1 envelope at the interface = |τ|', near(amp2, G.tau * G.A, 1) && envAt(G.tr[0][0]).every(v => near(v, G.tau * G.A, 0.05))
+        && near(G.yc - G.env[G.env.length - 1][1], G.tau * G.A, 0.05), { amp2, tA: G.tau * G.A, env: envAt(G.tr[0][0]) });
+      if(z === '16.7') check('16.7 Ω: at d = 0 the reflected wave is opposite in sign to the incident (−0.50 ×)', (G.ref[0][1] - G.yc) * (G.inc[0][1] - G.yc) <= 0 && near(G.ref[0][1] - G.yc, -0.5 * (G.inc[0][1] - G.yc), 1));
+      if(z === '0') check('Short: total 0 at d = 0, λ/2, λ, 3λ/2, 2λ; Region 2 flat at 0', [0, 60, 120, 180, 240].every(i => near(G.tot[i][1], G.yc, 1)) && G.tr.every(p => near(p[1], G.yc, 1)));
+      if(z === 'open') check('Open: total at d = 0 is twice the incident (amplitude 2); Region 2 amplitude 2', near(G.tot[0][1] - G.yc, 2 * (G.inc[0][1] - G.yc), 1) && near(amp2, 2 * G.A, 1));
+      if(z === '50') check('Matched: reflected flat at 0; envelope flat at 1 on both sides', G.ref.every(p => near(p[1], G.yc, 0.5)) && G.env.every(p => near(G.yc - p[1], G.A, 0.05)));
+    }
+    // the total and the transmitted wave meet at the interface at every instant (5 times, running)
+    await setInput(page, '#z02Box', '150', 'change'); await page.keyboard.press('p');
+    const gaps = []; for(let i = 0; i < 5; i++){ await page.waitForTimeout(170); gaps.push(await page.evaluate(() => { const f = id => document.getElementById(id).getAttribute('d').match(/^M(-?[\d.]+) (-?[\d.]+)/);
+      const a = f('vTot'), b = f('vTr'); return Math.hypot(a[1] - b[1], a[2] - b[2]); })); }
+    check('interface: |v_total(d = 0) − vₜ(x = 0)| < 1 px at 5 different times', gaps.every(x => x < 1), gaps);
+    await page.keyboard.press('p');
+    check('Z02 drawn is the control value; heading and caption present', (await text(page, '#z02Label')).endsWith('= 150 Ω') && (await stageTexts(page)).includes('Power at the interface (incident power = 100 %)')
+      && (await stageTexts(page)).includes('Voltage on the lines (incident amplitude = 1)') && (await stageTexts(page)).includes('Both regions have the same propagation speed (same λ). Region 2 is infinitely long.')
+      && (await stageTexts(page)).join(' ').includes('Region 2 continues to ∞ — no further reflections'));
+    check('legend: incident v⁺, reflected v⁻, total (Region 1), transmitted vₜ, envelope', JSON.stringify(await page.$$eval('#stage .legend text', e => e.map(x => x.textContent))) === JSON.stringify(['incident v⁺', 'reflected v⁻', 'total (Region 1)', 'transmitted vₜ', 'envelope']));
+    check('distance ticks 2λ, 3λ/2, λ, λ/2, interface; Region 2 λ/4, λ/2', JSON.stringify((await stageTexts(page)).filter(t => /^(\d?λ(\/\d)?|3λ\/2|interface)$/.test(t))) === JSON.stringify(['2λ', '3λ/2', 'λ', 'λ/2', 'interface', 'λ/4', 'λ/2']));
+    check('Vmax / Vmin labels in Region 1, neutral text colour', (await stageTexts(page)).includes('Vmax 1.5') && (await stageTexts(page)).includes('Vmin 0.50')
+      && await page.evaluate(() => [...document.querySelectorAll('#stage .level')].every(e => e.getAttribute('stroke') === 'var(--txt)' && +e.getAttribute('x2') <= +document.getElementById('vTr').getAttribute('d').match(/^M(-?[\d.]+)/)[1] + 0.01)));
+    check('no complex Γ on this view', !/∠/.test(await text(page, '#panel')) && !(await stageTexts(page)).some(t => /∠/.test(t)));
+    // the incident/reflected switch and its hash
+    const shown = () => page.evaluate(() => ['vInc', 'vRef', 'vTot', 'vTr'].map(id => getComputedStyle(document.getElementById(id)).display !== 'none').join(','));
+    check('"Show incident and reflected" on by default: all four curves; hash vr=1', (await page.isChecked('#showVR')) && (await shown()) === 'true,true,true,true' && (await page.evaluate(() => location.hash)) === '#view=reflections&vr=1');
+    await page.click('#showVR'); await page.waitForTimeout(60);
+    check('unticked: only the incident and reflected curves hidden; hash vr=0', (await shown()) === 'false,false,true,true' && (await page.evaluate(() => location.hash)) === '#view=reflections&vr=0');
+    await page.goto(URL0 + '#view=reflections&vr=1'); await page.waitForTimeout(150); await page.goto(URL0 + '#view=reflections&vr=0'); await page.waitForTimeout(150);
+    check('hash round-trip: #view=reflections&vr=0 restores the switch off', !(await page.isChecked('#showVR')) && (await shown()) === 'false,false,true,true');
+    await page.click('#showVR'); await page.waitForTimeout(60);
+    await click(page, '#bShort'); await setInput(page, '#z02Box', 'abc', 'change');
+    check('invalid Z02 text is flagged and ignored', (await page.getAttribute('#z02Box', 'aria-invalid')) === 'true' && (await text(page, '#roVswr')) === '∞');
+    await setInput(page, '#z02Box', '150', 'change'); await page.evaluate(() => document.activeElement.blur());
+    if((await page.textContent('#pauseBtn')) === 'Pause') await page.keyboard.press('p');   // a hash-only goto keeps the pause state
+    await page.waitForTimeout(50);
+    const d0 = await page.getAttribute('#vTot', 'd'); await page.keyboard.press('t'); await page.waitForTimeout(80);
+    const d1 = await page.getAttribute('#vTot', 'd');
+    check('the total wave keeps its phase across a theme change', d0 === d1);
     await ctx.close(); }
 
-  console.log('View 2 — Devices (v1.3.0 two-port)');
+  console.log('View 2 — Devices (v1.3.0 two-port, v1.4.0 matrix rows and colours)');
   { const { ctx, page } = await open(browser);
     await present(page);
     // lanes (S21, S12) and U-turns (S11, S22): |S|, end width, blocked / capped flags, the group's drive state and opacity
@@ -230,13 +280,13 @@ const alignIssues = page => page.evaluate(() => {
     const heads = async () => [null, await text(page, '#roPower')];
     const keys = async () => [null, await page.evaluate(() => document.getElementById('roPower').previousSibling.textContent)];
     const outLabel = () => page.evaluate(() => { const d = location.hash.includes('drive=rev') ? 'wb1' : 'wb2', e = document.getElementById(d); return { size: +e.getAttribute('font-size'), weight: e.getAttribute('font-weight') }; });
-    const sLab = k => text(page, '#v' + k);
+    const sLab = k => text(page, '#v' + k), ent = k => text(page, '#n_' + k), row2 = () => page.getAttribute('#numRow', 'data-text');
     const W0 = 36;
     // the v1.3.0 check table
     const CASES = [
       ['Through, ℓ = λ/4, Forward', '#view=devices&device=through&drive=fwd', null, null, async (P, L21, L12) => near(L21.w0, W0, 0.1) && near(L21.wEnd, W0, 0.5) && near(L12.wEnd, W0, 0.5) && P.S11.dotted && P.S22.dotted
-        && (await sLab('s21')) === 'S21 1.00∠−90°' && (await sLab('s12')) === 'S12 1.00∠−90°', 'b2 = 1.00∠−90°', '|b2|² = 1.0'],
-      ['Attenuator, 3 dB, Forward', '#view=devices&device=atten&drive=fwd', 'att', '3', async (P) => near(P.S21.w1, W0 * 0.5012, 0.02) && near(P.S12.w1, W0 * 0.5012, 0.02) && (await sLab('s21')) === 'S21 0.71',
+        && (await sLab('s21')) === 'S21' && (await ent('s21')) === '1.00∠−90°' && (await ent('s12')) === '1.00∠−90°', 'b2 = 1.00∠−90°', '|b2|² = 1.0'],
+      ['Attenuator, 3 dB, Forward', '#view=devices&device=atten&drive=fwd', 'att', '3', async (P) => near(P.S21.w1, W0 * 0.5012, 0.02) && near(P.S12.w1, W0 * 0.5012, 0.02) && (await sLab('s21')) === 'S21' && (await ent('s21')) === '0.71',
         'b2 = 0.71∠0°', '|b2|² = 0.50'],
       ['Amplifier, +3 dB, Forward', '#view=devices&device=amp&drive=fwd', 'gain', '3', async (P) => { const x = await cross(); return near(P.S21.w1, W0 * 1.995, 0.05) && P.S12.blocked && x && x.s === 's12' && x.outside && x.red; },
         'b2 = 1.41∠0°', '|b2|² = 2.0'],
@@ -269,22 +319,22 @@ const alignIssues = page => page.evaluate(() => {
     check('no crossing paths: S21 lane straight along the top, S12 along the bottom', await page.evaluate(() => { const a = document.querySelector('#stage .lane.s21').getBoundingClientRect(), b = document.querySelector('#stage .lane.s12').getBoundingClientRect(); return a.bottom < b.top; }));
     check('Forward: S21 lane and S11 U-turn solid; S12 and S22 faded to 22 %; undriven a2 wire dotted', await (async () => { const P = await paths(), g = await ghostW();
       return P.S21.live && P.S11.live && P.S21.gop === 1 && near(P.S12.gop, 0.22, 1e-9) && near(P.S22.gop, 0.22, 1e-9) && g.a2 && !g.a1; })());
-    check('S labels: S21 above the top lane, S12 below the bottom lane, S11 above S22 (staggered)', await page.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect();
+    check('S tags: S21 above the top lane, S12 below the bottom lane, S11 and S22 between the lanes (S11 left of S22)', await page.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect();
       const t = document.querySelector('#stage .lane.s21').getBoundingClientRect(), b = document.querySelector('#stage .lane.s12').getBoundingClientRect();
-      return R('vs21').bottom <= t.top && R('vs12').top >= b.bottom && R('vs11').bottom <= R('vs22').top; }));
-    check('S11 0 drawn as a faint dotted U (2 px, 45 % opacity) when |S| < 0.05', await (async () => { const P = await paths(); return P.S11.dotted && near(P.S11.op, 0.45, 1e-9) && (await sLab('s11')) === 'S11 0'; })());
+      return R('vs21').bottom <= t.top && R('vs12').top >= b.bottom && ['vs11', 'vs22'].every(id => R(id).top >= t.bottom && R(id).bottom <= b.top) && R('vs11').right < R('vs22').left; }));
+    check('S11 0 drawn as a faint dotted U (2 px, 45 % opacity) when |S| < 0.05; tag "S11" in the box, "0" in the matrix', await (async () => { const P = await paths(); return P.S11.dotted && near(P.S11.op, 0.45, 1e-9) && (await sLab('s11')) === 'S11' && (await ent('s11')) === '0'; })());
     check('the driven output label (b2 in Forward) is 22 px bold; its |b2|² line 18 px regular', JSON.stringify(await outLabel()) === '{"size":22,"weight":"700"}' && +(await page.getAttribute('#wb1', 'font-size')) === 18
       && +(await page.getAttribute('#pb2', 'font-size')) === 18 && (await page.getAttribute('#pb2', 'font-weight')) === '400');
     check('panel: the power only (power out = |b2|² = 50 %); caption about normalized waves; never "power wave"', (await heads())[1] === '50 %' && (await keys())[1] === 'power out = |b2|²'
       && (await text(page, '#panel')).includes('a, b = normalized waves (a = V⁺/√Z0). Power = |wave|².') && !/power wave/i.test(await page.evaluate(() => document.body.innerText)));
-    check('numeric line: [0 ; 0.71∠0°] = [S] · [1∠0° ; 0]', (await text(page, '#numLine')) === '[0 ; 0.71∠0°] = [S] · [1∠0° ; 0]', await text(page, '#numLine'));
+    check('no numeric line "[b] = [S] · [a]" any more; one numeric row', !(await page.$('#numLine')) && (await page.$$('#stage .numrow')).length === 1);
     check('Attenuator: badges R ✓ S ✓ L ✗ P ✓', (await badges()) === '1101');
     await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '30');
     { const P = await paths(); check('Amplifier 30 dB (max): S21 still capped at 3 W0 with the break mark; b2 = 31.6∠0°, |b2|² = 1000; badges all ✗', P.S21.cap && near(P.S21.w1, 108, 0.01)
       && (await waves()).b2 === 'b2 = 31.6∠0°' && (await powerLine()) === '|b2|² = 1000' && (await badges()) === '0000'); }
     await setInput(page, '#gain', '10');
     await goto(page, '#view=devices&device=iso&drive=fwd'); await setInput(page, '#isoI', '20');
-    { const P = await paths(); check('Isolator, 20 dB isolation: S12 0.10 is a thin lane, not blocked (no ✕)', near(P.S12.v, 0.1, 1e-9) && !P.S12.blocked && !(await cross()) && (await sLab('s12')) === 'S12 0.10'); }
+    { const P = await paths(); check('Isolator, 20 dB isolation: S12 0.10 is a thin lane, not blocked (no ✕)', near(P.S12.v, 0.1, 1e-9) && !P.S12.blocked && !(await cross()) && (await ent('s12')) === '0.10'); }
     await click(page, '#drive_rev');
     { const W = await waves(); check('Isolator Reverse, 20 dB: a2 = 1∠0°, b1 = 0.10∠0°, |b1|² = 0.010; power out 1.0 %', W.a2 === 'a2 = 1∠0°' && W.b1 === 'b1 = 0.10∠0°' && (await powerLine()) === '|b1|² = 0.010' && (await heads())[1] === '1.0 %', W); }
     await page.evaluate(() => { const r = document.getElementById('isoI'); r.value = 61; r.dispatchEvent(new Event('input', { bubbles: true })); }); await page.waitForTimeout(60);
@@ -300,8 +350,40 @@ const alignIssues = page => page.evaluate(() => {
     await setInput(page, '#cs21', '0.8');
     { const P = await paths(); check('Custom: linked S12 follows S21 (0.80); the S12 row is locked', near(P.S12.v, 0.8, 1e-9) && near(P.S21.v, 0.8, 1e-9) && await page.isDisabled('#cs12')); }
     check('Devices: no 3-decimal numbers on the diagram', !(await stageTexts(page)).some(t => /\d\.\d{3}/.test(t)));
-    check('Matrix equation entries 30 px; numeric line 22 px', await page.evaluate(() => [...document.querySelectorAll('#stage .ment')].every(e => +e.getAttribute('font-size') === 30)
-      && +document.getElementById('numLine').getAttribute('font-size') === 22));
+    check('Matrix row 1 entries 30 px; row 2 entries 24 px (Custom, four long entries, fits without the 20 px fallback)', await page.evaluate(() => [...document.querySelectorAll('#stage .ment')].every(e => +e.getAttribute('font-size') === 30)
+      && [...document.querySelectorAll('#stage .nent')].every(e => +e.getAttribute('font-size') === 24) && document.getElementById('numRow').dataset.fs === '24'));
+    // v1.4.0 B.4: row 2 for each case; the drawn entries are the row's text and the wire labels' values
+    const B4 = [['Through, ℓ = λ/4, Forward', '#view=devices&device=through&drive=fwd', null, null, '= [0  1.00∠−90°; 1.00∠−90°  0] [1∠0°; 0] = [0; 1.00∠−90°]'],
+      ['Through, ℓ = λ/4, Reverse', '#view=devices&device=through&drive=rev', null, null, '= [0  1.00∠−90°; 1.00∠−90°  0] [0; 1∠0°] = [1.00∠−90°; 0]'],
+      ['Attenuator 3 dB, Forward', '#view=devices&device=atten&drive=fwd', null, null, '= [0  0.71; 0.71  0] [1∠0°; 0] = [0; 0.71∠0°]'],
+      ['Amplifier 10 dB, Forward', '#view=devices&device=amp&drive=fwd', 'gain', '10', '= [0  0; 3.16  0] [1∠0°; 0] = [0; 3.16∠0°]'],
+      ['Custom default, Forward', '#view=devices&device=custom&drive=fwd', null, null, '= [0.30∠40°  0.60∠−70°; 0.60∠−70°  0.40∠−20°] [1∠0°; 0] = [0.30∠40°; 0.60∠−70°]']];
+    await page.goto(URL0); await page.waitForTimeout(150); await present(page);
+    for(const [name, hs, ctl, v, want] of B4){
+      await goto(page, hs); if(ctl) await setInput(page, '#' + ctl, v);
+      const got = await row2(), drawn = await page.evaluate(() => { const t = id => document.getElementById(id).textContent;
+        return '= [' + t('n_s11') + '  ' + t('n_s12') + '; ' + t('n_s21') + '  ' + t('n_s22') + '] [' + t('n_a1') + '; ' + t('n_a2') + '] = [' + t('n_b1') + '; ' + t('n_b2') + ']'; });
+      const W = await waves(), same = await page.evaluate(() => ['a1', 'a2', 'b1', 'b2'].every(k => document.getElementById('w' + k).textContent.endsWith(' = ' + document.getElementById('n_' + k).textContent)));
+      check('B.4 ' + name + ': row 2 ' + want, got === want && drawn === want && same, { got, drawn, W });
+    }
+    await goto(page, '#view=devices&device=through&drive=fwd');
+    check('B.1 Through Forward: "|b2|² = 1.0" above "b2 = 1.00∠−90°", clear of "Port 2"', await page.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect();
+      const p = R('pb2'), w = R('wb2'), port = [...document.querySelectorAll('#stage .port')][1].getBoundingClientRect();
+      return p.bottom <= w.top && !(p.left < port.right && port.left < p.right && p.top < port.bottom && port.top < p.bottom) && document.getElementById('pb2').textContent === '|b2|² = 1.0'; }));
+    check('B.2 no S value inside the box; each name tag once', await page.evaluate(() => ['s11', 's21', 's12', 's22'].every(k => document.getElementById('v' + k).textContent === 'S' + k.slice(1))
+      && [...document.querySelectorAll('#stage svg text')].filter(t => /^S(11|21|12|22)$/.test(t.textContent) && !t.closest('.matrix')).length === 4));
+    await goto(page, '#view=devices&device=through&drive=rev');
+    check('B.1 Through Reverse: "|b1|² = 1.0" below "b1 = 1.00∠−90°"', await page.evaluate(() => document.getElementById('pb1').getBoundingClientRect().top >= document.getElementById('wb1').getBoundingClientRect().bottom));
+    // B.3 colours: b wires, labels, power line and entries the text colour; a grey; S entries their path colours — the same in Forward and Reverse, both themes
+    const cols = () => page.evaluate(() => { const c = e => getComputedStyle(e).fill, body = getComputedStyle(document.body).color;
+      const b = ['wb1', 'wb2', 'n_b1', 'n_b2'].map(id => c(document.getElementById(id))).concat([...document.querySelectorAll('#stage .wave[data-q^="b"] path')].map(e => e.getAttribute('stroke') === 'var(--txt)' ? body : 'x'));
+      const a = ['wa1', 'wa2', 'n_a1', 'n_a2'].map(id => document.getElementById(id).getAttribute('fill'));
+      const sOk = ['s11', 's21', 's12', 's22'].every(k => document.getElementById('n_' + k).getAttribute('fill') === 'var(--' + k + ')' && document.getElementById('v' + k).getAttribute('fill') === 'var(--' + k + ')');
+      const pw = document.querySelector('#stage .plabel'); return { b: b.every(x => x === body) && c(pw) === body, a: a.every(x => x === 'var(--grey)'), sOk, body }; });
+    const C = [];
+    for(const th of ['light', 'dark']){ for(const dr of ['fwd', 'rev']){ await goto(page, '#view=devices&device=custom&drive=' + dr); C.push([th, dr, await cols()]); } await page.keyboard.press('t'); await page.waitForTimeout(60); }
+    await page.keyboard.press('t');
+    check('B.3 b₁, b₂ (wires, labels, power line, entries) in the text colour, a₁, a₂ grey, S entries in path colours — Forward and Reverse, both themes', C.every(([, , x]) => x.a && x.b && x.sOk) && C[0][2].body !== C[2][2].body, C);
     await ctx.close(); }
 
   console.log('Devices layout (v1.3.0 items 1, 6)');
@@ -319,21 +401,31 @@ const alignIssues = page => page.evaluate(() => {
   { const { ctx, page } = await open(browser);
     await present(page); await goto(page, '#view=cascade');
     const ids = async pre => Promise.all([0, 1, 2, 3].map(k => text(page, '#' + pre + k)));
-    check('forward power at junctions 0…3: 1.0, 10, 5.0, 4.6', JSON.stringify(await ids('fwd')) === '["1.0","10","5.0","4.6"]', await ids('fwd'));
-    const r = await ids('refl');
-    check('reflected power at junctions 1…3: 0.17, 0.34, 0.51; at the source: 0', JSON.stringify(r) === '["back to source 0","0.17","0.34","0.51"]', r);
+    const dt = async pre => page.evaluate(pre => [0, 1, 2, 3].map(k => { const e = document.getElementById(pre + k); return e ? e.dataset.text : null; }), pre);
+    const budget = () => page.evaluate(() => [0, 1, 2].map(i => [...document.querySelectorAll('#bud' + i + ' text')].map(t => t.textContent).join(' / ')));
+    const C5 = async (name, fwd, refl, ar, rere) => {
+      const f = await ids('fwd'), r = await dt('refl'), a = (await dt('ar')).slice(0, 3), b = await budget(), tot = await text(page, '#budTotal'), rc = await text(page, '#rereCap');
+      check('C.5 ' + name + ': forward ' + fwd.join(' / ') + '; reflected ' + refl.join(' / ') + '; arithmetic ' + ar.join('; ') + '; budget',
+        JSON.stringify(f) === JSON.stringify(fwd.map(x => x + ' × input')) && JSON.stringify(r) === JSON.stringify(refl) && JSON.stringify(a) === JSON.stringify(ar)
+        && JSON.stringify(b) === JSON.stringify(['+10.0 dB / = ×10', '−3.0 dB / = ×0.50', '−0.9 dB / = ×0.81']) && tot === '+10.0 − 3.0 − 0.9 = +6.1 dB delivered to load'
+        && (rere ? rc === '↺ forward power here includes waves reflected back from later in the chain.' : rc === null), { f, r, a, b, tot, rc }); };
+    check('heading "Forward power at each junction (input power = 1)"; the thickness caption under it', (await stageTexts(page)).includes('Forward power at each junction (input power = 1)')
+      && /^reflected arrows drawn [\d.]+× thicker$/.test(await text(page, '#thickCap')));
+    await C5('100 Ω load', ['1', '10', '5.0', '4.6'], ['back to source 0', '0.17 × input', '0.34 × input', '0.51 × input'], ['1 × 10 = 10', '10 × 0.50 = 5.0', '× 0.81 ↺'], true);
+    await click(page, '#lMatch');
+    await C5('matched load', ['1', '10', '5.0', '4.1'], ['back to source 0', '0.10 × input', '0.20 × input', '0'], ['1 × 10 = 10', '10 × 0.50 = 5.0', '5.0 × 0.81 = 4.1'], false);
+    check('matched load: no overlaps; alignment ±6 px', (await overlapIssues(page)).length === 0 && (await alignIssues(page)).length === 0, (await overlapIssues(page)).concat(await alignIssues(page)));
+    await setInput(page, '#loadZ', '100');
     const al = await alignIssues(page);
     check('alignment: each reflected arrow and value centred under its junction, each budget value under its block (±6 px)', al.length === 0, al);
     check('band height ∝ forward power; reflected arrows ∝ |b|², exaggerated by the factor the caption states', await page.evaluate(() => {
       const f = [0, 1, 2, 3].map(k => document.querySelector('[data-q="fwd' + k + '"]')), ok1 = f.every(e => Math.abs(+e.dataset.th - +e.dataset.v * +e.dataset.ref) < 0.02);
       const b = [1, 2, 3].map(k => document.querySelector('[data-q="refl' + k + '"]')), ok2 = b.every(e => Math.abs(+e.dataset.th - +e.dataset.v * +e.dataset.ref) < 0.02);
-      const m = /drawn ([\d.]+)× thicker/.exec(document.querySelector('.caption').textContent), sc = +f[0].dataset.ref;
+      const m = /drawn ([\d.]+)× thicker/.exec(document.getElementById('thickCap').textContent), sc = +f[0].dataset.ref;
       return ok1 && ok2 && !!m && b.every(e => Math.abs(+e.dataset.ref / sc - +m[1]) < 0.051); }));
     const lines = await page.$$eval('#chainS .sline', l => l.map(x => x.textContent));
     check('whole chain: S21 2.01∠−45° (+6.1 dB), S11 0 (source sees a match), S22 0.20∠30°, S12 0',
       JSON.stringify(lines) === JSON.stringify(['S212.01∠−45° (+6.1 dB)', 'S110 (source sees a match)', 'S220.20∠30°', 'S120']), lines);
-    check('budget: +10.0, −3.0, −0.9, = +6.1 dB delivered to load', JSON.stringify(await Promise.all(['#bud0', '#bud1', '#bud2', '#budTotal'].map(s => text(page, s))))
-      === JSON.stringify(['+10.0 dB', '−3.0 dB', '−0.9 dB', '= +6.1 dB']));
     check('blocks show type and key value', JSON.stringify(await page.$$eval('#stage .keyv', e => e.map(x => x.textContent))) === JSON.stringify(['+10 dB', '−3 dB', '−0.9 dB']));
     await page.click('#stage [data-blk="1"]'); await page.waitForTimeout(60);
     check('clicking a block selects it and opens its editor', (await text(page, '#panel .sec')) === 'Block 2 · Attenuator' && (await page.getAttribute('#stage [data-blk="1"]', 'aria-pressed')) === 'true');
@@ -355,16 +447,16 @@ const alignIssues = page => page.evaluate(() => {
     await page.click('#stage [data-del="3"]'); await page.waitForTimeout(60);
     check('× removes a block; the "+" is enabled again and still clear', (await page.$$('#stage [data-blk]')).length === 3 && !(await page.getAttribute('#stage [data-add]', 'aria-disabled')) && (await plusIssues(page)).length === 0);
     await click(page, '#lShort');
-    check('Short load: −∞ dB delivered; Load shows 0 Ω', (await text(page, '#budTotal')) === '= −∞ dB' && (await text(page, '#loadVal')) === '0 Ω');
+    check('Short load: the block sum and G_T differ, so both are shown: "blocks: +3.1 dB · delivered to load: −∞ dB"; Load shows 0 Ω', (await text(page, '#budTotal')) === 'blocks: +3.1 dB · delivered to load: −∞ dB' && (await text(page, '#loadVal')) === '0 Ω', await text(page, '#budTotal'));
     await click(page, '#lOpen');
-    check('Open load: Load shows ∞; −∞ dB delivered', (await text(page, '#loadVal')) === '∞' && (await text(page, '#budTotal')) === '= −∞ dB');
+    check('Open load: Load shows ∞; −∞ dB delivered', (await text(page, '#loadVal')) === '∞' && (await text(page, '#budTotal')) === 'blocks: +3.1 dB · delivered to load: −∞ dB');
     await ctx.close(); }
 
   console.log('Overlaps, sizes and layout');
   const states = async (page, fn) => { for(const hs of STOPS.concat(REV_STOPS)){ await goto(page, hs); await fn(hs); }
-    await goto(page, '#view=reflections');
-    for(const b of ['#bShort', '#bOpen', '#bMatch']){ await click(page, b); await fn('reflections ' + b); }
-    await setInput(page, '#z02Box', '52', 'change'); await fn('reflections Z02 = 52');
+    for(const vr of ['1', '0']){ await goto(page, '#view=reflections&vr=' + vr);
+      for(const z of ['150', '16.7', '50', '0', 'open', '52']){ await setInput(page, '#z02Box', z, 'change'); await fn('reflections Z02 = ' + z + ', vr=' + vr); } }
+    await goto(page, '#view=reflections&vr=1'); await setInput(page, '#z02Box', '150', 'change');
     await goto(page, '#view=devices&device=iso'); await setInput(page, '#isoI', '20'); await fn('isolator 20 dB');
     await goto(page, '#view=devices&device=amp'); await setInput(page, '#gain', '30'); await fn('amplifier 30 dB');
     await goto(page, '#view=devices&device=custom'); await setInput(page, '#cs11a', '-180'); await setInput(page, '#cs11', '1.25'); await fn('custom S11 1.25∠180°');
@@ -375,15 +467,20 @@ const alignIssues = page => page.evaluate(() => {
     await goto(page, '#view=devices&device=custom&drive=fwd'); for(const k of ['s11', 's21', 's22']) await setInput(page, '#c' + k, '0.98'); await fn('custom all |S| 0.98');
     await click(page, '#drive_rev'); await fn('custom all |S| 0.98, reverse'); await click(page, '#drive_fwd');
     await goto(page, '#view=cascade'); await page.click('#stage [data-blk="2"]'); await page.waitForTimeout(60); await fn('cascade, Custom block selected');
+    await click(page, '#lMatch'); await fn('cascade, matched load'); await setInput(page, '#loadZ', '100');
+    await page.keyboard.press('t'); await page.waitForTimeout(60); await fn('cascade, dark'); await goto(page, '#view=devices&device=custom&drive=fwd'); await fn('devices custom, dark');
+    await goto(page, '#view=reflections&vr=1'); await fn('reflections, dark'); await page.keyboard.press('t'); await page.waitForTimeout(60); await goto(page, '#view=cascade');
     await page.click('#stage [data-add]'); await page.waitForTimeout(60); await click(page, '#add_amp'); await fn('cascade, 4 blocks');
     await page.click('#stage [data-del="3"]'); await page.waitForTimeout(60); };
   for(const [vw, label, f, pres] of [[{ width: 1280, height: 720 }, 'presentation 1280×720', 1, true], [{ width: 1920, height: 1080 }, 'presentation 1920×1080', 1.5, true],
                                      [{ width: 1366, height: 768 }, 'windowed 1366×768', 1, false]]){
     const { ctx, page, log } = await open(browser, { viewport: vw });
     if(pres) await present(page);
-    const ov = [], sz = [], lay = [];
-    await states(page, async st => { (await overlapIssues(page)).forEach(x => ov.push(st + ': ' + x)); if(pres) (await sizeIssues(page, f)).forEach(x => sz.push(st + ': ' + x)); (await layoutIssues(page)).forEach(x => lay.push(st + ': ' + x)); });
-    check(label + ': no text overlaps a drawn element or another label (every view, device and the check case)', ov.length === 0, ov.slice(0, 12));
+    const ov = [], sz = [], lay = [], ed = [];
+    await states(page, async st => { (await overlapIssues(page)).forEach(x => ov.push(st + ': ' + x)); if(pres) (await sizeIssues(page, f)).forEach(x => sz.push(st + ': ' + x)); (await layoutIssues(page)).forEach(x => lay.push(st + ': ' + x));
+      (await edgeIssues(page)).forEach(x => ed.push(st + ': ' + x)); });
+    check(label + ': no text overlaps a drawn element or another label (every view, device, both C.5 chains, Reflections 5 cases with the switch on and off)', ov.length === 0, ov.slice(0, 12));
+    check(label + ': every label ≥ 16 px from the screen edges and the drawing/panel divider (all views)', ed.length === 0, ed.slice(0, 12));
     if(pres) check(label + ': labels ≥ ' + MIN_LABEL * f + ' px, headlines ' + HEAD * f + ' px', sz.length === 0, sz.slice(0, 8));
     check(label + ': no page scroll, no panel overflow', lay.length === 0, lay.slice(0, 8));
     check(label + ': no console errors', log.console.length === 0, log.console);
@@ -428,14 +525,19 @@ const alignIssues = page => page.evaluate(() => {
 
   console.log('Animation');
   { const { ctx, page } = await open(browser);
-    const d = () => page.getAttribute('#snap', 'd');
-    const a = await d(); await page.waitForTimeout(250);
-    check('snapshot wave moves', a !== await d());
+    const d = () => page.evaluate(() => ['vInc', 'vRef', 'vTot', 'vTr'].map(id => document.getElementById(id).getAttribute('d')));
+    const a = await d(); await page.waitForTimeout(250); const a2 = await d();
+    check('all four Reflections curves move', a.every((x, i) => x !== a2[i]));
     await page.keyboard.press('p'); await page.waitForTimeout(50); const b = await d(); await page.waitForTimeout(250);
-    check('P pauses it', b === await d());
+    check('P pauses all four curves', JSON.stringify(b) === JSON.stringify(await d()));
+    await page.keyboard.press('p'); await page.waitForTimeout(50);
+    await page.evaluate(() => { Object.defineProperty(document, 'hidden', { value: true, configurable: true }); Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange')); window.__raf = 0; const r = window.requestAnimationFrame; window.requestAnimationFrame = f => { window.__raf++; return r(f); }; });
+    await page.waitForTimeout(80); const h0 = await d(), n0 = await page.evaluate(() => window.__raf); await page.waitForTimeout(250);
+    check('hidden tab: no animation frames requested, curves still', JSON.stringify(h0) === JSON.stringify(await d()) && (await page.evaluate(() => window.__raf)) === n0);
     await ctx.close();
-    const r = await open(browser, { reducedMotion: 'reduce' }); const c = await r.page.getAttribute('#snap', 'd'); await r.page.waitForTimeout(250);
-    check('reduced motion loads paused', c === await r.page.getAttribute('#snap', 'd') && (await r.page.textContent('#pauseBtn')) === 'Play');
+    const r = await open(browser, { reducedMotion: 'reduce' }); const c = await r.page.getAttribute('#vTot', 'd'); await r.page.waitForTimeout(250);
+    check('reduced motion loads paused (static curves)', c === await r.page.getAttribute('#vTot', 'd') && (await r.page.textContent('#pauseBtn')) === 'Play');
     await r.ctx.close(); }
 
   if(SHOTS){
@@ -443,23 +545,24 @@ const alignIssues = page => page.evaluate(() => {
     const { ctx, page } = await open(browser, { reducedMotion: 'reduce' }); await present(page);
     const shot = async name => { await page.waitForTimeout(120); await page.screenshot({ path: path.join(SHOT_DIR, name + '.png') }); console.log('  wrote ' + name + '.png'); };
     fs.readdirSync(SHOT_DIR).filter(f => f.endsWith('.png')).forEach(f => fs.unlinkSync(path.join(SHOT_DIR, f)));
-    await goto(page, '#view=reflections'); await setInput(page, '#z02Box', '150', 'change'); await shot('view1_reflections_Z02_150');
-    // the v1.3.0 check table, one screenshot per row (names match the mock-up SVGs d_*.svg), plus one in the dark theme
     const blur = () => page.evaluate(() => document.activeElement && document.activeElement.blur());
-    await goto(page, '#view=devices&device=through&drive=fwd'); await shot('d_through');
-    await goto(page, '#view=devices&device=atten&drive=fwd'); await shot('d_atten');
-    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '3'); await blur(); await shot('d_amp3');
-    await setInput(page, '#gain', '10'); await blur(); await shot('d_amp10');
-    await goto(page, '#view=devices&device=amp&drive=rev'); await shot('d_amp_rev');
-    await goto(page, '#view=devices&device=iso&drive=fwd'); await shot('d_iso');
-    await goto(page, '#view=devices&device=custom&drive=fwd'); await shot('d_custom');
-    await page.keyboard.press('t'); await page.waitForTimeout(80); await shot('d_custom_dark'); await page.keyboard.press('t');
-    for(const d of ['through', 'custom']){ await goto(page, '#view=devices&device=' + d + '&drive=rev'); await shot('view2_devices_' + d + '_reverse'); }
-    await goto(page, '#view=devices&device=through&drive=fwd');
-    await goto(page, '#view=cascade'); await shot('view3_cascade_check_case');
-    await page.click('#stage [data-add]'); await page.waitForTimeout(60); await click(page, '#add_iso'); await shot('view3_cascade_4_blocks');
-    await page.click('#stage [data-del="3"]'); await page.waitForTimeout(60); await shot('view3_cascade_4_blocks_then_remove_one');
-    await goto(page, '#view=reflections'); await page.keyboard.press('t'); await page.waitForTimeout(80); await shot('dark_reflections_version_stamp');
+    // v1.4.0: each A.6 row, and Z02 = 150 with the switch off
+    await goto(page, '#view=reflections&vr=1');
+    for(const [z, n] of [['150', '150'], ['16.7', '16_7'], ['50', 'matched'], ['0', 'short'], ['open', 'open']]){ await setInput(page, '#z02Box', z, 'change'); await blur(); await shot('a6_reflections_' + n); }
+    await setInput(page, '#z02Box', '150', 'change'); await page.click('#showVR'); await blur(); await shot('a6_reflections_150_switch_off'); await page.click('#showVR');
+    // Devices
+    await goto(page, '#view=devices&device=through&drive=fwd'); await shot('b_devices_through_forward');
+    await goto(page, '#view=devices&device=through&drive=rev'); await shot('b_devices_through_reverse');
+    await goto(page, '#view=devices&device=atten&drive=fwd'); await shot('b_devices_atten_3dB');
+    await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '10'); await blur(); await shot('b_devices_amp_10dB');
+    await goto(page, '#view=devices&device=custom&drive=fwd'); await shot('b_devices_custom_forward');
+    // Cascade, both C.5 chains
+    await goto(page, '#view=cascade'); await shot('c_cascade_100ohm'); await click(page, '#lMatch'); await blur(); await shot('c_cascade_matched'); await setInput(page, '#loadZ', '100'); await blur();
+    // dark theme
+    await page.keyboard.press('t'); await page.waitForTimeout(80);
+    await goto(page, '#view=reflections&vr=1'); await setInput(page, '#z02Box', '150', 'change'); await blur(); await shot('dark_reflections_150');
+    await goto(page, '#view=devices&device=custom&drive=fwd'); await shot('dark_devices_custom');
+    await goto(page, '#view=cascade'); await shot('dark_cascade_100ohm');
     await page.keyboard.press('t');
     await ctx.close();
   }

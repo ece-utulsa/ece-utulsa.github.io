@@ -20,9 +20,13 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.3.0'
-RELEASED = '2026-10-18'
-CHANGELOG = ('\n    v1.3.0 - Devices: two-port redrawn as straight power-tapered lanes (S21 top, S12 bottom) with reflection '
+VERSION = '1.4.0'
+RELEASED = '2026-10-19'
+CHANGELOG = ('\n    v1.4.0 - Reflections: titled power panel; voltage panel with incident, reflected, total and transmitted waves '
+             '(Region 2 to ∞) and V⁺ + V⁻ = Vₜ readout; signed Γ and τ. Devices: S values moved into a numeric matrix row; '
+             'power line clear of the port labels; waves neutral/text colour, path colours for S only. Cascade: junction '
+             'powers labelled × input; dB with power factor; river arithmetic; budget shows dB adding.'
+             '\n    v1.3.0 - Devices: two-port redrawn as straight power-tapered lanes (S21 top, S12 bottom) with reflection '
              'U-turns; no text inside the box; labels outside.'
              '\n    v1.2.1 - Devices: power shown beside the driven wave (|b|²) and dB caption gives × power and × wave.'
              '\n    v1.2.0 - Three views (Reflections, Devices, Cascade); normalized waves a/b on Devices with forward/reverse '

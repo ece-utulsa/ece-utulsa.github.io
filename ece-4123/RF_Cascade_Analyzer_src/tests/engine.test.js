@@ -5,7 +5,7 @@
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const SRC = path.join(__dirname, '..');
 const ctx = {}; vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(SRC, 'engine.js'), 'utf8') + '\n;this.E = { C, cabs, carg, polar, gammaLoad, gammaInterface, vswr, powerSplit, envelope, extrema, OPEN_LOAD, zLoad, ' +
+vm.runInContext(fs.readFileSync(path.join(SRC, 'engine.js'), 'utf8') + '\n;this.E = { C, cabs, carg, polar, gammaLoad, gammaInterface, tauInterface, vswr, powerSplit, envelope, extrema, OPEN_LOAD, zLoad, ' +
   'combine, overallS, gammaIn, drive, solveCascade, solveDivider, properties, sigmaMax, TEACHING, galleryS, labPresetS, LAB_PRESETS, parseComplex, parseLoad, parseZ0, ' +
   'fmtMag, fmtAng, fmtPolar, fmtDb, dbOf, fmtPct, fmtVswr, wrapDeg };', ctx, { filename: 'engine.js' });
 const E = ctx.E;
@@ -32,6 +32,13 @@ t('E1 interface and E3 split at Z02 = 5, 25, 50, 150, 500 Ω', () => {
   for(const z of [5, 25, 50, 150, 500]){ const g = E.gammaInterface(50, z), p = E.powerSplit(Math.abs(g));
     near(g, (z - 50) / (z + 50)); near(p.refl + p.deliv, 1); }
   eq(E.fmtPct(E.powerSplit(0.5).refl), '25.0%');
+});
+t('v1.4.0 τ = 1 + Γ at an interface: 150, 16.7, 50 Ω, short, open', () => {
+  near(E.tauInterface(50, 150), 1.5, 1e-12); near(E.tauInterface(50, 50 / 3), 0.5, 1e-12); near(E.tauInterface(50, 50), 1, 1e-12);
+  near(E.tauInterface(50, 0), 0, 1e-12); eq(E.tauInterface(50, Infinity), 2);
+  for(const z of [5, 25, 75, 500]) near(E.tauInterface(50, z), 1 + E.gammaInterface(50, z), 1e-15);
+  // power balance: transmitted power τ²·Z01/Z02 = 1 − Γ²
+  for(const z of [16.7, 150, 500]){ const g = E.gammaInterface(50, z), t = E.tauInterface(50, z); near(t * t * 50 / z, 1 - g * g, 1e-12); }
 });
 t('E2 / PF-3: VSWR, ∞ at |Γ| = 1, undefined above 1', () => {
   near(E.vswr(1 / 3).v, 2); eq(E.fmtVswr(1), '∞'); eq(E.fmtVswr(E.cabs(E.gammaLoad(Z(0, 50), 50))), '∞');

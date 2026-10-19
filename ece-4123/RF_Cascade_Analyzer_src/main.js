@@ -22,7 +22,7 @@ const VIEW = {
   devices: { draw: drawDevices, panel: panelDevices, sync: syncDevices },
   cascade: { draw: drawCascade, panel: panelCascade, sync: syncCascade },
 };
-const HASH_RE = /^#?view=(reflections|devices|cascade)(?:&device=(through|atten|amp|iso|custom)(?:&drive=(fwd|rev))?)?$/;
+const HASH_RE = /^#?view=(reflections|devices|cascade)(?:&device=(through|atten|amp|iso|custom)(?:&drive=(fwd|rev))?)?(?:&vr=([01]))?$/;
 const TEXT_TYPES = ['text', 'number', 'search', 'email', 'url', 'tel', 'password'];
 // ── END CONSTANTS ─────────────────────────────────────────────
 
@@ -72,9 +72,9 @@ function renderTop(){
 const STOPS = [['reflections', null]].concat(DEVICES.map(d => ['devices', d]), [['cascade', null]]);
 // Index of the current stop.
 const stopIndex = () => STOPS.findIndex(([v, d]) => v === app.view && (d === null || d === D.dev));
-// Show view v (and device d and drive r in Devices).
-function show(v, d, r){
-  if(d) D.dev = d; if(r) D.drive = r;
+// Show view v (and device d and drive r in Devices; vr: show the incident and reflected curves in Reflections, '1' or '0').
+function show(v, d, r, vr){
+  if(d) D.dev = d; if(r) D.drive = r; if(vr) R.vr = vr === '1';
   const changed = v !== app.view; app.view = v; K.menu = false;
   if(changed) $('panel').replaceChildren();
   redraw(true); syncHash();
@@ -84,11 +84,11 @@ function next(){ const i = stopIndex(); if(i < STOPS.length - 1) show(...STOPS[i
 function prev(){ const i = stopIndex(); if(i > 0) show(...STOPS[i - 1]); }
 // Mirror the view (and device) in the URL hash without adding history entries.
 function syncHash(){
-  const want = '#view=' + app.view + (app.view === 'devices' ? '&device=' + D.dev + '&drive=' + D.drive : '');
+  const want = '#view=' + app.view + (app.view === 'devices' ? '&device=' + D.dev + '&drive=' + D.drive : '') + (app.view === 'reflections' ? '&vr=' + (R.vr ? 1 : 0) : '');
   if(location.hash !== want) history.replaceState(null, '', want);
 }
-// [view, device, drive] from the URL hash, or null.
-function readHash(){ const m = HASH_RE.exec(location.hash); return m ? [m[1], m[2] || null, m[3] || null] : null; }
+// [view, device, drive, vr] from the URL hash, or null.
+function readHash(){ const m = HASH_RE.exec(location.hash); return m ? [m[1], m[2] || null, m[3] || null, m[4] || null] : null; }
 // ── END NAVIGATION ────────────────────────────────────────────
 
 // ── ANIMATION ─────────────────────────────────────────────────
@@ -204,11 +204,11 @@ function start(){
   document.addEventListener('keydown', onKey, true);
   document.addEventListener('fullscreenchange', onFullscreenChange);
   document.addEventListener('visibilitychange', syncAnim);
-  window.addEventListener('hashchange', () => { const hs = readHash(); if(hs) show(hs[0], hs[1], hs[2]); });
+  window.addEventListener('hashchange', () => { const hs = readHash(); if(hs) show(...hs); });
   let rz = 0; new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(relayout); }).observe($('stage'));
   updateSizes(false); applyTheme();
   setPaused(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const hs = readHash(); show(hs ? hs[0] : 'reflections', hs ? hs[1] : null, hs ? hs[2] : null);
+  const hs = readHash(); show(...(hs || ['reflections', null, null, null]));
 }
 start();
 // ── END START-UP ──────────────────────────────────────────────
