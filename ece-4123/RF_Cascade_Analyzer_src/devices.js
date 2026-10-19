@@ -28,15 +28,16 @@ const W0 = 16;                   // lane width for power 1 (the input); a path's
 const W_CAP = 3;                 // widths above 3 W0 are capped and drawn with a break mark
 const U_MIN = 2;                 // a U-turn's stroke is never thinner than this
 /* Layout (design units = px at 1280×720). The matrix rows and badges are stacked from the bottom up (gaps as in v1.2.0:
-   badges 12 above the bottom, the numeric row 12 above the badges); the box takes the height left above them.
-   Inside the box the S21 lane runs laneT below its top and the S12 lane laneB above its bottom, leaving room for their
-   tags even at the 3 W0 cap; the U-turns span uHalf above and below the port point (the box's middle), in line with the
-   wave arrows. The box is at most boxMax tall; in a taller drawing the whole stack is centred. Outside: the
-   port line from the edge to the box; the wave arrows (arrowL long) wOff above / below it, ending armGap from the box;
-   their labels labOff further out (and labIn further from the box, clear of a thick U-turn), the power line pwrGap
-   beyond its label; "Port 1/2" just under the line's outer end. */
-const LY_D = { xl: 240, xr: 660, top: 8, laneT: 70, laneB: 66, edge: 16, uDepth: 80, uHalf: 14, boxMax: 440, tagGap: 10, badgeH: 32, gapEdge: 12,
-               numHalf: 30, gapNum: 12, matHalf: 36, gapMat: 10, gapBox: 16, wOff: 14, arrowL: 120, armGap: 8, labIn: 8, labOff: 22, pwrGap: 28, portDown: 18 };
+   badges 12 above the bottom, the numeric row 12 above the badges); the box takes the height left above them (at most
+   boxMax; in a taller drawing the whole stack is centred). The two-port as a signal-flow graph: each port is two
+   terminal wires (dots at the outer ends) in line with the paths inside — the top wires at the S21 lane (laneT below
+   the box top), the bottom wires at the S12 lane (laneB above its bottom) — so S21 runs port 1 top → port 2 top, S12
+   port 2 bottom → port 1 bottom, S11 loops port 1 top → bottom (uEnd inside the corners) and S22 port 2 bottom → top.
+   Waves: a1 in above port 1's top wire, b1 out below its bottom wire; b2 out above port 2's top wire, a2 in below its
+   bottom wire; arrows arrowL long, wOff from the wire, ending armGap from the box; labels labOff further out, the power
+   line pwrGap beyond its label; "Port 1/2" above the top wire at the outer end (portUp). */
+const LY_D = { xl: 240, xr: 660, top: 8, laneT: 80, laneB: 72, edge: 16, uDepth: 80, uEnd: 12, boxMax: 400, tagGap: 10, badgeH: 32, gapEdge: 12,
+               numHalf: 30, gapNum: 12, matHalf: 36, gapMat: 10, gapBox: 16, termR: 5, wOff: 14, arrowL: 120, armGap: 8, labOff: 30, pwrGap: 28, portUp: 20 };
 // Vertical positions for a drawing H units tall: box top, badge, numeric row and matrix centres, box bottom.
 function geoD(H){
   const L = LY_D, stack = L.gapEdge + L.badgeH + L.gapNum + 2 * L.numHalf + L.gapMat + 2 * L.matHalf + L.gapBox;
@@ -130,40 +131,43 @@ function uTurnSvg(k, xe, yIn, yOut, m){
     + el('path', { d: 'M' + n2(xt) + ' ' + n2(yOut) + 'L' + n2(xe + d * 6) + ' ' + n2(yOut - w / 2 - 8) + 'L' + n2(xe + d * 6) + ' ' + n2(yOut + w / 2 + 8) + 'Z', fill: col, class: 'uhead' }),
     reach: LY_D.uDepth * 0.75 + w / 2 };
 }
-/* The two-port for device kind/params p in a drawing H units tall: a plain box holding the S21 and S12 lanes and the S11,
-   S22 U-turns with their name tags (no values: those are in the matrix); outside it one solid port line per side at the
-   box's middle, the wave arrows beside it with their labels, the driven output's power line, and "Port 1", "Port 2". */
+/* The two-port for device kind/params p in a drawing H units tall, as a signal-flow graph: a plain box holding the S21 and
+   S12 lanes and the S11, S22 loops with their name tags (no values: those are in the matrix), joined to the ports' two
+   terminal wires; outside it the wave arrows beside the wires with their labels, the driven output's power line, and
+   "Port 1", "Port 2" above the wires. */
 function drawTwoPort(H, kind, p){
   const S = deviceS(kind, p), w = deviceWaves(S), on = DRIVE_PATHS[D.drive], fwd = D.drive === 'fwd', L = LY_D, G = geoD(H);
-  const xl = L.xl, xr = L.xr, by = G.by, bb = G.bb, yT = by + L.laneT, yB = bb - L.laneB, mid = (by + bb) / 2, cx = (xl + xr) / 2;
+  const xl = L.xl, xr = L.xr, by = G.by, bb = G.bb, yT = by + L.laneT, yB = bb - L.laneB, mid = (yT + yB) / 2, cx = (xl + xr) / 2;
   const M = k => cabs(S[k]), op = k => (on.includes(k) ? null : FADE), wEnd = k => (M(k) < S_BLOCK ? 0 : pathW(M(k) ** 2));
   let s = el('rect', { x: xl, y: by, width: xr - xl, height: bb - by, rx: 14, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 3, class: 'box' });
-  // paths: the faded ones first so the driven ones sit on top; the U-turns at the port points
-  const u11 = uTurnSvg('s11', xl + 2, mid - L.uHalf, mid + L.uHalf, M('s11')), u22 = uTurnSvg('s22', xr - 2, mid + L.uHalf, mid - L.uHalf, M('s22'));
+  // paths: S21 a1 → b2 along the top, S12 a2 → b1 along the bottom, S11 a1 → b1 down the left, S22 a2 → b2 up the right;
+  // the faded ones first so the driven ones sit on top
+  const u11 = uTurnSvg('s11', xl + 2, yT + L.uEnd, yB - L.uEnd, M('s11')), u22 = uTurnSvg('s22', xr - 2, yB - L.uEnd, yT + L.uEnd, M('s22'));
   const l21 = laneSvg('s21', xl, xr, yT, M('s21')), l12 = laneSvg('s12', xr, xl, yB, M('s12')), parts = { s21: l21.svg, s12: l12.svg, s11: u11.svg, s22: u22.svg };
   S_KEYS.slice().sort((a, b) => on.includes(a) - on.includes(b)).forEach(k => { s += el('g', { class: 'pathg ' + k, 'data-s': k, 'data-live': on.includes(k) ? 1 : 0, opacity: op(k) }, parts[k]); });
   s += l21.mark + l12.mark;
   // S name tags, tagGap clear of the paths at their widest: S21 above the top lane and S12 below the bottom lane (a
   // lane's widest point is its arrowhead, 9 beyond the lane on each side; a blocked lane is a W0 wedge), S11 right of
-  // its U-turn and S22 left of its U-turn (which start 2 inside the box edge), at the port point
+  // its loop and S22 left of its loop (which start 2 inside the box edge), halfway down
   const half = FS.big * 0.65, edge = k => (M(k) < S_BLOCK ? W0 / 2 : Math.max(W0 / 2, Math.max(wEnd(k), 4) / 2 + 9));
   const lab = (k, x, y, anchor) => txt(x, y, 'S_' + k.slice(1), { anchor, size: FS.big, fill: 'var(--' + k + ')', cls: 'slabel', id: 'v' + k });
   s += lab('s21', cx, yT - edge('s21') - L.tagGap - half, 'middle') + lab('s12', cx, yB + edge('s12') + L.tagGap + half, 'middle');
   s += lab('s11', xl + 2 + u11.reach + L.tagGap, mid, 'start') + lab('s22', xr - 2 - u22.reach - L.tagGap, mid, 'end');
-  // port lines: one solid line per side at the middle, from the edge to the box, never faded
-  const xL = L.edge, xR = DESIGN_W - L.edge, line = (x0, x1, port) => el('line', { x1: x0, y1: mid, x2: x1, y2: mid, stroke: 'var(--txt)', 'stroke-width': 3, class: 'portline', 'data-port': port });
-  s += line(xL, xl, 1) + line(xr, xR, 2);
-  // wave arrows beside the port lines (a grey, b text colour) and their labels on the outer side; the driven output bold
-  const aU = mid - L.wOff, aD = mid + L.wOff, p1 = xl - L.armGap, p2 = xr + L.armGap, t1 = p1 - L.labIn, t2 = p2 + L.labIn, col = n => (n[0] === 'a' ? 'var(--grey)' : 'var(--txt)');
+  // each port's two terminal wires, in line with the lanes, from a terminal dot at the outer end to the box; never faded
+  const xL = L.edge, xR = DESIGN_W - L.edge, wire2 = (x0, x1, y, port, xd) => el('line', { x1: x0, y1: y, x2: x1, y2: y, stroke: 'var(--txt)', 'stroke-width': 3, class: 'portline', 'data-port': port })
+    + el('circle', { cx: xd, cy: y, r: L.termR, fill: 'var(--txt)', class: 'term' });
+  for(const y of [yT, yB]) s += wire2(xL + L.termR, xl, y, 1, xL + L.termR) + wire2(xr, xR - L.termR, y, 2, xR - L.termR);
+  // wave arrows beside the wires (a grey, b text colour) and their labels on the outer side; the driven output bold
+  const aU = yT - L.wOff, aD = yB + L.wOff, p1 = xl - L.armGap, p2 = xr + L.armGap, col = n => (n[0] === 'a' ? 'var(--grey)' : 'var(--txt)');
   const wire = (x0, x1, y, name) => lineArrow(x0, x1, y, col(name), cabs(w[name]) < S_ZERO, name, cabs(w[name]));
   const wlab = (name, x, y, anchor, big) => txt(x, y, name.replace(/(\d)$/, '_$1') + ' = ' + waveText(w[name]), { anchor, fill: col(name), size: big ? FS_OUT : FS.label, weight: big ? 700 : 600, cls: 'wlabel' + (big ? ' out' : ''), id: 'w' + name });
   const plab = (name, x, y, anchor) => txt(x, y, '|' + name.replace(/(\d)$/, '_$1') + '|² = ' + (cabs(w[name]) < S_ZERO ? '0' : sig2(cabs(w[name]) ** 2)), { anchor, fill: 'var(--txt)', size: FS.label, weight: 400, cls: 'plabel', id: 'p' + name });
-  s += wire(p1 - L.arrowL, p1, aU, 'a1') + wlab('a1', t1, aU - L.labOff, 'end', false);
-  s += wire(p1, p1 - L.arrowL, aD, 'b1') + wlab('b1', t1, aD + L.labOff, 'end', !fwd);
-  s += wire(p2, p2 + L.arrowL, aU, 'b2') + wlab('b2', t2, aU - L.labOff, 'start', fwd);
-  s += wire(p2 + L.arrowL, p2, aD, 'a2') + wlab('a2', t2, aD + L.labOff, 'start', false);
-  s += fwd ? plab('b2', t2, aU - L.labOff - L.pwrGap, 'start') : plab('b1', t1, aD + L.labOff + L.pwrGap, 'end');
-  s += txt(xL, mid + L.portDown, 'Port 1', { fill: 'var(--mut)', weight: 400, cls: 'port' }) + txt(xR, mid + L.portDown, 'Port 2', { anchor: 'end', fill: 'var(--mut)', weight: 400, cls: 'port' });
+  s += wire(p1 - L.arrowL, p1, aU, 'a1') + wlab('a1', p1, aU - L.labOff, 'end', false);
+  s += wire(p1, p1 - L.arrowL, aD, 'b1') + wlab('b1', p1, aD + L.labOff, 'end', !fwd);
+  s += wire(p2, p2 + L.arrowL, aU, 'b2') + wlab('b2', p2, aU - L.labOff, 'start', fwd);
+  s += wire(p2 + L.arrowL, p2, aD, 'a2') + wlab('a2', p2, aD + L.labOff, 'start', false);
+  s += fwd ? plab('b2', p2, aU - L.labOff - L.pwrGap, 'start') : plab('b1', p1, aD + L.labOff + L.pwrGap, 'end');
+  s += txt(xL, yT - L.portUp, 'Port 1', { weight: 600, cls: 'port' }) + txt(xR, yT - L.portUp, 'Port 2', { anchor: 'end', weight: 600, cls: 'port' });
   return { svg: s, S, w, G };
 }
 // ── END TWO-PORT DRAWING ──────────────────────────────────────

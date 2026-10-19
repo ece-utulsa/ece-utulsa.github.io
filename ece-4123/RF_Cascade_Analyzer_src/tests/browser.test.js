@@ -122,8 +122,10 @@ const plusIssues = page => page.evaluate(() => {
 });
 // ── DEVICES LAYOUT ── on screen, in px: box → matrix ≥ 16; numeric row → badges ≥ 12; badges → bottom of the screen
 // ≥ 12; every label and both matrix rows ≥ 16 from the drawing's left edge and from the drawing/panel divider; inside
-// the box no text but the four S name tags, which stay inside it (v1.3.0 items 1, 6; v1.4.0 B.2); one solid port line
-// per side at the box's middle, from the edge to the box, never faded (v1.4.1 B.1); S tags ≥ 8 px clear of every lane
+// the box no text but the four S name tags, which stay inside it (v1.3.0 items 1, 6; v1.4.0 B.2); each port drawn as
+// the two-port symbol — two solid terminal wires from a terminal dot at the 16 px edge to the box, never faded, the top
+// wires in line with the S21 lane and the bottom wires with the S12 lane (v1.4.1 B.1, as revised by Douglas: the paths
+// join the ports, signal-flow style); S tags ≥ 8 px clear of every lane
 // and U-turn (v1.4.1 B.2); matrix entries ≤ 20 px, row 2 ≤ 16 px, badge text ≤ 16 px (v1.4.1 B.3).
 const devGapIssues = page => page.evaluate(() => {
   const bad = [], R = e => e.getBoundingClientRect(), sv = document.querySelector('#stage svg'), svg = R(sv), box = R(document.querySelector('#stage .box')), k = svg.width / sv.viewBox.baseVal.width;
@@ -133,12 +135,14 @@ const devGapIssues = page => page.evaluate(() => {
   g('numeric row→badges', Math.min(...badges.map(r => r.top)) - num.bottom, 12); g('badges→screen bottom', window.innerHeight - Math.max(...badges.map(r => r.bottom)), 12);
   g('matrix rows from left edge', Math.min(mat.left, num.left) - svg.left, 16); g('matrix rows from divider', svg.right - Math.max(mat.right, num.right), 16);
   g('row 1 → row 2', num.top - mat.bottom, 4);
-  const pl = [...document.querySelectorAll('#stage .portline')], mid = (box.top + box.bottom) / 2;
-  if(pl.length !== 2) bad.push('port lines: ' + pl.length);
+  const pl = [...document.querySelectorAll('#stage .portline')], cyOf = e => { const r = R(e); return (r.top + r.bottom) / 2; };
+  const yT = cyOf(document.querySelector('#stage .lane.s21')), yB = cyOf(document.querySelector('#stage .lane.s12'));
+  if(pl.length !== 4) bad.push('port wires: ' + pl.length);
+  if(document.querySelectorAll('#stage .term').length !== 4) bad.push('terminal dots: ' + document.querySelectorAll('#stage .term').length);
   pl.forEach(l => { const r = R(l), cs = getComputedStyle(l), port = l.dataset.port;
     if(cs.strokeDasharray !== 'none' || l.closest('[opacity]') || l.getAttribute('stroke') !== 'var(--txt)' || +l.getAttribute('stroke-width') !== 3) bad.push('port line ' + port + ' not solid');
-    if(Math.abs((r.top + r.bottom) / 2 - mid) > 1) bad.push('port line ' + port + ' off the middle');
-    if(port === '1' ? (Math.abs(r.left - svg.left - 16 * k) > 1 || Math.abs(r.right - box.left) > 2) : (Math.abs(svg.right - r.right - 16 * k) > 1 || Math.abs(r.left - box.right) > 2)) bad.push('port line ' + port + ' ends'); });
+    const y = (r.top + r.bottom) / 2; if(Math.min(Math.abs(y - yT), Math.abs(y - yB)) > 1) bad.push('port wire ' + port + ' not in line with a lane');
+    if(port === '1' ? (Math.abs(r.left - svg.left - 21 * k) > 1 || Math.abs(r.right - box.left) > 2) : (Math.abs(svg.right - r.right - 21 * k) > 1 || Math.abs(r.left - box.right) > 2)) bad.push('port line ' + port + ' ends'); });
   const inkR = [...document.querySelectorAll('#stage .lane, #stage .uturn, #stage .brk')].map(e => { const r = R(e), sw = parseFloat(getComputedStyle(e).strokeWidth) || 0, o = e.classList.contains('uturn') ? sw / 2 * k : 0;
     return { l: r.left - o, r: r.right + o, t: r.top - o, b: r.bottom + o }; });
   ['vs11', 'vs21', 'vs12', 'vs22'].forEach(id => { const t = R(document.getElementById(id));
@@ -340,13 +344,17 @@ const alignIssues = page => page.evaluate(() => {
     check('inside the box: only the four S labels (no "Two-Port", dB caption, ruler or isolator text)', noText === 'vs11,vs12,vs21,vs22', noText);
     check('the box is a plain rounded rectangle (rx 14, 3 px border); no header line', await page.evaluate(() => { const b = document.querySelector('#stage .box');
       return b.getAttribute('rx') === '14' && b.getAttribute('stroke-width') === '3' && !document.querySelector('#stage .headline, #stage .boxTitle, #boxCaption'); }));
-    check('port layout (v1.4.1 B.1): one port line per side at the middle; a1 in above and b1 out below at port 1, b2 out above and a2 in below at port 2; "Port 1/2" under the outer ends', await page.evaluate(() => {
-      const r = q => document.querySelector('#stage .wave[data-q="' + q + '"]').getBoundingClientRect(), y = q => (r(q).top + r(q).bottom) / 2, dir = q => { const d = document.querySelector('#stage .wave[data-q="' + q + '"] path:last-child').getAttribute('d').match(/^M(-?[\d.]+) -?[\d.]+l(-?[\d.]+)/); return -Math.sign(+d[2]); };
-      const box = document.querySelector('#stage .box').getBoundingClientRect(), mid = (box.top + box.bottom) / 2, pl = [...document.querySelectorAll('#stage .portline')].map(e => e.getBoundingClientRect());
-      const ports = [...document.querySelectorAll('#stage .port')].map(e => e.getBoundingClientRect());
-      return pl.length === 2 && y('a1') < mid && y('b1') > mid && y('b2') < mid && y('a2') > mid && dir('a1') === 1 && dir('b1') === -1 && dir('b2') === 1 && dir('a2') === -1
-        && [y('a1'), y('b1'), y('b2'), y('a2')].every(v => Math.abs(Math.abs(v - mid) - 14) <= 2.5) && ['a1', 'b1', 'b2', 'a2'].every(q => Math.abs(r(q).width - 120) < 2)
-        && ports[0].top >= mid && ports[0].left <= pl[0].left + 1 && ports[1].top >= mid && ports[1].right >= pl[1].right - 1; }));
+    check('port layout (two-port symbol, signal flow): two terminal wires per port with dots at the outer ends, in line with the S21 (top) and S12 (bottom) lanes; "Port 1/2" above the wires; a1 in above and b1 out below at port 1, b2 out above and a2 in below at port 2; S11 loops from port 1 top to bottom, S22 from port 2 bottom to top', await page.evaluate(() => {
+      const q = s => document.querySelector('#stage ' + s), r = n => q('.wave[data-q="' + n + '"]').getBoundingClientRect(), cy = e => { const b = e.getBoundingClientRect(); return (b.top + b.bottom) / 2; };
+      const dir = n => -Math.sign(+q('.wave[data-q="' + n + '"] path:last-child').getAttribute('d').match(/^M(-?[\d.]+) -?[\d.]+l(-?[\d.]+)/)[2]);
+      const yT = cy(q('.lane.s21')), yB = cy(q('.lane.s12')), box = q('.box').getBoundingClientRect();
+      const wires = n => [...document.querySelectorAll('#stage .portline[data-port="' + n + '"]')].map(cy).sort((a, b) => a - b);
+      const ports = [...document.querySelectorAll('#stage .port')].map(e => e.getBoundingClientRect()), u11 = q('.uturn.s11').getBoundingClientRect(), u22 = q('.uturn.s22').getBoundingClientRect();
+      const inLine = (w) => w.length === 2 && Math.abs(w[0] - yT) < 1 && Math.abs(w[1] - yB) < 1;
+      return inLine(wires(1)) && inLine(wires(2)) && document.querySelectorAll('#stage .term').length === 4
+        && r('a1').bottom <= yT && r('b1').top >= yB && r('b2').bottom <= yT && r('a2').top >= yB && dir('a1') === 1 && dir('b1') === -1 && dir('b2') === 1 && dir('a2') === -1
+        && ['a1', 'b1', 'b2', 'a2'].every(n => Math.abs(r(n).width - 120) < 2) && ports.length === 2 && ports.every(p => p.bottom <= yT)
+        && u11.left >= box.left - 1 && u11.top >= yT && u11.bottom <= yB && u11.bottom - u11.top > 0.6 * (yB - yT) && u22.right <= box.right + 1 && u22.top >= yT && u22.bottom <= yB; }));
     check('no crossing paths: S21 lane straight along the top, S12 along the bottom', await page.evaluate(() => { const a = document.querySelector('#stage .lane.s21').getBoundingClientRect(), b = document.querySelector('#stage .lane.s12').getBoundingClientRect(); return a.bottom < b.top; }));
     check('Forward: S21 lane and S11 U-turn solid; S12 and S22 faded to 22 %; undriven a2 wire dotted', await (async () => { const P = await paths(), g = await ghostW();
       return P.S21.live && P.S11.live && P.S21.gop === 1 && near(P.S12.gop, 0.22, 1e-9) && near(P.S22.gop, 0.22, 1e-9) && g.a2 && !g.a1; })());
