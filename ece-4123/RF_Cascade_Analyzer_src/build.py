@@ -20,9 +20,13 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.5.0'
-RELEASED = '2026-10-19'
-CHANGELOG = ('\n    v1.5.0 - Devices: two-port drawn as the textbook signal-flow graph (each port two terminal wires, a in on '
+VERSION = '1.6.0'
+RELEASED = '2026-10-22'
+CHANGELOG = ('\n    v1.6.0 - Devices: drawn as the incident / reflected / transmitted flow diagram (V1⁺ and V2⁺ split into '
+             'S21, S11 and S12, S22; braces gather V1⁻ and V2⁻; a DUT box with Port 1 and Port 2), each path in its S colour '
+             'and as wide as its power, unexcited paths faded but clearly visible, values and power shares on the paths; '
+             'every device\'s S entries editable, keeping the device as "<Device> (edited)" with a reset.'
+             '\n    v1.5.0 - Devices: two-port drawn as the textbook signal-flow graph (each port two terminal wires, a in on '
              'top, b out on the bottom; S21 and S12 crossing, S11 and S22 down each side); wave arrows always solid; '
              'S-parameters adjustable on every device. Reflections: an open or a short ends the line (a marker at the '
              'interface, nothing enters Region 2). Cascade: the v1.3.0 drawing restored, with the S-parameter editor kept; '
