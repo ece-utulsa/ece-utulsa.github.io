@@ -414,6 +414,19 @@ const devGapIssues = page => page.evaluate(() => {
     check('Enter on a focused block selects it', (await text(page, '#kTitle')) === 'Block 3 · Attenuator');
     await page.click('#stage [data-add="main:1"]'); await page.waitForTimeout(60); await page.keyboard.press('Escape'); await page.waitForTimeout(60);
     check('Esc closes the "+" menu', !(await page.$('.addmenu')));
+    check('each block is drawn with its standard schematic symbol (amplifier triangle, band-pass waves, attenuator resistor box)',
+      JSON.stringify(await page.$$eval('#stage [data-blk] .sym', e => e.map(x => x.dataset.sym))) === '["amp","bpf","atten"]');
+    await click(page, '#seg_chain');
+    const chainV = () => page.$$eval('#stage .cdot', e => e.map(x => x.dataset.q + ' ' + (+x.dataset.v).toFixed(1)));
+    check('Along the chain at 1 GHz: 0.0, +12.0, +12.0, +9.0 dB after each stage, the stages\' symbols under the axis; the band plot gone',
+      JSON.stringify(await chainV()) === JSON.stringify(['chainM0 0.0', 'chainM1 12.0', 'chainM2 12.0', 'chainM3 9.0']) && (await page.$$('#stage .sym')).length === 6 && !(await page.$('[data-plot]'))
+      && (await stageTexts(page)).includes('Along the chain at 1.000 GHz'), await chainV());
+    await page.click('#stage [data-add="main:2"]'); await page.waitForTimeout(60); await click(page, '#add_div');
+    const cv = await chainV();
+    check('…with a divider the line splits: div in +12.0, A in +9.0 / load A +6.0 (green), B in +9.0 / load B +6.0 (purple, dashed)',
+      ['chainM2 12.0', 'chainA0 9.0', 'chainA1 6.0', 'chainB0 9.0', 'chainB1 6.0'].every(x => cv.includes(x)) && !!(await page.$('[data-q="chainLineB"][stroke-dasharray]')), cv);
+    await click(page, '#seg_band');
+    check('Across the band again: the band plot is back', !!(await page.$('[data-plot]')) && !(await page.$('#stage .cdot')));
     await ctx.close(); }
 
   console.log('Devices S editor (v1.6.0: every device editable, "(edited)", reset)');
@@ -500,9 +513,10 @@ const devGapIssues = page => page.evaluate(() => {
     await page.click('#stage [data-add="main:2"]'); await page.waitForTimeout(60); await click(page, '#add_div'); await fn('cascade, divider (2 + 1 columns)');
     await page.click('#stage [data-add="A:1"]'); await page.waitForTimeout(60); await click(page, '#add_lpf'); await fn('cascade, divider, 4 columns');
     await page.click('#stage [data-load="B"]'); await page.waitForTimeout(60); await click(page, '#lOpen'); await fn('cascade, divider, load B open');
+    await click(page, '#seg_chain'); await fn('cascade, divider, along the chain');
     await page.keyboard.press('t'); await page.waitForTimeout(60); await fn('cascade, divider, dark'); await goto(page, '#view=devices&device=custom&drive=fwd'); await fn('devices custom, dark');
     await goto(page, '#view=reflections&vr=1'); await fn('reflections, dark'); await page.keyboard.press('t'); await page.waitForTimeout(60);
-    await goto(page, '#view=cascade'); await click(page, '#cReset'); await fn('cascade, example'); };
+    await goto(page, '#view=cascade'); await click(page, '#cReset'); await fn('cascade, example, along the chain'); await click(page, '#seg_band'); await fn('cascade, example'); };
   for(const [vw, label, pres, sizes] of [[{ width: 1280, height: 720 }, 'presentation 1280×720', true, true], [{ width: 1920, height: 1080 }, 'windowed 1920×1080', false, true],
                                          [{ width: 1920, height: 1080 }, 'presentation 1920×1080', true, false], [{ width: 1366, height: 768 }, 'windowed 1366×768', false, false]]){
     const { ctx, page, log } = await open(browser, { viewport: vw });
@@ -592,7 +606,8 @@ const devGapIssues = page => page.evaluate(() => {
       await page.click('#stage [data-blk="main:1"]'); await page.waitForTimeout(60); await setInput(page, '#fmN', '1.1'); await shot('cascade_bandpass_selected_marker_1.1GHz');
       await setInput(page, '#fmN', '1'); await page.click('#stage [data-add="main:2"]'); await page.waitForTimeout(60); await shot('cascade_add_menu');
       await click(page, '#add_div'); await shot('cascade_divider_light');
-      await page.keyboard.press('t'); await page.waitForTimeout(80); await shot('cascade_divider_dark'); await click(page, '#cReset'); await shot('cascade_example_dark');
+      await click(page, '#seg_chain'); await shot('cascade_divider_along_the_chain_light');
+      await page.keyboard.press('t'); await page.waitForTimeout(80); await shot('cascade_divider_dark'); await click(page, '#cReset'); await shot('cascade_example_along_the_chain_dark'); await click(page, '#seg_band'); await shot('cascade_example_dark');
       await ctx.close();
     }
   }

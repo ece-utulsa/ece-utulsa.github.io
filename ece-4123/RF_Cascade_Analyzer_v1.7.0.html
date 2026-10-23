@@ -4,7 +4,7 @@
   Version: v1.7.0
   Released: 2026-10-23
   Changelog:
-    v1.7.0 - Cascade: v1.1.0's Lab brought back (source Vs and Zs, reference Z0, loads with Matched/Short/Open, device presets with S entries, results with node voltages, currents and powers), its settings and results in the side panel and the circuit drawn large across the drawing area; a power divider can be inserted at any junction, splitting the chain into two parallel branches with their own loads; a frequency band (centre ± span or start–stop) is sent through the circuit, with the spectrum at every junction, the response across the band, a marker frequency, and frequency-dependent lines and Butterworth low-, high- and band-pass filters. Reflections: incident and reflected waves drawn heavier, the envelope shade faint while they are shown. Devices: a zero-valued S path keeps the same solid style (no dashes, not faded), at the minimum width, valued "0".
+    v1.7.0 - Cascade: v1.1.0's Lab brought back (source Vs and Zs, reference Z0, loads with Matched/Short/Open, device presets with S entries, results with node voltages, currents and powers), its settings and results in the side panel and the circuit drawn large across the drawing area; a power divider can be inserted at any junction, splitting the chain into two parallel branches with their own loads; a frequency band (centre ± span or start–stop) is sent through the circuit, with the spectrum at every junction, the response across the band, a marker frequency, and frequency-dependent lines and Butterworth low-, high- and band-pass filters; each block drawn with its standard schematic symbol, and a plot of the power along the chain (after each stage, the stages' symbols on its axis) as an alternative to the response across the band. Reflections: incident and reflected waves drawn heavier, the envelope shade faint while they are shown. Devices: a zero-valued S path keeps the same solid style (no dashes, not faded), at the minimum width, valued "0".
     v1.6.0 - Devices: drawn as the incident / reflected / transmitted flow diagram (V1⁺ and V2⁺ split into S21, S11 and S12, S22; braces gather V1⁻ and V2⁻; a DUT box with Port 1 and Port 2), each path in its S colour and as wide as its power, unexcited paths faded but clearly visible, values and power shares on the paths; every device's S entries editable, keeping the device as "<Device> (edited)" with a reset.
     v1.5.0 - Devices: two-port drawn as the textbook signal-flow graph (each port two terminal wires, a in on top, b out on the bottom; S21 and S12 crossing, S11 and S22 down each side); wave arrows always solid; S-parameters adjustable on every device. Reflections: an open or a short ends the line (a marker at the interface, nothing enters Region 2). Cascade: the v1.3.0 drawing restored, with the S-parameter editor kept; a block can be inserted at any junction of the chain.
     v1.4.1 - Declutter: smaller text at all window sizes; Reflections — separate power rows, voltage plot enlarged, titles/legend/caption to the side panel, VSWR equation and extra labels removed, incident/reflected off by default; Devices — one port line per side, waves as arrows beside it, thinner paths, smaller matrix; Cascade — S-parameter editor shown on selection.
@@ -1249,8 +1249,8 @@ const DEC_P = 4, DEC_DBM = 2, DEC_RAD = 3, MW = 1e-3;
 const PLOT_SPAN = 50, MINI_SPAN = 40;   // dB shown by the response plot and by each junction spectrum
 /* Layout (design units = px at 1280×720). The drawing is as wide as the drawing area (at least 900): the circuit spreads
    to fill it. Cascade: one row; divider: branch A above, the chain and the divider in the middle, branch B below. */
-const LY_C = { edge: 16, srcR: 26, loadW: 90, divW: 96, plusR: 14, rowC: 84, rowsD: { A: 118, M: 198, B: 278 }, bhC: 80, bhD: 60,
-               miniC: { top: 150, h: 80 }, miniD: { top: 24, h: 46, topB: 330 }, plotC: 272, plotD: 412 };
+const LY_C = { edge: 16, srcR: 26, loadW: 90, divW: 96, plusR: 14, rowC: 84, rowsD: { A: 118, M: 198, B: 278 }, bhC: 88, bhD: 80,
+               miniC: { top: 150, h: 80 }, miniD: { top: 22, h: 44, topB: 330 }, plotC: 272, plotD: 412 };
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── STATE ─────────────────────────────────────────────────────
@@ -1259,7 +1259,7 @@ const K = {
   main: [], A: [], B: [], div: null,                                   // div: null, or { type, split (% into A) }
   zl: zLoad(C(50, 0)), zlA: zLoad(C(50, 0)), zlB: zLoad(C(50, 0)),
   f1: 0.5e9, f2: 1.5e9, bandMode: 'cs', fu: 'GHz', f0: 1e9, fm: 1e9,   // band start/stop (Hz), entry mode, unit, design and marker frequencies
-  sel: { k: 'main', i: 0 }, menu: false,                               // selection: a block { k: main|A|B, i }, or { k: src|load|div }; menu: "k:j" of an open "+"
+  sel: { k: 'main', i: 0 }, menu: false, plotMode: 'band',             // plotMode: the response across the band, or the power along the chain                               // selection: a block { k: main|A|B, i }, or { k: src|load|div }; menu: "k:j" of an open "+"
 };
 // A new block of a preset with its default parameters (custom: S, here a matched through).
 function newBlock(type, p){
@@ -1421,14 +1421,40 @@ function plusBtn(k, j, x, y, where){
     el('title', {}, 'Add a block here') + el('circle', { cx: x, cy: y, r: LY_C.plusR, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 2, class: 'plus' })
     + el('path', { d: 'M' + n2(x - 7) + ' ' + y + 'h14M' + n2(x) + ' ' + (y - 7) + 'v14', stroke: 'var(--txt)', 'stroke-width': 3 }));
 }
-// One block box: short name and key value, × to remove, the selected one highlighted.
+/* An RF schematic symbol for a block type, centred at (cx, cy), s units half-high, drawn in col: amplifier triangle,
+   attenuator (resistor in a box), transmission line, phase shifter (φ), filters (three waves, the stopped bands struck
+   through: low-pass the upper two, high-pass the lower two, band-pass the outer two), isolator (one-way arrow), Custom (S). */
+function sym(type, cx, cy, s, col){
+  const st = { fill: 'none', stroke: col, 'stroke-width': 2, 'stroke-linejoin': 'round' }, P = d => el('path', Object.assign({ d }, st));
+  const box = (w) => el('rect', Object.assign({ x: cx - w, y: cy - s, width: 2 * w, height: 2 * s, rx: 2 }, st, { fill: 'var(--bg)' }));
+  const wave = (y, w) => { let d = 'M' + n2(cx - w) + ' ' + n2(y); for(let i = 0; i < 2; i++){ d += 'q' + n2(w / 4) + ' ' + n2(-s * 0.3) + ' ' + n2(w / 2) + ' 0t' + n2(w / 2) + ' 0'; } return P(d); };
+  const strike = y => P('M' + n2(cx - s * 0.35) + ' ' + n2(y + s * 0.28) + 'L' + n2(cx + s * 0.35) + ' ' + n2(y - s * 0.28));
+  let g = '';
+  switch(type){
+    case 'amp': g = P('M' + n2(cx - s * 0.85) + ' ' + n2(cy - s) + 'L' + n2(cx + s * 0.95) + ' ' + n2(cy) + 'L' + n2(cx - s * 0.85) + ' ' + n2(cy + s) + 'Z'); break;
+    case 'atten': g = box(s * 1.2) + P('M' + n2(cx - s * 0.8) + ' ' + cy + 'l' + [1, -1, 1, -1, 1, -1].map((v, i) => n2(s * 0.27) + ' ' + n2(v * s * 0.45 * (i ? 2 : 1))).join('l') + 'l' + n2(s * 0.27) + ' ' + n2(s * 0.45)); break;
+    case 'thru': g = el('rect', Object.assign({ x: cx - s * 1.6, y: cy - s * 0.35, width: s * 3.2, height: s * 0.7 }, st, { fill: 'var(--bg)' })); break;
+    case 'phase': g = box(s * 1.2) + txt(cx, cy, 'φ', { anchor: 'middle', size: FS.small, fill: col }); break;
+    case 'lpf': case 'hpf': case 'bpf': { const w = s * 0.8, ys = [cy - s * 0.5, cy, cy + s * 0.5];
+      g = box(s * 1.2) + ys.map(y => wave(y, w)).join('') + (type === 'lpf' ? [0, 1] : type === 'hpf' ? [1, 2] : [0, 2]).map(i => strike(ys[i])).join(''); break; }
+    case 'isolator': g = box(s * 1.2) + P('M' + n2(cx - s * 0.75) + ' ' + cy + 'H' + n2(cx + s * 0.35)) + el('path', { d: 'M' + n2(cx + s * 0.75) + ' ' + cy + 'l' + n2(-s * 0.5) + ' ' + n2(-s * 0.35) + 'v' + n2(s * 0.7) + 'Z', fill: col, stroke: 'none' }); break;
+    default: g = box(s * 1.2) + txt(cx, cy, 'S', { anchor: 'middle', size: FS.small, fill: col });
+  }
+  return el('g', { class: 'sym', 'data-sym': type }, g);
+}
+// Half-width of a symbol of half-height s (its leads run from the block's edges to here).
+const symHalf = (type, s) => (type === 'amp' ? s * 0.9 : type === 'thru' ? s * 1.6 : s * 1.2);
+/* One block: its RF symbol on the wire (leads from the block's edges), short name above, key value below, × to remove;
+   the block's area masks the wire behind it and is outlined only when selected. */
 function blockBox(G, k, i, x, y){
-  const d = K[k][i], on = isSel(k, i), top = y - G.bh / 2, cx = x + G.bw / 2, big = G.bw >= 110, fs = big ? FS.label : FS.small;
-  const lines = G.div ? [top + 17, top + 44] : [top + 26, top + 54];   // clear of the wire through the middle
+  const d = K[k][i], on = isSel(k, i), top = y - G.bh / 2, cx = x + G.bw / 2, big = G.bw >= 110, fs = FS.small;   // 14: names clear the × at the corner
+  const ss = G.div ? 11 : 13, dy = G.div ? 22 : 24, hw = symHalf(d.type, ss);
   let s = btnG({ 'data-blk': k + ':' + i, 'aria-pressed': on ? 'true' : 'false' }, blockName(k, i) + ': ' + PRESET_NAME[d.type] + ' ' + keyText(d) + (on ? ' (selected)' : ''),
-    el('rect', { x, y: top, width: G.bw, height: G.bh, rx: 8, fill: 'var(--panel)', stroke: on ? 'var(--focus)' : 'var(--txt)', 'stroke-width': on ? 5 : 2, class: 'block' + (on ? ' sel' : '') })
-    + txt(cx, lines[0], (big ? SHORT_NAME : ABBR)[d.type], { anchor: 'middle', size: fs })
-    + txt(cx, lines[1], keyText(d), { anchor: 'middle', size: fs, fill: d.type === 'amp' ? 'var(--s21)' : 'var(--txt)', cls: 'keyv' }));
+    el('rect', { x, y: top, width: G.bw, height: G.bh, rx: 8, fill: 'var(--bg)', stroke: on ? 'var(--focus)' : 'none', 'stroke-width': on ? 5 : 2, class: 'block' + (on ? ' sel' : '') })
+    + el('path', { d: 'M' + n2(x) + ' ' + y + 'H' + n2(cx - hw) + 'M' + n2(cx + hw) + ' ' + y + 'H' + n2(x + G.bw), stroke: 'var(--mut)', 'stroke-width': 2, class: 'lead' })
+    + sym(d.type, cx, y, ss, d.type === 'amp' ? 'var(--s21)' : 'var(--txt)')
+    + txt(cx, y - dy, (big ? SHORT_NAME : ABBR)[d.type], { anchor: 'middle', size: fs })
+    + txt(cx, y + dy, keyText(d), { anchor: 'middle', size: fs, fill: d.type === 'amp' ? 'var(--s21)' : 'var(--txt)', cls: 'keyv' }));
   if(K.div || K.main.length > 1) s += btnG({ 'data-del': k + ':' + i }, 'Remove ' + blockName(k, i).toLowerCase(),
     el('circle', { cx: x + G.bw, cy: top, r: 12, fill: 'var(--bg)', stroke: 'var(--mut)', 'stroke-width': 1.5, class: 'xbtn' }) + crossMark(x + G.bw, top, 5, 'var(--mut)'));
   return s;
@@ -1438,8 +1464,8 @@ function loadBox(G, b, y){
   const zl = K[loadKey(b)], top = y - G.bh / 2, cx = G.loadX + LY_C.loadW / 2, on = isSel('load') && K.sel.b === b;
   return btnG({ 'data-load': b, 'aria-pressed': on ? 'true' : 'false' }, 'Load' + (b === 'L' ? '' : ' ' + b) + ': ' + loadShort(zl).replace(INF, 'open'),
     el('rect', { x: G.loadX, y: top, width: LY_C.loadW, height: G.bh, rx: 8, fill: 'var(--bg2)', stroke: on ? 'var(--focus)' : 'var(--txt)', 'stroke-width': on ? 5 : 2, class: 'load' })
-    + txt(cx, top + (G.div ? 17 : 26), 'Load' + (b === 'L' ? '' : ' ' + b), { anchor: 'middle', size: G.div ? FS.small : FS.label })
-    + txt(cx, top + (G.div ? 44 : 54), loadShort(zl), { anchor: 'middle', size: FS.small, id: 'loadVal' + (b === 'L' ? '' : b) }));
+    + txt(cx, top + (G.div ? 22 : 26), 'Load' + (b === 'L' ? '' : ' ' + b), { anchor: 'middle', size: G.div ? FS.small : FS.label })
+    + txt(cx, top + (G.div ? 50 : 54), loadShort(zl), { anchor: 'middle', size: FS.small, id: 'loadVal' + (b === 'L' ? '' : b) }));
 }
 // The circuit: source, wires, blocks, the divider and its branches, loads, and a "+" at every junction with room.
 function drawCircuit(G){
@@ -1527,6 +1553,43 @@ function drawPlot(G, sw, y0){
   K.plot = { x0, x1 };
   return s;
 }
+/* The power along the chain at the marker frequency (dB of the reference) after each stage, as in a cascade-analysis
+   chart: one point per junction, the stages' symbols along the axis; with a divider the line splits into branch A
+   (green) and branch B (purple, dashed), their symbols in their colours on two rows. */
+function drawChainPlot(G, atM, y0){
+  const e = LY_C.edge, nM = K.main.length, nBr = G.div ? Math.max(K.A.length, K.B.length) : 0, steps = G.div ? nM + 1 + nBr : nM;
+  const x0 = e + 58, x1 = G.W - e - 4, yt = y0 + 38, yb = G.H - e - (G.div ? 56 : 50);
+  if(yb - yt < 60) return '';
+  const xs = i => x0 + 30 + (x1 - x0 - 60) * i / Math.max(1, steps);
+  const pts = { M: atM.M.map((v, j) => [xs(j), v, 'chainM' + j]) };
+  if(G.div) ['A', 'B'].forEach(k => { pts[k] = [[xs(nM), atM.M[nM]]].concat(atM[k].map((v, j) => [xs(nM + 1 + j), v, 'chain' + k + j])); });
+  const all = [].concat(atM.M, atM.A, atM.B).map(db10).filter(isFinite), top = 10 * Math.ceil((Math.max(0, ...all) + 1) / 10);
+  const bot = Math.max(top - 80, Math.min(top - 30, 10 * Math.floor((Math.min(...all, 0) - 1) / 10))), span = top - bot;
+  const ys = r => { const d = db10(r); return yb - (yb - yt) * (Math.max(bot, Math.min(top, d === -Infinity ? bot : d)) - bot) / span; };
+  const series = G.div ? [['load A', 'var(--s21)'], ['load B', 'var(--s12)', true]] : [['load', 'var(--s21)']];
+  let s = heading(e, y0 + 14, 'Along the chain at ' + fFull(K.fm));
+  let lx = G.W - e;
+  series.slice().reverse().forEach(([t, col, dash]) => { s += txt(lx, y0 + 14, t, { anchor: 'end', size: FS.small, fill: col, cls: 'legend' }); lx -= textW(t, FS.small) + 8;
+    s += el('line', { x1: lx - 24, y1: y0 + 14, x2: lx, y2: y0 + 14, stroke: col, 'stroke-width': 3, 'stroke-dasharray': dash ? '6 4' : null }); lx -= 40; });
+  for(let v = bot; v <= top; v += 10){ const y = ys(Math.pow(10, v / 10));
+    s += el('line', { x1: x0, y1: y, x2: x1, y2: y, stroke: 'var(--line)', 'stroke-width': 1, class: 'grid' });
+    s += txt(x0 - 6, y, (v > 0 ? '+' : '') + fx(v, 0) + ' dB', { anchor: 'end', size: FS.small, fill: 'var(--mut)', weight: 400 }); }
+  for(let i = 0; i <= steps; i++) s += el('line', { x1: xs(i), y1: yt, x2: xs(i), y2: yb, stroke: 'var(--line)', 'stroke-width': 1, 'stroke-dasharray': '2 4', class: 'grid' });
+  s += el('rect', { x: x0, y: yt, width: x1 - x0, height: yb - yt, fill: 'none', stroke: 'var(--mut)', 'stroke-width': 1.5, class: 'frame' });
+  const line = (p, col, dash, q) => el('path', { d: 'M' + p.map(([x, v]) => n2(x) + ' ' + n2(ys(v))).join('L'), fill: 'none', stroke: col, 'stroke-width': 3, 'stroke-dasharray': dash ? '9 6' : null, class: 'curve', 'data-q': q });
+  const dots = (p, col) => p.filter(x => x[2]).map(([x, v, q]) => el('circle', { cx: x, cy: ys(v), r: 4.5, fill: col, stroke: 'var(--bg)', 'stroke-width': 1.5, class: 'cdot', 'data-q': q, 'data-v': +db10(v).toFixed(6) })).join('');
+  if(G.div){ s += line(pts.M, 'var(--txt)', false, 'chainLineM') + line(pts.A, 'var(--s21)', false, 'chainLineA') + line(pts.B, 'var(--s12)', true, 'chainLineB');
+    s += dots(pts.M, 'var(--txt)') + dots(pts.A, 'var(--s21)') + dots(pts.B, 'var(--s12)'); }
+  else s += line(pts.M, 'var(--s21)', false, 'chainLineM') + dots(pts.M, 'var(--s21)');
+  // the stages' symbols under the axis, between their two points (names under them when there is no divider)
+  const mid = i => (xs(i) + xs(i + 1)) / 2, yS = yb + 18, yS2 = yb + 42;
+  K.main.forEach((d, i) => { s += sym(d.type, mid(i), yS, 9, 'var(--txt)'); if(!G.div) s += txt(mid(i), yb + 40, ABBR[d.type], { anchor: 'middle', size: FS.small, fill: 'var(--mut)', weight: 400 }); });
+  if(G.div){ const xd = mid(nM);
+    s += el('path', { d: 'M' + n2(xd - 12) + ' ' + yS + 'H' + n2(xd) + 'M' + n2(xd) + ' ' + yS + 'L' + n2(xd + 12) + ' ' + (yS - 8) + 'M' + n2(xd) + ' ' + yS + 'L' + n2(xd + 12) + ' ' + (yS + 8), fill: 'none', stroke: 'var(--txt)', 'stroke-width': 2, class: 'sym' });
+    K.A.forEach((d, i) => { s += sym(d.type, mid(nM + 1 + i), yS, 9, 'var(--s21)'); });
+    K.B.forEach((d, i) => { s += sym(d.type, mid(nM + 1 + i), yS2, 9, 'var(--s12)'); }); }
+  return s;
+}
 // The whole Cascade drawing (W: the drawing's width in design units).
 function drawCascade(H, W){
   W = Math.max(DESIGN_W, W || DESIGN_W);
@@ -1534,7 +1597,7 @@ function drawCascade(H, W){
   const atM = { M: at(r.nodesM), A: G.div ? at(r.nodesA) : [], B: G.div ? at(r.nodesB) : [] };
   K.geo = G;
   return el('svg', { class: 'vis', viewBox: '0 0 ' + n2(W) + ' ' + n2(H), role: 'img', 'aria-label': 'Cascade: the circuit, the band\'s spectrum at each junction and the response across the band' },
-    drawMinis(G, sw, atM) + drawCircuit(G) + drawPlot(G, sw, G.div ? LY_C.plotD : LY_C.plotC));
+    drawMinis(G, sw, atM) + drawCircuit(G) + (K.plotMode === 'chain' ? drawChainPlot(G, atM, G.div ? LY_C.plotD : LY_C.plotC) : drawPlot(G, sw, G.div ? LY_C.plotD : LY_C.plotC)));
 }
 // ── END DRAWING ───────────────────────────────────────────────
 
@@ -1690,6 +1753,7 @@ function bandEditor(){
   const mk = slider({ id: 'fm', label: 'Marker frequency', min: K.f1 / u, max: K.f2 / u, step: 'any', value: K.fm / u, unit: K.fu, fmt: v => v + ' ' + K.fu,
     onset: v => { K.fm = Math.min(K.f2, Math.max(K.f1, v * u)); redraw(false); } });
   return [h('div', { cls: 'sec', text: 'Frequency band sent through the circuit' }),
+    h('div', { cls: 'nrow' }, h('span', { text: 'Plot' }), segGroup('Plot', [['band', 'Across the band'], ['chain', 'Along the chain']], K.plotMode, v => { K.plotMode = v; redraw(true); })),
     h('div', { cls: 'btnrow' }, segGroup('Band entry', [['cs', 'Centre ± span'], ['ss', 'Start – stop']], K.bandMode, v => { K.bandMode = v; redraw(true); }), unitSel),
     a, b, numField('f0', 'Design f0', K.f0 / u, K.fu, v => v > 0, v => { K.f0 = v * u; }), mk,
     note('f0 sets line lengths (ℓ in λ at f0) and new filters.')];
