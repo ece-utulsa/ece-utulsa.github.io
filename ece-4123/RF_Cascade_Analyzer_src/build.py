@@ -20,9 +20,15 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.6.0'
-RELEASED = '2026-10-22'
-CHANGELOG = ('\n    v1.6.0 - Devices: drawn as the incident / reflected / transmitted flow diagram (V1⁺ and V2⁺ split into '
+VERSION = '1.7.0'
+RELEASED = '2026-10-23'
+CHANGELOG = ('\n    v1.7.0 - Cascade: v1.1.0\'s Lab brought back (source Vs and Zs, reference Z0, loads with Matched/Short/Open, '
+             'device presets with S entries, results with node voltages, currents and powers), its settings and results in the '
+             'side panel and the circuit drawn large across the drawing area; a power divider can be inserted at any junction, '
+             'splitting the chain into two parallel branches with their own loads; a frequency band (centre ± span or '
+             'start–stop) is sent through the circuit, with the spectrum at every junction, the response across the band, '
+             'a marker frequency, and frequency-dependent lines and Butterworth low-, high- and band-pass filters.'
+             '\n    v1.6.0 - Devices: drawn as the incident / reflected / transmitted flow diagram (V1⁺ and V2⁺ split into '
              'S21, S11 and S12, S22; braces gather V1⁻ and V2⁻; a DUT box with Port 1 and Port 2), each path in its S colour '
              'and as wide as its power, unexcited paths faded but clearly visible, values and power shares on the paths; '
              'every device\'s S entries editable, keeping the device as "<Device> (edited)" with a reset.'
