@@ -74,7 +74,7 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type
 .cap{ color:var(--mut); font-size:calc(13px * var(--k)) }
 /* Reflections legend (side panel): a swatch per curve, as drawn */
 .legend{ list-style:none; display:flex; flex-direction:column; gap:.15em } .legend li{ display:flex; align-items:center; gap:.5em }
-.sw{ display:inline-block; width:1.6em; height:0; border-top:3px solid var(--txt) } .sw.inc{ border-top:2px dashed var(--grey) } .sw.refl{ border-top:2px dashed var(--s11) }
+.sw{ display:inline-block; width:1.6em; height:0; border-top:3px solid var(--txt) } .sw.inc{ border-top:3px dashed var(--grey) } .sw.refl{ border-top:3px dashed var(--s11) }
 .sw.tr{ border-top-color:var(--s21) } .sw.env{ height:.7em; border:1.5px solid var(--s12); background:color-mix(in srgb, var(--s12) 15%, transparent) }
 .sec{ color:var(--mut); font-weight:600; border-top:1px solid var(--line); padding-top:.4em }
 .sec:first-child{ border-top:0; padding-top:0 }
@@ -82,6 +82,18 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type
 .sname{ font-weight:600; min-width:2.2em }
 .chk{ display:flex; gap:.4em; align-items:center } .chk input{ width:calc(20px * var(--k)); height:calc(20px * var(--k)); accent-color:var(--txt) }
 .slines{ display:flex; flex-direction:column; gap:.15em } .sline{ display:flex; gap:.5em } .sv{ font-weight:600 }
+/* Cascade side panel (v1.7.0): editors, band, results; it scrolls when the results are long */
+body.vcascade #panel{ overflow-y:auto; gap:calc(8px * var(--k)) }
+select{ font:inherit; color:inherit; background:var(--bg2); border:1px solid var(--line); border-radius:5px; padding:.1em .2em; min-height:calc(32px * var(--k)); max-width:100% }
+.f{ display:flex; flex-direction:column; gap:.1em } .f input{ width:100% }
+.err{ color:var(--bad) } .err:empty{ display:none }
+.sg{ display:grid; grid-template-columns:1fr 1fr; gap:.3em .5em }
+.nrow{ display:flex; gap:.4em; align-items:center } .nrow label{ flex:1 } .nrow input[type=number]{ width:6em }
+.sec.row2{ display:flex; justify-content:space-between; align-items:center; gap:.4em; flex-wrap:wrap }
+#panel h3{ font-size:var(--fl); color:var(--mut); margin-top:.3em }
+#panel sub{ font-size:max(13px, .85em) }
+table.res{ width:100%; border-collapse:collapse } table.res td{ padding:.1em .2em; border-bottom:1px solid var(--line); vertical-align:top }
+table.res td.v{ text-align:right; overflow-wrap:anywhere }
 .s11{ color:var(--s11) } .s21{ color:var(--s21) } .s12{ color:var(--s12) } .s22{ color:var(--s22) }
 footer{ flex:none; border-top:1px solid var(--line); padding:.1em .8em; color:var(--mut); display:flex; justify-content:space-between; font-size:14px }
 /* ── PRESENTATION ── brand, help and footer hidden; sizes scale with the viewport height (--k) */

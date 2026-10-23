@@ -1,44 +1,46 @@
-/* RF Cascade Analyzer — View 2, Devices: one device at a time as a clean two-port, driven one port at a time (Forward:
-   a1 = 1∠0°, a2 = 0; Reverse: a2 = 1∠0°, a1 = 0, slide 12). Each side has one solid port line at the box's middle; the
-   normalized waves a = V⁺/√Z0 and b = V⁻/√Z0 (no units; power is |wave|²) are arrows beside it: a1 in above and b1 out
-   below at port 1, b2 out above and a2 in below at port 2. Inside the box there are only paths and their S name tags:
-   S21 a straight lane along the top and S12 along the bottom, each tapering with power from W0 (input power 1) to
-   W0·|S|² (capped at 3 W0 with a break mark; a blocked lane closes to a point with a red ✕), and S11, S22 as reflection
-   U-turns at the port points.
-   The paths the drive does not use fade; the box holds only the paths' name tags. Below: the matrix equation, symbolic
-   then with the numbers for the drive, and the four property badges. Colour names an S path; inputs a are neutral grey and
-   outputs b the text colour. Next/Previous step through the device list. */
+/* RF Cascade Analyzer — View 2, Devices: one device at a time, driven one port at a time (Forward: V1⁺ = 1∠0°, V2⁺ = 0;
+   Reverse: V2⁺ = 1∠0°, V1⁺ = 0, slide 12), drawn as the incident / reflected / transmitted flow diagram (Introduction
+   deck, slide 14). The port-1 incident wave V1⁺ (grey) enters top-left and splits at a junction into S21, transmitted
+   straight on to the right, and S11, reflected down and back to the left; the port-2 incident wave V2⁺ enters bottom-right
+   and splits into S12, transmitted on to the left, and S22, reflected up and back to the right. Braces gather the
+   outgoing waves, V1⁻ = S11·V1⁺ + S12·V2⁺ on the left and V2⁻ = S21·V1⁺ + S22·V2⁺ on the right, with their values; the
+   device sits in the centre as a DUT box with its two port stubs. Each path is drawn in its S colour, as wide as its
+   power |S|² (W0 for power 1; capped at 3 W0 with a break mark and a "×10" label), and labelled with its S value,
+   Transmitted / Reflected, and its share of the power when the drive excites it. Paths the drive does not excite are
+   faded but clearly visible. A path with |S| < S_BLOCK keeps the same solid style, at the minimum width, valued "0". Below: the matrix equation, symbolic
+   then with the numbers for the drive (normalized waves a = V⁺/√Z0, b = V⁻/√Z0), and the four property badges. Every
+   device's S entries are editable; a preset keeps its name and diagram, marked "(edited)", until reset. Next/Previous
+   step through the device list. */
 /* ============================================================
    TABLE OF CONTENTS
-   1. Constants        — device list, path widths, layout
-   2. State            — per-device parameters, current device
-   3. Two-port drawing — box, power-tapered lanes, reflection U-turns, S tags, port lines and their wave arrows
+   1. Constants        — device list, path widths, fading, layout
+   2. State            — per-device parameters and edits, current device
+   3. Flow diagram     — incident waves, the four S paths, braces, DUT box, labels
    4. Matrix and badges — symbolic equation, numeric row for the drive, property badges
-   5. Panel            — the power out, the device's controls, one line of explanation
+   5. Panel            — the power out, the device's name, knobs and S entries, reset, one line of explanation
    ============================================================ */
 
 // ── CONSTANTS ─────────────────────────────────────────────────
 const DEVICES = ['through', 'atten', 'amp', 'iso', 'custom'];
 const DEV_NAME = { through: 'Through line', atten: 'Attenuator', amp: 'Amplifier', iso: 'Isolator', custom: 'Custom' };
 const S_ZERO = 0.005;            // |S| or a wave below this is labelled 0
-const S_BLOCK = 0.05;            // |S| below this: a lane is drawn blocked (wedge and ✕), a U-turn as a dotted outline
+const S_BLOCK = 0.05;            // |S| below this: a path is valued "0" (drawn solid at the minimum width, like any other)
 const ISO_MAX = 60;              // isolator reverse-isolation slider: 0..60 dB, then ∞
 const MAG_MAX = 2;               // Custom |S| slider range
-const W0 = 16;                   // lane width for power 1 (the input); a path's width is W0·|S|²
-const W_CAP = 3;                 // widths above 3 W0 are capped and drawn with a break mark
-const U_MIN = 2;                 // a U-turn's stroke is never thinner than this
+const W0 = 16;                   // path width for power 1 (an incident wave); a path's width is W0·|S|²
+const W_CAP = 3;                 // widths above 3 W0 are capped and drawn with a break mark and a "×10" label
+const W_MIN = 3;                 // a path is never drawn thinner than this
+const FADE = 0.4, FADE_LABEL = 0.7;   // opacity of what the drive does not excite (paths, their labels): faded, still clearly visible and legible in both themes
 /* Layout (design units = px at 1280×720). The matrix rows and badges are stacked from the bottom up (gaps as in v1.2.0:
-   badges 12 above the bottom, the numeric row 12 above the badges); the box takes the height left above them (at most
-   boxMax; in a taller drawing the whole stack is centred). The two-port as the textbook signal-flow graph: each port is
-   two terminal wires (dots at the outer ends), the incident wave a on the top wire and the reflected wave b on the
-   bottom wire at both ports (yT laneT below the box top, yB laneB above its bottom). Inside, the paths join the nodes:
-   S21 a1 → b2 and S12 a2 → b1 as crossing diagonals (starting inset inside the box so their square ends stay in it), S11 a1 → b1 down the left and S22 a2 → b2 down the right (loops
-   uDepth into the box, ending uEnd inside the corners). Waves: a in above the top wire, b out below the bottom wire;
-   arrows arrowL long, wOff from the wire, ending armGap from the box; labels labOff further out, the power line
-   pwrGap below its b label; "Port 1/2" above the top wire at the outer end (portUp). S tags on the paths' upper side,
-   tagAt of the way along the diagonals. */
-const LY_D = { xl: 240, xr: 660, top: 8, laneT: 56, laneB: 72, edge: 16, uDepth: 80, uEnd: 12, boxMax: 400, tagGap: 10, badgeH: 32, gapEdge: 12,
-               numHalf: 30, gapNum: 12, matHalf: 36, gapMat: 10, gapBox: 16, tagAt: 0.3, inset: 12, termR: 5, wOff: 14, arrowL: 120, armGap: 8, labOff: 30, pwrGap: 28, portUp: 20 };
+   badges 12 above the bottom, the numeric row 12 above the badges); the flow diagram takes the height left above them (at
+   most boxMax; in a taller drawing the whole stack is centred). Flow diagram: the top line (V1⁺ → S21) yPad below its top,
+   the bottom line (V2⁺ → S12) yPad above its bottom; V1⁺ from xIn1 to its junction xJ1, S21 on to xOutR; V2⁺ from xIn2
+   to its junction xJ2, S12 on to xOutL; S11 drops a fraction drop of the way down and returns to xOutL, S22 rises as much
+   and returns to xOutR; the braces at xBrL / xBrR (their labels outside them); the DUT box dutW × dutH in the centre with
+   stubW-wide port stubs; label rows labUp above / below a line (beyond half its width), labGap apart. */
+const LY_D = { top: 8, edge: 16, boxMax: 400, yPad: 58, xIn1: 70, xJ1: 300, xOutR: 752, xIn2: 796, xJ2: 600, xOutL: 150, xBrL: 136, xBrR: 766,
+               drop: 0.36, dutW: 200, dutH: 60, stubW: 22, labUp: 18, labGap: 22, labSide: 10,
+               badgeH: 32, gapEdge: 12, numHalf: 30, gapNum: 12, matHalf: 36, gapMat: 10, gapBox: 16 };
 // Vertical positions for a drawing H units tall: box top, badge, numeric row and matrix centres, box bottom.
 function geoD(H){
   const L = LY_D, stack = L.gapEdge + L.badgeH + L.gapNum + 2 * L.numHalf + L.gapMat + 2 * L.matHalf + L.gapBox;
@@ -46,11 +48,8 @@ function geoD(H){
   const mat = num - L.numHalf - L.gapMat - L.matHalf, bb = mat - L.matHalf - L.gapBox;
   return { by: L.top + lift, badge, num, mat, bb };
 }
-const FS_OUT = 18;               // the driven output's wave label (b2 Forward, b1 Reverse): larger and bold
-const FADE = 0.22;               // opacity of the paths the current drive does not use
-const DOT_OP = 0.45;             // opacity of a blocked U-turn's dotted outline
 const FS_NUM = [16, 14];         // numeric matrix row: 16, or 14 if it would not fit at 16 (never wrapped)
-const DRIVE_PATHS = { fwd: ['s11', 's21'], rev: ['s12', 's22'] };   // paths excited by a1 (Forward) or a2 (Reverse)
+const DRIVE_PATHS = { fwd: ['s11', 's21'], rev: ['s12', 's22'] };   // paths excited by V1⁺ (Forward) or V2⁺ (Reverse)
 const FRACTIONS = [[1 / 8, 'λ/8'], [1 / 4, 'λ/4'], [3 / 8, '3λ/8'], [1 / 2, 'λ/2'], [5 / 8, '5λ/8'], [3 / 4, '3λ/4'], [7 / 8, '7λ/8'], [1, 'λ'], [0, '0']];
 const BADGES = [['reciprocal', 'Reciprocal'], ['symmetric', 'Symmetric'], ['lossless', 'Lossless'], ['passive', 'Passive']];
 // ── END CONSTANTS ─────────────────────────────────────────────
@@ -59,7 +58,9 @@ const BADGES = [['reciprocal', 'Reciprocal'], ['symmetric', 'Symmetric'], ['loss
 // A Custom entry set { s11: [mag, deg], ... } (the Teaching example: reciprocal, lossy, not symmetric).
 const customDefault = () => ({ s11: [0.3, 40], s21: [0.6, -70], s12: [0.6, -70], s22: [0.4, -20] });
 const D = { dev: 'through', drive: 'fwd', through: { l: 0.25 }, atten: { A: 3 }, amp: { G: 10 }, iso: { IL: 0.5, I: Infinity },
-            custom: { e: customDefault(), recip: true }, est: null };   // est: a preset's S entries shown in the panel
+            custom: { e: customDefault(), recip: true }, edits: {}, est: null };
+// edits: a preset's edited S entry set, by device (the device keeps its name, marked "(edited)", until reset);
+// est: the unedited preset entry set shown in the panel (it follows the knob)
 // S of a Custom entry set.
 const customS = e => devPolar(e.s11, e.s21, e.s12, e.s22);
 // A two-port's S as a Custom entry set { e: { s11: [mag, deg], … }, recip } (6 significant figures).
@@ -97,97 +98,90 @@ function waveText(c){
 }
 // The waves at the ports for the current drive (port 2 or 1 terminated in Z0, so the other incident wave is 0).
 const deviceWaves = S => drive(S, D.drive, ZERO);
+// Whether the current preset has been edited, and the S the Devices view shows: Custom's entries, a preset's edits, or
+// the preset itself.
+const edited = () => D.dev !== 'custom' && !!D.edits[D.dev];
+const curS = () => (D.dev === 'custom' ? customS(D.custom.e) : edited() ? customS(D.edits[D.dev].e) : deviceS(D.dev, D[D.dev]));
+// The device's shown name: "Attenuator", "Attenuator (edited)".
+const devLabel = () => DEV_NAME[D.dev] + (edited() ? ' (edited)' : '');
 // ── END STATE ─────────────────────────────────────────────────
 
-// ── TWO-PORT DRAWING ──────────────────────────────────────────
-// A thin solid line arrow from x0 to x1 along y (a normalized wave beside its port wire); solid even when the wave is 0
-// (its label says "= 0").
-function lineArrow(x0, x1, y, col, q, v){
-  const dir = Math.sign(x1 - x0);
-  return el('g', { class: 'wave', 'data-q': q, 'data-v': q ? +v.toPrecision(12) : null },
-    el('path', { d: 'M' + n2(x0) + ' ' + n2(y) + 'H' + n2(x1 - dir * 10), stroke: col, 'stroke-width': 2.5, fill: 'none' })
-    + el('path', { d: 'M' + n2(x1) + ' ' + n2(y) + 'l' + n2(-dir * 12) + ' -6v12Z', fill: col }));
+// ── FLOW DIAGRAM ──────────────────────────────────────────────
+// Width of a path for power p = |S|²: W0·p, capped at W_CAP·W0, never thinner than W_MIN.
+const pathW = p => Math.max(W_MIN, W0 * Math.min(p, W_CAP));
+/* A path through the points pts (a polyline; the last segment carries an arrowhead unless head is false), stroke col, width
+   w. The head is at least 14 long and 8 either side of the line, so a thin path still shows its
+   direction; the line stops where the head starts. */
+function flowLine(pts, col, w, head){
+  const [x1, y1] = pts[pts.length - 1], [x0, y0] = pts[pts.length - 2], L = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / L, uy = (y1 - y0) / L;
+  const hl = head === false ? 0 : Math.max(14, w * 0.9 + 8), hh = Math.max(8, w / 2 + 6), body = pts.slice(0, -1).concat([[x1 - ux * hl, y1 - uy * hl]]);
+  let s = el('path', { d: body.map(([x, y], i) => (i ? 'L' : 'M') + n2(x) + ' ' + n2(y)).join(''), fill: 'none', stroke: col, 'stroke-width': n2(w),
+    'stroke-linejoin': 'miter', class: 'fline' });
+  if(hl) s += el('path', { d: 'M' + n2(x1) + ' ' + n2(y1) + 'L' + n2(x1 - ux * hl - uy * hh) + ' ' + n2(y1 - uy * hl + ux * hh) + 'L' + n2(x1 - ux * hl + uy * hh) + ' ' + n2(y1 - uy * hl - ux * hh) + 'Z',
+    fill: col, class: 'fhead' });
+  return s;
 }
-// Width of a path for power p = |S|²: W0·p, capped at W_CAP·W0.
-const pathW = p => W0 * Math.min(p, W_CAP);
-/* A lane from x0 (width W0) to x1 (width w1 for power p) along y, arrowhead at x1. A blocked lane (|S| < S_BLOCK) is a
-   wedge closing to a point at x1, with a red ✕ just beyond it (outside the box). Above the cap a break mark crosses the lane
-   90 units past its centre. k: the S key; the lane carries data-q / data-v (|S|) and its end width for the tests.
-   Returns { svg, mark }: mark (the ✕) is drawn outside the lane's group, so it stays strong when the lane fades. */
-function laneSvg(k, x0, x1, y, m){
-  const d = Math.sign(x1 - x0), p = m * m, col = 'var(--' + k + ')', len = Math.abs(x1 - x0), at = { class: 'lane ' + k, 'data-q': S_NAME[k], 'data-v': +m.toPrecision(12) };
-  if(m < S_BLOCK){ const xx = x1 + d * 22;
-    return { svg: el('path', Object.assign(at, { d: 'M' + x0 + ' ' + n2(y - W0 / 2) + 'L' + x1 + ' ' + n2(y) + 'L' + x0 + ' ' + n2(y + W0 / 2) + 'Z', fill: col, 'data-w1': 0, 'data-blocked': 1 })),
-      mark: el('g', { class: 'xmark', 'data-s': k }, crossMark(xx, y, 11, 'var(--bad)')) }; }
-  const w1 = pathW(p), head = 22, xb = x1 - d * head, wb = W0 + (w1 - W0) * (len - head) / len, hw = Math.max(w1, 4) / 2 + 9;
-  let s = el('path', Object.assign(at, { d: 'M' + x0 + ' ' + n2(y - W0 / 2) + 'L' + xb + ' ' + n2(y - wb / 2) + 'L' + xb + ' ' + n2(y - hw) + 'L' + x1 + ' ' + n2(y)
-    + 'L' + xb + ' ' + n2(y + hw) + 'L' + xb + ' ' + n2(y + wb / 2) + 'L' + x0 + ' ' + n2(y + W0 / 2) + 'Z', fill: col, 'data-w1': n2(w1), 'data-capped': p > W_CAP ? 1 : null }));
-  if(p > W_CAP){ const xm = (x0 + x1) / 2 + d * 90, wm = W0 + (w1 - W0) * Math.abs(xm - x0) / len;
-    s += el('path', { d: 'M' + n2(xm - 8) + ' ' + n2(y + wm / 2 + 4) + 'L' + n2(xm + 2) + ' ' + n2(y - wm / 2 - 4) + 'M' + n2(xm + 6) + ' ' + n2(y + wm / 2 + 4) + 'L' + n2(xm + 16) + ' ' + n2(y - wm / 2 - 4),
-      stroke: 'var(--bg)', 'stroke-width': 5, class: 'brk' }); }
-  return { svg: s, mark: '' };
+// A brace at x from y0 to y1, its point dir (−1 left, +1 right) outward; returns the path.
+function brace(x, y0, y1, dir){
+  const m = (y0 + y1) / 2, c = 8 * dir;
+  return el('path', { d: 'M' + n2(x - c) + ' ' + n2(y0) + 'q' + n2(c) + ' 0 ' + n2(c) + ' 8V' + n2(m - 8) + 'q0 8 ' + n2(c) + ' 8q' + n2(-c) + ' 0 ' + n2(-c) + ' 8V' + n2(y1 - 8) + 'q0 8 ' + n2(-c) + ' 8',
+    fill: 'none', stroke: 'var(--txt)', 'stroke-width': 2, class: 'brace' });
 }
-/* A lane from point (ax, ay) to (bx, by) in any direction: laneSvg drawn along the local x axis and turned into place,
-   so its shape (and the tests' width readings) stay in lane coordinates. Returns { svg, mark } like laneSvg. */
-function laneAlong(k, ax, ay, bx, by, m){
-  const len = Math.hypot(bx - ax, by - ay), tf = 'translate(' + n2(ax) + ' ' + n2(ay) + ') rotate(' + n2(Math.atan2(by - ay, bx - ax) * DEG) + ')', L0 = laneSvg(k, 0, len, 0, m);
-  return { svg: el('g', { transform: tf }, L0.svg), mark: L0.mark ? el('g', { transform: tf }, L0.mark) : '' };
-}
-/* A reflection U-turn inside the box at a port: from just below/above the port's in-wire, uDepth into the box, back out
-   beside the out-wire with an arrowhead pointing out of the port. Stroke W0·|S|² (at least U_MIN); a dotted outline when
-   |S| < S_BLOCK. Returns { svg, reach } where reach is the U's furthest x from the port edge including half its stroke. */
-function uTurnSvg(k, xe, yIn, yOut, m){
-  const d = xe < DESIGN_W / 2 ? 1 : -1, xc = xe + d * LY_D.uDepth, col = 'var(--' + k + ')', path = 'M' + xe + ' ' + n2(yIn) + 'C' + xc + ' ' + n2(yIn) + ' ' + xc + ' ' + n2(yOut) + ' ' + xe + ' ' + n2(yOut);
-  const at = { class: 'uturn ' + k, 'data-q': S_NAME[k], 'data-v': +m.toPrecision(12), fill: 'none' };
-  if(m < S_BLOCK) return { svg: el('path', Object.assign(at, { d: path, stroke: col, 'stroke-width': 2, 'stroke-dasharray': '4 6', opacity: DOT_OP, 'data-w1': 0, 'data-blocked': 1 })), reach: LY_D.uDepth * 0.75 + 1 };
-  const w = Math.max(U_MIN, pathW(m * m)), xt = xe - d * 16;
-  return { svg: el('path', Object.assign(at, { d: path, stroke: col, 'stroke-width': n2(w), 'data-w1': n2(w) }))
-    + el('path', { d: 'M' + n2(xt) + ' ' + n2(yOut) + 'L' + n2(xe + d * 6) + ' ' + n2(yOut - w / 2 - 8) + 'L' + n2(xe + d * 6) + ' ' + n2(yOut + w / 2 + 8) + 'Z', fill: col, class: 'uhead' }),
-    reach: LY_D.uDepth * 0.75 + w / 2 };
-}
-/* The two-port for device kind/params p in a drawing H units tall, as the textbook signal-flow graph: a plain box holding
-   the four paths between the port nodes (a1, a2 at the top, b1, b2 at the bottom) with their name tags (no values:
-   those are in the matrix), joined to the ports' two terminal wires; outside it the wave arrows beside the wires with
-   their labels, the driven output's power line, and "Port 1", "Port 2" above the wires. */
-function drawTwoPort(H, kind, p){
-  const S = deviceS(kind, p), w = deviceWaves(S), on = DRIVE_PATHS[D.drive], fwd = D.drive === 'fwd', L = LY_D, G = geoD(H);
-  const xl = L.xl, xr = L.xr, by = G.by, bb = G.bb, yT = by + L.laneT, yB = bb - L.laneB, mid = (yT + yB) / 2;
-  const M = k => cabs(S[k]), op = k => (on.includes(k) ? null : FADE), wEnd = k => (M(k) < S_BLOCK ? 0 : pathW(M(k) ** 2));
-  let s = el('rect', { x: xl, y: by, width: xr - xl, height: bb - by, rx: 14, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 3, class: 'box' });
-  // paths: S21 a1 → b2 and S12 a2 → b1 crossing, S11 a1 → b1 down the left, S22 a2 → b2 down the right; the faded ones
-  // first so the driven ones sit on top
-  const u11 = uTurnSvg('s11', xl + 2, yT + L.uEnd, yB - L.uEnd, M('s11')), u22 = uTurnSvg('s22', xr - 2, yT + L.uEnd, yB - L.uEnd, M('s22'));
-  const l21 = laneAlong('s21', xl + L.inset, yT, xr, yB, M('s21')), l12 = laneAlong('s12', xr - L.inset, yT, xl, yB, M('s12')), parts = { s21: l21.svg, s12: l12.svg, s11: u11.svg, s22: u22.svg };
-  S_KEYS.slice().sort((a, b) => on.includes(a) - on.includes(b)).forEach(k => { s += el('g', { class: 'pathg ' + k, 'data-s': k, 'data-live': on.includes(k) ? 1 : 0, opacity: op(k) }, parts[k]); });
-  s += l21.mark + l12.mark;
-  // S name tags: S21 and S12 tagAt of the way from their a node, on the upper side, tagGap clear of the lane there; S11
-  // right of its loop and S22 left of its loop (which start 2 inside the box edge), halfway down
-  const lab = (k, x, y, anchor) => txt(x, y, 'S_' + k.slice(1), { anchor, size: FS.big, fill: 'var(--' + k + ')', cls: 'slabel', id: 'v' + k });
-  const diagTag = (k, ax, ay, bx, byy) => { const len = Math.hypot(bx - ax, byy - ay), ux = (bx - ax) / len, uy = (byy - ay) / len, nx = uy * Math.sign(ux), ny = -Math.abs(ux);
-    const wAt = W0 + (Math.max(wEnd(k), M(k) < S_BLOCK ? 0 : 4) - W0) * L.tagAt, off = wAt / 2 + L.tagGap + FS.big * 0.9;
-    return lab(k, ax + (bx - ax) * L.tagAt + nx * off, ay + (byy - ay) * L.tagAt + ny * off, 'middle'); };
-  s += diagTag('s21', xl + L.inset, yT, xr, yB) + diagTag('s12', xr - L.inset, yT, xl, yB);
-  s += lab('s11', xl + 2 + u11.reach + L.tagGap, mid, 'start') + lab('s22', xr - 2 - u22.reach - L.tagGap, mid, 'end');
-  // each port's two terminal wires, at the a node (top) and the b node (bottom), from a terminal dot at the outer end
-  // to the box; never faded
-  const xL = L.edge, xR = DESIGN_W - L.edge, wire2 = (x0, x1, y, port, xd) => el('line', { x1: x0, y1: y, x2: x1, y2: y, stroke: 'var(--txt)', 'stroke-width': 3, class: 'portline', 'data-port': port })
-    + el('circle', { cx: xd, cy: y, r: L.termR, fill: 'var(--txt)', class: 'term' });
-  for(const y of [yT, yB]) s += wire2(xL + L.termR, xl, y, 1, xL + L.termR) + wire2(xr, xR - L.termR, y, 2, xR - L.termR);
-  // wave arrows beside the wires, always solid (a grey, in above the top wire; b text colour, out below the bottom wire) and their
-  // labels on the outer side; the driven output bold, its power line below it
-  const aU = yT - L.wOff, aD = yB + L.wOff, p1 = xl - L.armGap, p2 = xr + L.armGap, col = n => (n[0] === 'a' ? 'var(--grey)' : 'var(--txt)');
-  const wire = (x0, x1, y, name) => lineArrow(x0, x1, y, col(name), name, cabs(w[name]));
-  const wlab = (name, x, y, anchor, big) => txt(x, y, name.replace(/(\d)$/, '_$1') + ' = ' + waveText(w[name]), { anchor, fill: col(name), size: big ? FS_OUT : FS.label, weight: big ? 700 : 600, cls: 'wlabel' + (big ? ' out' : ''), id: 'w' + name });
-  const plab = (name, x, y, anchor) => txt(x, y, '|' + name.replace(/(\d)$/, '_$1') + '|² = ' + (cabs(w[name]) < S_ZERO ? '0' : sig2(cabs(w[name]) ** 2)), { anchor, fill: 'var(--txt)', size: FS.label, weight: 400, cls: 'plabel', id: 'p' + name });
-  s += wire(p1 - L.arrowL, p1, aU, 'a1') + wlab('a1', p1, aU - L.labOff, 'end', false);
-  s += wire(p1, p1 - L.arrowL, aD, 'b1') + wlab('b1', p1, aD + L.labOff, 'end', !fwd);
-  s += wire(p2 + L.arrowL, p2, aU, 'a2') + wlab('a2', p2, aU - L.labOff, 'start', false);
-  s += wire(p2, p2 + L.arrowL, aD, 'b2') + wlab('b2', p2, aD + L.labOff, 'start', fwd);
-  s += fwd ? plab('b2', p2, aD + L.labOff + L.pwrGap, 'start') : plab('b1', p1, aD + L.labOff + L.pwrGap, 'end');
-  s += txt(xL, yT - L.portUp, 'Port 1', { weight: 600, cls: 'port' }) + txt(xR, yT - L.portUp, 'Port 2', { anchor: 'end', weight: 600, cls: 'port' });
+/* The flow diagram for the device's S in a drawing H units tall (see the file header). Returns { svg, S, w, G } for the
+   matrix and badges below it. */
+function drawFlowDiagram(H){
+  const S = curS(), w = deviceWaves(S), on = DRIVE_PATHS[D.drive], fwd = D.drive === 'fwd', L = LY_D, G = geoD(H);
+  const yTop = G.by + L.yPad, yBot = G.bb - L.yPad, span = yBot - yTop, y11 = yTop + L.drop * span, y22 = yBot - L.drop * span, mid = (yTop + yBot) / 2;
+  const M = k => cabs(S[k]), blocked = k => M(k) < S_BLOCK, wid = k => pathW(M(k) ** 2), live = k => on.includes(k);
+  const ROUTE = { s21: [[L.xJ1, yTop], [L.xOutR, yTop]], s11: [[L.xJ1, yTop], [L.xJ1, y11], [L.xOutL, y11]],
+                  s12: [[L.xJ2, yBot], [L.xOutL, yBot]], s22: [[L.xJ2, yBot], [L.xJ2, y22], [L.xOutR, y22]] };
+  const TYPE = { s21: 'Transmitted', s12: 'Transmitted', s11: 'Reflected', s22: 'Reflected' };
+  let s = '';
+  // the DUT box with its port stubs, the device's name inside, "Port 1/2" under the stubs
+  const dx = DESIGN_W / 2 - L.dutW / 2, dy = mid - L.dutH / 2, sh = L.dutH / 2;
+  s += el('rect', { x: dx - L.stubW, y: mid - sh / 2, width: L.stubW, height: sh, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 2, class: 'stub' })
+    + el('rect', { x: dx + L.dutW, y: mid - sh / 2, width: L.stubW, height: sh, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 2, class: 'stub' })
+    + el('rect', { x: dx, y: dy, width: L.dutW, height: L.dutH, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': 2.5, class: 'box' });
+  s += edited() ? txt(DESIGN_W / 2, mid - 10, DEV_NAME[D.dev], { anchor: 'middle', id: 'dutName' }) + txt(DESIGN_W / 2, mid + 12, '(edited)', { anchor: 'middle', size: FS.small, fill: 'var(--mut)', weight: 400, id: 'dutEdited' })
+    : txt(DESIGN_W / 2, mid, DEV_NAME[D.dev], { anchor: 'middle', id: 'dutName' });
+  s += txt(dx - L.stubW / 2, dy + L.dutH + L.labUp, 'Port 1', { anchor: 'middle', weight: 600, cls: 'port' }) + txt(dx + L.dutW + L.stubW / 2, dy + L.dutH + L.labUp, 'Port 2', { anchor: 'middle', weight: 600, cls: 'port' });
+  // the incident waves (grey, width W0; the undriven one faded) and the four S paths, unexcited ones first
+  const inc = (n, pts) => { const lit = (n === 1) === fwd;
+    return el('g', { class: 'flow inc', id: 'inc' + n, 'data-q': 'V' + n + '+', 'data-faded': lit ? 0 : 1, 'data-w': W0, opacity: lit ? null : FADE }, flowLine(pts, 'var(--grey)', W0, false)); };
+  s += inc(fwd ? 2 : 1, fwd ? [[L.xIn2, yBot], [L.xJ2, yBot]] : [[L.xIn1, yTop], [L.xJ1, yTop]]);
+  const order = S_KEYS.slice().sort((a, b) => live(a) - live(b));
+  for(const k of order){ const faded = !live(k), wk = wid(k);
+    let g = flowLine(ROUTE[k], 'var(--' + k + ')', wk);
+    if(M(k) ** 2 > W_CAP){ const [[ax, ay], [bx]] = ROUTE[k].slice(-2), xm = (ax + bx) / 2;   // break mark across a capped path
+      g += el('path', { d: 'M' + n2(xm - 8) + ' ' + n2(ay + wk / 2 + 4) + 'L' + n2(xm + 2) + ' ' + n2(ay - wk / 2 - 4) + 'M' + n2(xm + 6) + ' ' + n2(ay + wk / 2 + 4) + 'L' + n2(xm + 16) + ' ' + n2(ay - wk / 2 - 4),
+        stroke: 'var(--bg)', 'stroke-width': 5, class: 'brk' }); }
+    s += el('g', { class: 'flow path ' + k, 'data-s': k, 'data-q': S_NAME[k], 'data-v': +M(k).toPrecision(12), 'data-w': n2(wk), 'data-faded': faded ? 1 : 0, 'data-live': live(k) ? 1 : 0, opacity: faded ? FADE : null }, g); }
+  s += inc(fwd ? 1 : 2, fwd ? [[L.xIn1, yTop], [L.xJ1, yTop]] : [[L.xIn2, yBot], [L.xJ2, yBot]]);
+  // labels: each path's S value (mag∠deg; "0" when blocked) and Transmitted / Reflected with its share of the power when
+  // excited ("×10" above 1); the incident waves' "Incident"; faded with their path
+  const val = k => (blocked(k) ? '0' : sText(S[k])), pow = k => { const p = M(k) ** 2; return blocked(k) ? '0 %' : p > 1 + 1e-9 ? '×' + sig2(p) : pct2(p); };
+  const lab = (k, x, y, t, anchor, size, id, fill) => txt(x, y, t, { anchor, size, fill: fill || 'var(--' + k + ')', id });
+  const grp = (faded, inner) => el('g', { class: 'flabel', opacity: faded ? FADE_LABEL : null }, inner);
+  const typeText = k => TYPE[k] + (live(k) ? ' · ' + pow(k) : '');
+  const half = k => wid(k) / 2, wT = Math.max(W0, wid('s21')) / 2, wB = Math.max(W0, wid('s12')) / 2;
+  const yA = yTop - wT - L.labUp, yU = yBot + wB + L.labUp;
+  s += grp(!fwd, lab(null, (L.xIn1 + L.xJ1) / 2, yA, 'Incident', 'middle', FS.label, 'li1', 'var(--grey)'));
+  s += grp(!live('s21'), lab('s21', DESIGN_W / 2, yA, 'S_21 = ' + val('s21'), 'middle', FS.label, 'lv_s21') + lab('s21', L.xOutR, yA, typeText('s21'), 'end', FS.label, 'lt_s21'));
+  s += grp(!live('s11'), lab('s11', L.xJ1 - half('s11') - L.labSide, yTop + wT + L.labGap, 'S_11 = ' + val('s11'), 'end', FS.label, 'lv_s11')
+    + lab('s11', L.xJ1 - half('s11') - L.labSide, yTop + wT + 2 * L.labGap, typeText('s11'), 'end', FS.label, 'lt_s11'));
+  s += grp(!live('s22'), lab('s22', L.xJ2 + half('s22') + L.labSide, y22 + half('s22') + L.labGap, 'S_22 = ' + val('s22'), 'start', FS.label, 'lv_s22')
+    + lab('s22', L.xJ2 + half('s22') + L.labSide, y22 + half('s22') + 2 * L.labGap, typeText('s22'), 'start', FS.label, 'lt_s22'));
+  s += grp(!live('s12'), lab('s12', L.xOutL, yU, typeText('s12'), 'start', FS.label, 'lt_s12') + lab('s12', 470, yU, 'S_12 = ' + val('s12'), 'middle', FS.label, 'lv_s12'));
+  s += grp(fwd, lab(null, (L.xJ2 + L.xIn2) / 2, yU, 'Incident', 'middle', FS.label, 'li2', 'var(--grey)'));
+  // the incident waves' names, and the braces gathering the outgoing waves with their values
+  s += txt(L.edge, yTop, 'V_1⁺', { size: FS.big, weight: 700, id: 'nV1p' }) + txt(L.xIn2 + L.labSide, yBot, 'V_2⁺', { size: FS.big, weight: 700, id: 'nV2p' });
+  s += brace(L.xBrR, yTop - wT, y22 + half('s22'), 1) + brace(L.xBrL, y11 - half('s11'), yBot + wB, -1);
+  const yR = (yTop - wT + y22 + half('s22')) / 2, yL = (y11 - half('s11') + yBot + wB) / 2;
+  s += txt(L.xBrR + 22, yR - 11, 'V_2⁻ =', { size: FS.big, weight: 700, id: 'nV2m' }) + txt(L.xBrR + 22, yR + 13, waveText(w.b2), { id: 'vV2m' });
+  s += txt(L.xBrL - 20, yL - 11, 'V_1⁻ =', { anchor: 'end', size: FS.big, weight: 700, id: 'nV1m' }) + txt(L.xBrL - 20, yL + 13, waveText(w.b1), { anchor: 'end', id: 'vV1m' });
   return { svg: s, S, w, G };
 }
-// ── END TWO-PORT DRAWING ──────────────────────────────────────
+// ── END FLOW DIAGRAM ──────────────────────────────────────────
 
 // ── MATRIX AND BADGES ─────────────────────────────────────────
 // Bracket pair around a column block from x to x + w, rows at cy ± rh/2.
@@ -246,8 +240,8 @@ function badgeRow(S, y){
 }
 // The whole Devices drawing.
 function drawDevices(H){
-  const p = D[D.dev], tp = drawTwoPort(H, D.dev, p);
-  return svgRoot(H, DEV_NAME[D.dev] + ', ' + (D.drive === 'fwd' ? 'forward' : 'reverse') + ' drive: two-port with its normalized waves and four S-parameter paths',
+  const tp = drawFlowDiagram(H);
+  return svgRoot(H, devLabel() + ', ' + (D.drive === 'fwd' ? 'forward' : 'reverse') + ' drive: incident, reflected and transmitted waves through the four S-parameter paths',
     tp.svg + matrixRows(tp.S, tp.w, tp.G) + badgeRow(tp.S, tp.G.badge));
 }
 // ── END MATRIX AND BADGES ─────────────────────────────────────
@@ -257,7 +251,7 @@ function drawDevices(H){
    of the input, or as a ratio ("10 × input") when the device has gain. The wave itself is on its arrow and in the
    numeric matrix row, so it is not repeated here. */
 function devicePower(){
-  const w = deviceWaves(deviceS(D.dev, D[D.dev])), out = D.drive === 'fwd' ? 'b2' : 'b1', pw = cabs(w[out]) ** 2;
+  const w = deviceWaves(curS()), out = D.drive === 'fwd' ? 'b2' : 'b1', pw = cabs(w[out]) ** 2;
   return ['power out = |' + out + '|²', pw > 1 + 1e-9 ? sig2(pw) + ' × input' : pct2(pw)];
 }
 const WAVE_CAPTION = 'a, b = normalized waves (a = V⁺/√Z0). Power = |wave|².';
@@ -291,11 +285,30 @@ function sEditor(st, pre, changed){
   link.addEventListener('change', () => { st.recip = link.checked; if(link.checked) st.e.s12 = st.e.s21.slice(); changed(true); });
   return [h('div', { cls: 'srows' }, S_KEYS.map(row)), h('label', { cls: 'chk' }, link, ' reciprocal (S12 = S21)')];
 }
-/* The controls of the current device: a preset's knob(s) and all four S entries with the reciprocal link, filled with the
-   device's S and following the knob live (syncDevices); editing an S entry switches to Custom with those values. Custom:
-   the S entries alone. D.est is the preset entry set shown. */
+// The S entries each preset knob sets (Douglas, 2026-10-23: on an edited device the knob still sets these, keeping the
+// other edits).
+const KNOB_KEYS = { l: ['s21', 's12'], A: ['s21', 's12'], G: ['s21'], IL: ['s21'], I: ['s12'] };
+const KNOB_TEXT = { through: 'S21 and S12', atten: 'S21 and S12', amp: 'S21', iso: 'S21 (loss) and S12 (isolation)' };
+/* A preset knob moved: param k of the current device to v. On an edited device the entries that knob sets take the
+   preset's new values and the other edits stay; the reciprocal link is dropped if S12 no longer equals S21, and the
+   "(edited)" mark goes when every entry matches the preset again. */
+function setKnob(k, v){
+  D[D.dev][k] = v;
+  const ed = D.edits[D.dev];
+  if(ed){ const pre = sEntries(deviceS(D.dev, D[D.dev]));
+    KNOB_KEYS[k].forEach(kk => { ed.e[kk] = pre.e[kk].slice(); });
+    const unlink = ed.recip && (ed.e.s12[0] !== ed.e.s21[0] || ed.e.s12[1] !== ed.e.s21[1]);   // the S12 row unlocks: rebuild the panel
+    if(unlink) ed.recip = false;
+    if(JSON.stringify(ed) === JSON.stringify(pre)){ delete D.edits[D.dev]; redraw(true); return; }
+    if(unlink){ redraw(true); return; } }
+  redraw(false);
+}
+/* The controls of the current device. A preset: its name ("<Device> (edited)" once an S entry is edited), its knob(s), all
+   four S entries with the reciprocal link and, when edited, "Reset to <Device>". The entries follow the knob live
+   (syncDevices): unedited they show the preset's S; edited, the knob sets the entries it controls (KNOB_KEYS) and the
+   other edits stay. Editing an entry keeps the device and its diagram, marked "(edited)". Custom: the S entries alone. */
 function deviceControls(){
-  const set = (k, v) => { D[D.dev][k] = v; redraw(false); };
+  const set = setKnob;
   if(D.dev === 'custom'){ D.est = null; return sEditor(D.custom, 'c', redraw); }
   const knobs = { through: () => [slider({ id: 'len', label: 'Line length ℓ/λ', min: 0, max: 1, step: 0.01, value: D.through.l, unit: 'λ', onset: v => set('l', v) })],
     atten: () => [slider({ id: 'att', label: 'Attenuation', min: 0, max: 40, step: 0.5, value: D.atten.A, unit: 'dB', onset: v => set('A', v) })],
@@ -305,17 +318,21 @@ function deviceControls(){
         toSlider: v => (v === Infinity ? ISO_MAX + 1 : v), fromSlider: q => (q > ISO_MAX ? Infinity : q), fmt: v => (v === Infinity ? 'infinite isolation' : v + ' dB'),
         numText: v => (v === Infinity ? '' : v), placeholder: '∞',
         onset: v => set('I', v) })] }[D.dev]();
-  const st = D.est = sEntries(deviceS(D.dev, D[D.dev]));
-  const changed = full => { if(D.dev !== 'custom'){ D.custom = st; show('devices', 'custom'); } else redraw(full); };
-  return [...knobs, ...sEditor(st, 'c', changed), note('Editing an S entry switches to Custom with these values.')];
+  const ed = edited(), st = ed ? D.edits[D.dev] : sEntries(deviceS(D.dev, D[D.dev]));
+  D.est = st;
+  const changed = full => { if(!edited()){ D.edits[D.dev] = st; redraw(true); } else redraw(full); };
+  const title = h('div', { cls: 'sec', id: 'devTitle', text: devLabel() });
+  const reset = ed ? h('button', { type: 'button', id: 'devReset', text: 'Reset to ' + DEV_NAME[D.dev], onclick: () => { delete D.edits[D.dev]; redraw(true); } }) : null;
+  return [title, ...knobs, ...sEditor(st, 'c', changed), reset,
+    note(ed ? 'Edited: the knob still sets ' + KNOB_TEXT[D.dev] + '; your other edits stay.' : 'Edit any S entry: the device keeps its name, marked "(edited)".')].filter(Boolean);
 }
 // Side panel of the Devices view: the power out; the controls; one line of explanation; the wave caption.
 function panelDevices(){ const [k, v] = devicePower(); return [headline(k, v, 'roPower'), ...deviceControls(), note(DEV_NOTE[D.dev]), note(WAVE_CAPTION)]; }
 // Refresh the readouts after a control moved (the panel is not rebuilt, so focus stays on the control); a preset's S
-// entries follow its knob.
+// entries follow its knob (unedited: the preset's S; edited: the edit set, which setKnob has updated).
 function syncDevices(){
   const [k, v] = devicePower(), e = document.getElementById('roPower'); if(e){ e.textContent = v; e.previousSibling.textContent = k; }
-  if(D.dev !== 'custom' && D.est){ Object.assign(D.est, sEntries(deviceS(D.dev, D[D.dev])));
+  if(D.dev !== 'custom' && D.est){ if(!edited()) Object.assign(D.est, sEntries(deviceS(D.dev, D[D.dev])));
     const put = (id, x) => { const b = document.getElementById(id); if(b && b !== document.activeElement) b.value = +(+x).toPrecision(6); };
     for(const kk of S_KEYS){ put('c' + kk, D.est.e[kk][0]); put('c' + kk + 'm', D.est.e[kk][0]); put('c' + kk + 'a', D.est.e[kk][1]); }
     const rc = document.getElementById('crecip'); if(rc) rc.checked = D.est.recip; }
