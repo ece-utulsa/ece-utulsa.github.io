@@ -58,7 +58,7 @@ const DEC_P = 4, DEC_DBM = 2, DEC_RAD = 3, MW = 1e-3;
 const PLOT_SPAN = 50, MINI_SPAN = 40;   // dB shown by the response plot and by each junction spectrum
 /* Layout (design units = px at 1280×720). The drawing is as wide as the drawing area (at least 900): the circuit spreads
    to fill it. Cascade: one row; divider: branch A above, the chain and the divider in the middle, branch B below. */
-const LY_C = { edge: 16, srcR: 26, loadW: 90, divW: 96, plusR: 14, rowC: 84, rowsD: { A: 118, M: 198, B: 278 }, bhC: 88, bhD: 80,
+const LY_C = { edge: 16, srcR: 26, loadW: 90, divW: 110, plusR: 14, rowC: 84, rowsD: { A: 118, M: 198, B: 278 }, bhC: 88, bhD: 80,
                miniC: { top: 150, h: 80 }, miniD: { top: 22, h: 44, topB: 330 }, plotC: 272, plotD: 412 };
 const SCALE_H = 700, SCALE_MAX = 1.6;   // the circuit's scale k = H / SCALE_H (design units), from 1 up to SCALE_MAX
 // The circuit's layout at scale k: sizes and vertical positions grow by k (the edge clearance and "+" buttons do not).
@@ -286,6 +286,19 @@ function loadBox(G, b, y){
     + txt(cx, y - 13, 'Load' + (b === 'L' ? '' : ' ' + b), { anchor: 'middle', size: G.div ? FS.small : FS.label })
     + txt(cx, y + 13, loadShort(zl), { anchor: 'middle', size: FS.small, id: 'loadVal' + (b === 'L' ? '' : b) }));
 }
+/* The splitter symbol inside the divider box (Douglas, 2026-10-23): the input line from port 1 splits at a point into two
+   lines that run out to ports 2 (branch A) and 3 (branch B), arrows on the outputs, and each output's level in dB
+   (|S21|², |S31|²): one "−3.0 dB" when the split is equal. */
+function splitter(G, yM){
+  const w = G.Lk.divW, x0 = G.divX, xs = x0 + 0.25 * w, xb = x0 + 0.5 * w, x1 = x0 + w, yA = G.rows.A, yB = G.rows.B, xl = x0 + 0.68 * w;
+  const D = dividerS(K.div.type, splitOf() / 100), pa = cabs(D[1][0]) ** 2, pb = cabs(D[2][0]) ** 2, t = p => fx(10 * Math.log10(p), 1) + ' dB';
+  const head = y => el('path', { d: 'M' + n2(x1 - 6) + ' ' + y + 'l-10 -5v10Z', fill: 'var(--txt)', class: 'shead' });
+  let s = el('path', { d: 'M' + n2(x0) + ' ' + yM + 'H' + n2(xs) + 'L' + n2(xb) + ' ' + yA + 'H' + n2(x1) + 'M' + n2(xs) + ' ' + yM + 'L' + n2(xb) + ' ' + yB + 'H' + n2(x1),
+    fill: 'none', stroke: 'var(--txt)', 'stroke-width': 2.5, 'stroke-linejoin': 'round', class: 'split' }) + head(yA) + head(yB);
+  s += Math.abs(pa - pb) < 1e-9 ? txt(xl, yM, t(pa), { anchor: 'middle', size: FS.small, id: 'divDb' })
+    : txt(xl, yM - 14, t(pa), { anchor: 'middle', size: FS.small, fill: 'var(--s21)', id: 'divDbA' }) + txt(xl, yM + 14, t(pb), { anchor: 'middle', size: FS.small, fill: 'var(--s12)', id: 'divDbB' });
+  return s;
+}
 // The circuit: source, wires, blocks, the divider and its branches, loads, and a "+" at every junction with room.
 function drawCircuit(G){
   const yM = G.rows.M, on = isSel('src');
@@ -302,8 +315,8 @@ function drawCircuit(G){
     const top = G.rows.A - G.bh / 2, bot = G.rows.B + G.bh / 2, cx = G.divX + G.Lk.divW / 2, on2 = isSel('div');
     s += btnG({ 'data-div': 1, 'aria-pressed': on2 ? 'true' : 'false' }, 'Power divider: ' + DIV_NAME[K.div.type] + ', ' + splitOf() + ' / ' + (100 - splitOf()) + ' %' + (on2 ? ' (selected)' : ''),
       el('rect', { x: G.divX, y: top, width: G.Lk.divW, height: bot - top, rx: 8, fill: 'var(--panel)', stroke: on2 ? 'var(--focus)' : 'var(--txt)', 'stroke-width': on2 ? 5 : 2, class: 'divbox' })
-      + txt(cx, yM - 26, 'Divider', { anchor: 'middle', size: FS.small }) + txt(cx, yM, DIV_SHORT[K.div.type], { anchor: 'middle', size: FS.small, id: 'divType_t' })
-      + txt(cx, yM + 26, splitOf() + ' / ' + (100 - splitOf()) + ' %', { anchor: 'middle', size: FS.small, id: 'divSplit_t' }));
+      + splitter(G, yM) + txt(cx, top + 16, DIV_SHORT[K.div.type], { anchor: 'middle', size: FS.small, id: 'divType_t' })
+      + txt(cx, bot - 16, splitOf() + ' / ' + (100 - splitOf()) + ' %', { anchor: 'middle', size: FS.small, id: 'divSplit_t' }));
     s += btnG({ 'data-del': 'div' }, 'Remove the divider (branch A joins the chain)',
       el('circle', { cx: G.divX + G.Lk.divW, cy: top, r: 12, fill: 'var(--bg)', stroke: 'var(--mut)', 'stroke-width': 1.5, class: 'xbtn' }) + crossMark(G.divX + G.Lk.divW, top, 5, 'var(--mut)'));
     ['A', 'B'].forEach(k => { K[k].forEach((_, i) => { s += blockBox(G, k, i, G.br[k].bx[i], G.rows[k]); }); s += loadBox(G, k, G.rows[k]); });
@@ -404,7 +417,8 @@ function drawChainPlot(G, atM, y0){
   const mid = i => (xs(i) + xs(i + 1)) / 2, yS = yb + 18, yS2 = yb + 42;
   K.main.forEach((d, i) => { s += sym(d.type, mid(i), yS, 9, 'var(--txt)'); if(!G.div) s += txt(mid(i), yb + 40, ABBR[d.type], { anchor: 'middle', size: FS.small, fill: 'var(--mut)', weight: 400 }); });
   if(G.div){ const xd = mid(nM);
-    s += el('path', { d: 'M' + n2(xd - 12) + ' ' + yS + 'H' + n2(xd) + 'M' + n2(xd) + ' ' + yS + 'L' + n2(xd + 12) + ' ' + (yS - 8) + 'M' + n2(xd) + ' ' + yS + 'L' + n2(xd + 12) + ' ' + (yS + 8), fill: 'none', stroke: 'var(--txt)', 'stroke-width': 2, class: 'sym' });
+    s += el('g', { class: 'sym', 'data-sym': 'div' }, el('rect', { x: xd - 12, y: yS - 9, width: 24, height: 18, rx: 2, fill: 'var(--bg)', stroke: 'var(--txt)', 'stroke-width': 2 })
+      + el('path', { d: 'M' + n2(xd - 12) + ' ' + yS + 'H' + n2(xd - 5) + 'L' + n2(xd + 2) + ' ' + (yS - 5) + 'H' + n2(xd + 12) + 'M' + n2(xd - 5) + ' ' + yS + 'L' + n2(xd + 2) + ' ' + (yS + 5) + 'H' + n2(xd + 12), fill: 'none', stroke: 'var(--txt)', 'stroke-width': 1.5 }));
     K.A.forEach((d, i) => { s += sym(d.type, mid(nM + 1 + i), yS, 9, 'var(--s21)'); });
     K.B.forEach((d, i) => { s += sym(d.type, mid(nM + 1 + i), yS2, 9, 'var(--s12)'); }); }
   return s;

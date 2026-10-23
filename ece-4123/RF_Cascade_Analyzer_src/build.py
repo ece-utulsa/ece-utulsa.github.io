@@ -20,9 +20,11 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.7.1'
+VERSION = '1.7.2'
 RELEASED = '2026-10-23'
-CHANGELOG = ('\n    v1.7.1 - Cascade: the circuit (blocks, schematic symbols, spacing, junction spectra) scales up with the window '
+CHANGELOG = ('\n    v1.7.2 - Cascade: the power divider drawn as a splitter (the input line splitting into two output lines with '
+             'arrows to ports 2 and 3) with each output\'s level in dB.'
+             '\n    v1.7.1 - Cascade: the circuit (blocks, schematic symbols, spacing, junction spectra) scales up with the window '
              'height, up to 1.6×; text keeps its size.'
              '\n    v1.7.0 - Cascade: v1.1.0\'s Lab brought back (source Vs and Zs, reference Z0, loads with Matched/Short/Open, '
              'device presets with S entries, results with node voltages, currents and powers), its settings and results in the '

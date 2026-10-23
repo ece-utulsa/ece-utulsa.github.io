@@ -2,7 +2,7 @@
    the gates, not the blind Test suite. They read the built page only through the DOM (text, data-q / data-v
    attributes, the URL hash); the page has no test hooks.
 
-   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.7.1.html] [--shots]
+   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.7.2.html] [--shots]
    --shots also writes the 1280×720 presentation screenshots to ../screenshots/.
    Set CHROMIUM=/path/to/chromium to use a particular browser binary. */
 'use strict';
@@ -11,7 +11,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
-const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.7.1.html'));
+const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.7.2.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
 const STOPS = ['#view=reflections&vr=0', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
@@ -142,23 +142,23 @@ const devGapIssues = page => page.evaluate(() => {
 
   console.log('Load');
   { const { ctx, page, log } = await open(browser);
-    check('version v1.7.1: header comment, Released, meta, title; changelog v1.7.1 on top, then v1.7.0 … v1.1.0 as history',
-      /Version: v1\.7\.1/.test(html) && /Released: 2026-10-23/.test(html) && /<meta name="version" content="v1\.7\.1">/.test(html) && /<title>RF Cascade Analyzer v1\.7\.1<\/title>/.test(html)
-      && /v1\.7\.1 - Cascade: the circuit .* scales up with the window/.test(html) && /v1\.7\.0 - Cascade: v1\.1\.0's Lab brought back/.test(html)
+    check('version v1.7.2: header comment, Released, meta, title; changelog v1.7.2 on top, then v1.7.1 … v1.1.0 as history',
+      /Version: v1\.7\.2/.test(html) && /Released: 2026-10-23/.test(html) && /<meta name="version" content="v1\.7\.2">/.test(html) && /<title>RF Cascade Analyzer v1\.7\.2<\/title>/.test(html)
+      && /v1\.7\.2 - Cascade: the power divider drawn as a splitter/.test(html) && /v1\.7\.1 - Cascade: the circuit .* scales up with the window/.test(html) && /v1\.7\.0 - Cascade: v1\.1\.0's Lab brought back/.test(html)
       && /v1\.6\.0 - Devices: drawn as the incident \/ reflected \/ transmitted flow diagram/.test(html) && /every device's S entries editable, keeping the device as "<Device> \(edited\)" with a reset\./.test(html)
-      && ['v1.7.1', 'v1.7.0', 'v1.6.0', 'v1.5.0', 'v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
-      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.0)\b|content="v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.0)"/.test(html));
-    check('footer: v1.7.1 · released 2026-10-23 · Author: Claude Code', (await text(page, 'footer')).includes('v1.7.1 · released 2026-10-23 · Author: Claude Code'));
+      && ['v1.7.2', 'v1.7.1', 'v1.7.0', 'v1.6.0', 'v1.5.0', 'v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
+      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[01])\b|content="v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[01])"/.test(html));
+    check('footer: v1.7.2 · released 2026-10-23 · Author: Claude Code', (await text(page, 'footer')).includes('v1.7.2 · released 2026-10-23 · Author: Claude Code'));
     const stamp = async () => page.evaluate(() => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
       const btns = [...document.querySelectorAll('#top button')].filter(b => b.getBoundingClientRect().width), last = btns[btns.length - 1].getBoundingClientRect(), top = document.getElementById('top').getBoundingClientRect();
       return { text: v.textContent, fs: parseFloat(cs.fontSize), mut: cs.color === getComputedStyle(document.querySelector('.note') || document.body).color || cs.color !== getComputedStyle(document.body).color,
-        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.7.1'),
+        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.7.2'),
         oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; });
     let st = await stamp();
-    check('stamp "v1.7.1" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.7.1' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
+    check('stamp "v1.7.2" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.7.2' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
     const wBtn = await page.evaluate(() => [...document.querySelectorAll('#top button')].map(b => Math.round(b.getBoundingClientRect().width)).join(','));
     await present(page); st = await stamp();
-    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.7.1"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
+    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.7.2"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
     await page.keyboard.press('t'); await page.waitForTimeout(60); st = await stamp();
     check('presentation (dark): stamp still visible', st.shown && st.body && await page.evaluate(() => !document.body.classList.contains('light')));
     await page.keyboard.press('t'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
@@ -385,10 +385,13 @@ const devGapIssues = page => page.evaluate(() => {
     check('a Wilkinson divider inserted after the band-pass: Attenuator in branch A, a copy in B; div in +12.0, A in +9.0, load A +6.0, B in +9.0, load B +6.0 dB',
       JSON.stringify(sp) === JSON.stringify(['in 0.0 dB', 'div in +12.0 dB', 'A in +9.0 dB', 'load A +6.0 dB', 'B in +9.0 dB', 'load B +6.0 dB']) && (await text(page, '#kTitle')) === 'Power divider'
       && (await page.$$('#stage .load')).length === 2 && (await keyv()).length === 4, sp);
+    check('the divider is drawn as a splitter: the input line splits into two output lines with arrows to branches A and B; "−3.0 dB" for the equal split',
+      !!(await page.$('#stage .divbox ~ .split, #stage .split')) && (await page.$$('#stage .shead')).length === 2 && (await text(page, '#divDb')) === '−3.0 dB' && (await text(page, '#divType_t')) === 'Wilkinson');
     check('divider results: 50 % into each branch, nothing dissipated', await panelHas('into branch A') && (await page.evaluate(() => document.getElementById('cres').innerText)).includes('(50.0%)'));
     await setInput(page, '#split', '75');
     sp = await spec(['specA1', 'specB1']);
-    check('split 75 %: load A +7.8 dB, load B +3.0 dB (+12 − 1.25 − 3 and +12 − 6.02 − 3)', JSON.stringify(sp) === JSON.stringify(['load A +7.8 dB', 'load B +3.0 dB']), sp);
+    check('split 75 %: load A +7.8 dB, load B +3.0 dB (+12 − 1.25 − 3 and +12 − 6.02 − 3); the splitter reads −1.2 dB (A) and −6.0 dB (B)', JSON.stringify(sp) === JSON.stringify(['load A +7.8 dB', 'load B +3.0 dB'])
+      && (await text(page, '#divDbA')) === '−1.2 dB' && (await text(page, '#divDbB')) === '−6.0 dB', sp);
     await page.selectOption('#divType', 'resistive'); await page.waitForTimeout(60);
     sp = await spec(['specA1', 'specB1']);
     check('resistive divider: split fixed at 50 %, each output −6 dB (loads +3.0 dB), 50 % dissipated', JSON.stringify(sp) === JSON.stringify(['load A +3.0 dB', 'load B +3.0 dB']) && await page.isDisabled('#split')

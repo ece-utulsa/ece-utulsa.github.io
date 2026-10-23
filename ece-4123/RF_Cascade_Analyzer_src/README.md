@@ -1,6 +1,6 @@
 # RF Cascade Analyzer — sources
 
-`../RF_Cascade_Analyzer_v1.7.1.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
+`../RF_Cascade_Analyzer_v1.7.2.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
 
 | File | What it holds |
 |---|---|
@@ -20,7 +20,7 @@
 ## Build and test
 
 ```sh
-python3 build.py                                   # writes ../RF_Cascade_Analyzer_v1.7.1.html
+python3 build.py                                   # writes ../RF_Cascade_Analyzer_v1.7.2.html
 node tests/engine.test.js
 NODE_PATH=$(npm root -g) node tests/browser.test.js [--shots]   # needs Playwright; CHROMIUM=/path/to/chromium optional
 ```
