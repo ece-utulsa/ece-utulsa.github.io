@@ -20,9 +20,11 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.7.0'
+VERSION = '1.7.1'
 RELEASED = '2026-10-23'
-CHANGELOG = ('\n    v1.7.0 - Cascade: v1.1.0\'s Lab brought back (source Vs and Zs, reference Z0, loads with Matched/Short/Open, '
+CHANGELOG = ('\n    v1.7.1 - Cascade: the circuit (blocks, schematic symbols, spacing, junction spectra) scales up with the window '
+             'height, up to 1.6×; text keeps its size.'
+             '\n    v1.7.0 - Cascade: v1.1.0\'s Lab brought back (source Vs and Zs, reference Z0, loads with Matched/Short/Open, '
              'device presets with S entries, results with node voltages, currents and powers), its settings and results in the '
              'side panel and the circuit drawn large across the drawing area; a power divider can be inserted at any junction, '
              'splitting the chain into two parallel branches with their own loads; a frequency band (centre ± span or '

@@ -60,6 +60,14 @@ const PLOT_SPAN = 50, MINI_SPAN = 40;   // dB shown by the response plot and by 
    to fill it. Cascade: one row; divider: branch A above, the chain and the divider in the middle, branch B below. */
 const LY_C = { edge: 16, srcR: 26, loadW: 90, divW: 96, plusR: 14, rowC: 84, rowsD: { A: 118, M: 198, B: 278 }, bhC: 88, bhD: 80,
                miniC: { top: 150, h: 80 }, miniD: { top: 22, h: 44, topB: 330 }, plotC: 272, plotD: 412 };
+const SCALE_H = 700, SCALE_MAX = 1.6;   // the circuit's scale k = H / SCALE_H (design units), from 1 up to SCALE_MAX
+// The circuit's layout at scale k: sizes and vertical positions grow by k (the edge clearance and "+" buttons do not).
+function scaledLayout(k){
+  const L = LY_C, m = v => v * k;
+  return { srcR: m(L.srcR), loadW: m(L.loadW), divW: m(L.divW), rowC: m(L.rowC), bhC: m(L.bhC), bhD: m(L.bhD), plotC: m(L.plotC), plotD: m(L.plotD),
+           rowsD: { A: m(L.rowsD.A), M: m(L.rowsD.M), B: m(L.rowsD.B) }, miniC: { top: m(L.miniC.top), h: m(L.miniC.h) },
+           miniD: { top: m(L.miniD.top), h: m(L.miniD.h), topB: m(L.miniD.topB) } };
+}
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── STATE ─────────────────────────────────────────────────────
@@ -203,17 +211,19 @@ function sweep(){
 /* x positions: blocks, junctions (each between two neighbours: source, block, divider or load), the divider and the
    loads. Blocks widen and gaps grow with the drawing's width; a gap always leaves room for its "+". */
 function geoC(H, W){
-  const div = !!K.div, e = LY_C.edge, srcX = e + LY_C.srcR + 4, x0 = srcX + LY_C.srcR, loadX = W - e - LY_C.loadW;
+  // the circuit (blocks, symbols, spacing, spectra) grows with a tall drawing area; text keeps its size
+  const k = Math.min(SCALE_MAX, Math.max(1, H / SCALE_H)), Lk = scaledLayout(k);
+  const div = !!K.div, e = LY_C.edge, srcX = e + Lk.srcR + 4, x0 = srcX + Lk.srcR, loadX = W - e - Lk.loadW;
   const nM = K.main.length, nBr = div ? Math.max(K.A.length, K.B.length) : 0, cols = Math.max(1, nM + nBr), gaps = div ? nM + nBr + 2 : nM + 1;
-  const free = loadX - x0 - (div ? LY_C.divW : 0);
-  const bw = div ? Math.min(130, Math.max(86, (free - gaps * 64) / cols)) : Math.min(150, Math.max(110, (free - gaps * 70) / cols)), g = (free - (nM + nBr) * bw) / gaps;
-  const rows = div ? LY_C.rowsD : { M: LY_C.rowC }, bh = div ? LY_C.bhD : LY_C.bhC;
-  const bxM = K.main.map((_, i) => x0 + g + i * (bw + g)), divX = div ? x0 + g + nM * (bw + g) : null, after = div ? divX + LY_C.divW : null;
+  const free = loadX - x0 - (div ? Lk.divW : 0);
+  const bw = div ? Math.min(130 * k, Math.max(86, (free - gaps * 64) / cols)) : Math.min(150 * k, Math.max(110, (free - gaps * 70) / cols)), g = (free - (nM + nBr) * bw) / gaps;
+  const rows = div ? Lk.rowsD : { M: Lk.rowC }, bh = div ? Lk.bhD : Lk.bhC;
+  const bxM = K.main.map((_, i) => x0 + g + i * (bw + g)), divX = div ? x0 + g + nM * (bw + g) : null, after = div ? divX + Lk.divW : null;
   const jM = K.main.map((_, j) => (j === 0 ? x0 + g / 2 : bxM[j - 1] + bw + g / 2)).concat([nM ? bxM[nM - 1] + bw + ((div ? divX : loadX) - bxM[nM - 1] - bw) / 2 : (x0 + (div ? divX : loadX)) / 2]);
   const br = {};
   if(div) ['A', 'B'].forEach(k => { const n = K[k].length, bx = K[k].map((_, i) => after + g + i * (bw + g));
     br[k] = { bx, jx: bx.map((x, j) => (j === 0 ? after + g / 2 : bx[j - 1] + bw + g / 2)).concat([n ? (bx[n - 1] + bw + loadX) / 2 : (after + loadX) / 2]) }; });
-  return { W, H, div, srcX, x0, loadX, bw, bh, g, rows, bxM, jM, divX, after, br, pitch: bw + g };
+  return { W, H, k, Lk, div, srcX, x0, loadX, bw, bh, g, rows, bxM, jM, divX, after, br, pitch: bw + g };
 }
 const btnG = (attrs, label, inner) => el('g', Object.assign({ role: 'button', tabindex: 0, 'aria-label': label, class: 'hit' }, attrs), inner);
 const isSel = (k, i) => K.sel.k === k && (i === undefined || K.sel.i === i);
@@ -257,7 +267,7 @@ const symHalf = (type, s) => (type === 'amp' ? s * 0.9 : type === 'thru' ? s * 1
    the block's area masks the wire behind it and is outlined only when selected. */
 function blockBox(G, k, i, x, y){
   const d = K[k][i], on = isSel(k, i), top = y - G.bh / 2, cx = x + G.bw / 2, big = G.bw >= 110, fs = FS.small;   // 14: names clear the × at the corner
-  const ss = G.div ? 11 : 13, dy = G.div ? 22 : 24, hw = symHalf(d.type, ss);
+  const ss = (G.div ? 11 : 13) * G.k, dy = (G.div ? 22 : 24) * G.k, hw = symHalf(d.type, ss);
   let s = btnG({ 'data-blk': k + ':' + i, 'aria-pressed': on ? 'true' : 'false' }, blockName(k, i) + ': ' + PRESET_NAME[d.type] + ' ' + keyText(d) + (on ? ' (selected)' : ''),
     el('rect', { x, y: top, width: G.bw, height: G.bh, rx: 8, fill: 'var(--bg)', stroke: on ? 'var(--focus)' : 'none', 'stroke-width': on ? 5 : 2, class: 'block' + (on ? ' sel' : '') })
     + el('path', { d: 'M' + n2(x) + ' ' + y + 'H' + n2(cx - hw) + 'M' + n2(cx + hw) + ' ' + y + 'H' + n2(x + G.bw), stroke: 'var(--mut)', 'stroke-width': 2, class: 'lead' })
@@ -270,11 +280,11 @@ function blockBox(G, k, i, x, y){
 }
 // A load box (L, A or B) at the end of a row.
 function loadBox(G, b, y){
-  const zl = K[loadKey(b)], top = y - G.bh / 2, cx = G.loadX + LY_C.loadW / 2, on = isSel('load') && K.sel.b === b;
+  const zl = K[loadKey(b)], top = y - G.bh / 2, cx = G.loadX + G.Lk.loadW / 2, on = isSel('load') && K.sel.b === b;
   return btnG({ 'data-load': b, 'aria-pressed': on ? 'true' : 'false' }, 'Load' + (b === 'L' ? '' : ' ' + b) + ': ' + loadShort(zl).replace(INF, 'open'),
-    el('rect', { x: G.loadX, y: top, width: LY_C.loadW, height: G.bh, rx: 8, fill: 'var(--bg2)', stroke: on ? 'var(--focus)' : 'var(--txt)', 'stroke-width': on ? 5 : 2, class: 'load' })
-    + txt(cx, top + (G.div ? 22 : 26), 'Load' + (b === 'L' ? '' : ' ' + b), { anchor: 'middle', size: G.div ? FS.small : FS.label })
-    + txt(cx, top + (G.div ? 50 : 54), loadShort(zl), { anchor: 'middle', size: FS.small, id: 'loadVal' + (b === 'L' ? '' : b) }));
+    el('rect', { x: G.loadX, y: top, width: G.Lk.loadW, height: G.bh, rx: 8, fill: 'var(--bg2)', stroke: on ? 'var(--focus)' : 'var(--txt)', 'stroke-width': on ? 5 : 2, class: 'load' })
+    + txt(cx, y - 13, 'Load' + (b === 'L' ? '' : ' ' + b), { anchor: 'middle', size: G.div ? FS.small : FS.label })
+    + txt(cx, y + 13, loadShort(zl), { anchor: 'middle', size: FS.small, id: 'loadVal' + (b === 'L' ? '' : b) }));
 }
 // The circuit: source, wires, blocks, the divider and its branches, loads, and a "+" at every junction with room.
 function drawCircuit(G){
@@ -284,18 +294,18 @@ function drawCircuit(G){
   s += el('line', { x1: G.x0, y1: yM, x2: G.div ? G.divX : G.loadX, y2: yM, stroke: 'var(--mut)', 'stroke-width': 2, class: 'wire' });
   if(G.div) ['A', 'B'].forEach(k => { s += el('line', { x1: G.after, y1: G.rows[k], x2: G.loadX, y2: G.rows[k], stroke: 'var(--mut)', 'stroke-width': 2, class: 'wire' }); });
   s += btnG({ 'data-src': 1, 'aria-pressed': on ? 'true' : 'false' }, 'Source: ' + fmtMag(K.vsMag) + ' V, Zs ' + zField(K.zs) + ' Ω' + (on ? ' (selected)' : ''),
-    el('circle', { cx: G.srcX, cy: yM, r: LY_C.srcR, fill: 'var(--panel)', stroke: on ? 'var(--focus)' : 'var(--txt)', 'stroke-width': on ? 5 : 2.5, class: 'src' })
+    el('circle', { cx: G.srcX, cy: yM, r: G.Lk.srcR, fill: 'var(--panel)', stroke: on ? 'var(--focus)' : 'var(--txt)', 'stroke-width': on ? 5 : 2.5, class: 'src' })
     + el('path', { d: 'M' + (G.srcX - 14) + ' ' + yM + 'c5 -12 9 -12 14 0s9 12 14 0', fill: 'none', stroke: 'var(--txt)', 'stroke-width': 2.5 }));
-  s += txt(G.srcX, yM + LY_C.srcR + 18, 'Source', { anchor: 'middle', fill: 'var(--mut)' });
+  s += txt(G.srcX, yM + G.Lk.srcR + 18, 'Source', { anchor: 'middle', fill: 'var(--mut)' });
   K.main.forEach((_, i) => { s += blockBox(G, 'main', i, G.bxM[i], yM); });
   if(G.div){
-    const top = G.rows.A - G.bh / 2, bot = G.rows.B + G.bh / 2, cx = G.divX + LY_C.divW / 2, on2 = isSel('div');
+    const top = G.rows.A - G.bh / 2, bot = G.rows.B + G.bh / 2, cx = G.divX + G.Lk.divW / 2, on2 = isSel('div');
     s += btnG({ 'data-div': 1, 'aria-pressed': on2 ? 'true' : 'false' }, 'Power divider: ' + DIV_NAME[K.div.type] + ', ' + splitOf() + ' / ' + (100 - splitOf()) + ' %' + (on2 ? ' (selected)' : ''),
-      el('rect', { x: G.divX, y: top, width: LY_C.divW, height: bot - top, rx: 8, fill: 'var(--panel)', stroke: on2 ? 'var(--focus)' : 'var(--txt)', 'stroke-width': on2 ? 5 : 2, class: 'divbox' })
+      el('rect', { x: G.divX, y: top, width: G.Lk.divW, height: bot - top, rx: 8, fill: 'var(--panel)', stroke: on2 ? 'var(--focus)' : 'var(--txt)', 'stroke-width': on2 ? 5 : 2, class: 'divbox' })
       + txt(cx, yM - 26, 'Divider', { anchor: 'middle', size: FS.small }) + txt(cx, yM, DIV_SHORT[K.div.type], { anchor: 'middle', size: FS.small, id: 'divType_t' })
       + txt(cx, yM + 26, splitOf() + ' / ' + (100 - splitOf()) + ' %', { anchor: 'middle', size: FS.small, id: 'divSplit_t' }));
     s += btnG({ 'data-del': 'div' }, 'Remove the divider (branch A joins the chain)',
-      el('circle', { cx: G.divX + LY_C.divW, cy: top, r: 12, fill: 'var(--bg)', stroke: 'var(--mut)', 'stroke-width': 1.5, class: 'xbtn' }) + crossMark(G.divX + LY_C.divW, top, 5, 'var(--mut)'));
+      el('circle', { cx: G.divX + G.Lk.divW, cy: top, r: 12, fill: 'var(--bg)', stroke: 'var(--mut)', 'stroke-width': 1.5, class: 'xbtn' }) + crossMark(G.divX + G.Lk.divW, top, 5, 'var(--mut)'));
     ['A', 'B'].forEach(k => { K[k].forEach((_, i) => { s += blockBox(G, k, i, G.br[k].bx[i], G.rows[k]); }); s += loadBox(G, k, G.rows[k]); });
   } else s += loadBox(G, 'L', yM);
   // a "+" at every junction where a block can still go (on the chain before a divider also when only the divider can)
@@ -327,10 +337,10 @@ function drawMinis(G, sw, atM){
   const lo = LY_C.edge, hi = G.W - LY_C.edge, nM = K.main.length;
   let s = '';
   const name = (k, j, n) => (k === 'main' ? (j === 0 ? 'in' : j === n ? (G.div ? 'div in' : 'load') : j + '|' + (j + 1)) : (j === n ? 'load ' + k : j === 0 ? k + ' in' : k + j + '|' + (j + 1)));
-  if(!G.div){ const m = LY_C.miniC;
+  if(!G.div){ const m = G.Lk.miniC;
     G.jM.forEach((jx, j) => { s += mini({ x: cl(jx, lo, hi), w, y: m.top, h: m.h, v: sw.M[j], rng, name: name('main', j, nM), id: 'specM' + j, above: false, wireY: G.rows.M, at: atM.M[j] }); });
     return s; }
-  const m = LY_C.miniD;
+  const m = G.Lk.miniD;
   G.jM.forEach((jx, j) => { s += mini({ x: cl(jx, lo, hi), w, y: m.top, h: m.h, v: sw.M[j], rng, name: name('main', j, nM), id: 'specM' + j, above: true, wireY: G.rows.M, at: atM.M[j] }); });
   ['A', 'B'].forEach(k => G.br[k].jx.forEach((jx, j) => { s += mini({ x: cl(jx, lo, hi), w, y: k === 'A' ? m.top : m.topB, h: m.h, v: sw[k][j], rng, name: name(k, j, K[k].length),
     id: 'spec' + k + j, above: k === 'A', wireY: G.rows[k], at: atM[k][j] }); }));
@@ -406,7 +416,7 @@ function drawCascade(H, W){
   const atM = { M: at(r.nodesM), A: G.div ? at(r.nodesA) : [], B: G.div ? at(r.nodesB) : [] };
   K.geo = G;
   return el('svg', { class: 'vis', viewBox: '0 0 ' + n2(W) + ' ' + n2(H), role: 'img', 'aria-label': 'Cascade: the circuit, the band\'s spectrum at each junction and the response across the band' },
-    drawMinis(G, sw, atM) + drawCircuit(G) + (K.plotMode === 'chain' ? drawChainPlot(G, atM, G.div ? LY_C.plotD : LY_C.plotC) : drawPlot(G, sw, G.div ? LY_C.plotD : LY_C.plotC)));
+    drawMinis(G, sw, atM) + drawCircuit(G) + (K.plotMode === 'chain' ? drawChainPlot(G, atM, G.div ? G.Lk.plotD : G.Lk.plotC) : drawPlot(G, sw, G.div ? G.Lk.plotD : G.Lk.plotC)));
 }
 // ── END DRAWING ───────────────────────────────────────────────
 

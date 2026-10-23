@@ -2,7 +2,7 @@
    the gates, not the blind Test suite. They read the built page only through the DOM (text, data-q / data-v
    attributes, the URL hash); the page has no test hooks.
 
-   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.7.0.html] [--shots]
+   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.7.1.html] [--shots]
    --shots also writes the 1280×720 presentation screenshots to ../screenshots/.
    Set CHROMIUM=/path/to/chromium to use a particular browser binary. */
 'use strict';
@@ -11,7 +11,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
-const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.7.0.html'));
+const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.7.1.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
 const STOPS = ['#view=reflections&vr=0', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
@@ -142,23 +142,23 @@ const devGapIssues = page => page.evaluate(() => {
 
   console.log('Load');
   { const { ctx, page, log } = await open(browser);
-    check('version v1.7.0: header comment, Released, meta, title; changelog v1.7.0 on top, then v1.6.0 … v1.1.0 as history',
-      /Version: v1\.7\.0/.test(html) && /Released: 2026-10-23/.test(html) && /<meta name="version" content="v1\.7\.0">/.test(html) && /<title>RF Cascade Analyzer v1\.7\.0<\/title>/.test(html)
-      && /v1\.7\.0 - Cascade: v1\.1\.0's Lab brought back/.test(html)
+    check('version v1.7.1: header comment, Released, meta, title; changelog v1.7.1 on top, then v1.7.0 … v1.1.0 as history',
+      /Version: v1\.7\.1/.test(html) && /Released: 2026-10-23/.test(html) && /<meta name="version" content="v1\.7\.1">/.test(html) && /<title>RF Cascade Analyzer v1\.7\.1<\/title>/.test(html)
+      && /v1\.7\.1 - Cascade: the circuit .* scales up with the window/.test(html) && /v1\.7\.0 - Cascade: v1\.1\.0's Lab brought back/.test(html)
       && /v1\.6\.0 - Devices: drawn as the incident \/ reflected \/ transmitted flow diagram/.test(html) && /every device's S entries editable, keeping the device as "<Device> \(edited\)" with a reset\./.test(html)
-      && ['v1.7.0', 'v1.6.0', 'v1.5.0', 'v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
-      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0)|content="v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0)"/.test(html));
-    check('footer: v1.7.0 · released 2026-10-23 · Author: Claude Code', (await text(page, 'footer')).includes('v1.7.0 · released 2026-10-23 · Author: Claude Code'));
+      && ['v1.7.1', 'v1.7.0', 'v1.6.0', 'v1.5.0', 'v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
+      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.0)\b|content="v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.0)"/.test(html));
+    check('footer: v1.7.1 · released 2026-10-23 · Author: Claude Code', (await text(page, 'footer')).includes('v1.7.1 · released 2026-10-23 · Author: Claude Code'));
     const stamp = async () => page.evaluate(() => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
       const btns = [...document.querySelectorAll('#top button')].filter(b => b.getBoundingClientRect().width), last = btns[btns.length - 1].getBoundingClientRect(), top = document.getElementById('top').getBoundingClientRect();
       return { text: v.textContent, fs: parseFloat(cs.fontSize), mut: cs.color === getComputedStyle(document.querySelector('.note') || document.body).color || cs.color !== getComputedStyle(document.body).color,
-        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.7.0'),
+        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.7.1'),
         oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; });
     let st = await stamp();
-    check('stamp "v1.7.0" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.7.0' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
+    check('stamp "v1.7.1" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.7.1' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
     const wBtn = await page.evaluate(() => [...document.querySelectorAll('#top button')].map(b => Math.round(b.getBoundingClientRect().width)).join(','));
     await present(page); st = await stamp();
-    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.7.0"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
+    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.7.1"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
     await page.keyboard.press('t'); await page.waitForTimeout(60); st = await stamp();
     check('presentation (dark): stamp still visible', st.shown && st.body && await page.evaluate(() => !document.body.classList.contains('light')));
     await page.keyboard.press('t'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
@@ -534,6 +534,13 @@ const devGapIssues = page => page.evaluate(() => {
     check(label + ': no console errors', log.console.length === 0, log.console);
     await ctx.close();
   }
+  { const { ctx, page } = await open(browser, { viewport: { width: 1920, height: 1080 } }); await goto(page, '#view=cascade');
+    const g = () => page.evaluate(() => { const sv = document.querySelector('#stage svg'), H = sv.viewBox.baseVal.height, b = document.querySelector('#stage .block').getBBox(), sym = document.querySelector('#stage [data-blk] .sym').getBBox();
+      return { H, bh: b.height, symH: sym.height, fs: Math.max(...[...sv.querySelectorAll('text')].map(t => +t.getAttribute('font-size'))) }; });
+    const big = await g(); await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(200); const small = await g();
+    check('v1.7.1: the circuit scales with the window height (1920×1080 windowed: blocks and symbols ×' + (big.bh / small.bh).toFixed(2) + ' of 1280×720), text sizes unchanged',
+      big.bh / small.bh > 1.3 && big.symH / small.symH > 1.3 && big.fs === small.fs && near(big.bh / 88, Math.min(1.6, big.H / 700), 0.01), { big, small });
+    await ctx.close(); }
   { const { ctx, page } = await open(browser); await present(page);
     const w = await page.evaluate(() => [document.getElementById('stage').clientWidth, document.getElementById('panel').offsetWidth]);
     check('1280×720 presentation: drawing ≈ 900 px, side panel ≈ 380 px', near(w[0], 900, 2) && near(w[1], 380, 2), w);
