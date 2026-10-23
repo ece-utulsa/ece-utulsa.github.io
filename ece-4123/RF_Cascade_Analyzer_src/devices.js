@@ -6,8 +6,8 @@
    outgoing waves, V1⁻ = S11·V1⁺ + S12·V2⁺ on the left and V2⁻ = S21·V1⁺ + S22·V2⁺ on the right, with their values; the
    device sits in the centre as a DUT box with its two port stubs. Each path is drawn in its S colour, as wide as its
    power |S|² (W0 for power 1; capped at 3 W0 with a break mark and a "×10" label), and labelled with its S value,
-   Transmitted / Reflected, and its share of the power when the drive excites it. Paths the drive does not excite, and
-   excited paths with |S| < S_BLOCK (dashed, "0"), are faded but clearly visible. Below: the matrix equation, symbolic
+   Transmitted / Reflected, and its share of the power when the drive excites it. Paths the drive does not excite are
+   faded but clearly visible. A path with |S| < S_BLOCK keeps the same solid style, at the minimum width, valued "0". Below: the matrix equation, symbolic
    then with the numbers for the drive (normalized waves a = V⁺/√Z0, b = V⁻/√Z0), and the four property badges. Every
    device's S entries are editable; a preset keeps its name and diagram, marked "(edited)", until reset. Next/Previous
    step through the device list. */
@@ -24,7 +24,7 @@
 const DEVICES = ['through', 'atten', 'amp', 'iso', 'custom'];
 const DEV_NAME = { through: 'Through line', atten: 'Attenuator', amp: 'Amplifier', iso: 'Isolator', custom: 'Custom' };
 const S_ZERO = 0.005;            // |S| or a wave below this is labelled 0
-const S_BLOCK = 0.05;            // |S| below this: an excited path is drawn dashed and faded, valued "0"
+const S_BLOCK = 0.05;            // |S| below this: a path is valued "0" (drawn solid at the minimum width, like any other)
 const ISO_MAX = 60;              // isolator reverse-isolation slider: 0..60 dB, then ∞
 const MAG_MAX = 2;               // Custom |S| slider range
 const W0 = 16;                   // path width for power 1 (an incident wave); a path's width is W0·|S|²
@@ -110,13 +110,13 @@ const devLabel = () => DEV_NAME[D.dev] + (edited() ? ' (edited)' : '');
 // Width of a path for power p = |S|²: W0·p, capped at W_CAP·W0, never thinner than W_MIN.
 const pathW = p => Math.max(W_MIN, W0 * Math.min(p, W_CAP));
 /* A path through the points pts (a polyline; the last segment carries an arrowhead unless head is false), stroke col, width
-   w; dashed for a blocked path. The head is at least 14 long and 8 either side of the line, so a thin path still shows its
+   w. The head is at least 14 long and 8 either side of the line, so a thin path still shows its
    direction; the line stops where the head starts. */
-function flowLine(pts, col, w, dashed, head){
+function flowLine(pts, col, w, head){
   const [x1, y1] = pts[pts.length - 1], [x0, y0] = pts[pts.length - 2], L = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / L, uy = (y1 - y0) / L;
   const hl = head === false ? 0 : Math.max(14, w * 0.9 + 8), hh = Math.max(8, w / 2 + 6), body = pts.slice(0, -1).concat([[x1 - ux * hl, y1 - uy * hl]]);
   let s = el('path', { d: body.map(([x, y], i) => (i ? 'L' : 'M') + n2(x) + ' ' + n2(y)).join(''), fill: 'none', stroke: col, 'stroke-width': n2(w),
-    'stroke-linejoin': 'miter', 'stroke-dasharray': dashed ? '7 6' : null, class: 'fline' });
+    'stroke-linejoin': 'miter', class: 'fline' });
   if(hl) s += el('path', { d: 'M' + n2(x1) + ' ' + n2(y1) + 'L' + n2(x1 - ux * hl - uy * hh) + ' ' + n2(y1 - uy * hl + ux * hh) + 'L' + n2(x1 - ux * hl + uy * hh) + ' ' + n2(y1 - uy * hl - ux * hh) + 'Z',
     fill: col, class: 'fhead' });
   return s;
@@ -132,7 +132,7 @@ function brace(x, y0, y1, dir){
 function drawFlowDiagram(H){
   const S = curS(), w = deviceWaves(S), on = DRIVE_PATHS[D.drive], fwd = D.drive === 'fwd', L = LY_D, G = geoD(H);
   const yTop = G.by + L.yPad, yBot = G.bb - L.yPad, span = yBot - yTop, y11 = yTop + L.drop * span, y22 = yBot - L.drop * span, mid = (yTop + yBot) / 2;
-  const M = k => cabs(S[k]), blocked = k => M(k) < S_BLOCK, wid = k => (blocked(k) ? 2 : pathW(M(k) ** 2)), live = k => on.includes(k);
+  const M = k => cabs(S[k]), blocked = k => M(k) < S_BLOCK, wid = k => pathW(M(k) ** 2), live = k => on.includes(k);
   const ROUTE = { s21: [[L.xJ1, yTop], [L.xOutR, yTop]], s11: [[L.xJ1, yTop], [L.xJ1, y11], [L.xOutL, y11]],
                   s12: [[L.xJ2, yBot], [L.xOutL, yBot]], s22: [[L.xJ2, yBot], [L.xJ2, y22], [L.xOutR, y22]] };
   const TYPE = { s21: 'Transmitted', s12: 'Transmitted', s11: 'Reflected', s22: 'Reflected' };
@@ -147,15 +147,15 @@ function drawFlowDiagram(H){
   s += txt(dx - L.stubW / 2, dy + L.dutH + L.labUp, 'Port 1', { anchor: 'middle', weight: 600, cls: 'port' }) + txt(dx + L.dutW + L.stubW / 2, dy + L.dutH + L.labUp, 'Port 2', { anchor: 'middle', weight: 600, cls: 'port' });
   // the incident waves (grey, width W0; the undriven one faded) and the four S paths, unexcited ones first
   const inc = (n, pts) => { const lit = (n === 1) === fwd;
-    return el('g', { class: 'flow inc', id: 'inc' + n, 'data-q': 'V' + n + '+', 'data-faded': lit ? 0 : 1, 'data-w': W0, opacity: lit ? null : FADE }, flowLine(pts, 'var(--grey)', W0, false, false)); };
+    return el('g', { class: 'flow inc', id: 'inc' + n, 'data-q': 'V' + n + '+', 'data-faded': lit ? 0 : 1, 'data-w': W0, opacity: lit ? null : FADE }, flowLine(pts, 'var(--grey)', W0, false)); };
   s += inc(fwd ? 2 : 1, fwd ? [[L.xIn2, yBot], [L.xJ2, yBot]] : [[L.xIn1, yTop], [L.xJ1, yTop]]);
   const order = S_KEYS.slice().sort((a, b) => live(a) - live(b));
-  for(const k of order){ const faded = !live(k) || blocked(k), wk = wid(k);
-    let g = flowLine(ROUTE[k], 'var(--' + k + ')', wk, blocked(k));
+  for(const k of order){ const faded = !live(k), wk = wid(k);
+    let g = flowLine(ROUTE[k], 'var(--' + k + ')', wk);
     if(M(k) ** 2 > W_CAP){ const [[ax, ay], [bx]] = ROUTE[k].slice(-2), xm = (ax + bx) / 2;   // break mark across a capped path
       g += el('path', { d: 'M' + n2(xm - 8) + ' ' + n2(ay + wk / 2 + 4) + 'L' + n2(xm + 2) + ' ' + n2(ay - wk / 2 - 4) + 'M' + n2(xm + 6) + ' ' + n2(ay + wk / 2 + 4) + 'L' + n2(xm + 16) + ' ' + n2(ay - wk / 2 - 4),
         stroke: 'var(--bg)', 'stroke-width': 5, class: 'brk' }); }
-    s += el('g', { class: 'flow path ' + k, 'data-s': k, 'data-q': S_NAME[k], 'data-v': +M(k).toPrecision(12), 'data-w': n2(wk), 'data-faded': faded ? 1 : 0, 'data-dashed': blocked(k) ? 1 : 0, 'data-live': live(k) ? 1 : 0, opacity: faded ? FADE : null }, g); }
+    s += el('g', { class: 'flow path ' + k, 'data-s': k, 'data-q': S_NAME[k], 'data-v': +M(k).toPrecision(12), 'data-w': n2(wk), 'data-faded': faded ? 1 : 0, 'data-live': live(k) ? 1 : 0, opacity: faded ? FADE : null }, g); }
   s += inc(fwd ? 1 : 2, fwd ? [[L.xIn1, yTop], [L.xJ1, yTop]] : [[L.xIn2, yBot], [L.xJ2, yBot]]);
   // labels: each path's S value (mag∠deg; "0" when blocked) and Transmitted / Reflected with its share of the power when
   // excited ("×10" above 1); the incident waves' "Incident"; faded with their path
@@ -166,12 +166,12 @@ function drawFlowDiagram(H){
   const half = k => wid(k) / 2, wT = Math.max(W0, wid('s21')) / 2, wB = Math.max(W0, wid('s12')) / 2;
   const yA = yTop - wT - L.labUp, yU = yBot + wB + L.labUp;
   s += grp(!fwd, lab(null, (L.xIn1 + L.xJ1) / 2, yA, 'Incident', 'middle', FS.label, 'li1', 'var(--grey)'));
-  s += grp(!live('s21') || blocked('s21'), lab('s21', DESIGN_W / 2, yA, 'S_21 = ' + val('s21'), 'middle', FS.label, 'lv_s21') + lab('s21', L.xOutR, yA, typeText('s21'), 'end', FS.label, 'lt_s21'));
-  s += grp(!live('s11') || blocked('s11'), lab('s11', L.xJ1 - half('s11') - L.labSide, yTop + wT + L.labGap, 'S_11 = ' + val('s11'), 'end', FS.label, 'lv_s11')
+  s += grp(!live('s21'), lab('s21', DESIGN_W / 2, yA, 'S_21 = ' + val('s21'), 'middle', FS.label, 'lv_s21') + lab('s21', L.xOutR, yA, typeText('s21'), 'end', FS.label, 'lt_s21'));
+  s += grp(!live('s11'), lab('s11', L.xJ1 - half('s11') - L.labSide, yTop + wT + L.labGap, 'S_11 = ' + val('s11'), 'end', FS.label, 'lv_s11')
     + lab('s11', L.xJ1 - half('s11') - L.labSide, yTop + wT + 2 * L.labGap, typeText('s11'), 'end', FS.label, 'lt_s11'));
-  s += grp(!live('s22') || blocked('s22'), lab('s22', L.xJ2 + half('s22') + L.labSide, y22 + half('s22') + L.labGap, 'S_22 = ' + val('s22'), 'start', FS.label, 'lv_s22')
+  s += grp(!live('s22'), lab('s22', L.xJ2 + half('s22') + L.labSide, y22 + half('s22') + L.labGap, 'S_22 = ' + val('s22'), 'start', FS.label, 'lv_s22')
     + lab('s22', L.xJ2 + half('s22') + L.labSide, y22 + half('s22') + 2 * L.labGap, typeText('s22'), 'start', FS.label, 'lt_s22'));
-  s += grp(!live('s12') || blocked('s12'), lab('s12', L.xOutL, yU, typeText('s12'), 'start', FS.label, 'lt_s12') + lab('s12', 470, yU, 'S_12 = ' + val('s12'), 'middle', FS.label, 'lv_s12'));
+  s += grp(!live('s12'), lab('s12', L.xOutL, yU, typeText('s12'), 'start', FS.label, 'lt_s12') + lab('s12', 470, yU, 'S_12 = ' + val('s12'), 'middle', FS.label, 'lv_s12'));
   s += grp(fwd, lab(null, (L.xJ2 + L.xIn2) / 2, yU, 'Incident', 'middle', FS.label, 'li2', 'var(--grey)'));
   // the incident waves' names, and the braces gathering the outgoing waves with their values
   s += txt(L.edge, yTop, 'V_1⁺', { size: FS.big, weight: 700, id: 'nV1p' }) + txt(L.xIn2 + L.labSide, yBot, 'V_2⁺', { size: FS.big, weight: 700, id: 'nV2p' });

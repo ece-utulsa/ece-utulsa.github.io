@@ -268,9 +268,9 @@ const devGapIssues = page => page.evaluate(() => {
 
   console.log('View 2 — Devices (v1.6.0 flow diagram)');
   { const { ctx, page } = await open(browser); await present(page);
-    // each flow element: |S|, drawn width, faded (opacity), dashed, excited; and its labels' opacity
+    // each flow element: |S|, drawn width, faded (opacity), dash pattern, excited; and its labels' opacity
     const flow = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#stage .flow')].map(e => [e.classList.contains('inc') ? e.id : e.dataset.s,
-      { v: +e.dataset.v, w: +e.dataset.w, faded: e.dataset.faded === '1', dashed: e.dataset.dashed === '1', live: e.dataset.live === '1', op: +(e.getAttribute('opacity') || 1),
+      { v: +e.dataset.v, w: +e.dataset.w, faded: e.dataset.faded === '1', live: e.dataset.live === '1', op: +(e.getAttribute('opacity') || 1),
         sw: parseFloat(e.querySelector('.fline').getAttribute('stroke-width')), dash: !!e.querySelector('.fline').getAttribute('stroke-dasharray') }])));
     const labs = () => page.evaluate(S => { const f = eval(S); return Object.fromEntries([...document.querySelectorAll('#stage .flabel text')].map(t => [t.id, { t: f(t.textContent), op: +(t.parentElement.getAttribute('opacity') || 1) }])); }, SUBS);
     const W0 = 16, wOf = m => Math.max(3, W0 * Math.min(m * m, 3));
@@ -291,13 +291,13 @@ const devGapIssues = page => page.evaluate(() => {
       const F = await flow(), L = await labs(), live = dr === 'fwd' ? ['s11', 's21'] : ['s12', 's22'], fwd = dr === 'fwd';
       const vOut = await text(page, fwd ? '#vV2m' : '#vV1m'), vOther = await text(page, fwd ? '#vV1m' : '#vV2m');
       const valsOk = Object.entries(want).every(([k, [v, t]]) => L['lv_' + k].t === v && L['lt_' + k].t === t) && vOut === out && vOther === other;
-      // widths ∝ |S|² on excited, unblocked paths; everything else faded (≥ 0.35, labels ≥ 0.55); excited |S| < 0.05 dashed and "0"
+      // widths ∝ |S|² on excited, unblocked paths; unexcited faded (≥ 0.35, labels ≥ 0.55); excited |S| < 0.05 solid, unfaded, width 3, "0"
       const keys = ['s11', 's21', 's12', 's22'];
       const widthOk = keys.filter(k => live.includes(k) && F[k].v >= 0.05).every(k => near(F[k].sw, wOf(F[k].v), 0.01) && !F[k].faded && F[k].op === 1);
       const fadeOk = keys.filter(k => !live.includes(k)).every(k => F[k].faded && F[k].op >= 0.35 && F[k].op <= 0.45 && L['lv_' + k].op >= 0.55)
         && (fwd ? F.inc2.faded && F.inc2.op >= 0.35 && !F.inc1.faded : F.inc1.faded && F.inc1.op >= 0.35 && !F.inc2.faded) && near(F[fwd ? 'inc1' : 'inc2'].sw, W0, 0.01);
-      const zeroOk = keys.filter(k => live.includes(k) && F[k].v < 0.05).every(k => F[k].dashed && F[k].dash && F[k].faded && F[k].op >= 0.35 && L['lv_' + k].t === k.toUpperCase().replace('S', 'S') + ' = 0');
-      check(d + ' ' + dr + ': ' + Object.values(want).map(x => x.join(', ')).join('; ') + '; ' + (fwd ? 'V2−' : 'V1−') + ' = ' + out + '; widths ∝ |S|², unexcited faded (0.35–0.45), zero paths dashed',
+      const zeroOk = keys.every(k => !F[k].dash) && keys.filter(k => live.includes(k) && F[k].v < 0.05).every(k => !F[k].faded && F[k].op === 1 && near(F[k].sw, 3, 0.01) && L['lv_' + k].op === 1 && L['lv_' + k].t === k.toUpperCase() + ' = 0');
+      check(d + ' ' + dr + ': ' + Object.values(want).map(x => x.join(', ')).join('; ') + '; ' + (fwd ? 'V2−' : 'V1−') + ' = ' + out + '; widths ∝ |S|², unexcited faded (0.35–0.45), no path dashed: a zero path stays solid, unfaded, minimum width 3, "0" (v1.7.0)',
         valsOk && widthOk && fadeOk && zeroOk, { valsOk, widthOk, fadeOk, zeroOk, F, L: Object.fromEntries(Object.entries(L).map(([k, v]) => [k, v.t])), vOut, vOther });
     }
     await goto(page, '#view=devices&device=amp&drive=fwd'); await setInput(page, '#gain', '30');
@@ -306,7 +306,7 @@ const devGapIssues = page => page.evaluate(() => {
     { const F = await flow(); check('Amplifier 0 dB (min): S21 = 1.00, width W0, no break mark', near(F.s21.sw, 16, 0.01) && !(await page.$('#stage .flow.s21 .brk')) && (await text(page, '#lv_s21')) === 'S21 = 1.00'); }
     await setInput(page, '#gain', '10');
     await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '40');
-    { const F = await flow(); check('Attenuator 40 dB (max): S21 0.01 < 0.05 — dashed, faded, "0"', F.s21.dashed && F.s21.faded && (await text(page, '#lv_s21')) === 'S21 = 0' && (await text(page, '#lt_s21')) === 'Transmitted · 0 %'); }
+    { const F = await flow(); check('Attenuator 40 dB (max): S21 0.01 < 0.05 — solid, not faded, minimum width, "0"', !F.s21.dash && !F.s21.faded && near(F.s21.sw, 3, 0.01) && (await text(page, '#lv_s21')) === 'S21 = 0' && (await text(page, '#lt_s21')) === 'Transmitted · 0 %'); }
     await setInput(page, '#att', '3');
     // B.4 (v1.4.0) matrix row 2 unchanged; the braces' values are the matrix's b entries
     const B4 = [['through', 'fwd', '= [0  1.00∠−90°; 1.00∠−90°  0] [1∠0°; 0] = [0; 1.00∠−90°]'], ['through', 'rev', '= [0  1.00∠−90°; 1.00∠−90°  0] [0; 1∠0°] = [1.00∠−90°; 0]'],
