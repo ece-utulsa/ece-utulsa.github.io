@@ -425,15 +425,25 @@ const alignIssues = page => page.evaluate(() => {
       await goto(page, '#view=devices&device=' + d + '&drive=fwd'); const before = await S(), mat0 = await page.getAttribute('#numRow', 'data-text');
       await setInput(page, '#cs11m', '0.2');
       const after = await S(), ed = { hash: await page.evaluate(() => location.hash), title: await text(page, '#devTitle'), dut: await text(page, '#dutName'), tag: await text(page, '#dutEdited'),
-        knobOff: await page.isDisabled(KNOB[d]), reset: await text(page, '#devReset'), s11: await text(page, '#lv_s11'), mat: await page.getAttribute('#numRow', 'data-text') };
-      check(d + ': editing S11 keeps the device ("' + NAME[d] + ' (edited)", same hash), the diagram and matrix update live, the knob is off, "Reset to ' + NAME[d] + '" shown',
-        ed.hash === '#view=devices&device=' + d + '&drive=fwd' && ed.title === NAME[d] + ' (edited)' && ed.dut === NAME[d] && ed.tag === '(edited)' && ed.knobOff && ed.reset === 'Reset to ' + NAME[d]
+        knobOn: !(await page.isDisabled(KNOB[d])), reset: await text(page, '#devReset'), s11: await text(page, '#lv_s11'), mat: await page.getAttribute('#numRow', 'data-text') };
+      check(d + ': editing S11 keeps the device ("' + NAME[d] + ' (edited)", same hash), the diagram and matrix update live, the knob stays live, "Reset to ' + NAME[d] + '" shown',
+        ed.hash === '#view=devices&device=' + d + '&drive=fwd' && ed.title === NAME[d] + ' (edited)' && ed.dut === NAME[d] && ed.tag === '(edited)' && ed.knobOn && ed.reset === 'Reset to ' + NAME[d]
         && near(after.s11[0], 0.2, 1e-9) && ed.s11 === 'S11 = 0.20' && ed.mat !== mat0 && (await page.getAttribute('#dev_' + d, 'aria-pressed')) === 'true', ed);
       await click(page, '#devReset');
       const reset = await S();
       check(d + ': "Reset to ' + NAME[d] + '" restores the preset values exactly; title and DUT back to "' + NAME[d] + '"', JSON.stringify(reset) === JSON.stringify(before) && (await text(page, '#devTitle')) === NAME[d]
         && !(await page.$('#dutEdited')) && !(await page.$('#devReset')) && !(await page.isDisabled(KNOB[d])) && (await page.getAttribute('#numRow', 'data-text')) === mat0, { before, reset });
     }
+    await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '6');
+    check('unedited: moving the Attenuator knob to 6 dB updates S21 and S12 live (0.501187), panel not rebuilt', near((await S()).s21[0], 0.501187, 1e-5) && near((await S()).s12[0], 0.501187, 1e-5) && !!(await page.$('#att')));
+    await setInput(page, '#att', '3'); await setInput(page, '#cs11m', '0.2'); await setInput(page, '#att', '6');
+    { const s = await S(); check('edited: the Attenuator knob (6 dB) still sets S21 and S12 (0.501187); the S11 edit (0.2) stays; still "Attenuator (edited)"',
+        near(s.s21[0], 0.501187, 1e-5) && near(s.s12[0], 0.501187, 1e-5) && near(s.s11[0], 0.2, 1e-9) && (await text(page, '#devTitle')) === 'Attenuator (edited)' && (await text(page, '#lv_s21')) === 'S21 = 0.50', s); }
+    await click(page, '#devReset');
+    { const s = await S(); check('Reset after a knob move keeps the knob (6 dB preset: S11 0, S21 0.501187)', near(s.s11[0], 0, 1e-12) && near(s.s21[0], 0.501187, 1e-5) && (await text(page, '#devTitle')) === 'Attenuator', s); }
+    await goto(page, '#view=devices&device=iso&drive=fwd'); await setInput(page, '#cs12m', '0.05'); await setInput(page, '#isoIL', '1');
+    { const s = await S(); check('edited Isolator: the insertion-loss knob sets S21 (1 dB → 0.891251); the S12 edit (0.05) stays', near(s.s21[0], 0.891251, 1e-5) && near(s.s12[0], 0.05, 1e-9) && (await text(page, '#devTitle')) === 'Isolator (edited)', s); }
+    await click(page, '#devReset');
     await goto(page, '#view=devices&device=atten&drive=fwd'); await setInput(page, '#att', '6');
     check('unedited: moving the Attenuator knob to 6 dB updates S21 and S12 live (0.501187), panel not rebuilt', near((await S()).s21[0], 0.501187, 1e-5) && near((await S()).s12[0], 0.501187, 1e-5) && !!(await page.$('#att')));
     await setInput(page, '#att', '3');

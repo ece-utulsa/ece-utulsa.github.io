@@ -1119,12 +1119,30 @@ function sEditor(st, pre, changed){
   link.addEventListener('change', () => { st.recip = link.checked; if(link.checked) st.e.s12 = st.e.s21.slice(); changed(true); });
   return [h('div', { cls: 'srows' }, S_KEYS.map(row)), h('label', { cls: 'chk' }, link, ' reciprocal (S12 = S21)')];
 }
+// The S entries each preset knob sets (Douglas, 2026-10-23: on an edited device the knob still sets these, keeping the
+// other edits).
+const KNOB_KEYS = { l: ['s21', 's12'], A: ['s21', 's12'], G: ['s21'], IL: ['s21'], I: ['s12'] };
+const KNOB_TEXT = { through: 'S21 and S12', atten: 'S21 and S12', amp: 'S21', iso: 'S21 (loss) and S12 (isolation)' };
+/* A preset knob moved: param k of the current device to v. On an edited device the entries that knob sets take the
+   preset's new values and the other edits stay; the reciprocal link is dropped if S12 no longer equals S21, and the
+   "(edited)" mark goes when every entry matches the preset again. */
+function setKnob(k, v){
+  D[D.dev][k] = v;
+  const ed = D.edits[D.dev];
+  if(ed){ const pre = sEntries(deviceS(D.dev, D[D.dev]));
+    KNOB_KEYS[k].forEach(kk => { ed.e[kk] = pre.e[kk].slice(); });
+    const unlink = ed.recip && (ed.e.s12[0] !== ed.e.s21[0] || ed.e.s12[1] !== ed.e.s21[1]);   // the S12 row unlocks: rebuild the panel
+    if(unlink) ed.recip = false;
+    if(JSON.stringify(ed) === JSON.stringify(pre)){ delete D.edits[D.dev]; redraw(true); return; }
+    if(unlink){ redraw(true); return; } }
+  redraw(false);
+}
 /* The controls of the current device. A preset: its name ("<Device> (edited)" once an S entry is edited), its knob(s), all
-   four S entries with the reciprocal link and, when edited, "Reset to <Device>". Unedited, the entries show the preset's
-   S and follow the knob live (syncDevices); editing an entry keeps the device and its diagram, marked "(edited)", and the
-   knob is then disabled until reset (it sets the preset formula, which the edits replace). Custom: the S entries alone. */
+   four S entries with the reciprocal link and, when edited, "Reset to <Device>". The entries follow the knob live
+   (syncDevices): unedited they show the preset's S; edited, the knob sets the entries it controls (KNOB_KEYS) and the
+   other edits stay. Editing an entry keeps the device and its diagram, marked "(edited)". Custom: the S entries alone. */
 function deviceControls(){
-  const set = (k, v) => { D[D.dev][k] = v; redraw(false); };
+  const set = setKnob;
   if(D.dev === 'custom'){ D.est = null; return sEditor(D.custom, 'c', redraw); }
   const knobs = { through: () => [slider({ id: 'len', label: 'Line length ℓ/λ', min: 0, max: 1, step: 0.01, value: D.through.l, unit: 'λ', onset: v => set('l', v) })],
     atten: () => [slider({ id: 'att', label: 'Attenuation', min: 0, max: 40, step: 0.5, value: D.atten.A, unit: 'dB', onset: v => set('A', v) })],
@@ -1135,21 +1153,20 @@ function deviceControls(){
         numText: v => (v === Infinity ? '' : v), placeholder: '∞',
         onset: v => set('I', v) })] }[D.dev]();
   const ed = edited(), st = ed ? D.edits[D.dev] : sEntries(deviceS(D.dev, D[D.dev]));
-  D.est = ed ? null : st;
-  if(ed) knobs.forEach(k => k.querySelectorAll('input').forEach(e => { e.disabled = true; }));
-  const changed = full => { if(!edited()){ D.edits[D.dev] = st; D.est = null; redraw(true); } else redraw(full); };
+  D.est = st;
+  const changed = full => { if(!edited()){ D.edits[D.dev] = st; redraw(true); } else redraw(full); };
   const title = h('div', { cls: 'sec', id: 'devTitle', text: devLabel() });
   const reset = ed ? h('button', { type: 'button', id: 'devReset', text: 'Reset to ' + DEV_NAME[D.dev], onclick: () => { delete D.edits[D.dev]; redraw(true); } }) : null;
   return [title, ...knobs, ...sEditor(st, 'c', changed), reset,
-    note(ed ? 'Edited: the knob is off until you reset.' : 'Edit any S entry: the device keeps its name, marked "(edited)".')].filter(Boolean);
+    note(ed ? 'Edited: the knob still sets ' + KNOB_TEXT[D.dev] + '; your other edits stay.' : 'Edit any S entry: the device keeps its name, marked "(edited)".')].filter(Boolean);
 }
 // Side panel of the Devices view: the power out; the controls; one line of explanation; the wave caption.
 function panelDevices(){ const [k, v] = devicePower(); return [headline(k, v, 'roPower'), ...deviceControls(), note(DEV_NOTE[D.dev]), note(WAVE_CAPTION)]; }
-// Refresh the readouts after a control moved (the panel is not rebuilt, so focus stays on the control); an unedited
-// preset's S entries follow its knob.
+// Refresh the readouts after a control moved (the panel is not rebuilt, so focus stays on the control); a preset's S
+// entries follow its knob (unedited: the preset's S; edited: the edit set, which setKnob has updated).
 function syncDevices(){
   const [k, v] = devicePower(), e = document.getElementById('roPower'); if(e){ e.textContent = v; e.previousSibling.textContent = k; }
-  if(D.dev !== 'custom' && D.est && !edited()){ Object.assign(D.est, sEntries(deviceS(D.dev, D[D.dev])));
+  if(D.dev !== 'custom' && D.est){ if(!edited()) Object.assign(D.est, sEntries(deviceS(D.dev, D[D.dev])));
     const put = (id, x) => { const b = document.getElementById(id); if(b && b !== document.activeElement) b.value = +(+x).toPrecision(6); };
     for(const kk of S_KEYS){ put('c' + kk, D.est.e[kk][0]); put('c' + kk + 'm', D.est.e[kk][0]); put('c' + kk + 'a', D.est.e[kk][1]); }
     const rc = document.getElementById('crecip'); if(rc) rc.checked = D.est.recip; }
