@@ -229,9 +229,13 @@ const devGapIssues = page => page.evaluate(() => {
     check('"Vmax 1.5" and "Vmin 0.50": short labels (≤ 16 px) at the left end of the envelope; no Vmax / Vmin lines across the plot', (await stageTexts(page)).includes('Vmax 1.5') && (await stageTexts(page)).includes('Vmin 0.50')
       && await page.evaluate(() => { const env = document.querySelector('[data-q="envelope"]').getBoundingClientRect();
         return ['lvVmax', 'lvVmin'].every(id => { const e = document.getElementById(id); return +e.getAttribute('font-size') <= 16 && e.getBoundingClientRect().right <= env.left; }) && !document.querySelector('#stage line.level'); }));
-    check('line weights: total and transmitted 3, incident / reflected 1.5 dashed, envelope edge 1.5 with a ~12 % fill', await page.evaluate(() => { const a = (id, n) => document.getElementById(id).getAttribute(n);
-      return a('vTot', 'stroke-width') === '3' && a('vTr', 'stroke-width') === '3' && a('vInc', 'stroke-width') === '1.5' && a('vRef', 'stroke-width') === '1.5' && !!a('vInc', 'stroke-dasharray')
-        && document.querySelector('[data-q="envelope"]').getAttribute('stroke-width') === '1.5' && document.querySelector('#stage .shade').getAttribute('fill-opacity') === '0.12'; }));
+    check('line weights: total and transmitted 3, incident / reflected 2.5 dashed, envelope edge 1.5; envelope fill ~12 %, faint (4 %) while incident and reflected are shown (v1.7.0)', await page.evaluate(() => { const a = (id, n) => document.getElementById(id).getAttribute(n);
+      const vr = getComputedStyle(document.getElementById('vInc')).display !== 'none';
+      return a('vTot', 'stroke-width') === '3' && a('vTr', 'stroke-width') === '3' && a('vInc', 'stroke-width') === '2.5' && a('vRef', 'stroke-width') === '2.5' && !!a('vInc', 'stroke-dasharray')
+        && document.querySelector('[data-q="envelope"]').getAttribute('stroke-width') === '1.5' && document.querySelector('#stage .shade').getAttribute('fill-opacity') === (vr ? '0.04' : '0.12'); }));
+    await page.click('#showVR'); await page.waitForTimeout(60);
+    check('…and with incident and reflected shown, the envelope fill drops to 4 % so they stand out', (await page.getAttribute('#stage .shade', 'fill-opacity')) === (await page.isChecked('#showVR') ? '0.04' : '0.12'));
+    await page.click('#showVR'); await page.waitForTimeout(60);
     check('panels: power ≈ 30 % of the drawing; the plot (axis to top of the curve area) ≥ 55 %', await page.evaluate(() => { const sv = document.querySelector('#stage svg'), H = sv.viewBox.baseVal.height;
       const box = sv.querySelector('rect').getBBox(), e = sv.querySelector('[data-q="envelope"]'), A = +e.dataset.a, yc = +e.dataset.yc, axis = [...sv.querySelectorAll('line')].find(l => l.getAttribute('stroke') === 'var(--mut)' && l.getAttribute('y1') === l.getAttribute('y2'));
       return Math.abs((box.y + box.height) / H - 0.28) < 0.04 && (+axis.getAttribute('y1') + 8 - (yc - 2 * A)) / H >= 0.55; }));
