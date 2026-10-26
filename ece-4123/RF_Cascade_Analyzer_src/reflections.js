@@ -17,6 +17,9 @@
    ============================================================ */
 
 // ── CONSTANTS ─────────────────────────────────────────────────
+const SHADE = 0.12;                 // envelope fill opacity (none while the incident and reflected waves are shown)
+const ENV_VR = 0.5;                 // envelope outline opacity while they are shown, so the waves stand out
+const VR_W = 2.5, VR_DASH = '9 5';      // incident and reflected waves: dashed, heavy enough to read over the envelope shade
 const Z01 = 50;                  // Region 1 impedance (Ω, fixed)
 const Z02_POS = 1000;            // Z02 slider: 0 → short, 1..999 → 1..1000 Ω (log), 1000 → ∞ (open)
 const Z02_DEC = 3;               // decades on the log part of the slider
@@ -140,9 +143,11 @@ function voltagePanel(H){
     top += (k ? 'L' : 'M') + x + ' ' + n2(G.yc - v); bot = 'L' + x + ' ' + n2(G.yc + v) + bot; }
   const at = Math.abs(tau) * G.A, xe = n2(xR2(G, R2_LAMBDA)), end = endZ();
   if(!end){ top += 'L' + xe + ' ' + n2(G.yc - at); bot = 'L' + xe + ' ' + n2(G.yc + at) + 'L' + n2(G.xi) + ' ' + n2(G.yc + at) + bot; }   // Region 2: flat at |τ|
-  s += el('path', { d: top + bot + 'Z', fill: 'var(--s12)', 'fill-opacity': 0.12, stroke: 'none', class: 'shade' });
-  s += el('path', { d: top, fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, class: 'envelope', 'data-q': 'envelope', 'data-v': +gm.toPrecision(12), 'data-a': n2(G.A), 'data-yc': n2(G.yc), 'data-tau': +Math.abs(tau).toPrecision(12) });
-  s += el('path', { d: 'M' + bot.slice(1), fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, class: 'envelope' });
+  // no shade, and a lighter outline, while the incident and reflected waves are shown, so nothing purple sits behind them
+  if(!R.vr) s += el('path', { d: top + bot + 'Z', fill: 'var(--s12)', 'fill-opacity': SHADE, stroke: 'none', class: 'shade' });
+  const envOp = R.vr ? ENV_VR : null;
+  s += el('path', { d: top, fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, 'stroke-opacity': envOp, class: 'envelope', 'data-q': 'envelope', 'data-v': +gm.toPrecision(12), 'data-a': n2(G.A), 'data-yc': n2(G.yc), 'data-tau': +Math.abs(tau).toPrecision(12) });
+  s += el('path', { d: 'M' + bot.slice(1), fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, 'stroke-opacity': envOp, class: 'envelope' });
   // V_max and V_min: short labels at the left end of the envelope (V_max just above its level, V_min just below; spread
   // apart when the two levels are close, as when matched)
   const off = Math.max(L.lvlOff, (L.lvlGap - (vmax - vmin) * G.A) / 2), lvl = (v, q, dy) => el('g', { class: 'level', 'data-q': q, 'data-v': +v.toPrecision(12), 'data-y': n2(G.yc - v * G.A) },
@@ -156,8 +161,8 @@ function voltagePanel(H){
       el('rect', { x: G.xi - 4, y: G.plotTop - 10, width: x2 - G.xi + 4, height: G.yAxis - G.plotTop + 20, fill: '#fff' })
       + el('rect', { x: x2, y: G.plotTop - 10, width: x2f - x2, height: G.yAxis - G.plotTop + 20, fill: 'url(#r2fade)' })));
   const vr = R.vr ? null : 'none';
-  s += el('path', { id: 'vInc', d: P.inc, fill: 'none', stroke: 'var(--grey)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4', display: vr, class: 'vcurve', 'data-q': 'V_inc', 'data-v': 1 });
-  s += el('path', { id: 'vRef', d: P.ref, fill: 'none', stroke: 'var(--s11)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4', display: vr, class: 'vcurve', 'data-q': 'V_refl', 'data-v': +g.toPrecision(12) });
+  s += el('path', { id: 'vInc', d: P.inc, fill: 'none', stroke: 'var(--grey)', 'stroke-width': VR_W, 'stroke-dasharray': VR_DASH, display: vr, class: 'vcurve', 'data-q': 'V_inc', 'data-v': 1 });
+  s += el('path', { id: 'vRef', d: P.ref, fill: 'none', stroke: 'var(--s11)', 'stroke-width': VR_W, 'stroke-dasharray': VR_DASH, display: vr, class: 'vcurve', 'data-q': 'V_refl', 'data-v': +g.toPrecision(12) });
   s += el('path', { id: 'vTot', d: P.tot, fill: 'none', stroke: 'var(--txt)', 'stroke-width': 3, 'stroke-linejoin': 'round', class: 'vcurve', 'data-q': 'V_tot' });
   s += el('path', { id: 'vTr', d: P.tr, fill: 'none', stroke: 'var(--s21)', 'stroke-width': 3, 'stroke-linejoin': 'round', mask: 'url(#r2mask)', display: end ? 'none' : null, class: 'vcurve', 'data-q': 'V_trans', 'data-v': +tau.toPrecision(12) });
   if(!end) s += el('path', { d: 'M' + n2(x2f + 2) + ' ' + n2(G.yc) + 'H' + n2(DESIGN_W - L.edge - 10), stroke: 'var(--mut)', 'stroke-width': 1.5, fill: 'none', class: 'toinf' })

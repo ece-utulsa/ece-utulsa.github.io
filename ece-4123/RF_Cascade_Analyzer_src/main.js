@@ -20,7 +20,7 @@ const VIEW_NAME = { reflections: 'Reflections', devices: 'Devices', cascade: 'Ca
 const VIEW = {
   reflections: { draw: drawReflections, panel: panelReflections, sync: syncReflections, anim: true },
   devices: { draw: drawDevices, panel: panelDevices, sync: syncDevices },
-  cascade: { draw: drawCascade, panel: panelCascade, sync: syncCascade },
+  cascade: { draw: drawCascade, panel: panelCascade, sync: syncCascade, wide: true },
 };
 const HASH_RE = /^#?view=(reflections|devices|cascade)(?:&device=(through|atten|amp|iso|custom)(?:&drive=(fwd|rev))?)?(?:&vr=([01]))?$/;
 const TEXT_TYPES = ['text', 'number', 'search', 'email', 'url', 'tel', 'password'];
@@ -36,17 +36,20 @@ const app = {
 // ── END APP STATE ─────────────────────────────────────────────
 
 // ── RENDERING ─────────────────────────────────────────────────
-/* Drawing scale (CSS px per design unit) and left offset: the drawing fills the stage's width but never grows past ×1
-   in a window, or past the presentation factor (×1 at 720 p); a wider stage centres it. */
+/* Drawing scale (CSS px per design unit), width (design units) and left offset: the drawing fills the stage's width but
+   never grows past ×1 in a window, or past the presentation factor (×1 at 720 p); a wider stage centres it, except in a
+   wide view (Cascade), whose drawing widens to fill the stage at the same scale. */
 function drawBox(){ const st = $('stage'), s = Math.min(st.clientWidth / DESIGN_W, app.present ? window.innerHeight / BASE_H : 1);
-  return { s, off: (st.clientWidth - DESIGN_W * s) / 2 }; }
+  const w = VIEW[app.view].wide ? Math.max(DESIGN_W, st.clientWidth / s) : DESIGN_W;
+  return { s, w, off: (st.clientWidth - w * s) / 2 }; }
 // Height of the drawing in design units: the stage's full height at the drawing scale.
 function drawH(){ const st = $('stage'); return st.clientWidth > 0 ? st.clientHeight / drawBox().s : 0; }
 // Draw the current view (and the Cascade "+" menu over it).
 function renderDrawing(){
   const H = drawH(); if(H <= 0) return;
-  $('stage').innerHTML = VIEW[app.view].draw(H);
-  const b = drawBox(), sv = $('stage').querySelector('svg.vis'); sv.style.width = DESIGN_W * b.s + 'px'; sv.style.left = b.off + 'px';
+  const b = drawBox();
+  $('stage').innerHTML = VIEW[app.view].draw(H, b.w);
+  const sv = $('stage').querySelector('svg.vis'); sv.style.width = b.w * b.s + 'px'; sv.style.left = b.off + 'px';
   if(app.view === 'cascade'){ const m = addMenu(); if(m) $('stage').append(m); }
 }
 /* Redraw after a state change. full: also rebuild the panel (a button or a mode changed); otherwise only the
@@ -62,6 +65,7 @@ function redraw(full){
 }
 // Top bar and device selector: pressed tab, Previous/Next state, the selected device.
 function renderTop(){
+  document.body.classList.toggle('vcascade', app.view === 'cascade');
   VIEWS.forEach(v => { const b = $('tab_' + v), on = v === app.view; b.setAttribute('aria-selected', String(on)); b.classList.toggle('on', on); b.tabIndex = on ? 0 : -1; });
   const i = stopIndex();
   $('prevBtn').disabled = i === 0; $('nextBtn').disabled = i === STOPS.length - 1;
@@ -180,7 +184,7 @@ function onKey(e){
 // Clicks and Enter/Space on the drawing's buttons (Cascade blocks, ×, +).
 function onStageActivate(e){
   if(e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
-  if(app.view === 'cascade' && cascadeActivate(e.target)){ e.preventDefault(); e.stopPropagation(); }
+  if(app.view === 'cascade' && cascadeActivate(e.target, e)){ e.preventDefault(); e.stopPropagation(); }
 }
 // Arrow keys move between the tabs (WAI-ARIA tabs pattern).
 function onTabKey(e){
