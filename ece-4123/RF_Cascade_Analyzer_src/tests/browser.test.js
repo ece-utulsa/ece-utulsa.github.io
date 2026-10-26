@@ -2,7 +2,7 @@
    the gates, not the blind Test suite. They read the built page only through the DOM (text, data-q / data-v
    attributes, the URL hash); the page has no test hooks.
 
-   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.7.2.html] [--shots]
+   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.8.0.html] [--shots]
    --shots also writes the 1280×720 presentation screenshots to ../screenshots/.
    Set CHROMIUM=/path/to/chromium to use a particular browser binary. */
 'use strict';
@@ -11,7 +11,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
-const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.7.2.html'));
+const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.8.0.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
 const STOPS = ['#view=reflections&vr=0', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
@@ -142,23 +142,23 @@ const devGapIssues = page => page.evaluate(() => {
 
   console.log('Load');
   { const { ctx, page, log } = await open(browser);
-    check('version v1.7.2: header comment, Released, meta, title; changelog v1.7.2 on top, then v1.7.1 … v1.1.0 as history',
-      /Version: v1\.7\.2/.test(html) && /Released: 2026-10-23/.test(html) && /<meta name="version" content="v1\.7\.2">/.test(html) && /<title>RF Cascade Analyzer v1\.7\.2<\/title>/.test(html)
-      && /v1\.7\.2 - Cascade: the power divider drawn as a splitter/.test(html) && /v1\.7\.1 - Cascade: the circuit .* scales up with the window/.test(html) && /v1\.7\.0 - Cascade: v1\.1\.0's Lab brought back/.test(html)
+    check('version v1.8.0: header comment, Released, meta, title; changelog v1.8.0 on top, then v1.7.2 … v1.1.0 as history',
+      /Version: v1\.8\.0/.test(html) && /Released: 2026-10-26/.test(html) && /<meta name="version" content="v1\.8\.0">/.test(html) && /<title>RF Cascade Analyzer v1\.8\.0<\/title>/.test(html)
+      && /v1\.8\.0 - Cascade: the plot under the circuit is compact/.test(html) && /v1\.7\.2 - Cascade: the power divider drawn as a splitter/.test(html) && /v1\.7\.1 - Cascade: the circuit .* scales up with the window/.test(html) && /v1\.7\.0 - Cascade: v1\.1\.0's Lab brought back/.test(html)
       && /v1\.6\.0 - Devices: drawn as the incident \/ reflected \/ transmitted flow diagram/.test(html) && /every device's S entries editable, keeping the device as "<Device> \(edited\)" with a reset\./.test(html)
-      && ['v1.7.2', 'v1.7.1', 'v1.7.0', 'v1.6.0', 'v1.5.0', 'v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
-      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[01])\b|content="v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[01])"/.test(html));
-    check('footer: v1.7.2 · released 2026-10-23 · Author: Claude Code', (await text(page, 'footer')).includes('v1.7.2 · released 2026-10-23 · Author: Claude Code'));
+      && ['v1.8.0', 'v1.7.2', 'v1.7.1', 'v1.7.0', 'v1.6.0', 'v1.5.0', 'v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
+      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[012])\b|content="v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[012])"/.test(html));
+    check('footer: v1.8.0 · released 2026-10-26 · Author: Claude Code', (await text(page, 'footer')).includes('v1.8.0 · released 2026-10-26 · Author: Claude Code'));
     const stamp = async () => page.evaluate(() => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
       const btns = [...document.querySelectorAll('#top button')].filter(b => b.getBoundingClientRect().width), last = btns[btns.length - 1].getBoundingClientRect(), top = document.getElementById('top').getBoundingClientRect();
       return { text: v.textContent, fs: parseFloat(cs.fontSize), mut: cs.color === getComputedStyle(document.querySelector('.note') || document.body).color || cs.color !== getComputedStyle(document.body).color,
-        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.7.2'),
+        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.8.0'),
         oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; });
     let st = await stamp();
-    check('stamp "v1.7.2" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.7.2' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
+    check('stamp "v1.8.0" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.8.0' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
     const wBtn = await page.evaluate(() => [...document.querySelectorAll('#top button')].map(b => Math.round(b.getBoundingClientRect().width)).join(','));
     await present(page); st = await stamp();
-    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.7.2"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
+    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.8.0"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
     await page.keyboard.press('t'); await page.waitForTimeout(60); st = await stamp();
     check('presentation (dark): stamp still visible', st.shown && st.body && await page.evaluate(() => !document.body.classList.contains('light')));
     await page.keyboard.press('t'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
@@ -229,12 +229,13 @@ const devGapIssues = page => page.evaluate(() => {
     check('"Vmax 1.5" and "Vmin 0.50": short labels (≤ 16 px) at the left end of the envelope; no Vmax / Vmin lines across the plot', (await stageTexts(page)).includes('Vmax 1.5') && (await stageTexts(page)).includes('Vmin 0.50')
       && await page.evaluate(() => { const env = document.querySelector('[data-q="envelope"]').getBoundingClientRect();
         return ['lvVmax', 'lvVmin'].every(id => { const e = document.getElementById(id); return +e.getAttribute('font-size') <= 16 && e.getBoundingClientRect().right <= env.left; }) && !document.querySelector('#stage line.level'); }));
-    check('line weights: total and transmitted 3, incident / reflected 2.5 dashed, envelope edge 1.5; envelope fill ~12 %, faint (4 %) while incident and reflected are shown (v1.7.0)', await page.evaluate(() => { const a = (id, n) => document.getElementById(id).getAttribute(n);
+    check('line weights: total and transmitted 3, incident / reflected 2.5 dashed, envelope edge 1.5; envelope fill ~12 %, none (outline at 50 %) while incident and reflected are shown (v1.8.0)', await page.evaluate(() => { const a = (id, n) => document.getElementById(id).getAttribute(n);
       const vr = getComputedStyle(document.getElementById('vInc')).display !== 'none';
       return a('vTot', 'stroke-width') === '3' && a('vTr', 'stroke-width') === '3' && a('vInc', 'stroke-width') === '2.5' && a('vRef', 'stroke-width') === '2.5' && !!a('vInc', 'stroke-dasharray')
-        && document.querySelector('[data-q="envelope"]').getAttribute('stroke-width') === '1.5' && document.querySelector('#stage .shade').getAttribute('fill-opacity') === (vr ? '0.04' : '0.12'); }));
+        && document.querySelector('[data-q="envelope"]').getAttribute('stroke-width') === '1.5' && (vr ? !document.querySelector('#stage .shade') && document.querySelector('[data-q="envelope"]').getAttribute('stroke-opacity') === '0.5'
+          : document.querySelector('#stage .shade').getAttribute('fill-opacity') === '0.12'); }));
     await page.click('#showVR'); await page.waitForTimeout(60);
-    check('…and with incident and reflected shown, the envelope fill drops to 4 % so they stand out', (await page.getAttribute('#stage .shade', 'fill-opacity')) === (await page.isChecked('#showVR') ? '0.04' : '0.12'));
+    check('…and toggling: with incident and reflected shown there is no purple fill behind them; hidden, the 12 % fill is back', await page.isChecked('#showVR') ? !(await page.$('#stage .shade')) : (await page.getAttribute('#stage .shade', 'fill-opacity')) === '0.12');
     await page.click('#showVR'); await page.waitForTimeout(60);
     check('panels: power ≈ 30 % of the drawing; the plot (axis to top of the curve area) ≥ 55 %', await page.evaluate(() => { const sv = document.querySelector('#stage svg'), H = sv.viewBox.baseVal.height;
       const box = sv.querySelector('rect').getBBox(), e = sv.querySelector('[data-q="envelope"]'), A = +e.dataset.a, yc = +e.dataset.yc, axis = [...sv.querySelectorAll('line')].find(l => l.getAttribute('stroke') === 'var(--mut)' && l.getAttribute('y1') === l.getAttribute('y2'));
@@ -344,6 +345,8 @@ const devGapIssues = page => page.evaluate(() => {
   console.log('View 3 — Cascade (v1.7.0: v1.1.0 Lab, divider at any junction, a frequency band through the circuit)');
   { const { ctx, page } = await open(browser);
     await present(page); await goto(page, '#view=cascade');
+    check('v1.8.0: "Along the chain" is the default plot', (await page.getAttribute('#seg_chain', 'aria-pressed')) === 'true' && !(await page.$('[data-plot]')));
+    await click(page, '#seg_band');
     const keyv = () => page.$$eval('#stage .keyv', e => e.map(x => x.textContent));
     const spec = ids => Promise.all(ids.map(id => text(page, '#' + id)));
     const panelHas = s => page.evaluate(s => document.getElementById('panel').innerText.includes(s), s);
@@ -356,8 +359,8 @@ const devGapIssues = page => page.evaluate(() => {
     check('the response across the band is drawn at 201 frequencies (load and reflected curves, the marker)', curve === 201 && !!(await page.$('[data-q="plotR"]')) && near(+(await page.getAttribute('[data-q="marker"]', 'data-v')), 1e9, 1));
     await setInput(page, '#fmN', '1.1');
     const x = (1.1 - 1 / 1.1) / 0.2, t2 = 10 * Math.log10(1 / (1 + x ** 6)), dbT = d => (d > 0 ? '+' : '') + d.toFixed(1) + ' dB', wantT = dbT(9 + t2);
-    check('marker 1.1 GHz: the band-pass edge (Butterworth n = 3, BW 200 MHz) passes |S21|² = ' + dbT(t2) + ': load ' + wantT + '; the rest is reflected, so the net power at 1|2 is ' + dbT(12 + t2),
-      (await text(page, '#specM3')) === 'load ' + wantT && (await text(page, '#specM1')) === '1|2 ' + dbT(12 + t2)
+    check('marker 1.1 GHz: the band-pass edge (Butterworth n = 3, BW 200 MHz) passes |S21|² = ' + dbT(t2) + ': load ' + wantT + '; the forward power arriving at the filter (1|2) is still +12.0 dB, after it (2|3) ' + dbT(12 + t2),
+      (await text(page, '#specM3')) === 'load ' + wantT && (await text(page, '#specM1')) === '1|2 +12.0 dB' && (await text(page, '#specM2')) === '2|3 ' + dbT(12 + t2)
       && (await text(page, '#resTitle')) === 'Results at 1.100 GHz', await text(page, '#specM3'));
     const box = await (await page.$('[data-plot]')).boundingBox();
     await page.mouse.click(box.x + box.width * 0.25, box.y + box.height / 2); await page.waitForTimeout(80);
@@ -421,13 +424,20 @@ const devGapIssues = page => page.evaluate(() => {
       JSON.stringify(await page.$$eval('#stage [data-blk] .sym', e => e.map(x => x.dataset.sym))) === '["amp","bpf","atten"]');
     await click(page, '#seg_chain');
     const chainV = () => page.$$eval('#stage .cdot', e => e.map(x => x.dataset.q + ' ' + (+x.dataset.v).toFixed(1)));
+    { const ln = await page.evaluate(() => [0, 1, 2, 3, 4].map(i => { const p = document.querySelector('[data-q="chainLineF' + i + 'M"]'); return p ? p.getAttribute('d').split('L').map(t => +t.trim().split(' ')[1]) : null; }));
+      // the band edges (0.5 and 1.5 GHz) end far below the centre line (1 GHz) after the band-pass; all five start together at the input
+      check('one line per frequency (0.5, 0.75, 1, 1.25, 1.5 GHz) plus the marker; together through the amplifier, they separate at the band-pass (edges below the centre)',
+        ln.every(Boolean) && ln.every(l => Math.abs(l[0] - ln[2][0]) < 0.01 && Math.abs(l[1] - ln[2][1]) < 0.01) && ln[0][2] > ln[2][2] + 20 && ln[4][2] > ln[2][2] + 20 && !!(await page.$('[data-q="chainLineM"]')), ln); }
     check('Along the chain at 1 GHz: 0.0, +12.0, +12.0, +9.0 dB after each stage, the stages\' symbols under the axis; the band plot gone',
       JSON.stringify(await chainV()) === JSON.stringify(['chainM0 0.0', 'chainM1 12.0', 'chainM2 12.0', 'chainM3 9.0']) && (await page.$$('#stage .sym')).length === 6 && !(await page.$('[data-plot]'))
-      && (await stageTexts(page)).includes('Along the chain at 1.000 GHz'), await chainV());
+      && (await stageTexts(page)).includes('Along the chain') && (await stageTexts(page)).includes('marker 1.000 GHz'), [await chainV(), (await page.$$('#stage .sym')).length]);
+    await click(page, '#seg_off');
+    check('Plot off: no plot under the circuit; the circuit grows into the room (blocks taller)', !(await page.$('#stage .frame')) && await page.evaluate(() => document.querySelector('#stage .block').getBBox().height > 88 * 1.9));
+    await click(page, '#seg_chain');
     await page.click('#stage [data-add="main:2"]'); await page.waitForTimeout(60); await click(page, '#add_div');
     const cv = await chainV();
-    check('…with a divider the line splits: div in +12.0, A in +9.0 / load A +6.0 (green), B in +9.0 / load B +6.0 (purple, dashed)',
-      ['chainM2 12.0', 'chainA0 9.0', 'chainA1 6.0', 'chainB0 9.0', 'chainB1 6.0'].every(x => cv.includes(x)) && !!(await page.$('[data-q="chainLineB"][stroke-dasharray]')), cv);
+    check('…with a divider each line splits: div in +12.0, A in +9.0 / load A +6.0, B in +9.0 / load B +6.0 (B dotted)',
+      ['chainM2 12.0', 'chainA0 9.0', 'chainA1 6.0', 'chainB0 9.0', 'chainB1 6.0'].every(x => cv.includes(x)) && !!(await page.$('[data-q="chainLineB"][stroke-dasharray]')) && !!(await page.$('[data-q="chainLineF0B"][stroke-dasharray]')), cv);
     await click(page, '#seg_band');
     check('Across the band again: the band plot is back', !!(await page.$('[data-plot]')) && !(await page.$('#stage .cdot')));
     await ctx.close(); }
@@ -519,7 +529,8 @@ const devGapIssues = page => page.evaluate(() => {
     await click(page, '#seg_chain'); await fn('cascade, divider, along the chain');
     await page.keyboard.press('t'); await page.waitForTimeout(60); await fn('cascade, divider, dark'); await goto(page, '#view=devices&device=custom&drive=fwd'); await fn('devices custom, dark');
     await goto(page, '#view=reflections&vr=1'); await fn('reflections, dark'); await page.keyboard.press('t'); await page.waitForTimeout(60);
-    await goto(page, '#view=cascade'); await click(page, '#cReset'); await fn('cascade, example, along the chain'); await click(page, '#seg_band'); await fn('cascade, example'); };
+    await goto(page, '#view=cascade'); await click(page, '#cReset'); await fn('cascade, example, along the chain'); await click(page, '#seg_band'); await fn('cascade, example, across the band');
+    await click(page, '#seg_off'); await fn('cascade, example, plot off'); await click(page, '#seg_chain'); };
   for(const [vw, label, pres, sizes] of [[{ width: 1280, height: 720 }, 'presentation 1280×720', true, true], [{ width: 1920, height: 1080 }, 'windowed 1920×1080', false, true],
                                          [{ width: 1920, height: 1080 }, 'presentation 1920×1080', true, false], [{ width: 1366, height: 768 }, 'windowed 1366×768', false, false]]){
     const { ctx, page, log } = await open(browser, { viewport: vw });
@@ -541,8 +552,9 @@ const devGapIssues = page => page.evaluate(() => {
     const g = () => page.evaluate(() => { const sv = document.querySelector('#stage svg'), H = sv.viewBox.baseVal.height, b = document.querySelector('#stage .block').getBBox(), sym = document.querySelector('#stage [data-blk] .sym').getBBox();
       return { H, bh: b.height, symH: sym.height, fs: Math.max(...[...sv.querySelectorAll('text')].map(t => +t.getAttribute('font-size'))) }; });
     const big = await g(); await page.setViewportSize({ width: 1280, height: 720 }); await page.waitForTimeout(200); const small = await g();
-    check('v1.7.1: the circuit scales with the window height (1920×1080 windowed: blocks and symbols ×' + (big.bh / small.bh).toFixed(2) + ' of 1280×720), text sizes unchanged',
-      big.bh / small.bh > 1.3 && big.symH / small.symH > 1.3 && big.fs === small.fs && near(big.bh / 88, Math.min(1.6, big.H / 700), 0.01), { big, small });
+    const kOf = H => Math.min(2, Math.max(1, (H - Math.max(200, Math.min(320, 0.34 * H))) / 272));
+    check('the circuit scales with the window height (1920×1080 windowed: blocks and symbols ×' + (big.bh / small.bh).toFixed(2) + ' of 1280×720), text sizes unchanged; with the compact plot k = (H − plot)/272, up to 2',
+      big.bh / small.bh > 1.15 && big.symH / small.symH > 1.15 && big.fs === small.fs && near(big.bh / 88, kOf(big.H), 0.01) && near(small.bh / 88, kOf(small.H), 0.01), { big, small });
     await ctx.close(); }
   { const { ctx, page } = await open(browser); await present(page);
     const w = await page.evaluate(() => [document.getElementById('stage').clientWidth, document.getElementById('panel').offsetWidth]);
@@ -612,12 +624,13 @@ const devGapIssues = page => page.evaluate(() => {
       for(const th of ['light', 'dark']){ if(th === 'dark'){ await page.keyboard.press('t'); await page.waitForTimeout(80); }
         for(const d of ['through', 'atten', 'amp', 'iso', 'custom']) for(const dr of ['fwd', 'rev']){ await goto(page, '#view=devices&device=' + d + '&drive=' + dr); await shot('devices_' + d + '_' + dr + '_' + th); } }
       await page.keyboard.press('t'); await page.waitForTimeout(80);
-      await goto(page, '#view=cascade'); await click(page, '#cReset'); await shot('cascade_example_light');
+      await goto(page, '#view=cascade'); await click(page, '#cReset'); await click(page, '#seg_chain'); await shot('cascade_example_along_the_chain_light');
+      await click(page, '#seg_band'); await shot('cascade_example_across_the_band_light'); await click(page, '#seg_off'); await shot('cascade_example_plot_off_light'); await click(page, '#seg_chain');
       await page.click('#stage [data-blk="main:1"]'); await page.waitForTimeout(60); await setInput(page, '#fmN', '1.1'); await shot('cascade_bandpass_selected_marker_1.1GHz');
       await setInput(page, '#fmN', '1'); await page.click('#stage [data-add="main:2"]'); await page.waitForTimeout(60); await shot('cascade_add_menu');
-      await click(page, '#add_div'); await shot('cascade_divider_light');
-      await click(page, '#seg_chain'); await shot('cascade_divider_along_the_chain_light');
-      await page.keyboard.press('t'); await page.waitForTimeout(80); await shot('cascade_divider_dark'); await click(page, '#cReset'); await shot('cascade_example_along_the_chain_dark'); await click(page, '#seg_band'); await shot('cascade_example_dark');
+      await click(page, '#add_div'); await shot('cascade_divider_along_the_chain_light');
+      await page.keyboard.press('t'); await page.waitForTimeout(80); await shot('cascade_divider_along_the_chain_dark'); await click(page, '#cReset'); await shot('cascade_example_along_the_chain_dark');
+      await page.keyboard.press('t'); await page.waitForTimeout(80);
       await ctx.close();
     }
   }

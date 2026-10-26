@@ -17,7 +17,8 @@
    ============================================================ */
 
 // ── CONSTANTS ─────────────────────────────────────────────────
-const SHADE = 0.12, SHADE_VR = 0.04;   // envelope fill opacity: normally, and while the incident and reflected waves are shown
+const SHADE = 0.12;                 // envelope fill opacity (none while the incident and reflected waves are shown)
+const ENV_VR = 0.5;                 // envelope outline opacity while they are shown, so the waves stand out
 const VR_W = 2.5, VR_DASH = '9 5';      // incident and reflected waves: dashed, heavy enough to read over the envelope shade
 const Z01 = 50;                  // Region 1 impedance (Ω, fixed)
 const Z02_POS = 1000;            // Z02 slider: 0 → short, 1..999 → 1..1000 Ω (log), 1000 → ∞ (open)
@@ -142,10 +143,11 @@ function voltagePanel(H){
     top += (k ? 'L' : 'M') + x + ' ' + n2(G.yc - v); bot = 'L' + x + ' ' + n2(G.yc + v) + bot; }
   const at = Math.abs(tau) * G.A, xe = n2(xR2(G, R2_LAMBDA)), end = endZ();
   if(!end){ top += 'L' + xe + ' ' + n2(G.yc - at); bot = 'L' + xe + ' ' + n2(G.yc + at) + 'L' + n2(G.xi) + ' ' + n2(G.yc + at) + bot; }   // Region 2: flat at |τ|
-  // the shade is kept faint while the incident and reflected waves are shown, so they stand out against it
-  s += el('path', { d: top + bot + 'Z', fill: 'var(--s12)', 'fill-opacity': R.vr ? SHADE_VR : SHADE, stroke: 'none', class: 'shade' });
-  s += el('path', { d: top, fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, class: 'envelope', 'data-q': 'envelope', 'data-v': +gm.toPrecision(12), 'data-a': n2(G.A), 'data-yc': n2(G.yc), 'data-tau': +Math.abs(tau).toPrecision(12) });
-  s += el('path', { d: 'M' + bot.slice(1), fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, class: 'envelope' });
+  // no shade, and a lighter outline, while the incident and reflected waves are shown, so nothing purple sits behind them
+  if(!R.vr) s += el('path', { d: top + bot + 'Z', fill: 'var(--s12)', 'fill-opacity': SHADE, stroke: 'none', class: 'shade' });
+  const envOp = R.vr ? ENV_VR : null;
+  s += el('path', { d: top, fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, 'stroke-opacity': envOp, class: 'envelope', 'data-q': 'envelope', 'data-v': +gm.toPrecision(12), 'data-a': n2(G.A), 'data-yc': n2(G.yc), 'data-tau': +Math.abs(tau).toPrecision(12) });
+  s += el('path', { d: 'M' + bot.slice(1), fill: 'none', stroke: 'var(--s12)', 'stroke-width': 1.5, 'stroke-opacity': envOp, class: 'envelope' });
   // V_max and V_min: short labels at the left end of the envelope (V_max just above its level, V_min just below; spread
   // apart when the two levels are close, as when matched)
   const off = Math.max(L.lvlOff, (L.lvlGap - (vmax - vmin) * G.A) / 2), lvl = (v, q, dy) => el('g', { class: 'level', 'data-q': q, 'data-v': +v.toPrecision(12), 'data-y': n2(G.yc - v * G.A) },

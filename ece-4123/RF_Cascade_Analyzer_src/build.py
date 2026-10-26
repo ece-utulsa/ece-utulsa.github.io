@@ -20,9 +20,15 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.7.2'
-RELEASED = '2026-10-23'
-CHANGELOG = ('\n    v1.7.2 - Cascade: the power divider drawn as a splitter (the input line splitting into two output lines with '
+VERSION = '1.8.0'
+RELEASED = '2026-10-26'
+CHANGELOG = ('\n    v1.8.0 - Cascade: the plot under the circuit is compact (about a third of the height) or off, and the circuit '
+             'and its junction spectra grow into the room (up to 2×); "Along the chain" is the default, one line per '
+             'frequency across the band plus the marker, so the frequencies are seen separating stage by stage (branch B '
+             'dotted after a divider). The spectra and the chain plot show the forward power arriving at each stage (delivered power at '
+             'the loads), so a filter\'s effect appears at the filter. Reflections: no purple envelope fill, and a lighter outline, while the incident '
+             'and reflected waves are shown.'
+             '\n    v1.7.2 - Cascade: the power divider drawn as a splitter (the input line splitting into two output lines with '
              'arrows to ports 2 and 3) with each output\'s level in dB.'
              '\n    v1.7.1 - Cascade: the circuit (blocks, schematic symbols, spacing, junction spectra) scales up with the window '
              'height, up to 1.6×; text keeps its size.'

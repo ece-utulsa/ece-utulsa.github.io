@@ -60,11 +60,14 @@ const PLOT_SPAN = 50, MINI_SPAN = 40;   // dB shown by the response plot and by 
    to fill it. Cascade: one row; divider: branch A above, the chain and the divider in the middle, branch B below. */
 const LY_C = { edge: 16, srcR: 26, loadW: 90, divW: 110, plusR: 14, rowC: 84, rowsD: { A: 118, M: 198, B: 278 }, bhC: 88, bhD: 80,
                miniC: { top: 150, h: 80 }, miniD: { top: 22, h: 44, topB: 330 }, plotC: 272, plotD: 412 };
-const SCALE_H = 700, SCALE_MAX = 1.6;   // the circuit's scale k = H / SCALE_H (design units), from 1 up to SCALE_MAX
-// The circuit's layout at scale k: sizes and vertical positions grow by k (the edge clearance and "+" buttons do not).
-function scaledLayout(k){
-  const L = LY_C, m = v => v * k;
-  return { srcR: m(L.srcR), loadW: m(L.loadW), divW: m(L.divW), rowC: m(L.rowC), bhC: m(L.bhC), bhD: m(L.bhD), plotC: m(L.plotC), plotD: m(L.plotD),
+const SCALE_MAX = 2;               // the circuit grows up to 2× when the drawing area has room for it
+const PLOT_H = [200, 320, 0.34];   // the plot under the circuit: 34 % of the drawing's height, kept between 200 and 320 units
+const N_FREQ = 5;                  // frequencies drawn as lines along the chain: evenly across the band, ends included
+/* The circuit's layout at scale k (vertical: sizes and positions) and kh (horizontal sizes: source, load, divider, blocks;
+   kept at 1 while the drawing is only 900 wide). The edge clearance and the "+" buttons do not scale. */
+function scaledLayout(k, kh){
+  const L = LY_C, m = v => v * k, mh = v => v * kh;
+  return { srcR: mh(L.srcR), loadW: mh(L.loadW), divW: mh(L.divW), rowC: m(L.rowC), bhC: m(L.bhC), bhD: m(L.bhD), plotC: m(L.plotC), plotD: m(L.plotD),
            rowsD: { A: m(L.rowsD.A), M: m(L.rowsD.M), B: m(L.rowsD.B) }, miniC: { top: m(L.miniC.top), h: m(L.miniC.h) },
            miniD: { top: m(L.miniD.top), h: m(L.miniD.h), topB: m(L.miniD.topB) } };
 }
@@ -76,7 +79,7 @@ const K = {
   main: [], A: [], B: [], div: null,                                   // div: null, or { type, split (% into A) }
   zl: zLoad(C(50, 0)), zlA: zLoad(C(50, 0)), zlB: zLoad(C(50, 0)),
   f1: 0.5e9, f2: 1.5e9, bandMode: 'cs', fu: 'GHz', f0: 1e9, fm: 1e9,   // band start/stop (Hz), entry mode, unit, design and marker frequencies
-  sel: { k: 'main', i: 0 }, menu: false, plotMode: 'band',             // plotMode: the response across the band, or the power along the chain                               // selection: a block { k: main|A|B, i }, or { k: src|load|div }; menu: "k:j" of an open "+"
+  sel: { k: 'main', i: 0 }, menu: false, plotMode: 'chain',             // plotMode: the response across the band, or the power along the chain                               // selection: a block { k: main|A|B, i }, or { k: src|load|div }; menu: "k:j" of an open "+"
 };
 // A new block of a preset with its default parameters (custom: S, here a matched through).
 function newBlock(type, p){
@@ -193,6 +196,10 @@ const refOf = r => (r.Pavs > 0 ? r.Pavs : (r.Pin + r.reflIn) || 1);
 const refName = r => (r.Pavs > 0 ? 'P_avs' : 'the incident power');
 // The marker frequency kept inside the band.
 const clampFm = () => { K.fm = Math.min(K.f2, Math.max(K.f1, K.fm)); };
+/* The power shown at each junction of a chain (spectra and the chain plot): the forward wave's power ½|a|², the power
+   arriving at the next stage, and at a load the power delivered to it. (Net power would show a filter's reflection
+   already at the junction before it, as if the stage ahead had removed it.) */
+const flowP = (nodes, toLoad) => nodes.map((n, j) => (toLoad && j === nodes.length - 1 ? n.P : 0.5 * cabs(n.a) ** 2));
 /* The band swept at NPTS frequencies: power ratios (to the reference) at every interface of each chain, delivered to
    each load, and reflected at the input. */
 function sweep(){
@@ -200,8 +207,8 @@ function sweep(){
   for(let i = 0; i < NPTS; i++){
     const f = K.f1 + (K.f2 - K.f1) * i / (NPTS - 1), r = solveAt(f), ref = refOf(r);
     out.f.push(f); out.refl.push(r.reflIn / ref);
-    r.nodesM.forEach((n, j) => out.M[j].push(n.P / ref));
-    if(K.div){ r.nodesA.forEach((n, j) => out.A[j].push(n.P / ref)); r.nodesB.forEach((n, j) => out.B[j].push(n.P / ref)); }
+    flowP(r.nodesM, !K.div).forEach((p, j) => out.M[j].push(p / ref));
+    if(K.div){ flowP(r.nodesA, true).forEach((p, j) => out.A[j].push(p / ref)); flowP(r.nodesB, true).forEach((p, j) => out.B[j].push(p / ref)); }
   }
   return out;
 }
@@ -212,18 +219,20 @@ function sweep(){
    loads. Blocks widen and gaps grow with the drawing's width; a gap always leaves room for its "+". */
 function geoC(H, W){
   // the circuit (blocks, symbols, spacing, spectra) grows with a tall drawing area; text keeps its size
-  const k = Math.min(SCALE_MAX, Math.max(1, H / SCALE_H)), Lk = scaledLayout(k);
+  // (v1.8.0: the plot below is compact or off, and the circuit takes the rest of the height)
+  const plotH = K.plotMode === 'off' ? 0 : Math.max(PLOT_H[0], Math.min(PLOT_H[1], PLOT_H[2] * H)), region = K.div ? LY_C.plotD : LY_C.plotC;
+  const k = Math.min(SCALE_MAX, Math.max(1, (H - plotH) / region)), kh = Math.min(k, Math.max(1, W / DESIGN_W)), Lk = scaledLayout(k, kh);
   const div = !!K.div, e = LY_C.edge, srcX = e + Lk.srcR + 4, x0 = srcX + Lk.srcR, loadX = W - e - Lk.loadW;
   const nM = K.main.length, nBr = div ? Math.max(K.A.length, K.B.length) : 0, cols = Math.max(1, nM + nBr), gaps = div ? nM + nBr + 2 : nM + 1;
   const free = loadX - x0 - (div ? Lk.divW : 0);
-  const bw = div ? Math.min(130 * k, Math.max(86, (free - gaps * 64) / cols)) : Math.min(150 * k, Math.max(110, (free - gaps * 70) / cols)), g = (free - (nM + nBr) * bw) / gaps;
+  const bw = div ? Math.min(130 * kh, Math.max(86, (free - gaps * 64) / cols)) : Math.min(150 * kh, Math.max(110, (free - gaps * 70) / cols)), g = (free - (nM + nBr) * bw) / gaps;
   const rows = div ? Lk.rowsD : { M: Lk.rowC }, bh = div ? Lk.bhD : Lk.bhC;
   const bxM = K.main.map((_, i) => x0 + g + i * (bw + g)), divX = div ? x0 + g + nM * (bw + g) : null, after = div ? divX + Lk.divW : null;
   const jM = K.main.map((_, j) => (j === 0 ? x0 + g / 2 : bxM[j - 1] + bw + g / 2)).concat([nM ? bxM[nM - 1] + bw + ((div ? divX : loadX) - bxM[nM - 1] - bw) / 2 : (x0 + (div ? divX : loadX)) / 2]);
   const br = {};
   if(div) ['A', 'B'].forEach(k => { const n = K[k].length, bx = K[k].map((_, i) => after + g + i * (bw + g));
     br[k] = { bx, jx: bx.map((x, j) => (j === 0 ? after + g / 2 : bx[j - 1] + bw + g / 2)).concat([n ? (bx[n - 1] + bw + loadX) / 2 : (after + loadX) / 2]) }; });
-  return { W, H, k, Lk, div, srcX, x0, loadX, bw, bh, g, rows, bxM, jM, divX, after, br, pitch: bw + g };
+  return { W, H, k, Lk, dy: K.plotMode === 'off' ? Math.max(0, (H - region * k) / 2) : 0, div, srcX, x0, loadX, bw, bh, g, rows, bxM, jM, divX, after, br, pitch: bw + g };
 }
 const btnG = (attrs, label, inner) => el('g', Object.assign({ role: 'button', tabindex: 0, 'aria-label': label, class: 'hit' }, attrs), inner);
 const isSel = (k, i) => K.sel.k === k && (i === undefined || K.sel.i === i);
@@ -373,7 +382,8 @@ function drawPlot(G, sw, y0){
   let lx = G.W - e;
   series.slice().reverse().forEach(([t, col, , , dash]) => { s += txt(lx, y0 + 14, t, { anchor: 'end', size: FS.small, fill: col, cls: 'legend' }); lx -= textW(t, FS.small) + 8;
     s += el('line', { x1: lx - 24, y1: y0 + 14, x2: lx, y2: y0 + 14, stroke: col, 'stroke-width': 3, 'stroke-dasharray': dash ? '6 4' : null }); lx -= 40; });
-  for(let v = bot; v <= top; v += 10){ const y = yb - (yb - yt) * (v - bot) / PLOT_SPAN;
+  const step = [10, 20, 30].find(t => (yb - yt) * t / PLOT_SPAN >= 22) || 50;   // dB ticks at least 22 units apart
+  for(let v = top - step * Math.floor(PLOT_SPAN / step); v <= top; v += step){ const y = yb - (yb - yt) * (v - bot) / PLOT_SPAN;
     s += el('line', { x1: x0, y1: y, x2: x1, y2: y, stroke: 'var(--line)', 'stroke-width': 1, class: 'grid' });
     s += txt(x0 - 6, y, (v > 0 ? '+' : '') + fx(v, 0) + ' dB', { anchor: 'end', size: FS.small, fill: 'var(--mut)', weight: 400 }); }
   s += el('rect', { x: x0, y: yt, width: x1 - x0, height: yb - yt, fill: 'none', stroke: 'var(--mut)', 'stroke-width': 1.5, class: 'frame' });
@@ -385,52 +395,64 @@ function drawPlot(G, sw, y0){
   K.plot = { x0, x1 };
   return s;
 }
-/* The power along the chain at the marker frequency (dB of the reference) after each stage, as in a cascade-analysis
-   chart: one point per junction, the stages' symbols along the axis; with a divider the line splits into branch A
-   (green) and branch B (purple, dashed), their symbols in their colours on two rows. */
+/* The power along the chain (dB of the reference) after each stage, as in a cascade-analysis chart, one line per
+   frequency: N_FREQ frequencies evenly across the band (coloured from the band's start to its stop) and the marker
+   frequency (bold, with dots), so the frequencies are seen to separate as they pass the stages. The stages' symbols run
+   along the axis; with a divider each line splits into branch A (solid) and branch B (dotted). */
 function drawChainPlot(G, atM, y0){
   const e = LY_C.edge, nM = K.main.length, nBr = G.div ? Math.max(K.A.length, K.B.length) : 0, steps = G.div ? nM + 1 + nBr : nM;
   const x0 = e + 58, x1 = G.W - e - 4, yt = y0 + 38, yb = G.H - e - (G.div ? 56 : 50);
   if(yb - yt < 60) return '';
   const xs = i => x0 + 30 + (x1 - x0 - 60) * i / Math.max(1, steps);
-  const pts = { M: atM.M.map((v, j) => [xs(j), v, 'chainM' + j]) };
-  if(G.div) ['A', 'B'].forEach(k => { pts[k] = [[xs(nM), atM.M[nM]]].concat(atM[k].map((v, j) => [xs(nM + 1 + j), v, 'chain' + k + j])); });
-  const all = [].concat(atM.M, atM.A, atM.B).map(db10).filter(isFinite), top = 10 * Math.ceil((Math.max(0, ...all) + 1) / 10);
+  // per frequency: the power ratios along the chain (and the branches)
+  const at = r => { const ref = refOf(r), m = (l, end) => flowP(l, end).map(p => p / ref); return { M: m(r.nodesM, !G.div), A: G.div ? m(r.nodesA, true) : [], B: G.div ? m(r.nodesB, true) : [] }; };
+  const fl = Array.from({ length: N_FREQ }, (_, i) => { const f = K.f1 + (K.f2 - K.f1) * i / (N_FREQ - 1); return Object.assign(at(solveAt(f)), { f, col: 'var(--f' + i + ')', q: 'F' + i }); });
+  fl.push(Object.assign({}, atM, { f: K.fm, col: 'var(--txt)', q: '', marker: true }));
+  const paths = a => { const p = { M: a.M.map((v, j) => [xs(j), v, 'chainM' + j]) };
+    if(G.div) ['A', 'B'].forEach(k => { p[k] = [[xs(nM), a.M[nM]]].concat(a[k].map((v, j) => [xs(nM + 1 + j), v, 'chain' + k + j])); });
+    return p; };
+  const all = [].concat(...fl.map(a => [].concat(a.M, a.A, a.B))).map(db10).filter(isFinite), top = 10 * Math.ceil((Math.max(0, ...all) + 1) / 10);
   const bot = Math.max(top - 80, Math.min(top - 30, 10 * Math.floor((Math.min(...all, 0) - 1) / 10))), span = top - bot;
   const ys = r => { const d = db10(r); return yb - (yb - yt) * (Math.max(bot, Math.min(top, d === -Infinity ? bot : d)) - bot) / span; };
-  const series = G.div ? [['load A', 'var(--s21)'], ['load B', 'var(--s12)', true]] : [['load', 'var(--s21)']];
-  let s = heading(e, y0 + 14, 'Along the chain at ' + fFull(K.fm));
+  let s = heading(e, y0 + 14, 'Along the chain');
+  // legend: each frequency in its colour (the unit on the last), the marker, and (with a divider) B dotted
+  const leg = fl.map((a, i) => [a.marker ? 'marker ' + fFull(K.fm) : i === N_FREQ - 1 ? fText(a.f) : String(+(a.f / FU[K.fu]).toPrecision(3)), a.col, a.marker ? 2 : 3]);
+  if(G.div) leg.push(['B dotted', 'var(--mut)', 2, true]);
   let lx = G.W - e;
-  series.slice().reverse().forEach(([t, col, dash]) => { s += txt(lx, y0 + 14, t, { anchor: 'end', size: FS.small, fill: col, cls: 'legend' }); lx -= textW(t, FS.small) + 8;
-    s += el('line', { x1: lx - 24, y1: y0 + 14, x2: lx, y2: y0 + 14, stroke: col, 'stroke-width': 3, 'stroke-dasharray': dash ? '6 4' : null }); lx -= 40; });
-  for(let v = bot; v <= top; v += 10){ const y = ys(Math.pow(10, v / 10));
+  leg.slice().reverse().forEach(([t, col, w, dot]) => { s += txt(lx, y0 + 14, t, { anchor: 'end', size: FS.small, fill: col, cls: 'legend' }); lx -= textW(t, FS.small) + 6;
+    s += el('line', { x1: lx - 18, y1: y0 + 14, x2: lx, y2: y0 + 14, stroke: col, 'stroke-width': w, 'stroke-dasharray': dot ? '2 4' : null, 'stroke-linecap': 'round' }); lx -= 28; });
+  const step = [10, 20, 30].find(t => (yb - yt) * t / span >= 22) || 40;   // dB ticks at least 22 units apart
+  for(let v = top - step * Math.floor((top - bot) / step); v <= top; v += step){ const y = ys(Math.pow(10, v / 10));
     s += el('line', { x1: x0, y1: y, x2: x1, y2: y, stroke: 'var(--line)', 'stroke-width': 1, class: 'grid' });
     s += txt(x0 - 6, y, (v > 0 ? '+' : '') + fx(v, 0) + ' dB', { anchor: 'end', size: FS.small, fill: 'var(--mut)', weight: 400 }); }
   for(let i = 0; i <= steps; i++) s += el('line', { x1: xs(i), y1: yt, x2: xs(i), y2: yb, stroke: 'var(--line)', 'stroke-width': 1, 'stroke-dasharray': '2 4', class: 'grid' });
   s += el('rect', { x: x0, y: yt, width: x1 - x0, height: yb - yt, fill: 'none', stroke: 'var(--mut)', 'stroke-width': 1.5, class: 'frame' });
-  const line = (p, col, dash, q) => el('path', { d: 'M' + p.map(([x, v]) => n2(x) + ' ' + n2(ys(v))).join('L'), fill: 'none', stroke: col, 'stroke-width': 3, 'stroke-dasharray': dash ? '9 6' : null, class: 'curve', 'data-q': q });
-  const dots = (p, col) => p.filter(x => x[2]).map(([x, v, q]) => el('circle', { cx: x, cy: ys(v), r: 4.5, fill: col, stroke: 'var(--bg)', 'stroke-width': 1.5, class: 'cdot', 'data-q': q, 'data-v': +db10(v).toFixed(6) })).join('');
-  if(G.div){ s += line(pts.M, 'var(--txt)', false, 'chainLineM') + line(pts.A, 'var(--s21)', false, 'chainLineA') + line(pts.B, 'var(--s12)', true, 'chainLineB');
-    s += dots(pts.M, 'var(--txt)') + dots(pts.A, 'var(--s21)') + dots(pts.B, 'var(--s12)'); }
-  else s += line(pts.M, 'var(--s21)', false, 'chainLineM') + dots(pts.M, 'var(--s21)');
+  const line = (p, col, w, dot, q) => el('path', { d: 'M' + p.map(([x, v]) => n2(x) + ' ' + n2(ys(v))).join('L'), fill: 'none', stroke: col, 'stroke-width': w, 'stroke-dasharray': dot ? '2 5' : null,
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round', class: 'curve', 'data-q': q });
+  const dots = p => p.filter(x => x[2]).map(([x, v, q]) => el('circle', { cx: x, cy: ys(v), r: 4.5, fill: 'var(--txt)', stroke: 'var(--bg)', 'stroke-width': 1.5, class: 'cdot', 'data-q': q, 'data-v': +db10(v).toFixed(6) })).join('');
+  fl.forEach(a => { const p = paths(a), w = a.marker ? 2 : 3, q = 'chainLine' + a.q;
+    s += line(p.M, a.col, w, false, q + 'M');
+    if(G.div) s += line(p.A, a.col, w, false, q + 'A') + line(p.B, a.col, w, true, q + 'B');
+    if(a.marker) s += dots(p.M) + (G.div ? dots(p.A) + dots(p.B) : ''); });
   // the stages' symbols under the axis, between their two points (names under them when there is no divider)
   const mid = i => (xs(i) + xs(i + 1)) / 2, yS = yb + 18, yS2 = yb + 42;
   K.main.forEach((d, i) => { s += sym(d.type, mid(i), yS, 9, 'var(--txt)'); if(!G.div) s += txt(mid(i), yb + 40, ABBR[d.type], { anchor: 'middle', size: FS.small, fill: 'var(--mut)', weight: 400 }); });
   if(G.div){ const xd = mid(nM);
     s += el('g', { class: 'sym', 'data-sym': 'div' }, el('rect', { x: xd - 12, y: yS - 9, width: 24, height: 18, rx: 2, fill: 'var(--bg)', stroke: 'var(--txt)', 'stroke-width': 2 })
       + el('path', { d: 'M' + n2(xd - 12) + ' ' + yS + 'H' + n2(xd - 5) + 'L' + n2(xd + 2) + ' ' + (yS - 5) + 'H' + n2(xd + 12) + 'M' + n2(xd - 5) + ' ' + yS + 'L' + n2(xd + 2) + ' ' + (yS + 5) + 'H' + n2(xd + 12), fill: 'none', stroke: 'var(--txt)', 'stroke-width': 1.5 }));
-    K.A.forEach((d, i) => { s += sym(d.type, mid(nM + 1 + i), yS, 9, 'var(--s21)'); });
-    K.B.forEach((d, i) => { s += sym(d.type, mid(nM + 1 + i), yS2, 9, 'var(--s12)'); }); }
+    K.A.forEach((d, i) => { s += sym(d.type, mid(nM + 1 + i), yS, 9, 'var(--txt)'); });
+    K.B.forEach((d, i) => { s += sym(d.type, mid(nM + 1 + i), yS2, 9, 'var(--txt)'); });
+    if(K.A.length || K.B.length) s += txt(mid(nM + 1) - 30, yS, 'A', { anchor: 'end', size: FS.small, fill: 'var(--mut)', weight: 400 }) + txt(mid(nM + 1) - 30, yS2, 'B', { anchor: 'end', size: FS.small, fill: 'var(--mut)', weight: 400 }); }
   return s;
 }
 // The whole Cascade drawing (W: the drawing's width in design units).
 function drawCascade(H, W){
   W = Math.max(DESIGN_W, W || DESIGN_W);
-  const G = geoC(H, W), sw = sweep(), r = solveAt(K.fm), ref = refOf(r), at = l => l.map(n => n.P / ref);
-  const atM = { M: at(r.nodesM), A: G.div ? at(r.nodesA) : [], B: G.div ? at(r.nodesB) : [] };
+  const G = geoC(H, W), sw = sweep(), r = solveAt(K.fm), ref = refOf(r), at = (l, end) => flowP(l, end).map(p => p / ref);
+  const atM = { M: at(r.nodesM, !G.div), A: G.div ? at(r.nodesA, true) : [], B: G.div ? at(r.nodesB, true) : [] };
   K.geo = G;
   return el('svg', { class: 'vis', viewBox: '0 0 ' + n2(W) + ' ' + n2(H), role: 'img', 'aria-label': 'Cascade: the circuit, the band\'s spectrum at each junction and the response across the band' },
-    drawMinis(G, sw, atM) + drawCircuit(G) + (K.plotMode === 'chain' ? drawChainPlot(G, atM, G.div ? G.Lk.plotD : G.Lk.plotC) : drawPlot(G, sw, G.div ? G.Lk.plotD : G.Lk.plotC)));
+    el('g', { transform: G.dy ? 'translate(0 ' + n2(G.dy) + ')' : null, class: 'circuit' }, drawMinis(G, sw, atM) + drawCircuit(G)) + (K.plotMode === 'chain' ? drawChainPlot(G, atM, G.div ? G.Lk.plotD : G.Lk.plotC) : K.plotMode === 'band' ? drawPlot(G, sw, G.div ? G.Lk.plotD : G.Lk.plotC) : ''));
 }
 // ── END DRAWING ───────────────────────────────────────────────
 
@@ -485,7 +507,7 @@ function addMenu(){
   const [k, j] = K.menu.split(':'), G = K.geo, px = k === 'main' ? G.jM[+j] : G.br[k] && G.br[k].jx[+j], py = G.rows[k === 'main' ? 'M' : k];
   if(px === undefined) return null;
   const b = drawBox(), items = (canAdd(k) ? PRESETS.map(t => [t, PRESET_NAME[t]]) : []).concat(k === 'main' && !K.div ? [['div', 'Power divider (split here)']] : []);
-  return h('div', { cls: 'addmenu', attrs: { role: 'menu', 'aria-label': 'Add a block', style: 'left:' + n2(b.off + b.s * Math.min(Math.max(px - 60, LY_C.edge), G.W - 250)) + 'px;top:' + n2(b.s * (py + 20)) + 'px' } },
+  return h('div', { cls: 'addmenu', attrs: { role: 'menu', 'aria-label': 'Add a block', style: 'left:' + n2(b.off + b.s * Math.min(Math.max(px - 60, LY_C.edge), G.W - 250)) + 'px;top:' + n2(b.s * (py + G.dy + 20)) + 'px' } },
     items.map(([t, name]) => h('button', { type: 'button', id: 'add_' + t, text: name, attrs: { role: 'menuitem' }, onclick: () => addBlock(t) })));
 }
 // ── END INTERACTION ───────────────────────────────────────────
@@ -586,7 +608,7 @@ function bandEditor(){
   const mk = slider({ id: 'fm', label: 'Marker frequency', min: K.f1 / u, max: K.f2 / u, step: 'any', value: K.fm / u, unit: K.fu, fmt: v => v + ' ' + K.fu,
     onset: v => { K.fm = Math.min(K.f2, Math.max(K.f1, v * u)); redraw(false); } });
   return [h('div', { cls: 'sec', text: 'Frequency band sent through the circuit' }),
-    h('div', { cls: 'nrow' }, h('span', { text: 'Plot' }), segGroup('Plot', [['band', 'Across the band'], ['chain', 'Along the chain']], K.plotMode, v => { K.plotMode = v; redraw(true); })),
+    h('div', { cls: 'nrow' }, h('span', { text: 'Plot' }), segGroup('Plot', [['chain', 'Along the chain'], ['band', 'Across the band'], ['off', 'Off']], K.plotMode, v => { K.plotMode = v; redraw(true); })),
     h('div', { cls: 'btnrow' }, segGroup('Band entry', [['cs', 'Centre ± span'], ['ss', 'Start – stop']], K.bandMode, v => { K.bandMode = v; redraw(true); }), unitSel),
     a, b, numField('f0', 'Design f0', K.f0 / u, K.fu, v => v > 0, v => { K.f0 = v * u; }), mk,
     note('f0 sets line lengths (ℓ in λ at f0) and new filters.')];
