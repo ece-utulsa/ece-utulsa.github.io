@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  RCS Moment Method — radar cross section of simple shapes by the method of moments (2-D)
+  Version: v1.0.0
+  Released: 2026-10-26
+  Changelog:
+    v1.0.0 - First release. Infinitely long perfectly conducting cylinders of simple cross-section (circle, ellipse,
+             rectangle, equilateral triangle, flat strip), sizes in wavelengths. TM (E along the axis): electric-field
+             integral equation; TE (H along the axis): magnetic-field integral equation (closed shapes). Pulse basis,
+             point matching at segment centres, LU solve. Bistatic pattern, monostatic RCS against angle and against
+             size (frequency), the induced surface current drawn on the body and against arc length. The circle is
+             checked against the exact eigenfunction (series) solution.
+  Author: Claude Code, for ECE 4123/6423, University of Tulsa.
+  References: R. F. Harrington, Field Computation by Moment Methods, Macmillan, 1968 (Ch. 4);
+    W. C. Gibson, The Method of Moments in Electromagnetics, 2nd ed., CRC Press, 2015 (Ch. 3-4);
+    A. F. Peterson, S. L. Ray, R. Mittra, Computational Methods for Electromagnetics, IEEE Press, 1998 (Ch. 2);
+    C. A. Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley, 2012 (Ch. 11-12);
+    W. H. Press et al., Numerical Recipes, 3rd ed., 2007 (Bessel functions).
+  Conventions: time dependence e^{jωt}; Hankel functions of the second kind; lengths in wavelengths (λ = 1, k = 2π);
+    E0 = 1 V/m (TM) or H0 = 1 A/m (TE). 2-D RCS (echo width) σ = lim 2πρ |F_s|² / |F_i|², shown as σ/λ in dB.
+  No network requests at run time. The solver is exposed read-only as window.RCSMoM for checking.
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v1.0.0">
+<title>RCS Moment Method v1.0.0</title>
+<style>
+:root{
+  --bg:#0f1218; --bg2:#161b22; --panel:#1c222b; --line:#2f3845; --txt:#e6ebf2; --mut:#a7b1c2; --focus:#ffd479;
+  --mom:#3ddc84; --exact:#ffb02e; --inc:#a5a3ff; --cur:#ff7070; --grid:#2a323e; --bad:#ff8a80;
+}
+body.light{
+  --bg:#ffffff; --bg2:#eef1f5; --panel:#f6f8fb; --line:#b8c0cc; --txt:#111827; --mut:#4b5563; --focus:#1d4ed8;
+  --mom:#15803d; --exact:#b45309; --inc:#6d28d9; --cur:#dc2626; --grid:#dde2ea; --bad:#b91c1c;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+html,body{ height:100% }
+body{ background:var(--bg); color:var(--txt); font-family:ui-monospace,'IBM Plex Mono','DejaVu Sans Mono',Menlo,Consolas,monospace; font-size:14px; line-height:1.3;
+  display:flex; flex-direction:column; height:100vh; overflow:hidden }
+button,input,select{ font:inherit; color:inherit }
+button,select{ background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:.25em .6em; cursor:pointer; min-height:32px }
+button:hover{ border-color:var(--mut) }
+button[aria-pressed="true"]{ background:var(--txt); color:var(--bg); border-color:var(--txt) }
+button:disabled{ opacity:.4; cursor:default }
+:focus-visible{ outline:3px solid var(--focus); outline-offset:2px }
+input[type=number]{ background:var(--bg2); border:1px solid var(--line); border-radius:5px; padding:.15em .3em; width:6em }
+input.invalid{ border-color:var(--bad); outline:2px solid var(--bad) }
+input[type=range]{ flex:1; min-width:0; accent-color:var(--txt) }
+header{ display:flex; align-items:center; gap:12px; padding:8px 14px; border-bottom:1px solid var(--line); background:var(--bg2) }
+header h1{ font-size:18px; font-weight:600; margin-right:auto }
+#ver{ color:var(--mut); font-size:13px }
+main{ flex:1; display:grid; grid-template-columns:340px 1fr; min-height:0 }
+#side{ border-right:1px solid var(--line); padding:12px; display:flex; flex-direction:column; gap:10px; overflow-y:auto }
+#view{ display:grid; grid-template-columns:1fr 1fr; grid-template-rows:minmax(0,1fr) minmax(0,1.25fr); gap:10px; padding:10px; min-width:0; min-height:0 }
+.card{ background:var(--bg2); border:1px solid var(--line); border-radius:8px; padding:8px; min-width:0; min-height:0; display:flex; flex-direction:column }
+.card > div{ flex:1; min-height:0 }
+.card h2{ font-size:14px; color:var(--mut); font-weight:600; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; gap:8px }
+.card svg{ width:100%; height:100%; display:block }
+#plotCard{ grid-column:1 / span 2 }
+.sec{ color:var(--mut); font-weight:600; border-top:1px solid var(--line); padding-top:8px }
+.sec:first-child{ border-top:0; padding-top:0 }
+.row{ display:flex; align-items:center; gap:6px } .row label{ flex:1 }
+.seg{ display:inline-flex; flex-wrap:wrap } .seg button{ border-radius:0 } .seg button:first-child{ border-radius:6px 0 0 6px } .seg button:last-child{ border-radius:0 6px 6px 0 }
+.note{ color:var(--mut); font-size:13px }
+.ro{ display:grid; grid-template-columns:1fr auto; gap:2px 10px } .ro .v{ text-align:right; font-weight:600; white-space:nowrap }
+.err{ color:var(--bad); font-size:13px } .err:empty{ display:none }
+.eq{ font-size:13px; color:var(--mut); white-space:pre-wrap; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:6px }
+footer{ border-top:1px solid var(--line); padding:4px 12px; color:var(--mut); font-size:12px; display:flex; justify-content:space-between }
+@media (max-width:1000px){ body{ height:auto; overflow:auto } main{ grid-template-columns:1fr } #view{ grid-template-columns:1fr; grid-template-rows:none } #plotCard{ grid-column:auto } .card > div{ height:340px; flex:none } }
+</style>
+</head>
+<body>
+<header>
+  <h1>RCS Moment Method</h1>
+  <button type="button" id="themeBtn">Light</button>
+  <span id="ver">v1.0.0</span>
+</header>
+<main>
+  <aside id="side" aria-label="Settings"></aside>
+  <section id="view" aria-label="Results">
+    <div class="card" id="geoCard"><h2><span>Body, incident wave and surface current</span></h2><div id="geo"></div></div>
+    <div class="card" id="curCard"><h2><span id="curTitle">Surface current</span></h2><div id="cur"></div></div>
+    <div class="card" id="plotCard"><h2><span id="plotTitle">RCS</span><span class="seg" id="plotStyle"></span></h2><div id="plot"></div></div>
+  </section>
+</main>
+<footer><span>RCS Moment Method v1.0.0 · released 2026-10-26 · Author: Claude Code</span><span>ECE 4123/6423 · University of Tulsa</span></footer>
+<script>
+(function(){
+'use strict';
+
+// ── CONSTANTS ─────────────────────────────────────────────────
+const TWO_PI = 2 * Math.PI, K0 = TWO_PI;           // lengths in wavelengths: λ = 1, k = 2π
+const ETA = 376.730313668;                          // free-space wave impedance (Ω)
+const GAMMA = 1.7810724179901979;                   // e^γ (Euler's constant γ = 0.5772…)
+const DEG = Math.PI / 180;
+const SHAPES = { circle: 'Circle', ellipse: 'Ellipse', rect: 'Rectangle', tri: 'Triangle', strip: 'Flat strip' };
+const DIMS = {     // each shape's dimensions (in λ): [key, label, default, min, max]
+  circle: [['a', 'Radius a', 0.5, 0.02, 5]],
+  ellipse: [['a', 'Semi-axis a (x)', 0.8, 0.02, 5], ['b', 'Semi-axis b (y)', 0.3, 0.02, 5]],
+  rect: [['w', 'Width w (x)', 1, 0.02, 8], ['h', 'Height h (y)', 1, 0.02, 8]],
+  tri: [['s', 'Side s', 1, 0.05, 8]],
+  strip: [['w', 'Width w (x)', 2, 0.05, 10]] };
+const MODES = { bi: 'Bistatic pattern', mono: 'Monostatic vs angle', freq: 'Monostatic vs size' };
+const SWEEP_PTS = 81;                               // sizes in a monostatic-vs-size sweep
+const DB_RANGE = 50;                                // dB shown below the plot's maximum
+
+// ── BESSEL FUNCTIONS (real x > 0; Numerical Recipes rational approximations, |error| < 1e-8) ──
+function J0(x){ const ax = Math.abs(x);
+  if(ax < 8){ const y = x * x;
+    return (57568490574.0 + y * (-13362590354.0 + y * (651619640.7 + y * (-11214424.18 + y * (77392.33017 + y * (-184.9052456))))))
+      / (57568490411.0 + y * (1029532985.0 + y * (9494680.718 + y * (59272.64853 + y * (267.8532712 + y))))); }
+  const z = 8 / ax, y = z * z, xx = ax - 0.785398164;
+  const p = 1 + y * (-0.1098628627e-2 + y * (0.2734510407e-4 + y * (-0.2073370639e-5 + y * 0.2093887211e-6)));
+  const q = -0.1562499995e-1 + y * (0.1430488765e-3 + y * (-0.6911147651e-5 + y * (0.7621095161e-6 - y * 0.934935152e-7)));
+  return Math.sqrt(0.636619772 / ax) * (Math.cos(xx) * p - z * Math.sin(xx) * q); }
+function J1(x){ const ax = Math.abs(x); let r;
+  if(ax < 8){ const y = x * x;
+    r = x * (72362614232.0 + y * (-7895059235.0 + y * (242396853.1 + y * (-2972611.439 + y * (15704.48260 + y * (-30.16036606))))))
+      / (144725228442.0 + y * (2300535178.0 + y * (18583304.74 + y * (99447.43394 + y * (376.9991397 + y))))); return r; }
+  const z = 8 / ax, y = z * z, xx = ax - 2.356194491;
+  const p = 1 + y * (0.183105e-2 + y * (-0.3516396496e-4 + y * (0.2457520174e-5 + y * (-0.240337019e-6))));
+  const q = 0.04687499995 + y * (-0.2002690873e-3 + y * (0.8449199096e-5 + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+  r = Math.sqrt(0.636619772 / ax) * (Math.cos(xx) * p - z * Math.sin(xx) * q); return x < 0 ? -r : r; }
+function Y0(x){
+  if(x < 8){ const y = x * x;
+    return (-2957821389.0 + y * (7062834065.0 + y * (-512359803.6 + y * (10879881.29 + y * (-86327.92757 + y * 228.4622733)))))
+      / (40076544269.0 + y * (745249964.8 + y * (7189466.438 + y * (47447.26470 + y * (226.1030244 + y))))) + 0.636619772 * J0(x) * Math.log(x); }
+  const z = 8 / x, y = z * z, xx = x - 0.785398164;
+  const p = 1 + y * (-0.1098628627e-2 + y * (0.2734510407e-4 + y * (-0.2073370639e-5 + y * 0.2093887211e-6)));
+  const q = -0.1562499995e-1 + y * (0.1430488765e-3 + y * (-0.6911147651e-5 + y * (0.7621095161e-6 + y * (-0.934945152e-7))));
+  return Math.sqrt(0.636619772 / x) * (Math.sin(xx) * p + z * Math.cos(xx) * q); }
+function Y1(x){
+  if(x < 8){ const y = x * x;
+    return x * (-0.4900604943e13 + y * (0.1275274390e13 + y * (-0.5153438139e11 + y * (0.7349264551e9 + y * (-0.4237922726e7 + y * 0.8511937935e4)))))
+      / (0.2499580570e14 + y * (0.4244419664e12 + y * (0.3733650367e10 + y * (0.2245904002e8 + y * (0.1020426050e6 + y * (0.3549632885e3 + y))))))
+      + 0.636619772 * (J1(x) * Math.log(x) - 1 / x); }
+  const z = 8 / x, y = z * z, xx = x - 2.356194491;
+  const p = 1 + y * (0.183105e-2 + y * (-0.3516396496e-4 + y * (0.2457520174e-5 + y * (-0.240337019e-6))));
+  const q = 0.04687499995 + y * (-0.2002690873e-3 + y * (0.8449199096e-5 + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+  return Math.sqrt(0.636619772 / x) * (Math.sin(xx) * p + z * Math.cos(xx) * q); }
+// J_n(x), n ≥ 0: upward recurrence above n, Miller's downward recurrence below.
+function Jn(n, x){
+  if(n === 0) return J0(x); if(n === 1) return J1(x); if(x === 0) return 0;
+  const ax = Math.abs(x), tox = 2 / ax; let ans;
+  if(ax > n){ let bjm = J0(ax), bj = J1(ax); for(let j = 1; j < n; j++){ const bjp = j * tox * bj - bjm; bjm = bj; bj = bjp; } ans = bj; }
+  else { const m = 2 * Math.floor((n + Math.floor(Math.sqrt(160 * n))) / 2); let jsum = false, bjp = 0, sum = 0, bj = 1; ans = 0;
+    for(let j = m; j > 0; j--){ const bjm = j * tox * bj - bjp; bjp = bj; bj = bjm;
+      if(Math.abs(bj) > 1e10){ bj *= 1e-10; bjp *= 1e-10; ans *= 1e-10; sum *= 1e-10; }
+      if(jsum) sum += bj; jsum = !jsum; if(j === n) ans = bjp; }
+    ans /= 2 * sum - bj; }
+  return x < 0 && (n & 1) ? -ans : ans; }
+// Y_n(x), n ≥ 0, x > 0: upward recurrence (stable for Y).
+function Yn(n, x){ if(n === 0) return Y0(x); if(n === 1) return Y1(x);
+  const tox = 2 / x; let bym = Y0(x), by = Y1(x); for(let j = 1; j < n; j++){ const byp = j * tox * by - bym; bym = by; by = byp; } return by; }
+
+// ── GEOMETRY ──────────────────────────────────────────────────
+/* A closed contour (counter-clockwise) or an open strip, cut into N flat segments. Each segment: centre (x, y), length
+   d, outward unit normal (nx, ny), and its two end points. The circle and ellipse are inscribed polygons whose vertices
+   are spaced evenly in arc length; polygons put vertices at their corners and share segments in proportion to side
+   length. */
+function polygonSegments(verts, closed, N){
+  const sides = []; let P = 0;
+  for(let i = 0; i < verts.length - (closed ? 0 : 1); i++){ const a = verts[i], b = verts[(i + 1) % verts.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); sides.push([a, b, L]); P += L; }
+  const cnt = sides.map(s => Math.max(1, Math.round(N * s[2] / P)));
+  const segs = [];
+  sides.forEach(([a, b, L], i) => { const n = cnt[i];
+    for(let j = 0; j < n; j++){ const t0 = j / n, t1 = (j + 1) / n, x0 = a[0] + (b[0] - a[0]) * t0, y0 = a[1] + (b[1] - a[1]) * t0, x1 = a[0] + (b[0] - a[0]) * t1, y1 = a[1] + (b[1] - a[1]) * t1;
+      segs.push(segment(x0, y0, x1, y1)); } });
+  return segs; }
+function segment(x0, y0, x1, y1){ const d = Math.hypot(x1 - x0, y1 - y0), tx = (x1 - x0) / d, ty = (y1 - y0) / d;
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, d, nx: ty, ny: -tx, x0, y0, x1, y1 }; }   // CCW contour: outward normal = t × ẑ
+/* A smooth closed curve (x(t), y(t), t in [0, 2π), counter-clockwise) cut into N arcs of equal length. Each segment keeps
+   the true curve: its centre is the arc's mid-point on the curve, its normal the curve's outward normal there, its length
+   the arc length, and kappa the curvature (used in the TE self term). The end points (for drawing) are on the curve. */
+function smoothSegments(fx, fy, N){
+  const M = 8000, pts = [], s = [0], ts = [];
+  for(let i = 0; i <= M; i++){ const t = TWO_PI * i / M; ts.push(t); pts.push([fx(t), fy(t)]); if(i) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); }
+  const P = s[M], tAt = target => { let lo = 0, hi = M; while(hi - lo > 1){ const mid = (lo + hi) >> 1; if(s[mid] < target) lo = mid; else hi = mid; }
+    return ts[lo] + (ts[hi] - ts[lo]) * (target - s[lo]) / (s[hi] - s[lo]); };
+  const h = 1e-5, segs = [];
+  for(let i = 0; i < N; i++){
+    const t0 = tAt(P * i / N), t1 = tAt(P * (i + 1) / N), tm = tAt(P * (i + 0.5) / N);
+    const dx = (fx(tm + h) - fx(tm - h)) / (2 * h), dy = (fy(tm + h) - fy(tm - h)) / (2 * h), ddx = (fx(tm + h) - 2 * fx(tm) + fx(tm - h)) / (h * h), ddy = (fy(tm + h) - 2 * fy(tm) + fy(tm - h)) / (h * h);
+    const sp = Math.hypot(dx, dy);
+    segs.push({ x: fx(tm), y: fy(tm), d: P / N, nx: dy / sp, ny: -dx / sp, kappa: (dx * ddy - dy * ddx) / (sp * sp * sp), x0: fx(t0), y0: fy(t0), x1: fx(t1), y1: fy(t1) }); }
+  return segs; }
+// Perimeter (λ) of a shape, used to pick the number of segments.
+function perimeter(shape, d){
+  switch(shape){
+    case 'circle': return TWO_PI * d.a;
+    case 'ellipse': { const h = ((d.a - d.b) / (d.a + d.b)) ** 2; return Math.PI * (d.a + d.b) * (1 + 3 * h / (10 + Math.sqrt(4 - 3 * h))); }   // Ramanujan
+    case 'rect': return 2 * (d.w + d.h);
+    case 'tri': return 3 * d.s;
+  }
+  return d.w; }
+const closedShape = shape => shape !== 'strip';
+// The segments of a shape with about perSeg segments per wavelength (at least 16).
+function makeBody(shape, d, perLambda){
+  const N = Math.max(16, Math.ceil(perimeter(shape, d) * perLambda));
+  let segs;
+  switch(shape){
+    case 'circle': segs = smoothSegments(t => d.a * Math.cos(t), t => d.a * Math.sin(t), N); break;
+    case 'ellipse': segs = smoothSegments(t => d.a * Math.cos(t), t => d.b * Math.sin(t), N); break;
+    case 'rect': segs = polygonSegments([[-d.w / 2, -d.h / 2], [d.w / 2, -d.h / 2], [d.w / 2, d.h / 2], [-d.w / 2, d.h / 2]], true, N); break;
+    case 'tri': { const r = d.s / (2 * Math.sqrt(3));   // equilateral, centroid at the origin, apex up, counter-clockwise
+      segs = polygonSegments([[-d.s / 2, -r], [d.s / 2, -r], [0, 2 * r]], true, N); break; }
+    default: segs = polygonSegments([[-d.w / 2, 0], [d.w / 2, 0]], false, N);
+  }
+  return { shape, d, segs, closed: closedShape(shape) }; }
+
+// ── COMPLEX LINEAR ALGEBRA ────────────────────────────────────
+// LU factorisation with partial pivoting of the N×N complex matrix (re, im: Float64Array, row-major), in place.
+function luFactor(N, re, im){
+  const piv = new Int32Array(N);
+  for(let k = 0; k < N; k++){
+    let p = k, mx = -1;
+    for(let i = k; i < N; i++){ const a = re[i * N + k] ** 2 + im[i * N + k] ** 2; if(a > mx){ mx = a; p = i; } }
+    piv[k] = p;
+    if(p !== k) for(let j = 0; j < N; j++){ const a = k * N + j, b = p * N + j; let t = re[a]; re[a] = re[b]; re[b] = t; t = im[a]; im[a] = im[b]; im[b] = t; }
+    const dr = re[k * N + k], di = im[k * N + k], dd = dr * dr + di * di;
+    for(let i = k + 1; i < N; i++){
+      const ar = re[i * N + k], ai = im[i * N + k], lr = (ar * dr + ai * di) / dd, li = (ai * dr - ar * di) / dd;
+      re[i * N + k] = lr; im[i * N + k] = li;
+      for(let j = k + 1; j < N; j++){ const br = re[k * N + j], bi = im[k * N + j]; re[i * N + j] -= lr * br - li * bi; im[i * N + j] -= lr * bi + li * br; } } }
+  return { N, re, im, piv }; }
+// Solve with an LU factorisation for one right-hand side (br, bi), returned as [xr, xi].
+function luSolve(F, br, bi){
+  const { N, re, im, piv } = F, xr = Float64Array.from(br), xi = Float64Array.from(bi);
+  for(let k = 0; k < N; k++){ const p = piv[k]; if(p !== k){ let t = xr[k]; xr[k] = xr[p]; xr[p] = t; t = xi[k]; xi[k] = xi[p]; xi[p] = t; } }
+  for(let i = 0; i < N; i++){ let sr = xr[i], si = xi[i]; for(let j = 0; j < i; j++){ const a = re[i * N + j], b = im[i * N + j]; sr -= a * xr[j] - b * xi[j]; si -= a * xi[j] + b * xr[j]; } xr[i] = sr; xi[i] = si; }
+  for(let i = N - 1; i >= 0; i--){ let sr = xr[i], si = xi[i]; for(let j = i + 1; j < N; j++){ const a = re[i * N + j], b = im[i * N + j]; sr -= a * xr[j] - b * xi[j]; si -= a * xi[j] + b * xr[j]; }
+    const a = re[i * N + i], b = im[i * N + i], dd = a * a + b * b; xr[i] = (sr * a + si * b) / dd; xi[i] = (si * a - sr * b) / dd; }
+  return [xr, xi]; }
+
+// ── MOMENT METHOD ─────────────────────────────────────────────
+/* The impedance matrix Z of a body for polarization pol.
+   TM (Ez; EFIE): E_z^inc(ρ_m) = (kη/4) Σ_n J_n ∫_n H0⁽²⁾(k|ρ_m − ρ'|) dl'. Off-diagonal: (kη/4) Δ_n H0⁽²⁾(k R_mn);
+     diagonal (small-argument integral over the segment itself): (kη/4) Δ_n [1 − j(2/π) ln(γ k Δ_n / (4e))].
+   TE (Hz; MFIE, closed bodies): J_m/2 + Σ_{n≠m} J_n (jk/4) Δ_n H1⁽²⁾(k R_mn) (R̂_mn · n̂_n) = −H_z^inc(ρ_m); the self term
+     is 1/2 for a flat segment, plus κΔ/(4π) for an arc of curvature κ (its own principal-value integral, small-argument H1). */
+function impedance(body, pol){
+  const s = body.segs, N = s.length, re = new Float64Array(N * N), im = new Float64Array(N * N), k = K0;
+  if(pol === 'TM'){
+    const c = k * ETA / 4;
+    for(let m = 0; m < N; m++) for(let n = 0; n < N; n++){
+      const i = m * N + n, dn = s[n].d;
+      if(m === n){ re[i] = c * dn; im[i] = -c * dn * (2 / Math.PI) * Math.log(GAMMA * k * dn / (4 * Math.E)); continue; }
+      const R = Math.hypot(s[m].x - s[n].x, s[m].y - s[n].y), kr = k * R;
+      re[i] = c * dn * J0(kr); im[i] = -c * dn * Y0(kr); }   // H0⁽²⁾ = J0 − jY0
+  } else {
+    for(let m = 0; m < N; m++) for(let n = 0; n < N; n++){
+      const i = m * N + n;
+      if(m === n){ re[i] = 0.5 + (s[n].kappa || 0) * s[n].d / (4 * Math.PI); continue; }   // + the curved arc's own principal-value integral, κΔ/4π
+      const dx = s[m].x - s[n].x, dy = s[m].y - s[n].y, R = Math.hypot(dx, dy), kr = k * R, cosn = (dx * s[n].nx + dy * s[n].ny) / R;
+      const f = (k / 4) * s[n].d * cosn, h1r = J1(kr), h1i = -Y1(kr);   // (jk/4) Δ cos · (J1 − jY1) = (k/4)Δcos · (Y1 + jJ1)
+      re[i] = -f * h1i; im[i] = f * h1r; }
+  }
+  return { re, im }; }
+// The incident field at the segment centres for a plane wave arriving from direction phiI: F^inc = e^{jk(x cos φi + y sin φi)}.
+function incident(body, phiI){
+  const s = body.segs, N = s.length, cr = Math.cos(phiI), sr = Math.sin(phiI), re = new Float64Array(N), im = new Float64Array(N);
+  for(let m = 0; m < N; m++){ const ph = K0 * (s[m].x * cr + s[m].y * sr); re[m] = Math.cos(ph); im[m] = Math.sin(ph); }
+  return { re, im }; }
+// Right-hand side for polarization pol: E_z^inc (TM) or −H_z^inc (TE).
+function rhs(body, pol, phiI){ const v = incident(body, phiI); if(pol === 'TE'){ v.re = v.re.map(x => -x); v.im = v.im.map(x => -x); } return v; }
+/* The 2-D RCS σ/λ (linear) in the direction phi from the currents (Jr, Ji):
+   TM: σ = (k η²/4) |Σ J_n Δ_n e^{jk ρ_n·û}|²;  TE: σ = (k/4) |Σ J_n Δ_n (û·n̂_n) e^{jk ρ_n·û}|². */
+function rcs(body, pol, Jr, Ji, phi){
+  const s = body.segs, ux = Math.cos(phi), uy = Math.sin(phi); let fr = 0, fi = 0;
+  for(let n = 0; n < s.length; n++){ const ph = K0 * (s[n].x * ux + s[n].y * uy), w = s[n].d * (pol === 'TM' ? 1 : (ux * s[n].nx + uy * s[n].ny)), c = Math.cos(ph), sn = Math.sin(ph);
+    fr += w * (Jr[n] * c - Ji[n] * sn); fi += w * (Jr[n] * sn + Ji[n] * c); }
+  return (pol === 'TM' ? K0 * ETA * ETA / 4 : K0 / 4) * (fr * fr + fi * fi); }
+// Solve one body: factor Z once. Returns { body, pol, F, N }.
+function factor(body, pol){ const Z = impedance(body, pol); return { body, pol, F: luFactor(body.segs.length, Z.re, Z.im), N: body.segs.length }; }
+const currents = (S, phiI) => { const b = rhs(S.body, S.pol, phiI); return luSolve(S.F, b.re, b.im); };
+
+// ── EXACT SOLUTION (circular cylinder, radius a) ──────────────
+/* Eigenfunction series: σ/λ = (4/k)/λ |Σ_n c_n e^{jnψ}|², ψ the angle from the forward direction, with
+   TM: c_n = J_n(ka)/H_n⁽²⁾(ka);  TE: c_n = J_n'(ka)/H_n⁽²⁾'(ka); c_{−n} = c_n. */
+function exactCoeffs(pol, a){
+  const ka = K0 * a, M = Math.ceil(ka + 10 + 4 * Math.cbrt(ka)), c = [];
+  for(let n = 0; n <= M; n++){
+    let jr, yr;
+    if(pol === 'TM'){ jr = Jn(n, ka); yr = Yn(n, ka); }
+    else { jr = n === 0 ? -J1(ka) : (Jn(n - 1, ka) - Jn(n + 1, ka)) / 2; yr = n === 0 ? -Y1(ka) : (Yn(n - 1, ka) - Yn(n + 1, ka)) / 2; }
+    const dd = jr * jr + yr * yr;            // J / (J − jY) = J (J + jY) / (J² + Y²)
+    c.push([jr * jr / dd, jr * yr / dd]); }
+  return c; }
+function exactRcs(c, psi){ let fr = c[0][0], fi = c[0][1];
+  for(let n = 1; n < c.length; n++){ const w = 2 * Math.cos(n * psi); fr += w * c[n][0]; fi += w * c[n][1]; }
+  return (4 / K0) * (fr * fr + fi * fi); }
+const wrap = a => { let w = a % TWO_PI; if(w < 0) w += TWO_PI; return w; };
+const dB = v => (v > 1e-30 ? 10 * Math.log10(v) : -300);
+
+window.RCSMoM = Object.freeze({ makeBody, factor, currents, rcs, exactCoeffs, exactRcs, Jn, Yn, J0, J1, Y0, Y1 });
+
+// ── STATE ─────────────────────────────────────────────────────
+const S = { shape: 'circle', dims: {}, pol: 'TM', mode: 'bi', phiI: 180, perLambda: 20, f1: 0.2, f2: 2, polar: true, sizeScale: 1,
+            res: null, sweep: null, busy: 0 };
+Object.keys(DIMS).forEach(sh => { S.dims[sh] = {}; DIMS[sh].forEach(([k, , v]) => { S.dims[sh][k] = v; }); });
+
+// ── COMPUTE ───────────────────────────────────────────────────
+// Solve the current state: the body, its currents for φi, the pattern (bistatic or monostatic) and the circle's exact curve.
+function compute(){
+  const t0 = performance.now(), d = S.dims[S.shape], body = makeBody(S.shape, d, S.perLambda), pol = effPol();
+  const F = factor(body, pol), phiI = S.phiI * DEG, [Jr, Ji] = currents(F, phiI), t1 = performance.now();
+  const angles = [], mom = [], ex = [];
+  const coeffs = S.shape === 'circle' ? exactCoeffs(pol, d.a) : null;
+  if(S.mode === 'bi'){
+    for(let i = 0; i <= 720; i++){ const ph = i * 0.5 * DEG; angles.push(i * 0.5); mom.push(rcs(body, pol, Jr, Ji, ph)); if(coeffs) ex.push(exactRcs(coeffs, wrap(ph - phiI - Math.PI))); } }
+  else if(S.mode === 'mono'){
+    for(let i = 0; i <= 360; i++){ const ph = i * DEG, [r, m] = currents(F, ph); angles.push(i); mom.push(rcs(body, pol, r, m, ph)); if(coeffs) ex.push(exactRcs(coeffs, Math.PI)); } }
+  const t2 = performance.now();
+  S.res = { body, pol, Jr, Ji, angles, mom, ex, coeffs, tFill: t1 - t0, tPat: t2 - t1 };
+  if(S.mode === 'freq') runSweep(); else S.sweep = null;
+}
+// Monostatic RCS at φi against size: every dimension scaled by s from f1 to f2 (the same as sweeping frequency for a fixed body).
+function runSweep(){
+  const id = ++S.busy, pol = effPol(), d0 = S.dims[S.shape], sw = { s: [], mom: [], ex: [], done: 0 }; S.sweep = sw;
+  const step = () => {
+    if(id !== S.busy) return;
+    const t = performance.now();
+    while(sw.done < SWEEP_PTS && performance.now() - t < 40){
+      const sc = S.f1 + (S.f2 - S.f1) * sw.done / (SWEEP_PTS - 1), d = {}; Object.keys(d0).forEach(k => { d[k] = d0[k] * sc; });
+      const body = makeBody(S.shape, d, S.perLambda), F = factor(body, pol), phiI = S.phiI * DEG, [r, m] = currents(F, phiI);
+      sw.s.push(sc); sw.mom.push(rcs(body, pol, r, m, phiI)); if(S.shape === 'circle') sw.ex.push(exactRcs(exactCoeffs(pol, d.a), Math.PI)); sw.done++; }
+    renderPlot(); renderRo();
+    if(sw.done < SWEEP_PTS) setTimeout(step, 0); };
+  step(); }
+// TE needs a closed body (MFIE); the strip is solved for TM only.
+const effPol = () => (S.shape === 'strip' ? 'TM' : S.pol);
+
+// ── DRAWING ───────────────────────────────────────────────────
+const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const f2 = v => Math.round(v * 100) / 100;
+function el(tag, a, inner){ let s = '<' + tag; for(const k in a){ if(a[k] !== null && a[k] !== undefined) s += ' ' + k + '="' + esc(a[k]) + '"'; } return inner === undefined ? s + '/>' : s + '>' + inner + '</' + tag + '>'; }
+const tx = (x, y, t, o) => el('text', Object.assign({ x: f2(x), y: f2(y), 'font-size': 13, fill: 'var(--mut)', 'dominant-baseline': 'central' }, o || {}), esc(t));
+// The body, the incident wave (arrows from φi) and the current as a curve offset along the outward normal by |J|.
+function renderGeo(){
+  const R = S.res, W = 460, H = 360, segs = R.body.segs;
+  const ext = Math.max(...segs.map(s => Math.max(Math.abs(s.x0), Math.abs(s.y0), Math.abs(s.x1), Math.abs(s.y1)))), sc = 110 / Math.max(ext, 0.05), cx = W / 2, cy = H / 2;
+  const P = (x, y) => [cx + x * sc, cy - y * sc];
+  const mag = segs.map((_, n) => Math.hypot(R.Jr[n], R.Ji[n])), mx = Math.max(...mag) || 1, off = 45 / mx;
+  let s = '';
+  // incident wave: three arrows arriving from φi, wavefronts across them
+  const ph = S.phiI * DEG, ux = Math.cos(ph), uy = Math.sin(ph), Rr = 160;
+  for(let k = -1; k <= 1; k++){ const px = -uy * k * 40, py = ux * k * 40, a = [cx + (ux * Rr + px), cy - (uy * Rr + py)], b = [cx + (ux * (Rr - 40) + px), cy - (uy * (Rr - 40) + py)];
+    s += el('line', { x1: f2(a[0]), y1: f2(a[1]), x2: f2(b[0]), y2: f2(b[1]), stroke: 'var(--inc)', 'stroke-width': 2, 'marker-end': 'url(#ah)' }); }
+  s += tx(cx + ux * (Rr + 14), cy - uy * (Rr + 14), 'φi = ' + S.phiI + '°', { fill: 'var(--inc)', 'text-anchor': ux > 0.3 ? 'start' : ux < -0.3 ? 'end' : 'middle' });
+  // body outline with segment ticks
+  let d = ''; segs.forEach((g, i) => { const a = P(g.x0, g.y0), b = P(g.x1, g.y1); d += (i && segs[i - 1].x1 === g.x0 && segs[i - 1].y1 === g.y0 ? 'L' : 'M') + f2(a[0]) + ' ' + f2(a[1]) + 'L' + f2(b[0]) + ' ' + f2(b[1]); });
+  s += el('path', { d, fill: R.body.closed ? 'var(--panel)' : 'none', stroke: 'var(--txt)', 'stroke-width': 2, 'stroke-linejoin': 'round', class: 'body' });
+  segs.forEach(g => { const a = P(g.x0, g.y0); s += el('circle', { cx: f2(a[0]), cy: f2(a[1]), r: 1.6, fill: 'var(--mut)' }); });
+  // the current: |J| as an offset curve (outside the body; both sides of a strip)
+  const curve = sgn => segs.map((g, n) => { const p = P(g.x, g.y); return [p[0] + sgn * g.nx * mag[n] * off, p[1] - sgn * g.ny * mag[n] * off]; });
+  const pl = pts => 'M' + pts.map(p => f2(p[0]) + ' ' + f2(p[1])).join('L') + (R.body.closed ? 'Z' : '');
+  s += el('path', { d: pl(curve(1)), fill: 'none', stroke: 'var(--cur)', 'stroke-width': 2, class: 'jcurve' });
+  if(!R.body.closed) s += el('path', { d: pl(curve(-1)), fill: 'none', stroke: 'var(--cur)', 'stroke-width': 1, 'stroke-dasharray': '3 3' });
+  // scale bar: 1 λ
+  s += el('line', { x1: 14, y1: H - 14, x2: f2(14 + sc), y2: H - 14, stroke: 'var(--txt)', 'stroke-width': 2 }) + tx(14 + sc / 2, H - 26, '1 λ', { 'text-anchor': 'middle' });
+  s += tx(W - 10, H - 14, 'N = ' + segs.length + ' segments', { 'text-anchor': 'end' });
+  s += tx(W - 10, 14, '— |J| (offset along n̂)', { 'text-anchor': 'end', fill: 'var(--cur)' });
+  document.getElementById('geo').innerHTML = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Body, incident wave and surface current' },
+    el('defs', {}, el('marker', { id: 'ah', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto' }, el('path', { d: 'M0 0L10 5L0 10Z', fill: 'var(--inc)' }))) + s);
+}
+// |J| (normalised: η|J|/E0 for TM, |J|/H0 for TE) against arc length, and its phase.
+function renderCur(){
+  const R = S.res, W = 460, H = 260, L = 50, Rt = 14, T = 14, B = 36, segs = R.body.segs, sc = R.pol === 'TM' ? ETA : 1;
+  const sArr = []; let acc = 0; segs.forEach(g => { sArr.push(acc + g.d / 2); acc += g.d; });
+  const mag = segs.map((_, n) => Math.hypot(R.Jr[n], R.Ji[n]) * sc), mx = Math.max(...mag) * 1.1 || 1;
+  const X = v => L + (W - L - Rt) * v / acc, Y = v => H - B - (H - T - B) * v / mx;
+  let s = el('rect', { x: L, y: T, width: W - L - Rt, height: H - T - B, fill: 'none', stroke: 'var(--line)' });
+  for(let i = 0; i <= 4; i++){ const v = mx * i / 4; s += el('line', { x1: L, y1: f2(Y(v)), x2: W - Rt, y2: f2(Y(v)), stroke: 'var(--grid)' }) + tx(L - 6, Y(v), (+v.toPrecision(2)).toString(), { 'text-anchor': 'end' }); }
+  for(let i = 0; i <= 4; i++){ const v = acc * i / 4; s += tx(X(v), H - B + 14, (+v.toPrecision(2)) + ' λ', { 'text-anchor': i === 0 ? 'start' : i === 4 ? 'end' : 'middle' }); }
+  s += el('path', { d: 'M' + sArr.map((v, n) => f2(X(v)) + ' ' + f2(Y(mag[n]))).join('L'), fill: 'none', stroke: 'var(--cur)', 'stroke-width': 2, class: 'jline' });
+  s += tx((L + W - Rt) / 2, H - 8, 'arc length s from ' + (R.body.closed ? 'the first vertex, counter-clockwise' : 'the left edge'), { 'text-anchor': 'middle' });
+  document.getElementById('curTitle').textContent = R.pol === 'TM' ? 'Surface current η|Jz|/E0 (TM)' : 'Surface current |Jt|/H0 (TE)';
+  document.getElementById('cur').innerHTML = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Surface current against arc length' }, s);
+}
+// The RCS σ/λ in dB: polar or rectangular against angle, or against size for the sweep; MoM solid, exact dashed.
+function renderPlot(){
+  const R = S.res, isSweep = S.mode === 'freq', W = 940, H = isSweep || !S.polar ? 300 : 440;
+  let xs, mom, ex;
+  if(isSweep){ if(!S.sweep) return; xs = S.sweep.s; mom = S.sweep.mom; ex = S.sweep.ex; } else { xs = R.angles; mom = R.mom; ex = R.ex; }
+  const md = mom.map(dB), ed = ex.map(dB), top = 10 * Math.ceil(Math.max(...md, ...(ed.length ? ed : [-300])) / 10 + 0.01), bot = top - DB_RANGE;
+  const title = isSweep ? 'Monostatic σ/λ at φi = ' + S.phiI + '° against size (scale ' + S.f1 + '–' + S.f2 + ' × the dimensions)' + (S.sweep.done < SWEEP_PTS ? ' — computing ' + S.sweep.done + '/' + SWEEP_PTS : '')
+    : (S.mode === 'bi' ? 'Bistatic σ/λ, incidence from φi = ' + S.phiI + '°' : 'Monostatic σ/λ against incidence angle');
+  document.getElementById('plotTitle').textContent = title + ' (' + effPol() + ')';
+  let s = '';
+  const legend = (x, y) => el('line', { x1: x, y1: y, x2: x + 24, y2: y, stroke: 'var(--mom)', 'stroke-width': 2.5 }) + tx(x + 30, y, 'moment method', { fill: 'var(--mom)' })
+    + (ed.length ? el('line', { x1: x + 170, y1: y, x2: x + 194, y2: y, stroke: 'var(--exact)', 'stroke-width': 2.5, 'stroke-dasharray': '6 4' }) + tx(x + 200, y, 'exact (series)', { fill: 'var(--exact)' }) : '');
+  if(!isSweep && S.polar){
+    const cx = W / 2, cy = H / 2 + 4, Rm = H / 2 - 30, rr = v => Rm * Math.max(0, Math.min(1, (v - bot) / DB_RANGE));
+    // ring labels just inside each ring, beside the 90° spoke
+    for(let v = bot; v <= top; v += 10){ s += el('circle', { cx, cy, r: f2(rr(v)), fill: 'none', stroke: 'var(--grid)' }) + (v > bot ? tx(cx + 4, cy - rr(v) + 9, v + ' dB', { 'font-size': 11 }) : ''); }
+    for(let a = 0; a < 360; a += 30){ const c = Math.cos(a * DEG), sn = Math.sin(a * DEG); s += el('line', { x1: cx, y1: cy, x2: f2(cx + Rm * c), y2: f2(cy - Rm * sn), stroke: 'var(--grid)' }) + tx(cx + (Rm + 16) * c, cy - (Rm + 16) * sn, a + '°', { 'text-anchor': 'middle' }); }
+    const path = arr => 'M' + arr.map((v, i) => { const a = xs[i] * DEG, r = rr(v); return f2(cx + r * Math.cos(a)) + ' ' + f2(cy - r * Math.sin(a)); }).join('L');
+    s += el('path', { d: path(md), fill: 'none', stroke: 'var(--mom)', 'stroke-width': 3, class: 'mom' });
+    if(ed.length) s += el('path', { d: path(ed), fill: 'none', stroke: 'var(--exact)', 'stroke-width': 1.8, 'stroke-dasharray': '6 5', class: 'exact' });   // on top, dashed, so both show
+    s += legend(16, 16);
+  } else {
+    const L = 64, Rt = 16, T = 30, B = 34, x0 = xs[0], x1 = xs[xs.length - 1] || 1;
+    const X = v => L + (W - L - Rt) * (v - x0) / ((isSweep ? S.f2 - S.f1 : x1 - x0) || 1), Y = v => T + (H - T - B) * (top - Math.max(bot, Math.min(top, v))) / DB_RANGE;
+    for(let v = bot; v <= top; v += 10){ s += el('line', { x1: L, y1: f2(Y(v)), x2: W - Rt, y2: f2(Y(v)), stroke: 'var(--grid)' }) + tx(L - 6, Y(v), v + ' dB', { 'text-anchor': 'end' }); }
+    const ticks = isSweep ? [0, 0.25, 0.5, 0.75, 1].map(t => S.f1 + (S.f2 - S.f1) * t) : [0, 60, 120, 180, 240, 300, 360];
+    ticks.forEach(v => { s += el('line', { x1: f2(X(v)), y1: T, x2: f2(X(v)), y2: H - B, stroke: 'var(--grid)' }) + tx(X(v), H - B + 14, isSweep ? sizeLabel(v) : v + '°', { 'text-anchor': 'middle' }); });
+    s += el('rect', { x: L, y: T, width: W - L - Rt, height: H - T - B, fill: 'none', stroke: 'var(--line)' });
+    const path = arr => 'M' + arr.map((v, i) => f2(X(xs[i])) + ' ' + f2(Y(v))).join('L');
+    if(md.length) s += el('path', { d: path(md), fill: 'none', stroke: 'var(--mom)', 'stroke-width': 3, class: 'mom' });
+    if(ed.length) s += el('path', { d: path(ed), fill: 'none', stroke: 'var(--exact)', 'stroke-width': 1.8, 'stroke-dasharray': '6 5', class: 'exact' });
+    if(!isSweep && S.mode === 'bi'){ const xb = X(S.phiI); s += el('line', { x1: f2(xb), y1: T, x2: f2(xb), y2: H - B, stroke: 'var(--inc)', 'stroke-dasharray': '4 3' }) + tx(xb + 4, T + 8, 'back', { fill: 'var(--inc)' }); }
+    s += legend(L, 14);
+  }
+  document.getElementById('plot').innerHTML = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Radar cross section' }, s);
+}
+// The size axis label for a scale factor: the shape's first dimension, and ka for the circle.
+function sizeLabel(sc){ const d = S.dims[S.shape], k0 = Object.keys(d)[0], v = d[k0] * sc; return k0 + ' = ' + (+v.toPrecision(3)) + 'λ' + (S.shape === 'circle' ? ' (ka ' + (+(TWO_PI * v).toFixed(2)) + ')' : ''); }
+// Read-outs: unknowns, times, backscatter, and the circle's error against the exact solution.
+function renderRo(){
+  const R = S.res, back = rcs(R.body, R.pol, R.Jr, R.Ji, S.phiI * DEG), fwd = rcs(R.body, R.pol, R.Jr, R.Ji, S.phiI * DEG + Math.PI);
+  const rows = [['unknowns N', String(R.body.segs.length)], ['segment length', (+(R.body.segs[0].d).toPrecision(3)) + ' λ'],
+    ['fill + LU', R.tFill.toFixed(0) + ' ms'], ['backscatter σ/λ', dB(back).toFixed(2) + ' dB'], ['forward σ/λ', dB(fwd).toFixed(2) + ' dB']];
+  if(R.coeffs){ const exB = exactRcs(R.coeffs, Math.PI);
+    rows.push(['exact backscatter', dB(exB).toFixed(2) + ' dB']);
+    if(R.ex.length){ const top = Math.max(...R.ex.map(dB)); let e = 0; R.mom.forEach((v, i) => { if(dB(R.ex[i]) > top - 20) e = Math.max(e, Math.abs(dB(v) - dB(R.ex[i]))); });
+      rows.push(['max |error| (within 20 dB of peak)', e.toFixed(2) + ' dB']); } }
+  if(S.sweep && S.sweep.done < SWEEP_PTS) rows.push(['sweep', S.sweep.done + ' / ' + SWEEP_PTS]);
+  document.getElementById('ro').replaceChildren(...rows.flatMap(([k, v]) => [h('span', { text: k }), h('span', { cls: 'v', text: v, id: 'ro_' + k.split(' ')[0].replace(/\W/g, '') })]));
+}
+
+// ── PANEL ─────────────────────────────────────────────────────
+function h(tag, p, ...kids){ const e = document.createElement(tag); p = p || {};
+  for(const k in p){ const v = p[k]; if(k === 'text') e.textContent = v; else if(k === 'cls') e.className = v; else if(k === 'attrs'){ for(const a in v) e.setAttribute(a, v[a]); } else if(k.startsWith('on')) e.addEventListener(k.slice(2), v); else e[k] = v; }
+  kids.flat().forEach(c => { if(c !== null && c !== undefined && c !== false) e.append(c instanceof Node ? c : document.createTextNode(String(c))); }); return e; }
+const seg = (label, items, cur, pick, idp) => h('div', { cls: 'seg', attrs: { role: 'group', 'aria-label': label } },
+  items.map(([v, t, dis]) => h('button', { type: 'button', id: idp + v, text: t, disabled: !!dis, attrs: { 'aria-pressed': String(v === cur) }, onclick: () => pick(v) })));
+// A number box with validation; invalid input is flagged and ignored.
+function num(id, label, value, min, max, step, unit, ok){
+  const inp = h('input', { type: 'number', id, value, min, max, step, attrs: { 'aria-label': label + (unit ? ' (' + unit + ')' : '') } });
+  inp.addEventListener('change', () => { const v = +inp.value, g = inp.value !== '' && isFinite(v) && v >= min && v <= max;
+    inp.classList.toggle('invalid', !g); inp.setAttribute('aria-invalid', String(!g)); if(g){ ok(v); update(); } });
+  return h('div', { cls: 'row' }, h('label', { htmlFor: id, text: label }), inp, h('span', { text: unit || '' })); }
+function buildPanel(){
+  const side = document.getElementById('side'), dims = DIMS[S.shape];
+  const ang = h('input', { type: 'range', id: 'phiI', min: 0, max: 359, step: 1, value: S.phiI, attrs: { 'aria-label': 'Incidence direction φi (degrees)' } });
+  const angN = h('input', { type: 'number', id: 'phiIN', min: 0, max: 359, step: 1, value: S.phiI, attrs: { 'aria-label': 'Incidence direction φi (degrees)' } });
+  ang.addEventListener('input', () => { S.phiI = +ang.value; angN.value = ang.value; update(); });
+  angN.addEventListener('change', () => { const v = +angN.value; if(v >= 0 && v < 360){ S.phiI = Math.round(v); ang.value = S.phiI; update(); } });
+  side.replaceChildren(
+    h('div', { cls: 'sec', text: 'Shape (perfect conductor, infinitely long along z)' }),
+    seg('Shape', Object.entries(SHAPES), S.shape, v => { S.shape = v; buildPanel(); update(); }, 'sh_'),
+    ...dims.map(([k, label, , mn, mx]) => num('d_' + k, label, S.dims[S.shape][k], mn, mx, 0.01, 'λ', v => { S.dims[S.shape][k] = v; })),
+    h('div', { cls: 'sec', text: 'Polarization' }),
+    seg('Polarization', [['TM', 'TM (E along z)'], ['TE', 'TE (H along z)', S.shape === 'strip']], effPol(), v => { S.pol = v; buildPanel(); update(); }, 'pol_'),
+    h('p', { cls: 'note', text: S.shape === 'strip' ? 'TE is solved with the MFIE, which needs a closed body: the strip is TM only.' : effPol() === 'TM' ? 'TM: electric-field integral equation (EFIE) for Jz.' : 'TE: magnetic-field integral equation (MFIE) for the tangential Jt.' }),
+    h('div', { cls: 'sec', text: 'Incident plane wave' }),
+    h('div', { cls: 'row' }, h('label', { htmlFor: 'phiI', text: 'φi' }), ang, angN, h('span', { text: '°' })),
+    h('p', { cls: 'note', text: 'The wave arrives from direction φi (0° = from +x, 180° = from −x). Backscatter is back toward φi.' }),
+    h('div', { cls: 'sec', text: 'Result' }),
+    seg('Result', Object.entries(MODES), S.mode, v => { S.mode = v; buildPanel(); update(); }, 'mode_'),
+    ...(S.mode !== 'freq' ? [] : [num('f1', 'Size scale from', S.f1, 0.05, 10, 0.05, '×', v => { S.f1 = Math.min(v, S.f2 - 0.05); }), num('f2', 'to', S.f2, 0.1, 10, 0.05, '×', v => { S.f2 = Math.max(v, S.f1 + 0.05); }),
+      h('p', { cls: 'note', text: 'Every dimension is scaled together: the same as sweeping frequency for a fixed body (size in wavelengths).' })]),
+    h('div', { cls: 'sec', text: 'Discretisation' }),
+    num('perL', 'Segments per λ', S.perLambda, 5, 60, 1, '', v => { S.perLambda = Math.round(v); }),
+    h('p', { cls: 'note', text: 'Pulse basis, point matching at segment centres. About 10–20 per wavelength is typical; more is slower (N³ to factor).' }),
+    h('div', { cls: 'sec', text: 'Read-outs' }), h('div', { cls: 'ro', id: 'ro' }),
+    h('div', { cls: 'sec', text: 'The method' }),
+    h('div', { cls: 'eq', text: effPol() === 'TM'
+      ? 'EFIE (TM):\n  Ez_inc(ρm) = (kη/4) Σn Jn ∫seg n H0⁽²⁾(k|ρm−ρ′|) dl′\n  Zmn = (kη/4) Δn H0⁽²⁾(k Rmn)\n  Znn = (kη/4) Δn [1 − j(2/π) ln(γkΔn / 4e)]\n  [Z][J] = [Ez_inc]\nσ/λ = (kη²/4) |Σ Jn Δn e^{jk ρn·û}|²'
+      : 'MFIE (TE, closed body):\n  Jt(ρm)/2 + Σn≠m Jn (jk/4) Δn H1⁽²⁾(k Rmn) (R̂mn·n̂n) = −Hz_inc(ρm)\n  [Z][J] = −[Hz_inc]\nσ/λ = (k/4) |Σ Jn Δn (û·n̂n) e^{jk ρn·û}|²' }),
+    h('p', { cls: 'note', text: 'Both integral equations fail near the interior resonances of the body (e.g. TM circle at J_n(ka) = 0): a narrow spike in a size sweep.' }));
+}
+function update(){ compute(); renderGeo(); renderCur(); renderPlot(); renderRo(); }
+function buildPlotStyle(){
+  document.getElementById('plotStyle').replaceChildren(seg('Plot style', [['polar', 'Polar'], ['rect', 'Rectangular']], S.polar ? 'polar' : 'rect', v => { S.polar = v === 'polar'; buildPlotStyle(); renderPlot(); }, 'ps_')); }
+document.getElementById('themeBtn').addEventListener('click', () => { const l = document.body.classList.toggle('light'); document.getElementById('themeBtn').textContent = l ? 'Dark' : 'Light'; });
+buildPanel(); buildPlotStyle(); update();
+})();
+</script>
+</body>
+</html>
