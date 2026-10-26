@@ -1427,8 +1427,8 @@ function geoC(H, W){
   const bxM = K.main.map((_, i) => x0 + g + i * (bw + g)), divX = div ? x0 + g + nM * (bw + g) : null, after = div ? divX + Lk.divW : null;
   const jM = K.main.map((_, j) => (j === 0 ? x0 + g / 2 : bxM[j - 1] + bw + g / 2)).concat([nM ? bxM[nM - 1] + bw + ((div ? divX : loadX) - bxM[nM - 1] - bw) / 2 : (x0 + (div ? divX : loadX)) / 2]);
   const br = {};
-  if(div) ['A', 'B'].forEach(k => { const n = K[k].length, bx = K[k].map((_, i) => after + g + i * (bw + g));
-    br[k] = { bx, jx: bx.map((x, j) => (j === 0 ? after + g / 2 : bx[j - 1] + bw + g / 2)).concat([n ? (bx[n - 1] + bw + loadX) / 2 : (after + loadX) / 2]) }; });
+  if(div) ['A', 'B'].forEach(key => { const n = K[key].length, bx = K[key].map((_, i) => after + g + i * (bw + g));
+    br[key] = { bx, jx: bx.map((x, j) => (j === 0 ? after + g / 2 : bx[j - 1] + bw + g / 2)).concat([n ? (bx[n - 1] + bw + loadX) / 2 : (after + loadX) / 2]) }; });
   return { W, H, k, Lk, dy: K.plotMode === 'off' ? Math.max(0, (H - region * k) / 2) : 0, div, srcX, x0, loadX, bw, bh, g, rows, bxM, jM, divX, after, br, pitch: bw + g };
 }
 const btnG = (attrs, label, inner) => el('g', Object.assign({ role: 'button', tabindex: 0, 'aria-label': label, class: 'hit' }, attrs), inner);
@@ -1497,7 +1497,7 @@ function loadBox(G, b, y){
    (|S21|², |S31|²): one "−3.0 dB" when the split is equal. */
 function splitter(G, yM){
   const w = G.Lk.divW, x0 = G.divX, xs = x0 + 0.25 * w, xb = x0 + 0.5 * w, x1 = x0 + w, yA = G.rows.A, yB = G.rows.B, xl = x0 + 0.68 * w;
-  const D = dividerS(K.div.type, splitOf() / 100), pa = cabs(D[1][0]) ** 2, pb = cabs(D[2][0]) ** 2, t = p => fx(10 * Math.log10(p), 1) + ' dB';
+  const Sd = dividerS(K.div.type, splitOf() / 100), pa = cabs(Sd[1][0]) ** 2, pb = cabs(Sd[2][0]) ** 2, t = p => fx(10 * Math.log10(p), 1) + ' dB';
   const head = y => el('path', { d: 'M' + n2(x1 - 6) + ' ' + y + 'l-10 -5v10Z', fill: 'var(--txt)', class: 'shead' });
   let s = el('path', { d: 'M' + n2(x0) + ' ' + yM + 'H' + n2(xs) + 'L' + n2(xb) + ' ' + yA + 'H' + n2(x1) + 'M' + n2(xs) + ' ' + yM + 'L' + n2(xb) + ' ' + yB + 'H' + n2(x1),
     fill: 'none', stroke: 'var(--txt)', 'stroke-width': 2.5, 'stroke-linejoin': 'round', class: 'split' }) + head(yA) + head(yB);
