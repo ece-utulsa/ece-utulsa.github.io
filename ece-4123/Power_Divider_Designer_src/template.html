@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<!--
+  Power Divider Designer
+  Version: @@VERSION@@
+  Released: @@RELEASED@@
+  Changelog:@@CHANGELOG@@
+  Author: Claude Code
+  References: D. M. Pozar, Microwave Engineering, 4th ed., Wiley, 2012 (§3.8, §5.6-5.8, §7.1-7.3);
+    E. J. Wilkinson, "An N-way hybrid power divider," IRE Trans. MTT 8(1), 1960;
+    S. B. Cohn, "A class of broadband three-port TEM-mode hybrids," IEEE Trans. MTT 16(2), 1968;
+    E. Hammerstad, O. Jensen, "Accurate models for microstrip computer-aided design," IEEE MTT-S Digest, 1980;
+    M. Kirschning, R. H. Jansen, Electron. Lett. 18(6), 1982; R. J. P. Douville, D. S. James, IEEE Trans. MTT 26(3), 1978;
+    briefing 2026-10-28_ClaudeCode_briefing_PowerDividerDesigner_v2.0.0 (rev 1).
+  Font: IBM Plex Mono (SIL Open Font License 1.1), embedded. No network requests at run time.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="@@VERSION@@">
+<title>Power Divider Designer @@VERSION@@</title>
+<style>
+@@FONTFACES@@
+/* ── THEMES ── light is the default (dark text on white); dark is a toggle */
+:root{
+  --bg:#ffffff; --bg2:#f1f4f8; --panel:#f7f9fc; --line:#c3cad5; --txt:#111827; --mut:#4b5563; --focus:#1d4ed8;
+  --board:#e4ecdc; --board-edge:#b9c8a8; --cu:#b8742f; --cu-hi:#1d4ed8; --res:#1f2937; --pad:#c99a3d;
+  --s11:#b45309; --s21:#15803d; --s31:#1d4ed8; --s23:#6d28d9; --sR:#6d28d9; --loss:#6b7280; --bad:#b91c1c; --warn:#b45309;
+  --fs:14px;
+}
+body.dark{
+  --bg:#0f1218; --bg2:#161b22; --panel:#1c222b; --line:#2f3845; --txt:#e6ebf2; --mut:#a7b1c2; --focus:#ffd479;
+  --board:#16261c; --board-edge:#2c4634; --cu:#e0a35c; --cu-hi:#ffd479; --res:#d1d5db; --pad:#e0b866;
+  --s11:#ffb02e; --s21:#3ddc84; --s31:#60a5fa; --s23:#c4b5fd; --sR:#c4b5fd; --loss:#9ca3af; --bad:#ff8a80; --warn:#ffb02e;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+html,body{ height:100% }
+body{ background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:var(--fs); line-height:1.35;
+  display:flex; flex-direction:column; overflow:hidden }
+.num, input, .mono, table.sheet td{ font-family:'IBM Plex Mono','DejaVu Sans Mono',Menlo,Consolas,ui-monospace,monospace }
+button,input,select{ font:inherit; color:inherit }
+button,select{ background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:.25em .6em; cursor:pointer; min-height:30px }
+button:hover,select:hover{ border-color:var(--mut) }
+button[aria-pressed="true"]{ background:var(--txt); color:var(--bg); border-color:var(--txt) }
+:focus-visible{ outline:3px solid var(--focus); outline-offset:2px }
+input[type=text],input[type=number]{ background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:.15em .35em; width:6.5em }
+input.invalid{ border-color:var(--bad); outline:2px solid var(--bad) }
+input[type=range]{ width:100%; accent-color:var(--txt) }
+.math{ font-family:'Cambria Math','STIX Two Math','Latin Modern Math','Times New Roman',serif; font-size:1.08em; white-space:nowrap }
+.math i{ font-style:italic } .math sub{ font-style:normal }
+/* ── TOP BAR ── */
+#top{ flex:none; display:flex; align-items:center; gap:12px; padding:6px 12px; border-bottom:1px solid var(--line); background:var(--bg2) }
+#brand{ font-weight:700; font-size:16px; white-space:nowrap } #ver{ color:var(--mut); font-size:12px }
+#tabs{ display:flex; margin-right:auto } #tabs button{ border-radius:0; font-weight:600 } #tabs button:first-child{ border-radius:6px 0 0 6px } #tabs button:last-child{ border-radius:0 6px 6px 0 }
+#tabs button[aria-selected="true"]{ background:var(--txt); color:var(--bg); border-color:var(--txt) }
+/* ── DESIGNER ── sidebar | layout + below-row */
+.page{ display:none; flex:1; min-height:0 } .page.on{ display:flex }
+#side{ flex:none; width:300px; overflow-y:auto; border-right:1px solid var(--line); padding:10px 12px; display:flex; flex-direction:column; gap:12px; background:var(--panel) }
+.grp h3{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--mut); margin-bottom:6px }
+.row{ display:flex; align-items:center; gap:6px; margin:4px 0; flex-wrap:wrap } .row label{ flex:1; min-width:7em }
+.seg{ display:inline-flex; flex-wrap:wrap } .seg button{ border-radius:0; min-width:2.2em } .seg button:first-child{ border-radius:6px 0 0 6px } .seg button:last-child{ border-radius:0 6px 6px 0 }
+.hint{ color:var(--mut); font-size:12px }
+.warnline{ color:var(--warn); font-size:12px }
+#work{ flex:1; min-width:0; display:flex; flex-direction:column; min-height:0 }
+#layoutWrap{ position:relative; flex:1 1 60%; min-height:260px; border-bottom:1px solid var(--line) }
+#layoutBar{ position:absolute; top:6px; left:10px; right:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; pointer-events:none; z-index:1 }
+#layoutBar > *{ pointer-events:auto }
+#layoutTitle{ font-weight:700 } .chip{ background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:1px 8px; font-size:12px }
+#layout{ position:absolute; inset:0; width:100%; height:100% }
+#tip{ position:absolute; pointer-events:none; background:var(--bg); border:1px solid var(--txt); border-radius:6px; padding:6px 8px; font-size:12px; display:none; z-index:3; max-width:320px; box-shadow:0 2px 8px rgba(0,0,0,.15) }
+#below{ flex:1 1 40%; min-height:200px; display:grid; grid-template-columns:minmax(260px,1fr) minmax(300px,1.3fr); gap:0; overflow:hidden }
+#below > section{ padding:8px 12px; overflow:auto; border-right:1px solid var(--line) }
+#below h4{ font-size:13px; margin-bottom:4px }
+svg text{ font-family:'IBM Plex Mono','DejaVu Sans Mono',Menlo,monospace; fill:var(--txt) }
+table.sheet{ border-collapse:collapse; font-size:12px; width:100% } table.sheet th,table.sheet td{ border-bottom:1px solid var(--line); padding:2px 6px; text-align:right; white-space:nowrap }
+table.sheet th{ color:var(--mut); font-weight:600 } table.sheet td:first-child,table.sheet th:first-child{ text-align:left }
+tr.hl td{ background:color-mix(in srgb, var(--cu-hi) 14%, transparent) }
+.el{ cursor:pointer } .el.hl .cu{ fill:var(--cu-hi); stroke:var(--cu-hi) } .el .cu{ fill:var(--cu) } .el path.cu{ fill:none; stroke:var(--cu) }
+.el.hl path.cu{ fill:none }
+.el .hit{ fill:none; stroke:transparent }
+.el .halo{ stroke:var(--bad); opacity:.45 }
+</style>
+</head>
+<body>
+<header id="top">
+  <span id="brand">Power Divider Designer</span><span id="ver">@@VERSION@@</span>
+  <nav id="tabs" role="tablist" aria-label="Pages">
+    <button role="tab" id="tab_designer" aria-selected="true">Designer</button>
+  </nav>
+  <button id="themeBtn" aria-label="Switch to dark theme">Dark</button>
+</header>
+<main id="pg_designer" class="page on">
+  <aside id="side" aria-label="Design controls"></aside>
+  <div id="work">
+    <div id="layoutWrap">
+      <div id="layoutBar"><span id="layoutTitle">Layout (to scale)</span><span id="layoutInfo" class="chip num"></span></div>
+      <svg id="layout" role="img" aria-label="Microstrip layout, top view, to scale"></svg>
+      <div id="tip" class="num"></div>
+    </div>
+    <div id="below">
+      <section id="ratioPlot" aria-label="Arm width versus ratio"></section>
+      <section id="sheet" aria-label="Design parameters"></section>
+    </div>
+  </div>
+</main>
+<script>
+@@SCRIPT@@
+</script>
+</body>
+</html>
