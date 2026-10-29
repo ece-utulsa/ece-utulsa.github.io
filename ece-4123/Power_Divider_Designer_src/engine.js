@@ -178,29 +178,34 @@ function compileNet(net){
   const link = (a, b) => { if(a >= 0 && b >= 0 && a !== b){ nb[a].add(b); nb[b].add(a); } };
   net.lines.forEach(L => link(L.a, L.b)); net.res.forEach(r => link(r.a, r.b));
   const left = new Set(); for(let i = 0; i < n; i++) if(!isKeep[i]) left.add(i);
-  const steps = [];
+  const steps = [], touched = new Set();
+  for(let i = 0; i < n; i++){ touched.add(i * n + i); nb[i].forEach(j => touched.add(i * n + j)); }
   while(left.size){
     let k = -1, kd = Infinity; for(const c of left){ const d = nb[c].size; if(d < kd){ k = c; kd = d; } }
     left.delete(k); const js = [...nb[k]];
     steps.push({ k, js: Int32Array.from(js) });
-    for(const i of js){ nb[i].delete(k); for(const j of js) if(j !== i) nb[i].add(j); }
+    for(const i of js){ nb[i].delete(k); for(const j of js){ if(j !== i) nb[i].add(j); touched.add(i * n + j); } }
   }
-  return { net, n, steps, re: new Float64Array(n * n), im: new Float64Array(n * n) };
+  // only the entries that stamps or fill-in ever touch are cleared per frequency; line data packed in typed arrays
+  const nl = net.lines.length, LA = new Int32Array(nl), LB = new Int32Array(nl), LZ = new Float64Array(nl), LT = new Float64Array(nl);
+  net.lines.forEach((L, i) => { LA[i] = L.a; LB[i] = L.b; LZ[i] = L.Z; LT[i] = L.th0; });
+  return { net, n, steps, touched: Int32Array.from(touched), re: new Float64Array(n * n), im: new Float64Array(n * n), LA, LB, LZ, LT };
 }
 function solveSc(c, u, lossDb){
-  const net = c.net, n = c.n, re = c.re, im = c.im;
-  re.fill(0); im.fill(0);
+  const net = c.net, n = c.n, re = c.re, im = c.im, tz = c.touched, LA = c.LA, LB = c.LB, LZ = c.LZ, LT = c.LT;
+  for(let t = 0; t < tz.length; t++){ re[tz[t]] = 0; im[tz[t]] = 0; }
   const add = (i, j, r, x) => { re[i * n + j] += r; im[i * n + j] += x; };
-  for(const L of net.lines){
-    const th = L.th0 * u, a = Math.max((lossDb || 0) * th / (2 * Math.PI) / 8.685889638, ALPHA_FLOOR);
-    const shr = Math.sinh(a) * Math.cos(th), shi = Math.cosh(a) * Math.sin(th), chr = Math.cosh(a) * Math.cos(th), chi = Math.sinh(a) * Math.sin(th);
-    const d = shr * shr + shi * shi;
-    const cr = (chr * shr + chi * shi) / d / L.Z, ci = (chi * shr - chr * shi) / d / L.Z;   // coth(γℓ)/Z = y11
-    const sr = shr / d / L.Z, si = -shi / d / L.Z;                                         // 1/(Z sinh γℓ) = −y12
-    const A = L.a, B = L.b;
-    if(A >= 0) add(A, A, cr, ci);
-    if(B >= 0) add(B, B, cr, ci);
-    if(A >= 0 && B >= 0){ add(A, B, -sr, -si); add(B, A, -sr, -si); }
+  const lk = (lossDb || 0) / (2 * Math.PI) / 8.685889638;
+  for(let i = 0; i < LA.length; i++){
+    const th = LT[i] * u, a = Math.max(lk * th, ALPHA_FLOOR), Z = LZ[i];
+    const sha = Math.sinh(a), cha = Math.cosh(a), co = Math.cos(th), si = Math.sin(th);
+    const shr = sha * co, shi = cha * si, chr = cha * co, chi = sha * si, d = (shr * shr + shi * shi) * Z;
+    const cr = (chr * shr + chi * shi) / d, ci = (chi * shr - chr * shi) / d;   // coth(γℓ)/Z = y11
+    const sr = shr / d, sm = -shi / d;                                          // 1/(Z sinh γℓ) = −y12
+    const A = LA[i], B = LB[i];
+    if(A >= 0){ re[A * n + A] += cr; im[A * n + A] += ci; }
+    if(B >= 0){ re[B * n + B] += cr; im[B * n + B] += ci; }
+    if(A >= 0 && B >= 0){ re[A * n + B] -= sr; im[A * n + B] -= sm; re[B * n + A] -= sr; im[B * n + A] -= sm; }
   }
   for(const r of net.res){ const g = 1 / r.R; if(r.a >= 0) add(r.a, r.a, g, 0); if(r.b >= 0) add(r.b, r.b, g, 0); if(r.a >= 0 && r.b >= 0){ add(r.a, r.b, -g, 0); add(r.b, r.a, -g, 0); } }
   for(const st of c.steps){
@@ -413,7 +418,7 @@ function wilkinsonStage(z0, ratioDB, M, kind, gm, forceXfmr){
   else g = oddShunts(t, r, 2).g;
   const res = g.map(x => x * (Rp[0] + Rp[1]));       // bridge = g·(Rp2 + Rp3); 2g·z0 when equal
   if(unequal || forceXfmr){
-    const tx = Rp.map(rp => taper(rp, z0, unequal ? M : 1, kind, gm));
+    const tx = Rp.map(rp => taper(rp, z0, M, kind, gm));
     arms.forEach((a, i) => tx[i].forEach(z => a.push({ Z: z, role: unequal ? 'xfmr' : 'eq' })));
     for(let k = 0; k < tx[0].length; k++) res.push(null);
   }
@@ -438,14 +443,15 @@ function refineUnequal(st, z0){
   if(REFINE.defer){ REFINE.pending.set(key, { st: Object.assign({}, st, { res: st.res.slice() }), z0 }); st.refined = false; return; }
   st.refined = true;
   const M = st.t.length;
-  const build = R => { const s2 = Object.assign({}, st, { res: R.concat(st.res.slice(M)) }); return buildStageNet(s2, z0); };
-  const net0 = build(st.res.slice(0, M));
+  // one compiled network; only the resistor values change between evaluations
+  const net = buildStageNet(st, z0), c = compileNet(net), setR = R => { net.res.forEach((r, k) => { r.R = R[k]; }); };
   const lim = 10 ** (ISO_BAND_DB / 20);
-  const band = bandAround(u => { const S = solveS(net0, u, 0); return cabs(mget(S, 0, 0)); }, lim, 0.05, 1.95, 0.01) || { lo: 0.9, hi: 1.1 };
+  setR(st.res.slice(0, M));
+  const band = bandAround(u => cabs(mget(solveSc(c, u, 0), 0, 0)), lim, 0.05, 1.95, 0.01) || { lo: 0.9, hi: 1.1 };
   const U = Array.from({ length: 13 }, (_, i) => band.lo + (band.hi - band.lo) * i / 12);
   const cost = lr => {
-    const net = build(lr.map(Math.exp)); let w = 0;
-    for(const u of U){ const S = solveS(net, u, 0); w = Math.max(w, cabs(mget(S, 1, 1)), cabs(mget(S, 2, 2)), cabs(mget(S, 1, 2))); }
+    setR(lr.map(Math.exp)); let w = 0;
+    for(const u of U){ const S = solveSc(c, u, 0); w = Math.max(w, cabs(mget(S, 1, 1)), cabs(mget(S, 2, 2)), cabs(mget(S, 1, 2))); }
     return w;
   };
   const x0 = st.res.slice(0, M).map(Math.log);
@@ -479,41 +485,73 @@ function teeStage(z0, N, ratioDB, M, kind, gm, xfmr){
 function resistiveStage(z0, N, form){
   return { kind: 'resistive', N, form, R: form === 'delta' ? z0 * (N - 1) : z0 * (N - 1) / (N + 1), frac: new Array(N).fill(1 / N) };
 }
-/* Output-power weights for a 2^D tree: uniform, or cosine on a pedestal with the edge element edgeDB below the centre
-   (amplitude a = p + (1 − p)·cos(πx/2), x = −1…1 across the array, p = 10^(edgeDB/20)). */
+/* Output-power weights for an N-output tree: uniform, or cosine on a pedestal with the edge outputs edgeDB below the
+   centre (amplitude a = p + (1 − p)·cos(πx/2), x = −1…1 across the outputs, p = 10^(edgeDB/20)); power = a². */
 function treeWeights(nOut, amp, edgeDB){
   if(amp !== 'cosine') return new Array(nOut).fill(1);
   const p = 10 ** (edgeDB / 20);
   return Array.from({ length: nOut }, (_, i) => { const x = nOut === 1 ? 0 : -1 + 2 * i / (nOut - 1); const a = p + (1 - p) * Math.cos(Math.PI * x / 2); return a * a; });
 }
-/* Corporate tree of 2-way Wilkinson stages, depth D (2^D outputs). Node split ratios follow the weights of the two
-   subtrees; when any stage of a level is unequal, every stage of that level gets output lines (transformers, or λ/4 z0
-   phase-equalising lines on the equal ones) so all paths keep the same phase. */
-function treeDesign(p){
-  const D = p.depth, nOut = 2 ** D, w = treeWeights(nOut, p.treeAmp, p.edgeDB), sum = w.reduce((a, b) => a + b, 0);
-  const levels = [];
-  for(let l = 0; l < D; l++){
-    const span = 2 ** (D - l), nodes = [];
-    for(let i = 0; i < 2 ** l; i++){
-      const lo = i * span, a = w.slice(lo, lo + span / 2).reduce((s, x) => s + x, 0), b = w.slice(lo + span / 2, lo + span).reduce((s, x) => s + x, 0);
-      nodes.push({ ratioDB: 10 * Math.log10(a / b) });
-    }
-    const anyUneq = nodes.some(n => Math.abs(n.ratioDB) > 1e-6);
-    nodes.forEach(n => { n.stage = wilkinsonStage(p.z0, Math.abs(n.ratioDB) < 1e-6 ? 0 : n.ratioDB, p.M, p.taper, p.gm, anyUneq); });
-    levels.push(nodes);
-  }
-  return { kind: 'tree', depth: D, nOut, weights: w.map(x => x / sum), levels };
+const MODULE_NAME = { wilk: 'Wilkinson', branch: 'Branching line', resY: 'Resistive Y' };
+/* One junction of a tree. 'wilk': symmetrical (or unequal) Wilkinson; 'branch': lossless branching line, a T with λ/4
+   transformer tapers and no resistor; 'resY': resistive Y, three z0/3 resistors (equal split only — a matched
+   resistive three-port cannot split unequally, so a requested ratio is noted and 1:1 used). */
+function junctionStage(module, ratioDB, p){
+  if(module === 'branch') return Object.assign(teeStage(p.z0, 2, ratioDB, p.M, p.taper, p.gm, true), { module, ratioDB });
+  if(module === 'resY') return { kind: 'resY', module, R: p.z0 / 3, ratioDB: 0, asked: ratioDB, frac: [0.5, 0.5] };
+  return Object.assign(wilkinsonStage(p.z0, ratioDB, p.M, p.taper, p.gm), { module: 'wilk' });
 }
-/* The design for the current parameters. p = { topology, N, ratioDB, M, taper, gm, z0, teeXfmr, resForm, depth,
-   treeAmp, edgeDB }. Wilkinson with N > 2 is equal split; unequal is 2-way only. */
+/* N-way branching cascade (corporate tree), any N ≥ 2. Each junction splits its outputs floor(n/2) : ceil(n/2) (N = 3:
+   1:2 then 1:1; N = 5: 2:3, then 1:1 and 1:2) in the ratio of the output weights below it, unless the student set the
+   ratio. Module per junction: an override, else the level's module, else the tree's. Junction paths: '' (root), 'L',
+   'R', 'LR', … tree = { N, amp, edgeDB, module, levelMods: [], mods: { path → module }, ratios: { path → dB } }. */
+function treeDesign(p){
+  const T = p.tree, N = T.N, w = treeWeights(N, T.amp, T.edgeDB), sum = w.reduce((a, b) => a + b, 0);
+  const add = (lo, n) => w.slice(lo, lo + n).reduce((a, b) => a + b, 0);
+  let maxDepth = 0;
+  const make = (lo, n, path) => {
+    if(n === 1){ maxDepth = Math.max(maxDepth, path.length); return { leaf: true, idx: lo, path, depth: path.length }; }
+    const nl = Math.floor(n / 2), auto = 10 * Math.log10(add(lo, nl) / add(lo + nl, n - nl));
+    const ov = T.ratios && T.ratios[path], ratioDB = ov != null ? ov : (Math.abs(auto) < 1e-9 ? 0 : auto);
+    const module = (T.mods && T.mods[path]) || (T.levelMods && T.levelMods[path.length]) || T.module || 'wilk';
+    return { leaf: false, path, depth: path.length, n, ratioDB, auto, edited: ov != null, module, stage: junctionStage(module, ratioDB, p),
+      children: [make(lo, nl, path + 'L'), make(lo + nl, n - nl, path + 'R')] };
+  };
+  const root = make(0, N, '');
+  const junctions = []; (function walk(nd){ if(!nd.leaf){ junctions.push(nd); nd.children.forEach(walk); } })(root);
+  /* a level with an unequal Wilkinson (arms + transformers) gives its equal Wilkinsons λ/4 z0 lines of the same count,
+     so the paths stay equal without delay lines */
+  for(let l = 0; l <= maxDepth; l++){
+    const lv = junctions.filter(j => j.depth === l && j.module === 'wilk');
+    if(lv.some(j => j.stage.unequal)) lv.forEach(j => { if(!j.stage.unequal) j.stage = Object.assign(wilkinsonStage(p.z0, 0, p.M, p.taper, p.gm, true), { module: 'wilk' }); });
+  }
+  return { kind: 'tree', N, weights: w.map(x => x / sum), root, junctions, maxDepth };
+}
+/* The design for the current parameters. p = { topology, N, ratioDB, M, taper, gm, z0, teeXfmr, resForm, tree }.
+   Wilkinson and T with N > 2 are equal split; unequal is 2-way. */
 function synthesize(p){
   const gm = p.gm, M = p.M;
   switch(p.topology){
     case 'tee': return { topology: 'tee', stage: teeStage(p.z0, p.N, p.N === 2 ? p.ratioDB : 0, M, p.taper, gm, p.teeXfmr), nOut: p.N };
     case 'resistive': return { topology: 'resistive', stage: resistiveStage(p.z0, p.N, p.N === 2 ? p.resForm : 'Y'), nOut: p.N };
-    case 'tree': { const t = treeDesign(p); return { topology: 'tree', tree: t, nOut: t.nOut }; }
+    case 'tree': { const t = treeDesign(p); return { topology: 'tree', tree: t, nOut: t.N }; }
     default: return { topology: 'wilkinson', stage: p.N === 2 ? wilkinsonStage(p.z0, p.ratioDB, M, p.taper, gm) : starStage(p.z0, p.N, M, p.taper, gm), nOut: p.N };
   }
+}
+// Ideal output fractions of a design (what a lossless, matched divider of this split would deliver).
+function idealFractions(design){
+  if(design.topology !== 'tree') return design.stage.frac.slice();
+  const out = new Array(design.tree.N).fill(0);
+  (function walk(nd, f){ if(nd.leaf){ out[nd.idx] = f; return; } const fr = nd.module === 'resY' ? [0.25, 0.25] : powerSplit(nd.ratioDB);
+    walk(nd.children[0], f * fr[0]); walk(nd.children[1], f * fr[1]); })(design.tree.root, 1);
+  return out;
+}
+// Number of resistors in a design.
+function resistorCount(design){
+  const st = design.stage;
+  if(design.topology === 'resistive') return st.form === 'delta' ? st.N * (st.N + 1) / 2 : st.N + 1;
+  if(design.topology === 'tree') return design.tree.junctions.reduce((a, j) => a + (j.stage.kind === 'resY' ? 3 : j.stage.res.filter(r => r != null).length), 0);
+  return st.kind === 'star' ? st.res.filter(r => r != null).length * st.N : st.res.filter(r => r != null).length;
 }
 // ── END 8 ─────────────────────────────────────────────────────
 
@@ -540,8 +578,15 @@ function addStar(net, st, j0, pfx){
   });
   return nodes.map(n => n[n.length - 1]);
 }
-/* Network for a design. opts = { z0, resOn, rMult, ic: { id → electrical length at f0 (rad) } } — the tree's
-   interconnects come from the layout (z0 lines, so they set phase only). */
+// A resistive Y junction at node j0: z0/3 from the input, and from each output, to a centre node. Returns the two outputs.
+function addResY(net, st, j0, pfx){
+  const c = net.n++, e = [net.n++, net.n++];
+  net.res.push({ a: j0, b: c, R: st.R, id: pfx + '.r0' }, { a: c, b: e[0], R: st.R, id: pfx + '.r1' }, { a: c, b: e[1], R: st.R, id: pfx + '.r2' });
+  return e;
+}
+/* Network for a design. opts = { z0, resOn, rMult, lens: { id → electrical length at f0 (rad) } }: a tree's
+   interconnects ('ic<path><k>') and output lines ('o<i>', with their delay lines) come from the layout; they are z0
+   lines. The ports of a tree are at the end of its output lines; a single divider's ports are at its terminals. */
 function buildNetwork(design, opts){
   const net = { n: 1, ports: [0], z0: opts.z0, lines: [], res: [], resOn: opts.resOn, rMult: opts.rMult };
   if(design.topology === 'resistive'){
@@ -550,21 +595,15 @@ function buildNetwork(design, opts){
     if(st.form === 'delta'){ for(let i = 0; i <= N; i++) for(let j = i + 1; j <= N; j++) net.res.push({ a: net.ports[i], b: net.ports[j], R: st.R, id: 'x.r' + i + j }); }
     else { const c = net.n++; net.ports.forEach((p, i) => net.res.push({ a: p, b: c, R: st.R, id: 'x.r' + i })); }
   } else if(design.topology === 'tree'){
-    const T = design.tree, ic = (opts.ic || {});
-    let inputs = [0];
-    T.levels.forEach((nodes, l) => {
-      const next = [];
-      nodes.forEach((nd, i) => {
-        const ends = addTwoArm(net, nd.stage, inputs[i], 's' + l + '.' + i, null);
-        ends.forEach((e, k) => {
-          const id = 'ic' + l + '.' + i + '.' + k, th = ic[id];
-          if(l < T.depth - 1 && th > 0){ const b = net.n++; net.lines.push({ a: e, b, Z: opts.z0, th0: th, id }); next.push(b); }
-          else next.push(e);
-        });
-      });
-      inputs = next;
-    });
-    inputs.forEach(n => net.ports.push(n));
+    const lens = opts.lens || {}, ports = [];
+    const line = (a0, id) => { const th = lens[id]; if(!(th > 0)) return a0; const b0 = net.n++; net.lines.push({ a: a0, b: b0, Z: opts.z0, th0: th, id }); return b0; };
+    const addNode = (nd, inNode) => {
+      if(nd.leaf){ ports[nd.idx] = line(inNode, 'o' + nd.idx); return; }
+      const pfx = 'j' + nd.path, ends = nd.stage.kind === 'resY' ? addResY(net, nd.stage, inNode, pfx) : addTwoArm(net, nd.stage, inNode, pfx, null);
+      nd.children.forEach((c, k) => addNode(c, line(ends[k], 'ic' + nd.path + k)));
+    };
+    addNode(design.tree.root, 0);
+    ports.forEach(n => net.ports.push(n));
   } else {
     const st = design.stage;
     const ends = st.kind === 'star' ? addStar(net, st, 0, 'x') : addTwoArm(net, st, 0, 'x', null);

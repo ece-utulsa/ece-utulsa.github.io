@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the single-file Power Divider Designer from the sources in this folder.
+"""Build the single-file Power Divider Designer from the sources in this folder (see README.md).
 
 The delivered page is ONE plain HTML file (no bundle, no loader): template.html with
   @@FONTFACES@@  the embedded IBM Plex Mono faces (base64 woff2 in @font-face)
@@ -16,11 +16,25 @@ import sys
 # ── RELEASE ───────────────────────────────────────────────────────────
 VERSION = '2.0.0'
 RELEASED = '2026-10-28'
-CHANGELOG = ('\n    v2.0.0 - Wilkinson Power Divider Designer v1.0.0 rebuilt as the Power Divider Designer (vanilla JS, '
-             'offline, light theme default).')
+CHANGELOG = ('\n    v2.0.0 - Wilkinson Power Divider Designer v1.0.0 rebuilt as the Power Divider Designer (briefing '
+             '2026-10-28 rev 1): vanilla JS, one offline file, light theme default with a dark toggle. Topologies: Wilkinson '
+             '(equal N-way star, unequal 2-way, 1-4 binomial or Chebyshev sections; unequal multisection with tapered arms and '
+             'output transformers), lossless T-junction (optional lambda/4 transformers), resistive Y and Delta, and the N-way '
+             'branching tree (any N, a module and ratio per junction: Wilkinson, branching line or resistive Y; uniform or '
+             'cosine-on-pedestal output taper). Isolation resistors by even/odd-mode minimax over the S11 <= -20 dB band (checked '
+             'against Cohn), refined with the full solver for unequal splits (D1); bandwidths of every port, the narrowest as the '
+             'usable bandwidth (D5); phase of every output and the imbalance (D4); microstrip relabelled Pozar (Wheeler) with '
+             'Hammerstad-Jensen + Kirschning-Jansen as an option (D6); corrected mismatch text (D2). To-scale layout as the '
+             'centrepiece: true widths and lengths, 0402/0603 pads, launches, scale bar, hover shared with the schematic, '
+             'growth animation, power-flow overlay, binary or H-tree placement with interconnects and delay lines for equal '
+             'paths; straight, arc (ring), meander and mitred sections held at lambda_g/4 along the centreline, with radius and '
+             'spacing warnings, footprint and saving, side-by-side with straight. Input power in W or dBm, output power in W, '
+             'dBm and % solved beside ideal, width-vs-ratio plot and minimum-width flag. Performance page (plot, markers, range, '
+             'phase, pinned comparison, power flow at f0 and the marker, S-matrix checks, three-port theorem, tree vs direct '
+             'N-way), Parameters page (build sheet, CSV, print), Theory, Experiments and an in-page Tests page.')
 # ── END RELEASE ───────────────────────────────────────────────────────
 
-SCRIPTS = ['engine.js', 'layout.js', 'designer.js', 'main.js']
+SCRIPTS = ['engine.js', 'layout.js', 'ui.js', 'schematic.js', 'designer.js', 'perf.js', 'params.js', 'docs.js', 'tests.js', 'main.js']
 FONTS = [('IBMPlexMono-Regular-latin.woff2', 400), ('IBMPlexMono-SemiBold-latin.woff2', 600)]
 HERE = os.path.dirname(os.path.abspath(__file__))
 

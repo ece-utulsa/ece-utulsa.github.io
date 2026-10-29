@@ -1,31 +1,58 @@
-/* Power Divider Designer — application shell: update cycle, deferred resistor refinement, theme, start-up. */
-let D = null, pendingTimer = 0;
-/* Recompute and redraw. full: also rebuild the sidebar (a button changed); a dragged slider keeps its focus. */
+/* Power Divider Designer — application shell: pages, the update cycle (synthesis → layout → solve → draw), deferred
+   resistor refinement, theme, start-up. */
+let D = null, pendingTimer = 0, currentPage = 'designer', docsBuilt = false;
+const PAGES = ['designer', 'perf', 'params', 'theory', 'exp', 'tests'];
+/* Recompute and redraw the visible page. full: also rebuild the sidebar (a button or a mode changed); while a slider is
+   dragged (full = false) the sidebar is kept, so the slider keeps focus, and unequal-resistor refinement is deferred. */
 function update(full){
-  REFINE.defer = !full;
+  REFINE.defer = true;
   D = derive();
   save();
-  if(full) buildSide();
-  syncReadouts(); drawLayout(D); drawRatioPlot(); drawSheet(D);
+  if(currentPage === 'designer'){
+    if(full) buildSide(D);
+    syncSide(D); drawLayout(D); drawSchematic(D, $('schem')); drawOutputs(D); drawRatioPlot(D);
+  } else if(currentPage === 'perf') drawPerf(D);
+  else if(currentPage === 'params') drawParams(D);
+  $('cmpBtn').setAttribute('aria-pressed', String(!!S.compare)); $('flowBtn').setAttribute('aria-pressed', String(!!S.overlay));
   clearTimeout(pendingTimer);
-  if(REFINE.pending.size) pendingTimer = setTimeout(function step(){ const more = runPending(); if(!more){ D = derive(); syncReadouts(); drawLayout(D); drawSheet(D); } else pendingTimer = setTimeout(step, 0); }, 150);
+  if(REFINE.pending.size) pendingTimer = setTimeout(function step(){ const more = runPending(); if(!more) update(false); else pendingTimer = setTimeout(step, 0); }, 120);
 }
-function syncReadouts(){
-  const fr = powerSplit(S.ratioDB), r = 10 ** (S.ratioDB / 10);
-  $('ratioVal').textContent = 'P2:P3 = ' + ratioText(S.ratioDB) + '  (' + fmt(S.ratioDB, 2) + ' dB)';
-  $('ratioPct').textContent = (fr[0] * 100).toFixed(1) + ' / ' + (fr[1] * 100).toFixed(1) + ' %';
-  const t = $('ratioText'); if(t && document.activeElement !== t){ t.value = ratioText(S.ratioDB); t.classList.remove('invalid'); }
+// Readouts in the sidebar that change while a slider moves.
+function syncSide(Dd){
+  const tgt = splitTarget(Dd);
+  if($('ratioVal') && tgt.enabled){
+    const v = tgt.get(), fr = powerSplit(v);
+    $('ratioVal').textContent = ratioText(v) + '  (' + fmt(v, 2) + ' dB)';
+    $('ratioPct').textContent = (fr[0] * 100).toFixed(1) + ' / ' + (fr[1] * 100).toFixed(1) + ' %';
+    const t = $('ratioText'); if(t && document.activeElement !== t){ t.value = ratioText(v); t.classList.remove('invalid'); }
+    const r = $('ratioSlider'); if(r && document.activeElement !== r) r.value = String(v);
+  }
   const m = microstrip(S.z0, S.er, S.h, S.f0, S.msModel);
-  $('subInfo').textContent = 'εr ' + S.er + ', h ' + S.h + ' mm, f0 ' + (S.f0 / 1e9).toFixed(2) + ' GHz · Z0 line W ' + m.W.toFixed(2) + ' mm';
-  const st = D.design.stage, s21 = cabs(mget(D.S0, 1, 0)), s31 = cabs(mget(D.S0, 2, 0));
-  $('layoutInfo').textContent = `S21 ${fmt(dB20(s21), 2)} dB · S31 ${fmt(dB20(s31), 2)} dB · R ${st.res.filter(x => x != null).map(x => x.toFixed(1)).join(' / ')} Ω` +
-    (st.refined === false ? ' (refining…)' : '');
-  const w = D.lay.warnings;
-  $('warnBox').replaceChildren(...w.map(x => el('div', { class: 'warnline', text: '⚠ ' + x })));
-  void r;
+  if($('subInfo')) $('subInfo').textContent = `Z₀ line: W ${m.W.toFixed(3)} mm, ε_eff ${m.eeff.toFixed(3)}, λg ${m.lambdaG.toFixed(2)} mm`;
+  const st = Dd.design.stage, pend = st && st.refined === false || (isTree() && Dd.design.tree.junctions.some(j => j.stage.refined === false));
+  const w = Dd.lay.warnings.slice(0, 12).map(x => el('div', { class: 'warnline', text: '⚠ ' + x }));
+  if(Dd.lay.warnings.length > 12) w.push(el('div', { class: 'warnline', text: '… and ' + (Dd.lay.warnings.length - 12) + ' more (hover the red elements)' }));
+  if(pend) w.unshift(el('div', { class: 'hint', text: 'Refining the unequal-split resistors…' }));
+  $('warnBox').replaceChildren(...w);
 }
-function applyTheme(dark){ document.body.classList.toggle('dark', dark); $('themeBtn').textContent = dark ? 'Light' : 'Dark'; $('themeBtn').setAttribute('aria-label', 'Switch to ' + (dark ? 'light' : 'dark') + ' theme'); }
-$('themeBtn').addEventListener('click', () => { applyTheme(!document.body.classList.contains('dark')); });
-addEventListener('resize', () => { if(D){ drawLayout(D); drawRatioPlot(); } });
+function showPage(p){
+  if(!PAGES.includes(p)) p = 'designer';
+  currentPage = p;
+  PAGES.forEach(q => { const on = q === p, b = $('tab_' + q); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; $('pg_' + q).classList.toggle('on', on); });
+  if((p === 'theory' || p === 'exp') && !docsBuilt){ buildTheory(); buildExperiments(); docsBuilt = true; }
+  if(p === 'tests' && !$('testsBody').dataset.done) runTests();
+  if(p === 'designer' || p === 'perf' || p === 'params') requestAnimationFrame(() => update(true));
+}
+function applyTheme(dark){ document.body.classList.toggle('dark', dark); $('themeBtn').textContent = dark ? 'Light' : 'Dark'; $('themeBtn').setAttribute('aria-label', 'Switch to the ' + (dark ? 'light' : 'dark') + ' theme'); }
+// ── START-UP ──
+PAGES.forEach(p => $('tab_' + p).addEventListener('click', () => showPage(p)));
+$('tabs').addEventListener('keydown', e => { const i = PAGES.indexOf(currentPage);
+  if(e.key === 'ArrowRight' || e.key === 'ArrowLeft'){ e.preventDefault(); const n = PAGES[(i + (e.key === 'ArrowRight' ? 1 : PAGES.length - 1)) % PAGES.length]; showPage(n); $('tab_' + n).focus(); } });
+$('themeBtn').addEventListener('click', () => applyTheme(!document.body.classList.contains('dark')));
+$('cmpBtn').addEventListener('click', () => { S.compare = !S.compare; update(false); });
+$('flowBtn').addEventListener('click', () => { S.overlay = !S.overlay; update(false); });
+let resizeT = 0;
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if(D) update(false); }, 120); });
+S.sel = '';
 applyTheme(false);
 update(true);
