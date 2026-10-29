@@ -4,7 +4,7 @@
   Version: v2.0.0
   Released: 2026-10-28
   Changelog:
-    v2.0.0 - Wilkinson Power Divider Designer v1.0.0 rebuilt as the Power Divider Designer (briefing 2026-10-28 rev 1): vanilla JS, one offline file, light theme default with a dark toggle. Topologies: Wilkinson (equal N-way star, unequal 2-way, 1-4 binomial or Chebyshev sections; unequal multisection with tapered arms and output transformers), lossless T-junction (optional lambda/4 transformers), resistive Y and Delta, and the N-way branching tree (any N, a module and ratio per junction: Wilkinson, branching line or resistive Y; uniform or cosine-on-pedestal output taper). Isolation resistors by even/odd-mode minimax over the S11 <= -20 dB band (checked against Cohn), refined with the full solver for unequal splits (D1); bandwidths of every port, the narrowest as the usable bandwidth (D5); phase of every output and the imbalance (D4); microstrip relabelled Pozar (Wheeler) with Hammerstad-Jensen + Kirschning-Jansen as an option (D6); corrected mismatch text (D2). To-scale layout as the centrepiece: true widths and lengths, 0402/0603 pads, launches, scale bar, hover shared with the schematic, growth animation, power-flow overlay, binary or H-tree placement with interconnects and delay lines for equal paths; straight, arc (ring), meander and mitred sections held at lambda_g/4 along the centreline, with radius and spacing warnings, footprint and saving, side-by-side with straight. Input power in W or dBm, output power in W, dBm and % solved beside ideal, width-vs-ratio plot and minimum-width flag. Performance page (plot, markers, range, phase, pinned comparison, power flow at f0 and the marker, S-matrix checks, three-port theorem, tree vs direct N-way), Parameters page (build sheet, CSV, print), Theory, Experiments and an in-page Tests page.
+    v2.0.0 - Wilkinson Power Divider Designer v1.0.0 rebuilt as the Power Divider Designer (briefing 2026-10-28 rev 1): vanilla JS, one offline file, light theme default with a dark toggle. Topologies: Wilkinson (equal N-way star, unequal 2-way, 1-4 binomial or Chebyshev sections; unequal multisection with tapered arms and output transformers), lossless T-junction (optional lambda/4 transformers), resistive Y and Delta, and the N-way branching tree (any N, a module and ratio per junction: Wilkinson, branching line or resistive Y; uniform or cosine-on-pedestal output taper). Isolation resistors by even/odd-mode minimax over the S11 <= -20 dB band (checked against Cohn), refined with the full solver for unequal splits (D1); bandwidths of every port, the narrowest as the usable bandwidth (D5); phase of every output and the imbalance (D4); microstrip relabelled Pozar (Wheeler) with Hammerstad-Jensen + Kirschning-Jansen as an option (D6); corrected mismatch text (D2). To-scale layout as the centrepiece: true widths and lengths, 0402/0603 pads, launches, scale bar, hover shared with the schematic, growth animation, power-flow overlay, binary or H-tree placement with interconnects and delay lines for equal paths; straight, arc (ring), meander and mitred sections held at lambda_g/4 along the centreline, with radius and spacing warnings, footprint and saving, side-by-side with straight. Input power in W or dBm, output power in W, dBm and % solved beside ideal, width-vs-ratio plot and minimum-width flag. Performance page (plot, markers, range, phase, pinned comparison, power flow at f0 and the marker, S-matrix checks, three-port theorem, tree vs direct N-way), Parameters page (build sheet, CSV, print), Theory, Experiments and an in-page Tests page. SMA connectors (edge launch at the board edge, vertical inside an H-tree) and a 3D view of the board (orbit, zoom, height exaggeration); the two outputs of every 2-way stage leave the output node as separate lines.
   Author: Claude Code
   References: D. M. Pozar, Microwave Engineering, 4th ed., Wiley, 2012 (§3.8, §5.6-5.8, §7.1-7.3);
     E. J. Wilkinson, "An N-way hybrid power divider," IRE Trans. MTT 8(1), 1960;
@@ -59,7 +59,7 @@ input[type=range]{ flex:1; min-width:80px; accent-color:var(--txt) }
 #tabs button[aria-selected="true"]{ background:var(--txt); color:var(--bg); border-color:var(--txt) }
 .page{ display:none; flex:1; min-height:0 } .page.on{ display:flex }
 .scroll{ overflow-y:auto; display:none; flex:1; min-height:0 } .scroll.on{ display:block }
-/* ── DESIGNER ── sidebar | layout over (schematic, outputs, width vs ratio) */
+/* ── DESIGNER ── sidebar | layout (2D or 3D) over the outputs */
 #side{ flex:none; width:310px; overflow-y:auto; border-right:1px solid var(--line); padding:8px 12px 20px; display:flex; flex-direction:column; gap:10px; background:var(--panel) }
 .grp h3{ font-size:12px; letter-spacing:.06em; color:var(--mut); margin-bottom:4px; font-weight:700 }
 .row{ display:flex; align-items:center; gap:6px; margin:3px 0 } .row.wrap{ flex-wrap:wrap } .row label, .row .lbl{ flex:1; min-width:6.5em } .unit{ color:var(--mut); font-size:12px }
@@ -73,8 +73,13 @@ input[type=range]{ flex:1; min-width:80px; accent-color:var(--txt) }
 #layoutTitle{ font-weight:700 } .chip{ background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:1px 8px; font-size:12px }
 #layout{ position:absolute; inset:0; width:100%; height:100% }
 #tip{ position:absolute; pointer-events:none; background:var(--bg); border:1px solid var(--txt); border-radius:6px; padding:6px 8px; font-size:12px; display:none; z-index:5; max-width:340px; box-shadow:0 2px 8px rgba(0,0,0,.18) }
-#below{ flex:1 1 38%; min-height:190px; display:grid; grid-template-columns:minmax(220px,.9fr) minmax(330px,1.4fr) minmax(250px,1fr); overflow:hidden }
-#below > section{ padding:6px 10px; overflow:auto; border-right:1px solid var(--line) }
+#below{ flex:1 1 34%; min-height:180px; overflow:hidden; display:flex }
+#below > section{ padding:6px 12px; overflow:auto; flex:1 }
+#outputs .cols{ display:grid; grid-template-columns:minmax(380px,1.3fr) minmax(300px,1fr); gap:14px; align-items:start }
+#view3d{ position:absolute; inset:0; width:100%; height:100%; display:none; cursor:grab; touch-action:none } #view3d:active{ cursor:grabbing }
+#layoutWrap.v3 #view3d{ display:block } #layoutWrap.v3 #layout{ display:none } #v3bar{ display:none } #layoutWrap.v3 #v3bar{ display:flex }
+#v3bar{ position:absolute; left:10px; bottom:8px; gap:8px; align-items:center; z-index:1; flex-wrap:wrap } #v3info{ font-size:12px; color:var(--mut) }
+.sma .body{ fill:#d4af37; stroke:#8a6d1f } .sma .pin{ fill:#e5e7eb; stroke:#6b7280 } .sma .leg{ fill:#d4af37; opacity:.85 } .sma text{ fill:var(--mut) }
 h4{ font-size:13px; margin-bottom:4px }
 svg text{ font-family:'IBM Plex Mono','DejaVu Sans Mono',Menlo,monospace; fill:var(--txt) }
 table.sheet{ border-collapse:collapse; font-size:12px; width:100% } table.sheet th,table.sheet td{ border-bottom:1px solid var(--line); padding:2px 6px; text-align:right; white-space:nowrap }
@@ -91,9 +96,6 @@ table.sheet tfoot td{ font-weight:600 } tr.hl td{ background:color-mix(in srgb, 
 .el.grow{ animation:grow .6s ease-out } @keyframes grow{ from{ opacity:0 } 40%{ opacity:.35 } to{ opacity:1 } }
 @media (prefers-reduced-motion: reduce){ .el.grow{ animation:none } }
 .flow{ opacity:.85 } .f-in{ fill:var(--txt) } .f-out{ fill:var(--s21) } .f-refl{ fill:var(--s11) } .f-res{ fill:var(--sR); opacity:.55 }
-/* schematic */
-.sbox{ fill:var(--bg); stroke:var(--cu); stroke-width:2 } .el.hl .sbox{ stroke:var(--cu-hi); fill:color-mix(in srgb, var(--cu-hi) 15%, var(--bg)) }
-.el.sel .sbox{ stroke:var(--cu-hi); stroke-width:3 } .el.sres.hl path, .el.sres.hl line, .el.sres.hl rect{ stroke:var(--cu-hi) }
 /* performance */
 #pg_perf{ display:none } #pg_perf.on{ display:grid; grid-template-columns:minmax(420px,1.5fr) minmax(360px,1fr); grid-template-rows:auto auto; overflow:auto; align-items:start }
 #pg_perf > section{ padding:8px 12px; border-bottom:1px solid var(--line); border-right:1px solid var(--line); min-width:0 }
@@ -131,7 +133,7 @@ table.tests td{ white-space:normal; vertical-align:top } tr.tpass td:first-child
   #pg_params{ display:block !important; overflow:visible } #printLayout{ display:block; margin-top:12px; break-inside:avoid }
   table.sheet th, table.sheet td{ border-color:#999 }
 }
-@media (max-width:900px){ #side{ width:250px } #below{ grid-template-columns:1fr 1fr } #ratioPlot{ display:none } }
+@media (max-width:900px){ #side{ width:250px } #outputs .cols{ grid-template-columns:1fr } }
 </style>
 </head>
 <body>
@@ -153,13 +155,15 @@ table.tests td{ white-space:normal; vertical-align:top } tr.tpass td:first-child
     <div id="layoutWrap">
       <div id="layoutBar"><span id="layoutTitle">Layout (to scale)</span><span id="layoutInfo" class="chip num"></span>
         <button id="cmpBtn" aria-pressed="false" title="Draw the straight layout above at the same scale">Compare with straight</button>
-        <button id="flowBtn" aria-pressed="false" title="Arrows sized by power at f₀: in, out, reflected; discs on the resistors">Power flow</button></div>
+        <button id="flowBtn" aria-pressed="false" title="Arrows sized by power at f₀: in, out, reflected; discs on the resistors">Power flow</button>
+        <button id="v3Btn" aria-pressed="false" title="Substrate, copper, resistors and SMA connectors in 3D: drag to rotate, wheel to zoom">3D view</button></div>
       <svg id="layout" role="img" aria-label="Microstrip layout, top view, to scale"></svg>
+      <canvas id="view3d" tabindex="0" role="img" aria-label="3D view of the board: drag or arrow keys to rotate, wheel or + and − to zoom"></canvas>
+      <div id="v3bar"><button id="v3reset">Reset view</button><button id="v3top">Top</button>
+        <label class="mini">height ×<select id="v3zx" aria-label="Copper and part height exaggeration"><option>1</option><option selected>5</option><option>20</option></select></label><span id="v3info"></span></div>
     </div>
     <div id="below">
-      <section id="schem" aria-label="Schematic"></section>
       <section id="outputs" aria-label="Output power and readouts"></section>
-      <section id="ratioPlot" aria-label="Arm width versus ratio"></section>
     </div>
   </div>
   <div id="tip" class="num" role="tooltip"></div>
@@ -762,8 +766,8 @@ function addResY(net, st, j0, pfx){
   return e;
 }
 /* Network for a design. opts = { z0, resOn, rMult, lens: { id → electrical length at f0 (rad) } }: a tree's
-   interconnects ('ic<path><k>') and output lines ('o<i>', with their delay lines) come from the layout; they are z0
-   lines. The ports of a tree are at the end of its output lines; a single divider's ports are at its terminals. */
+   stubs ('sb<path><k>', at the arm's impedance, zs), interconnects ('ic<path><k>') and output lines ('o<i>', with
+   their delay lines) come from the layout; all but the stubs are z0 lines. The ports of a tree are at the end of its output lines; a single divider's ports are at its terminals. */
 function buildNetwork(design, opts){
   const net = { n: 1, ports: [0], z0: opts.z0, lines: [], res: [], resOn: opts.resOn, rMult: opts.rMult };
   if(design.topology === 'resistive'){
@@ -773,11 +777,12 @@ function buildNetwork(design, opts){
     else { const c = net.n++; net.ports.forEach((p, i) => net.res.push({ a: p, b: c, R: st.R, id: 'x.r' + i })); }
   } else if(design.topology === 'tree'){
     const lens = opts.lens || {}, ports = [];
-    const line = (a0, id) => { const th = lens[id]; if(!(th > 0)) return a0; const b0 = net.n++; net.lines.push({ a: a0, b: b0, Z: opts.z0, th0: th, id }); return b0; };
+    const zs = opts.zs || {};
+    const line = (a0, id) => { const th = lens[id]; if(!(th > 0)) return a0; const b0 = net.n++; net.lines.push({ a: a0, b: b0, Z: zs[id] || opts.z0, th0: th, id }); return b0; };
     const addNode = (nd, inNode) => {
       if(nd.leaf){ ports[nd.idx] = line(inNode, 'o' + nd.idx); return; }
       const pfx = 'j' + nd.path, ends = nd.stage.kind === 'resY' ? addResY(net, nd.stage, inNode, pfx) : addTwoArm(net, nd.stage, inNode, pfx, null);
-      nd.children.forEach((c, k) => addNode(c, line(ends[k], 'ic' + nd.path + k)));
+      nd.children.forEach((c, k) => addNode(c, line(line(ends[k], 'sb' + nd.path + k), 'ic' + nd.path + k)));
     };
     addNode(design.tree.root, 0);
     ports.forEach(n => net.ports.push(n));
@@ -1044,7 +1049,7 @@ function drawSections(g, pfx, lanes, nSec){
     });
     x += dx; nodesX.push(x);
   }
-  return { els, nodesX, maxRise };
+  return { els, nodesX, maxRise, lastShape: els.slice(-lanes.length).map(e => ({ kind: e.shape, spec: e.spec, W: e.W })) };
 }
 /* A two-arm stage (2-way Wilkinson or branching line) in its own frame: input at (0, 0) heading +x, arm 0 (to the
    first output) above, arm 1 below; ends at (xEnd, ∓s/2). */
@@ -1064,7 +1069,19 @@ function stageTwoArm(g, st, pfx){
     res.push({ id: pfx + '.r' + k, R: R * (g.rMult || 1), a: P(x, y[0] + wa / 2), b: P(x, y[1] - wb / 2), fp });
   });
   const xEnd = d.nodesX[nSec];
-  return { els, res, labels: [], ends: [P(xEnd, y[0]), P(xEnd, y[1])], xEnd, s, half: s / 2 + d.maxRise, nodesX: d.nodesX };
+  const last = sec.map(a => a[a.length - 1]), W0 = g.ms(g.z0).W, clr = 0.3;
+  /* The outputs leave as two separate z0 lines that turn straight outward at the output node (s apart, so they never
+     merge). Where the last section's own copper is in the way — an arc arriving vertically, or the last leg of a meander
+     or bracket closer than the z0 half-width — each arm first continues at its own width for the shortest stub that
+     clears it. */
+  const stub = Math.max(0, ...d.lastShape.map(ls => {
+    if(ls.kind === 'arc') return ls.W / 2 + W0 / 2 + clr;
+    if(ls.kind === 'meander') return W0 / 2 + clr - (ls.spec.pitch / 2 - ls.W / 2);
+    if(ls.kind === 'mitred') return W0 / 2 + clr - (ls.spec.lead - ls.W / 2);
+    return 0;
+  }));
+  return { els, res, labels: [], ends: [P(xEnd, y[0]), P(xEnd, y[1])], xEnd, s, half: s / 2 + d.maxRise, nodesX: d.nodesX,
+    stub, endW: last.map(c => c.W), endZ: last.map(c => c.Z) };
 }
 // ── END 5 ─────────────────────────────────────────────────────
 
@@ -1136,6 +1153,17 @@ function layoutSingle(g, design){
   els.unshift(zLine(pfx + '.in', 'launch', [P(-L0, 0), P(0, 0)], W0, g.h, false));
   const ys = sg.ends.map(e => e.y), span = Math.max(g.pitch * (N - 1), ys[N - 1] - ys[0]);
   const yp = ys.map((y, i) => N === 1 ? y : -span / 2 + span * i / (N - 1));
+  if(sg.stub != null){
+    // two-arm: (a stub at the arm's width if needed, then) the z0 line turns straight out to the port pitch and runs to the edge
+    const xs = sg.xEnd + sg.stub, half = Math.max(span / 2, sg.s / 2, (W0 + 1) / 2), xEnd = xs + Math.max(L0, W0);
+    sg.ends.forEach((e, i) => {
+      if(sg.stub > 1e-9) els.push({ id: pfx + '.st' + i, role: 'stub', Z: sg.endZ[i], W: sg.endW[i], path: polyPath([e, P(xs, e.y)], 'sharp'), outline: polyOutline([e, P(xs, e.y)], sg.endW[i], 0), model: false });
+      const yo = (i === 0 ? -1 : 1) * half;
+      els.push(zLine(pfx + '.out' + i, 'launch', [P(xs, e.y), P(xs, yo), P(xEnd, yo)], W0, g.h, false, { port: i }));
+    });
+    const ports = [{ name: 'P1', at: P(-L0, 0), dir: 2, i: 0 }].concat([-half, half].map((y, i) => ({ name: 'P' + (i + 2), at: P(xEnd, y), dir: 0, i: i + 1 })));
+    return finish({ els, res: sg.res, labels: sg.labels, ports, s: sg.s, W0 });
+  }
   const lead = Math.max(1.5 * W0, 2), step = W0 + Math.max(1, 3 * g.h), xEnd = sg.xEnd + lead + step * Math.ceil((N - 1) / 2) + L0;
   fanOut(sg.xEnd, ys, yp, lead, step, xEnd).forEach((pts, i) => { pts[0] = sg.ends[i]; els.push(zLine(pfx + '.out' + i, 'launch', pts, W0, g.h, false, { port: i })); });
   const ports = [{ name: 'P1', at: P(-L0, 0), dir: 2, i: 0 }].concat(yp.map((y, i) => ({ name: 'P' + (i + 2), at: P(xEnd, y), dir: 0, i: i + 1 })));
@@ -1153,7 +1181,7 @@ function layoutSingle(g, design){
 function layoutTree(g, design){
   const T = design.tree, W0 = g.ms(g.z0).W, lg0 = g.ms(g.z0).lambdaG, L0 = g.launch, h = g.h;
   const lead = Math.max(1.5 * W0, 2), clr = Math.max(2 * W0, 3 * h, 1.5), H = g.treeLayout === 'H' && (T.N & (T.N - 1)) === 0;
-  const els = [], res = [], labels = [], lens = {}, leaves = [], warnings = [];
+  const els = [], res = [], labels = [], lens = {}, zs = {}, leaves = [], warnings = [];
   const leafHalf = Math.max(g.pitch / 2, W0 / 2 + clr / 2), stages = new Map();      // stage geometry per junction (own frame)
   // place(nd, tf): draws the subtree at transform tf; returns its box in tf's frame
   const place = (nd, tf, thPath, delayRun) => {
@@ -1171,20 +1199,26 @@ function layoutTree(g, design){
     } else {
       d0 = Math.max(sg.half + clr - dry[0].x0, sg.s / 2 + lead); d1 = Math.max(sg.half + clr - dry[1].x0, sg.s / 2 + lead);
     }
-    const xv = sg.xEnd + lead, box = Object.assign({}, local);
+    const xv = sg.xEnd + (sg.stub != null ? sg.stub : lead), box = Object.assign({}, local);
     const grow = (bx, ctf) => { [P(bx.x0, bx.y0), P(bx.x1, bx.y0), P(bx.x0, bx.y1), P(bx.x1, bx.y1)].forEach(p => { const q = applyTf(ctf, p);
       box.x0 = Math.min(box.x0, q.x); box.x1 = Math.max(box.x1, q.x); box.y0 = Math.min(box.y0, q.y); box.y1 = Math.max(box.y1, q.y); }); };
     const g0 = placeGeom(sg, tf); els.push(...g0.els); res.push(...g0.res); labels.push(...g0.labels);
     nd.children.forEach((c, k) => {
-      const yc = k === 0 ? -d0 : d1, e = sg.ends[k], id = 'ic' + nd.path + k;
-      const pts = [e]; if(Math.abs(yc - e.y) > 1e-9){ pts.push(P(xv, e.y), P(xv, yc)); }
+      const yc = k === 0 ? -d0 : d1, e0 = sg.ends[k], id = 'ic' + nd.path + k;
+      let thStub = 0, e = e0;
+      if(sg.stub > 1e-9){
+        const sid = 'sb' + nd.path + k, sp = [e0, P(xv, e0.y)], m = g.ms(sg.endZ[k]);
+        els.push(placeGeom({ els: [{ id: sid, role: 'stub', Z: sg.endZ[k], W: sg.endW[k], path: polyPath(sp, 'sharp'), outline: polyOutline(sp, sg.endW[k], 0), model: true, grp: pfx }], res: [] }, tf).els[0]);
+        thStub = lens[sid] = 2 * Math.PI * dist(sp[0], sp[1]) / m.lambdaG; zs[sid] = sg.endZ[k]; e = sp[1];
+      }
+      const pts = [e]; if(Math.abs(yc - e.y) > 1e-9){ if(Math.abs(e.x - xv) > 1e-9) pts.push(P(xv, e.y)); pts.push(P(xv, yc)); }
       let ctf;
       if(H){ ctf = { x: xv, y: yc, q: k === 0 ? 3 : 1 }; if(pts.length === 1) pts.push(P(xv, e.y)); }
       else { pts.push(P(xv + lead, yc)); ctf = { x: xv + lead, y: yc, q: 0 }; }
       const line = zLine(id, 'ic', pts, W0, h, true, { grp: pfx });
       const ln = placeGeom({ els: [line], res: [] }, tf).els[0]; els.push(ln);
       lens[id] = 2 * Math.PI * line.path.len / lg0;
-      const cb = place(c, composeTf(tf, ctf), thPath + thArm(k) + lens[id], delayRun);
+      const cb = place(c, composeTf(tf, ctf), thPath + thArm(k) + thStub + lens[id], delayRun);
       grow(cb, ctf); grow({ x0: Math.min(...pts.map(p => p.x)), x1: Math.max(...pts.map(p => p.x)), y0: Math.min(...pts.map(p => p.y)), y1: Math.max(...pts.map(p => p.y)) }, TF0);
     });
     return box;
@@ -1233,7 +1267,7 @@ function layoutTree(g, design){
   // root input launch (drawn, not modelled)
   els.push(zLine('in', 'launch', [P(-L0, 0), P(0, 0)], W0, h, false));
   const ports = [{ name: 'P1', at: P(-L0, 0), dir: 2, i: 0 }].concat(leaves.map(l => l.port).sort((a, b) => a.i - b.i));
-  const out = finish({ els, res, labels, ports, W0, lens, warnings, thMax, thLeaf: leaves.map((l, i) => ({ idx: l.nd.idx, th: thLeaf[i] + 2 * Math.PI * plan[i].dL / lg0 })) });
+  const out = finish({ els, res, labels, ports, W0, lens, zs, warnings, thMax, thLeaf: leaves.map((l, i) => ({ idx: l.nd.idx, th: thLeaf[i] + 2 * Math.PI * plan[i].dL / lg0 })) });
   return out;
 }
 // Square-wave serpentine adding plan.dL of line: n periods of (up a, across p, down 2a, across p, up a), from (x, y).
@@ -1322,7 +1356,7 @@ const DEFAULTS = {
   topology: 'wilkinson', N: 2, ratioDB: 0, M: 1, taper: 'binomial', rippleDB: -20, z0: 50, f0: 2.4e9,
   er: 4.4, h: 1.6, msModel: 'pozar', shapes: new Array(MAX_SEC).fill('straight'), turns: 2, gapH: 3, bend: 'mitre', arcDeg: 180,
   fp: '0603', launch: 5, pitch: 15, minW: 0.15, pin: 1, pinUnit: 'W', resOn: true, rMult: 1, lossOn: false, lossDb: 0.2,
-  teeXfmr: true, resForm: 'Y', loads: [], overlay: false, compare: false,
+  teeXfmr: true, resForm: 'Y', loads: [], overlay: false, compare: false, sma: true, view3d: false,
   tree: { N: 4, layout: 'binary', amp: 'uniform', edgeDB: -10, module: 'wilk', levelMods: [], mods: {}, ratios: {}, equalise: true, pathErr: 0 },
   perf: { traces: {}, mode: 'mag', uLo: 0.2, uHi: 2.4, dbMin: -40, marker: 1.2 },
 };
@@ -1454,7 +1488,7 @@ const lossDb = () => S.lossOn ? S.lossDb : 0;
 function analyse(design, shapes, opts){
   const o = opts || {};
   const lay = layoutDesign(geomOpts(shapes), design);
-  const net = buildNetwork(design, { z0: S.z0, resOn: S.resOn, rMult: S.rMult, lens: lay.lens });
+  const net = buildNetwork(design, { z0: S.z0, resOn: S.resOn, rMult: S.rMult, lens: lay.lens, zs: lay.zs });
   const nf = net.n > 100 ? 121 : 201;
   const sw = o.noSweep ? null : sweep(net, S.perf.uLo, S.perf.uHi, nf, lossDb());
   const S0 = solveS(net, 1, lossDb());
@@ -1473,109 +1507,179 @@ function derive(){
 }
 // ── END 4 ─────────────────────────────────────────────────────
 
-/* Power Divider Designer — schematic. Element ids match the layout's (x.a<arm>.<k>, x.r<k>, j<path>…), so hovering
-   either view highlights the same element in both.
-   Single dividers: one lane per arm, a box per λ/4 section (its Z), resistors between the lanes at their nodes.
-   Trees: a block per junction (module and ratio) in depth columns, outputs on the right. */
-function drawSchematic(D, box){
-  const W = Math.max(240, box.clientWidth - 16), H = Math.max(150, box.clientHeight - 30);
-  const svg = svgEl('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Schematic' });
-  const T = (x, y, t, a) => svg.append(svgEl('text', Object.assign({ x, y, 'font-size': 11, 'text-anchor': 'middle' }, a || {}), t));
-  const ln = (x1, y1, x2, y2, a) => svg.append(svgEl('line', Object.assign({ x1, y1, x2, y2, stroke: 'var(--txt)', 'stroke-width': 1.5 }, a || {})));
-  const design = D.design;
-  if(design.topology === 'tree') schemTree(D, svg, W, H, T, ln);
-  else if(design.stage.kind === 'resistive') schemResistive(design.stage, svg, W, H, T, ln);
-  else schemLanes(design.stage, svg, W, H, T, ln);
-  box.replaceChildren(el('h4', { text: 'Schematic' }), svg);
-  wireHover(svg, D);
+/* Power Divider Designer — 3D view of the layout: the substrate (true thickness h) on its ground plane, the copper
+   traces, the resistor land patterns and bodies, and an edge-launch SMA at every port. A small canvas renderer (no
+   library): faces are projected in perspective, shaded by their normal, and painted back to front in three layers
+   (substrate, copper, parts), which is exact for views from above the board. Drag to orbit, wheel to zoom.
+   Copper and part heights can be exaggerated so the 35 µm foil is visible; the substrate is always to scale. */
+
+// ── SMA (edge launch) ─────────────────────────────────────────
+// Dimensions (mm) in the port's own frame: +x out of the board, the centre pin lying on the trace.
+const SMA = { pinL: 3.0, pinW: 1.27, legL: 4.0, legW: 1.0, legOff: 2.54, flangeT: 1.6, flangeW: 9.5, barrelL: 8.5, barrelD: 6.35, label: 'SMA (edge launch)' };
+const smaLegOffset = W0 => Math.max(SMA.legOff, W0 / 2 + 0.6 + SMA.legW / 2);
+// A port at the copper's outer edge, facing out, takes an edge-launch SMA; any other (inside an H-tree) a vertical one.
+function portOnEdge(L, p){ const bb = L.bbox, d = p.dir % 4, e = 1e-6;
+  return (d === 0 && p.at.x >= bb.x1 - e) || (d === 2 && p.at.x <= bb.x0 + e) || (d === 1 && p.at.y >= bb.y1 - e) || (d === 3 && p.at.y <= bb.y0 + e); }
+const VSMA = { pad: 6.35, hole: 1.3, body: 6.35, height: 8.5 };   // vertical (through-board) SMA: square base, 4 ground posts
+// ── END SMA ───────────────────────────────────────────────────
+
+const V3 = { az: -35, el: 38, zoom: 1, zx: 5, drag: null, scene: null, raf: 0 };
+// Sample an element's copper outline in local coordinates: its polygon, or a band of ±W/2 around its sampled centreline.
+let _probe = null;
+function bandOutline(e){
+  if(e.outline) return e.outline;
+  if(!_probe){ _probe = document.createElementNS(NS, 'path'); const s = svgEl('svg', { class: 'testsvg' }); s.append(_probe); document.body.append(s); }
+  _probe.setAttribute('d', e.path.d);
+  const L = _probe.getTotalLength(), n = Math.max(8, Math.min(160, Math.ceil(L / 0.35))), c = [];
+  for(let i = 0; i <= n; i++){ const q = _probe.getPointAtLength(L * i / n); c.push(P(q.x, q.y)); }
+  const left = [], right = [], h = e.W / 2;
+  c.forEach((p, i) => { const a = c[Math.max(0, i - 1)], b = c[Math.min(n, i + 1)], l = Math.hypot(b.x - a.x, b.y - a.y) || 1, nx = -(b.y - a.y) / l, ny = (b.x - a.x) / l;
+    left.push(P(p.x + nx * h, p.y + ny * h)); right.push(P(p.x - nx * h, p.y - ny * h)); });
+  return left.concat(right.reverse());
 }
-// Port dot with its name.
-function schemPort(svg, x, y, name, left){
-  svg.append(svgEl('circle', { cx: x, cy: y, r: 4, fill: 'var(--txt)' }));
-  svg.append(svgEl('text', { x: x + (left ? -8 : 8), y: y + 4, 'font-size': 11, 'text-anchor': left ? 'end' : 'start', 'font-weight': 600 }, name));
-}
-// Zig-zag resistor from (x, y0) to (x, y1) with its value.
-function schemResistor(svg, x, y0, y1, id, label){
-  const g = svgEl('g', { class: 'el sres', 'data-id': id }), m = (y0 + y1) / 2, zh = Math.min(10, Math.abs(y1 - y0) / 3), n = 6;
-  let d = `M${x} ${y0} L${x} ${m - zh}`; for(let i = 0; i < n; i++) d += ` L${x + (i % 2 ? -4 : 4)} ${m - zh + 2 * zh * (i + 0.5) / n}`; d += ` L${x} ${m + zh} L${x} ${y1}`;
-  g.append(svgEl('path', { d, fill: 'none', stroke: 'var(--sR)', 'stroke-width': 1.6 }), svgEl('rect', { class: 'hit', x: x - 8, y: Math.min(y0, y1), width: 16, height: Math.abs(y1 - y0), fill: 'transparent' }));
-  if(label) g.append(svgEl('text', { x: x + 7, y: m + 4, 'font-size': 10, fill: 'var(--sR)' }, label));
-  svg.append(g);
-}
-function schemLanes(st, svg, W, H, T, ln){
-  const N = st.arms.length, nSec = st.arms[0].length, x0 = 34, xj = 64, xe = W - 46, top = 22, bot = H - 14;
-  const ys = Array.from({ length: N }, (_, i) => N === 1 ? (top + bot) / 2 : top + (bot - top) * i / (N - 1)), yj = (ys[0] + ys[N - 1]) / 2;
-  schemPort(svg, x0, yj, 'P1', true); ln(x0, yj, xj, yj); ln(xj, ys[0], xj, ys[N - 1]);
-  const sw = (xe - xj - 10) / nSec;
-  ys.forEach((y, a) => {
-    st.arms[a].forEach((s, k) => {
-      const xa = xj + 5 + k * sw, g = svgEl('g', { class: 'el ssec', 'data-id': 'x.a' + a + '.' + k });
-      g.append(svgEl('rect', { class: 'sbox', x: xa + 3, y: y - 7, width: sw - 6, height: 14, rx: 2 }));
-      g.append(svgEl('text', { x: xa + sw / 2, y: y - 10, 'font-size': 10, 'text-anchor': 'middle' }, s.Z.toFixed(1) + ' Ω'));
-      svg.append(g); ln(xa, y, xa + 3, y); ln(xa + sw - 3, y, xa + sw, y);
-    });
-    ln(xj, y, xj + 5, y); ln(xe - 5, y, xe, y); schemPort(svg, xe, y, 'P' + (a + 2));
-  });
-  st.res.forEach((R, k) => {
-    if(R == null || S.resOn === false) return;
-    const x = xj + 5 + (k + 1) * sw;
-    if(st.kind === 'star'){
-      ys.forEach((y, a) => schemResistor(svg, x, y + 7, y + Math.min(26, (ys[1] - ys[0]) * 0.55 || 26), 'x.r' + k + '.' + a, a === 0 ? (R * S.rMult).toFixed(0) + ' Ω ★' : null));
-    } else schemResistor(svg, x, ys[0] + 7, ys[1] - 7, 'x.r' + k, (R * S.rMult).toFixed(1) + ' Ω');
-  });
-  T((xj + xe) / 2, H - 2, 'each box: λ/4 at f₀' + (st.res.some(r => r != null) ? '' : ' · no resistor'), { fill: 'var(--mut)' });
-}
-function schemResistive(st, svg, W, H, T, ln){
-  const N = st.N, xc = W * 0.45, cy = H / 2, ys = Array.from({ length: N }, (_, i) => N === 1 ? cy : 26 + (H - 52) * i / (N - 1));
-  schemPort(svg, 34, cy, 'P1', true);
-  if(st.form === 'delta'){
-    const A = [xc - 40, cy], B = [xc + 30, ys[0]], C = [xc + 30, ys[1]];
-    ln(34, cy, A[0], A[1]); ln(B[0], B[1], W - 46, ys[0]); ln(C[0], C[1], W - 46, ys[1]);
-    [[A, B, 'x.r01'], [A, C, 'x.r02'], [B, C, 'x.r12']].forEach(([p, q, id]) => { const g = svgEl('g', { class: 'el sres', 'data-id': id });
-      g.append(svgEl('line', { x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: 'var(--sR)', 'stroke-width': 4 })); svg.append(g); });
-  } else {
-    const g0 = svgEl('g', { class: 'el sres', 'data-id': 'x.r0' }); g0.append(svgEl('rect', { x: 60, y: cy - 5, width: xc - 70, height: 10, fill: 'none', stroke: 'var(--sR)', 'stroke-width': 1.6 })); svg.append(g0);
-    ln(34, cy, 60, cy); ln(xc - 10, cy, xc, cy); ln(xc, ys[0], xc, ys[N - 1]);
-    ys.forEach((y, i) => { const g = svgEl('g', { class: 'el sres', 'data-id': 'x.r' + (i + 1) });
-      g.append(svgEl('rect', { x: xc + 12, y: y - 5, width: W - xc - 80, height: 10, fill: 'none', stroke: 'var(--sR)', 'stroke-width': 1.6 })); svg.append(g);
-      ln(xc, y, xc + 12, y); ln(W - 68, y, W - 46, y); });
-  }
-  ys.forEach((y, i) => schemPort(svg, W - 46, y, 'P' + (i + 2)));
-  T(W / 2, H - 2, 'R = ' + st.R.toFixed(1) + ' Ω each (' + (st.form === 'delta' ? 'Δ' : 'Y') + ')', { fill: 'var(--mut)' });
-}
-function schemTree(D, svg, W, H, T, ln){
-  const tr = D.design.tree, depth = tr.maxDepth, N = tr.N, x0 = 30, xe = W - 50, cw = (xe - x0 - 20) / Math.max(depth, 1);
-  // leaves evenly spaced; a junction sits at the mean height of its leaves
-  const yLeaf = i => 14 + (H - 30) * (N === 1 ? 0.5 : i / (N - 1));
-  const yOf = nd => { if(nd.leaf) return yLeaf(nd.idx); return (yOf(nd.children[0]) + yOf(nd.children[1])) / 2; };
-  const draw = (nd, xp, yp) => {
-    if(nd.leaf){ ln(xp, yp, xe, yLeaf(nd.idx), { 'stroke-width': 1 }); schemPort(svg, xe, yLeaf(nd.idx), 'P' + (nd.idx + 2)); return; }
-    const x = x0 + 20 + nd.depth * cw, y = yOf(nd), bw = Math.min(46, cw * 0.7), bh = 16;
-    ln(xp, yp, x, y, { 'stroke-width': 1 });
-    const g = svgEl('g', { class: 'el sblk' + (S.sel === nd.path ? ' sel' : ''), 'data-id': 'j' + nd.path, 'data-junction': nd.path, role: 'button', tabindex: 0,
-      'aria-label': 'Junction ' + (nd.path || 'root') + ': ' + MODULE_NAME[nd.module] + ' ' + ratioText(nd.stage.ratioDB) });
-    g.append(svgEl('rect', { class: 'sbox', x, y: y - bh / 2, width: bw, height: bh, rx: 3 }));
-    g.append(svgEl('text', { x: x + bw / 2, y: y + 4, 'font-size': 9, 'text-anchor': 'middle' }, { wilk: 'W', branch: 'BL', resY: 'Y' }[nd.module] + ' ' + ratioText(nd.stage.ratioDB)));
-    svg.append(g);
-    nd.children.forEach(c => draw(c, x + bw, y));
+// Faces of the scene in world coordinates (x, y in the board plane as in the 2D view, z up): { pts: [[x,y,z]…], col, layer }.
+function buildScene(D){
+  const L = D.lay, h = S.h, t = 0.035 * V3.zx, faces = [], W0 = L.W0;
+  const COL = { sub: [205, 214, 190], subSide: [170, 182, 150], gnd: [184, 116, 47], cu: [196, 128, 58], pad: [214, 170, 80], res: [30, 34, 40], cap: [200, 200, 205], gold: [212, 175, 55], pin: [225, 225, 230] };
+  // prism of a polygon (local points, transform tf) from z0 to z1
+  const prism = (poly, tf, z0, z1, col, layer, sides) => {
+    const g = poly.map(p => applyTf(tf || TF0, p));
+    faces.push({ pts: g.map(p => [p.x, p.y, z1]), col, layer, top: true });
+    if(sides !== false) for(let i = 0; i < g.length; i++){ const a = g[i], b = g[(i + 1) % g.length]; if(Math.hypot(b.x - a.x, b.y - a.y) < 1e-6) continue;
+      faces.push({ pts: [[a.x, a.y, z0], [b.x, b.y, z0], [b.x, b.y, z1], [a.x, a.y, z1]], col, layer }); }
   };
-  schemPort(svg, x0 - 10, yOf(tr.root), 'P1', true);
-  draw(tr.root, x0 - 10, yOf(tr.root));
-  svg.querySelectorAll('[data-junction]').forEach(b => { const pick = () => { S.sel = b.dataset.junction; update(true); };
-    b.addEventListener('click', pick); b.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); pick(); } }); });
+  const rect = (x0, y0, x1, y1) => [P(x0, y0), P(x1, y0), P(x1, y1), P(x0, y1)];
+  // board: the copper box plus a margin, cut flush at the ports
+  const bb = L.bbox, m = Math.max(3, 0.04 * Math.max(bb.w, bb.h)), edge = boardRect(L, m);
+  prism(rect(edge.x0, edge.y0, edge.x1, edge.y1), TF0, -h, 0, COL.sub, 0);
+  prism(rect(edge.x0, edge.y0, edge.x1, edge.y1), TF0, -h - t, -h, COL.gnd, 0);
+  // copper
+  L.els.forEach(e => prism(bandOutline(e), e.tf, 0, t, e.role === 'pad' ? COL.pad : COL.cu, 1));
+  // resistors: pads, body, end caps
+  L.res.forEach(r => {
+    const fp = r.fp, Lr = dist(r.a, r.b), ang = Math.atan2(r.b.y - r.a.y, r.b.x - r.a.x), mm = P((r.a.x + r.b.x) / 2, (r.a.y + r.b.y) / 2);
+    const tfr = composeTf(r.tf || TF0, { x: 0, y: 0, q: 0 }), at = (u, v) => { const c = Math.cos(ang), s = Math.sin(ang); return P(mm.x + u * c - v * s, mm.y + u * s + v * c); };
+    const box = (u0, v0, u1, v1) => [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)], pe = fp.gap / 2 + fp.padL, hb = fp.bodyW * 0.7;
+    prism(box(-pe, -fp.padW / 2, -fp.gap / 2, fp.padW / 2), tfr, 0, t, COL.pad, 1);
+    prism(box(fp.gap / 2, -fp.padW / 2, pe, fp.padW / 2), tfr, 0, t, COL.pad, 1);
+    if(Lr / 2 > pe){ prism(box(-Lr / 2, -fp.padW / 4, -pe, fp.padW / 4), tfr, 0, t, COL.cu, 1); prism(box(pe, -fp.padW / 4, Lr / 2, fp.padW / 4), tfr, 0, t, COL.cu, 1); }
+    const zb = t, zt = t + hb * Math.max(1, V3.zx / 5), cap = fp.bodyL * 0.18;
+    prism(box(-fp.bodyL / 2 + cap, -fp.bodyW / 2, fp.bodyL / 2 - cap, fp.bodyW / 2), tfr, zb, zt, COL.res, 2);
+    prism(box(-fp.bodyL / 2, -fp.bodyW / 2, -fp.bodyL / 2 + cap, fp.bodyW / 2), tfr, zb, zt, COL.cap, 2);
+    prism(box(fp.bodyL / 2 - cap, -fp.bodyW / 2, fp.bodyL / 2, fp.bodyW / 2), tfr, zb, zt, COL.cap, 2);
+  });
+  // SMA connectors
+  if(S.sma) L.ports.forEach(p => {
+    if(!portOnEdge(L, p)){
+      // vertical SMA: square body on the board, threaded barrel up, centre pin at the trace end
+      const tv = { x: p.at.x, y: p.at.y, q: 0 }, b2 = VSMA.body / 2, R2 = VSMA.body / 2 * 0.9, n2 = 16, z0 = t, z1 = t + 2, z2 = z1 + VSMA.height;
+      prism(rect(-b2, -b2, b2, b2), tv, z0, z1, COL.gold, 2);
+      for(let i = 0; i < n2; i++){ const a0 = 2 * Math.PI * i / n2, a1 = 2 * Math.PI * (i + 1) / n2, A = applyTf(tv, P(R2 * Math.cos(a0), R2 * Math.sin(a0))), B = applyTf(tv, P(R2 * Math.cos(a1), R2 * Math.sin(a1)));
+        faces.push({ pts: [[A.x, A.y, z1], [B.x, B.y, z1], [B.x, B.y, z2], [A.x, A.y, z2]], col: COL.gold, layer: 2 }); }
+      const capV = []; for(let i = 0; i < n2; i++){ const a = 2 * Math.PI * i / n2, q = applyTf(tv, P(R2 * Math.cos(a), R2 * Math.sin(a))); capV.push([q.x, q.y, z2]); }
+      faces.push({ pts: capV, col: COL.gold, layer: 2, top: true });
+      return;
+    }
+    const tf = { x: p.at.x, y: p.at.y, q: p.dir }, zc = -h / 2, R = SMA.barrelD / 2, lo = smaLegOffset(W0);
+    prism(rect(-SMA.pinL, -SMA.pinW / 2, 0, SMA.pinW / 2), tf, t, t + 0.5, COL.pin, 2);
+    [-lo, lo].forEach(v => { prism(rect(-SMA.legL, v - SMA.legW / 2, 0, v + SMA.legW / 2), tf, t, t + 0.8, COL.gold, 2);
+      prism(rect(-SMA.legL, v - SMA.legW / 2, 0, v + SMA.legW / 2), tf, -h - 0.8, -h, COL.gold, 2); });
+    // flange: a block standing on the board edge
+    const fw = SMA.flangeW / 2, fz0 = zc - fw, fz1 = zc + fw, fx0 = 0, fx1 = SMA.flangeT;
+    const slab = (x0, x1, y0, y1, z0, z1, col) => { const c = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => applyTf(tf, P(x, y)));
+      const q = (a, b, cc, d) => faces.push({ pts: [a, b, cc, d], col, layer: 2 });
+      const v = (pp, z) => [pp.x, pp.y, z];
+      q(v(c[0], z1), v(c[1], z1), v(c[2], z1), v(c[3], z1)); q(v(c[3], z0), v(c[2], z0), v(c[1], z0), v(c[0], z0));
+      for(let i = 0; i < 4; i++){ const a = c[i], b = c[(i + 1) % 4]; q(v(a, z0), v(b, z0), v(b, z1), v(a, z1)); } };
+    slab(fx0, fx1, -fw, fw, fz0, fz1, COL.gold);
+    // barrel: a 16-sided prism along +x, centred on the board's mid-plane
+    const n = 16;
+    for(let i = 0; i < n; i++){
+      const a0 = 2 * Math.PI * i / n, a1 = 2 * Math.PI * (i + 1) / n, y0 = R * Math.cos(a0), z0 = zc + R * Math.sin(a0), y1 = R * Math.cos(a1), z1 = zc + R * Math.sin(a1);
+      const A = applyTf(tf, P(fx1, y0)), B = applyTf(tf, P(fx1 + SMA.barrelL, y0)), C2 = applyTf(tf, P(fx1 + SMA.barrelL, y1)), Dd = applyTf(tf, P(fx1, y1));
+      faces.push({ pts: [[A.x, A.y, z0], [B.x, B.y, z0], [C2.x, C2.y, z1], [Dd.x, Dd.y, z1]], col: COL.gold, layer: 2 });
+    }
+    const capPts = []; for(let i = 0; i < n; i++){ const a = 2 * Math.PI * i / n, q = applyTf(tf, P(fx1 + SMA.barrelL, R * Math.cos(a))); capPts.push([q.x, q.y, zc + R * Math.sin(a)]); }
+    faces.push({ pts: capPts, col: COL.gold, layer: 2 });
+    const pinPts = []; for(let i = 0; i < n; i++){ const a = 2 * Math.PI * i / n, q = applyTf(tf, P(fx1 + SMA.barrelL + 0.01, 0.6 * Math.cos(a))); pinPts.push([q.x, q.y, zc + 0.6 * Math.sin(a)]); }
+    faces.push({ pts: pinPts, col: [240, 240, 240], layer: 2 });
+  });
+  const cx0 = (edge.x0 + edge.x1) / 2, cy0 = (edge.y0 + edge.y1) / 2, span = Math.max(edge.x1 - edge.x0, edge.y1 - edge.y0) + (S.sma ? 2 * (SMA.barrelL + SMA.flangeT) : 0);
+  return { faces, centre: [cx0, cy0, -h / 2], span };
+}
+// Board outline: copper box + margin, flush with the board edge at every port (an edge-launch connector sits there).
+function boardRect(L, m){ // edges at edge-launch ports are flush
+  const bb = L.bbox, r = { x0: bb.x0 - m, y0: bb.y0 - m, x1: bb.x1 + m, y1: bb.y1 + m };
+  if(S.sma) L.ports.forEach(p => { const d = p.dir % 4;
+    if(d === 0 && p.at.x >= bb.x1 - 1e-6) r.x1 = bb.x1; if(d === 2 && p.at.x <= bb.x0 + 1e-6) r.x0 = bb.x0;
+    if(d === 1 && p.at.y >= bb.y1 - 1e-6) r.y1 = bb.y1; if(d === 3 && p.at.y <= bb.y0 + 1e-6) r.y0 = bb.y0; });
+  return r;
+}
+function render3d(){
+  V3.raf = 0;
+  const cv = $('view3d'), sc = V3.scene; if(!cv || !sc || cv.clientWidth === 0) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth, H = cv.clientHeight;
+  if(cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const dark = document.body.classList.contains('dark');
+  g.fillStyle = dark ? '#0f1218' : '#ffffff'; g.fillRect(0, 0, W, H);
+  // camera: orbit about the board centre; screen y down, world y down in the plan (as in 2D), z up
+  const az = V3.az * Math.PI / 180, elev = V3.el * Math.PI / 180, ca = Math.cos(az), sa = Math.sin(az), ce = Math.cos(elev), se = Math.sin(elev);
+  const dist0 = sc.span * 1.6 / V3.zoom, f = Math.min(W * 0.62, H) * 1.45, [ox, oy, oz] = sc.centre;
+  const view = ([x, y, z]) => { const X = x - ox, Y = y - oy, Z = z - oz;
+    const x1 = X * ca - Y * sa, y1 = X * sa + Y * ca;                // turn about the vertical
+    const yv = y1 * se - Z * ce, depth = y1 * ce + Z * se;             // tilt: elevation from the board plane
+    return [x1, yv, dist0 - depth]; };
+  const proj = v => [W / 2 + f * v[0] / v[2], H / 2 + f * v[1] / v[2]];
+  const light = (() => { const l = [0.35, -0.45, 0.82], n = Math.hypot(...l); return l.map(x => x / n); })();
+  const byLayer = [[], [], []];
+  for(const fc of sc.faces){
+    const v = fc.pts.map(view); if(v.some(p => p[2] < 1e-3)) continue;
+    const s = v.map(proj);
+    // cull back faces (screen winding) except tops, which are always seen from above
+    let area = 0; for(let i = 0; i < s.length; i++){ const a = s[i], b = s[(i + 1) % s.length]; area += a[0] * b[1] - b[0] * a[1]; }
+    // world normal for shading
+    const p0 = fc.pts[0], p1 = fc.pts[1], p2 = fc.pts[2];
+    let n = [(p1[1] - p0[1]) * (p2[2] - p0[2]) - (p1[2] - p0[2]) * (p2[1] - p0[1]), (p1[2] - p0[2]) * (p2[0] - p0[0]) - (p1[0] - p0[0]) * (p2[2] - p0[2]), (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0])];
+    const nl = Math.hypot(...n) || 1; n = n.map(x => x / nl);
+    const lam = fc.top ? 0.92 : 0.5 + 0.5 * Math.abs(n[0] * light[0] + n[1] * light[1] + n[2] * light[2]);
+    const depth = v.reduce((a, p) => a + p[2], 0) / v.length;
+    if(!fc.top && Math.abs(area) < 1e-4) continue;
+    byLayer[fc.layer].push({ s, depth, col: fc.col.map(c => Math.round(Math.min(255, c * lam))) });
+  }
+  for(const layer of byLayer){
+    layer.sort((a, b) => b.depth - a.depth);
+    for(const f2 of layer){ g.beginPath(); f2.s.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath();
+      g.fillStyle = `rgb(${f2.col[0]},${f2.col[1]},${f2.col[2]})`; g.fill(); g.strokeStyle = g.fillStyle; g.lineWidth = 0.6; g.stroke(); }
+  }
+  $('v3info').textContent = `azimuth ${Math.round(V3.az)}°, elevation ${Math.round(V3.el)}° · substrate to scale (h = ${S.h} mm) · copper and parts ×${V3.zx} in height`;
+}
+const req3d = () => { if(!V3.raf) V3.raf = requestAnimationFrame(render3d); };
+function show3d(D){ V3.scene = buildScene(D); $('layoutInfo').textContent = footprintText(D); req3d(); }
+function wire3d(){
+  const cv = $('view3d');
+  cv.addEventListener('pointerdown', e => { V3.drag = { x: e.clientX, y: e.clientY, az: V3.az, el: V3.el }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if(!V3.drag) return; V3.az = V3.drag.az - (e.clientX - V3.drag.x) * 0.4; V3.el = Math.max(8, Math.min(90, V3.drag.el + (e.clientY - V3.drag.y) * 0.3)); req3d(); });
+  cv.addEventListener('pointerup', () => { V3.drag = null; });
+  cv.addEventListener('wheel', e => { e.preventDefault(); V3.zoom = Math.max(0.4, Math.min(12, V3.zoom * Math.exp(-e.deltaY * 0.0015))); req3d(); }, { passive: false });
+  cv.addEventListener('keydown', e => { const k = e.key; if(k === 'ArrowLeft') V3.az += 5; else if(k === 'ArrowRight') V3.az -= 5; else if(k === 'ArrowUp') V3.el = Math.min(90, V3.el + 5); else if(k === 'ArrowDown') V3.el = Math.max(8, V3.el - 5);
+    else if(k === '+' || k === '=') V3.zoom *= 1.15; else if(k === '-') V3.zoom /= 1.15; else return; e.preventDefault(); req3d(); });
+  $('v3reset').addEventListener('click', () => { Object.assign(V3, { az: -35, el: 38, zoom: 1 }); req3d(); });
+  $('v3top').addEventListener('click', () => { Object.assign(V3, { az: 0, el: 90 }); req3d(); });
+  $('v3zx').addEventListener('change', e => { V3.zx = +e.target.value; if(D) show3d(D); });
 }
 
-/* Power Divider Designer — Designer page: the sidebar, the to-scale layout (the centrepiece), hover and selection, the
-   output-power table and readouts, and the width-versus-ratio plot.
+/* Power Divider Designer — Designer page: the sidebar, the to-scale layout (the centrepiece), hover and selection, and
+   the output-power table and readouts.
    ============================================================
    TABLE OF CONTENTS
    1. Sidebar          — topology, outputs, split (or the selected tree junction), tree, stages, shapes, substrate,
                          resistors, power and loss, loads, layout options
-   2. Layout view      — board, copper at true width, resistor land patterns, ports with their power, scale bar,
-                         footprint box, straight-vs-folded side by side, power-flow overlay, growth animation
-   3. Hover            — tooltips and highlighting shared by the layout, the schematic and the sheet
+   2. Layout view      — board, copper at true width, resistor land patterns, SMA connectors, ports with their power,
+                         scale bar, footprint box, straight-vs-folded side by side, power-flow overlay, growth animation
+                         (the 3D view is in view3d.js)
+   3. Hover            — tooltips and highlighting shared by the layout and the parameter sheet
    4. Outputs          — per-output power (W, dBm, %) solved beside ideal, phase, imbalance, loss, bandwidth, R
-   5. Width vs ratio   — the two arm widths and the output transformers from 1:1 to 6:1, current ratio marked
    ============================================================ */
 
 // ── 1. SIDEBAR ────────────────────────────────────────────────
@@ -1669,6 +1773,7 @@ function buildSide(D){
     numCtl(isTree() ? 'Min output pitch' : 'Port pitch', 'pitch', () => S.pitch, v => { S.pitch = v; }, 1, 200, 0.5, 'mm'),
     numCtl('Port launch', 'launch', () => S.launch, v => { S.launch = v; }, 0, 50, 0.5, 'mm'),
     numCtl('Minimum W', 'minW', () => S.minW, v => { S.minW = v; }, 0.01, 2, 0.01, 'mm'),
+    chk('SMA edge-launch connectors at the ports', 'smaOn', () => S.sma, v => { S.sma = v; }),
     el('button', { class: 'wide', text: 'Reset everything to defaults', on: { click: () => { const f = freshState(); for(const k in f) S[k] = f[k]; S.sel = ''; update(true); } } }));
   side.append(el('div', { id: 'warnBox', role: 'status', 'aria-live': 'polite' }));
 }
@@ -1676,7 +1781,7 @@ function topologyHint(){
   switch(S.topology){
     case 'tee': return 'Lossless T: input matched (with transformers); outputs neither matched nor isolated.';
     case 'resistive': return 'Resistive: every port matched, −6.02 dB per output for N = 2, no isolation.';
-    case 'tree': return 'Branching cascade of 2-way junctions. Click a junction (schematic or layout) to set its module and ratio.';
+    case 'tree': return 'Branching cascade of 2-way junctions. Click a junction in the layout to set its module and ratio.';
     default: return S.N > 2 ? 'N-way Wilkinson: star of resistors at each section plane (not planar).' : 'Matched at every port, outputs isolated.';
   }
 }
@@ -1730,22 +1835,43 @@ function buildTreeSide(g, D){
       segCtl('Module', () => T.mods[nd.path] || '', v => { if(v) T.mods[nd.path] = v; else delete T.mods[nd.path]; },
         [['', 'Level'], ['wilk', 'Wilkinson'], ['branch', 'Branching'], ['resY', 'Res. Y']]),
       nd.module === 'resY' && Math.abs(nd.stage.asked) > 1e-6 ? el('div', { class: 'warnline', text: 'A resistive Y splits 1:1 only (asked ' + ratioText(nd.stage.asked) + ').' }) : null)
-      : el('div', { class: 'hint', text: 'Click a junction to edit it.' }));
+      : el('div', { class: 'hint', text: 'Click a junction in the layout to edit it.' }));
 }
 // ── END 1 ─────────────────────────────────────────────────────
 
 // ── 2. LAYOUT VIEW ────────────────────────────────────────────
 let prevIds = new Set(), prevKey = '';
 const tfAttr = tf => tf && (tf.x || tf.y || tf.q) ? `translate(${tf.x.toFixed(4)} ${tf.y.toFixed(4)}) rotate(${tf.q * 90})` : null;
-const grpOf = id => id.startsWith('ic') ? 'j' + id.slice(2, -1) : id.startsWith('j') ? id.split('.')[0] : null;
+const grpOf = id => /^(ic|sb)/.test(id) ? 'j' + id.slice(2, -1) : id.startsWith('j') ? id.split('.')[0] : null;
 /* Draw one layout into group gRoot shifted by dy; returns nothing. k = px per mm (for hairlines and text). */
+// Edge-launch SMA at a port, top view: ground legs, centre pin on the trace, flange at the board edge, barrel.
+const smaLen = () => S.sma ? SMA.flangeT + SMA.barrelL : 0;
+function smaSymbol(p, W0, k){
+  const g = svgEl('g', { class: 'sma', transform: `translate(${p.at.x.toFixed(4)} ${p.at.y.toFixed(4)}) rotate(${(p.dir % 4) * 90})` }), lo = smaLegOffset(W0);
+  [-lo, lo].forEach(v => g.append(svgEl('rect', { class: 'leg', x: -SMA.legL, y: v - SMA.legW / 2, width: SMA.legL, height: SMA.legW })));
+  g.append(svgEl('rect', { class: 'body', x: 0, y: -SMA.flangeW / 2, width: SMA.flangeT, height: SMA.flangeW, 'stroke-width': 0.6 / k }));
+  g.append(svgEl('rect', { class: 'body', x: SMA.flangeT, y: -SMA.barrelD / 2, width: SMA.barrelL, height: SMA.barrelD, 'stroke-width': 0.6 / k }));
+  for(let x = SMA.flangeT + 1.2; x < SMA.flangeT + SMA.barrelL - 0.4; x += 0.8) g.append(svgEl('line', { x1: x, x2: x - 0.4, y1: -SMA.barrelD / 2, y2: SMA.barrelD / 2, stroke: '#8a6d1f', 'stroke-width': 0.5 / k }));
+  g.append(svgEl('rect', { class: 'pin', x: -SMA.pinL, y: -SMA.pinW / 2, width: SMA.pinL + SMA.flangeT, height: SMA.pinW, 'stroke-width': 0.5 / k }));
+  g.append(svgEl('title', {}, SMA.label + ' at ' + p.name));
+  return g;
+}
+// Vertical (through-board) SMA, top view: square body with four ground posts and the centre pin on the trace end.
+function smaVertical(p, k){
+  const g = svgEl('g', { class: 'sma', transform: `translate(${p.at.x.toFixed(4)} ${p.at.y.toFixed(4)})` }), b = VSMA.body / 2, post = 1.1;
+  g.append(svgEl('rect', { class: 'body', x: -b, y: -b, width: 2 * b, height: 2 * b, 'fill-opacity': 0.55, 'stroke-width': 0.6 / k }));
+  [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => g.append(svgEl('rect', { class: 'leg', x: sx * (b - post / 2) - post / 2, y: sy * (b - post / 2) - post / 2, width: post, height: post })));
+  g.append(svgEl('circle', { class: 'pin', cx: 0, cy: 0, r: VSMA.hole / 2, 'stroke-width': 0.5 / k }));
+  g.append(svgEl('title', {}, 'Vertical SMA (through-board) at ' + p.name));
+  return g;
+}
 // Label boxes already placed (mm): place(box) is true and keeps the box if it overlaps none of them.
 function labelSpace(){ const boxes = []; return { boxes, place(b){ if(boxes.some(o => b.x0 < o.x1 && o.x0 < b.x1 && b.y0 < o.y1 && o.y0 < b.y1)) return false; boxes.push(b); return true; } }; }
 function drawOneLayout(gRoot, L, D, k, dy, opts){
   opts.labels = opts.labels || labelSpace();
   const fs = 12 / k, root = svgEl('g', { transform: dy ? `translate(0 ${dy.toFixed(4)})` : null }); gRoot.append(root);
-  const bb = L.bbox, mx = Math.max(3, bb.w * 0.03);
-  root.append(svgEl('rect', { class: 'board', x: bb.x0 - mx, y: bb.y0 - mx, width: bb.w + 2 * mx, height: bb.h + 2 * mx, rx: 1, 'stroke-width': 1 / k }));
+  const bb = L.bbox, mx = Math.max(3, 0.04 * Math.max(bb.w, bb.h)), br = boardRect(L, mx);
+  root.append(svgEl('rect', { class: 'board', x: br.x0, y: br.y0, width: br.x1 - br.x0, height: br.y1 - br.y0, rx: 0.5, 'stroke-width': 1 / k }));
   root.append(svgEl('rect', { class: 'fpbox', 'data-fp': opts.main ? 'main' : 'ref', x: bb.x0, y: bb.y0, width: bb.w, height: bb.h, 'stroke-width': 1 / k, 'stroke-dasharray': (4 / k) + ' ' + (3 / k) }));
   const cu = svgEl('g', { class: 'copper' }); root.append(cu);
   const ids = new Set(), grow = opts.main && prevKey === opts.key;
@@ -1780,7 +1906,8 @@ function drawOneLayout(gRoot, L, D, k, dy, opts){
   (L.labels || []).forEach(b => { if(b.kind !== 'bridge') return; const p0 = applyTf(b.tf || TF0, b.pts[0]), p1 = applyTf(b.tf || TF0, b.pts[1]);
     root.append(svgEl('line', { class: 'bridge', x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y, 'stroke-width': 1.5 / k, 'stroke-dasharray': (3 / k) + ' ' + (2 / k) }));
     root.append(svgEl('circle', { cx: (p0.x + p1.x) / 2, cy: (p0.y + p1.y) / 2, r: 2.5 / k, class: 'bridgedot' })); });
-  if(opts.title) root.append(svgEl('text', { x: bb.x0, y: bb.y0 - mx - 4 / k, 'font-size': fs, 'font-weight': 600 }, opts.title));
+  if(opts.sma) L.ports.forEach(p => root.append(portOnEdge(L, p) ? smaSymbol(p, L.W0, k) : smaVertical(p, k)));
+  if(opts.title) root.append(svgEl('text', { x: bb.x0, y: br.y0 - 4 / k, 'font-size': fs, 'font-weight': 600 }, opts.title));
   if(opts.main && isTree() && S.sel != null){
     const sel = 'j' + S.sel, pts = [];
     L.els.forEach(e => { if(grpOf(e.id) === sel && e.role !== 'ic') pts.push(...copperPoints(e)); }); L.res.forEach(r => { if(grpOf(r.id) === sel) pts.push(...resistorPoints(r)); });
@@ -1797,8 +1924,8 @@ function drawLayout(D){
   const bb = L.bbox, rb = R ? R.bbox : null;
   const gap = both ? Math.max(bb.h, rb.h) * 0.25 + 6 : 0;
   const top = rb ? rb.y0 : bb.y0, totH = (rb ? rb.h + gap : 0) + bb.h, minX = Math.min(bb.x0, rb ? rb.x0 : Infinity), maxX = Math.max(bb.x1, rb ? rb.x1 : -Infinity);
-  const totW = maxX - minX, padPx = 70;
-  const k = Math.max(1e-6, Math.min((W - 2 * padPx - 120) / (totW * 1.06 + 6), (H - 2 * padPx) / (totH * 1.06 + 6)));
+  const ex = smaLen() + (S.sma ? 1 : 0), totW = maxX - minX + 2 * ex, padPx = 50;
+  const k = Math.max(1e-6, Math.min((W - 2 * padPx - 120) / (totW * 1.06 + 6), (H - 2 * padPx) / ((totH + 2 * ex) * 1.06 + 6)));
   const vw = W / k, vh = H / k, mx0 = (minX + maxX) / 2, my0 = top + totH / 2;
   svg.setAttribute('viewBox', [mx0 - vw / 2, my0 - vh / 2 + 6 / k, vw, vh].map(v => v.toFixed(4)).join(' '));
   svg.dataset.scale = k.toFixed(6);
@@ -1806,20 +1933,20 @@ function drawLayout(D){
   const g = svgEl('g'); svg.append(g);
   const fs = 12 / k;
   let dyMain = 0;
-  if(R){ drawOneLayout(g, R, D, k, 0, { title: 'Straight (reference), ' + rb.w.toFixed(1) + ' × ' + rb.h.toFixed(1) + ' mm' }); dyMain = rb.y1 - bb.y0 + gap; }
+  if(R){ drawOneLayout(g, R, D, k, 0, { sma: S.sma, title: 'Straight (reference), ' + rb.w.toFixed(1) + ' × ' + rb.h.toFixed(1) + ' mm' }); dyMain = rb.y1 - bb.y0 + gap; }
   const key = S.topology + '|' + nOut() + '|' + S.tree.layout;
   const labels = labelSpace();
-  const ids = drawOneLayout(g, L, D, k, dyMain, { main: true, key, labels, title: both ? 'Folded, ' + bb.w.toFixed(1) + ' × ' + bb.h.toFixed(1) + ' mm' : null });
+  const ids = drawOneLayout(g, L, D, k, dyMain, { main: true, sma: S.sma, key, labels, title: both ? 'Folded, ' + bb.w.toFixed(1) + ' × ' + bb.h.toFixed(1) + ' mm' : null });
   prevIds = ids; prevKey = key;
   const main = g.lastChild;
   // ports with their solved power
   const pin = pinW();
   L.ports.forEach(p => {
     const left = p.i === 0, d = p.dir % 4, w = left ? pin : pin * D.L0.pLoad[p.i - 1];
-    const off = (S.overlay ? (left ? 70 : 40) : 4) / k, anchor = d === 2 ? 'end' : d === 0 ? 'start' : 'middle';
+    const off = (portOnEdge(L, p) ? smaLen() : S.sma ? VSMA.body / 2 : 0) + (S.overlay ? (left ? 70 : 40) : 4) / k, anchor = d === 2 ? 'end' : d === 0 ? 'start' : 'middle';
     const x = p.at.x + (d === 0 ? off : d === 2 ? -off : 0), y = p.at.y + (d === 1 ? off + fs : d === 3 ? -off : fs * 0.35);
     // the full label, else a short one, else the name only; nothing when even the name would overlap
-    const texts = left ? [p.name + '  ' + fmtW(pin) + ' in', p.name] : [p.name + '  ' + fmtW(w) + ' · ' + fmt(dbm(w), 1) + ' dBm', p.name + ' ' + fmtW(w), p.name];
+    const texts = !portOnEdge(L, p) ? [p.name] : left ? [p.name + '  ' + fmtW(pin) + ' in', p.name] : [p.name + '  ' + fmtW(w) + ' · ' + fmt(dbm(w), 1) + ' dBm', p.name + ' ' + fmtW(w), p.name];
     for(const t of texts){
       const tw = t.length * fs * 0.62, bx = anchor === 'start' ? x : anchor === 'end' ? x - tw : x - tw / 2;
       if(labels.place({ x0: bx, x1: bx + tw, y0: y - fs * 0.85, y1: y + fs * 0.25 })){
@@ -1832,11 +1959,15 @@ function drawLayout(D){
   const bx = bb.x0, by = bb.y1 + Math.max(3, bb.w * 0.03) + 10 / k;
   main.append(svgEl('path', { id: 'scaleBar', d: `M${bx} ${by - 3 / k} V${by} H${bx + bar} V${by - 3 / k}`, fill: 'none', stroke: 'var(--txt)', 'stroke-width': 1.5 / k, 'data-mm': bar }));
   main.append(svgEl('text', { x: bx + bar + 5 / k, y: by + fs * 0.3, 'font-size': fs }, bar + ' mm'));
-  const sv = (1 - bb.area / D.ref.bbox.area) * 100;
-  $('layoutInfo').textContent = `footprint ${bb.w.toFixed(1)} × ${bb.h.toFixed(1)} mm = ${bb.area.toFixed(0)} mm²` + (D.ref !== D.lay ? ` · ${sv >= 0 ? 'saves' : 'adds'} ${Math.abs(sv).toFixed(0)} % vs straight` : '') +
-    ` · trace ${L.totals.all.toFixed(1)} mm`;
+  $('layoutInfo').textContent = footprintText(D);
   wireHover(svg, D);
   svg.querySelectorAll('[data-grp]').forEach(n => n.addEventListener('click', () => { const gname = n.dataset.grp; if(gname && isTree()){ S.sel = gname.slice(1); update(true); } }));
+}
+// Footprint chip: copper bounding box, saving against the straight layout, total trace length.
+function footprintText(D){
+  const bb = D.lay.bbox, sv = (1 - bb.area / D.ref.bbox.area) * 100;
+  return `footprint ${bb.w.toFixed(1)} × ${bb.h.toFixed(1)} mm = ${bb.area.toFixed(0)} mm²` + (D.ref !== D.lay ? ` · ${sv >= 0 ? 'saves' : 'adds'} ${Math.abs(sv).toFixed(0)} % vs straight` : '') +
+    ` · trace ${D.lay.totals.all.toFixed(1)} mm`;
 }
 // Power-flow overlay: an arrow into P1 and out of each output, width ∝ power; reflected power back out of P1 (amber); a
 // disc on each resistor, area ∝ the power it absorbs (purple).
@@ -1852,7 +1983,9 @@ function drawFlowOverlay(main, D, k){
       P(back.x - n.x * (hw + 3 / k), back.y - n.y * (hw + 3 / k)), P(back.x - n.x * hw, back.y - n.y * hw), P(base.x - n.x * hw, base.y - n.y * hw)];
     main.append(svgEl('polygon', { class: 'flow ' + cls, points: ptsAttr(pts) }));
   };
-  L.ports.forEach(p => {
+  const sl = smaLen();
+  L.ports.forEach(p0 => {
+    const u0 = rotQ(P(1, 0), p0.dir), p = Object.assign({}, p0, { at: P(p0.at.x + u0.x * sl, p0.at.y + u0.y * sl) });
     if(p.i === 0){ const hIn = wmax / 2, hR = Math.max(1.5 / k, wmax * Ld.pRefl) / 2;
       arrow(P(p.at.x - len - 12 / k, p.at.y - hIn - 2 / k), 0, 1, 'f-in', true);                 // incident: into P1, above the line
       arrow(P(p.at.x - 6 / k, p.at.y + hR + 5 / k), 2, Ld.pRefl, 'f-refl', true); }             // reflected: out of P1, below it
@@ -1882,7 +2015,7 @@ function elInfo(D, id){
     return `<b>Resistor</b> ${id}<br>R = ${r.R.toFixed(1)} Ω, ${S.fp}<br>absorbs ${(p * 100).toFixed(2)} % of the input (${fmtW(p * pinW())})`; }
   const e = findEl(D, id); if(!e) return '';
   const role = { arm: 'λ/4 arm section', xfmr: 'λ/4 transformer section', eq: 'λ/4 phase-equalising line', launch: 'Port launch (z₀, drawn, not modelled)',
-    junction: 'Junction (drawn, not modelled)', ic: 'Interconnect (z₀, modelled)', out: 'Output line (z₀, modelled)', pad: 'Pad (drawn, not modelled)' }[e.role] || e.role;
+    junction: 'Junction (drawn, not modelled)', stub: 'Output stub at the arm width (' + (isTree() ? 'modelled' : 'drawn, not modelled') + ')', ic: 'Interconnect (z₀, modelled)', out: 'Output line (z₀, modelled)', pad: 'Pad (drawn, not modelled)' }[e.role] || e.role;
   let s = `<b>${role}</b>` + (e.arm != null ? ` · arm ${e.arm + 1}, section ${e.k + 1}` : '') + `<br>${id}<br>`;
   if(e.Z) s += `Z = ${e.Z.toFixed(1)} Ω · W = ${e.W.toFixed(3)} mm<br>`; else s += `W = ${e.W.toFixed(3)} mm<br>`;
   s += `centreline ${e.path.len.toFixed(2)} mm` + (e.lenTarget ? ` (λg/4 = ${e.lenTarget.toFixed(2)} mm, ε_eff = ${e.eeff.toFixed(3)})` : '') + '<br>';
@@ -1935,8 +2068,9 @@ function drawOutputs(D){
   const idealLoss = n > 0 ? 10 * Math.log10(n) : 0, mean = 10 * Math.log10(Math.max(tot, 1e-15) / n);
   const kv = (k, v, cls) => `<div class="kv"><span>${k}</span><b class="num ${cls || ''}">${v}</b></div>`;
   let html = `<h4>Outputs at f₀ <span class="hint">(${fmtW(pin)} in; solved, with ideal beside)</span></h4>
-    <table class="sheet outs"><thead><tr><th>Port</th><th>Power</th><th>dBm</th><th>% in</th><th>dB re in</th><th>ideal</th><th>ideal %</th><th>∠S<sub>i1</sub> (°)</th></tr></thead><tbody>${rows.join('')}</tbody>
+    <div class="cols"><div><table class="sheet outs"><thead><tr><th>Port</th><th>Power</th><th>dBm</th><th>% in</th><th>dB re in</th><th>ideal</th><th>ideal %</th><th>∠S<sub>i1</sub> (°)</th></tr></thead><tbody>${rows.join('')}</tbody>
     <tfoot><tr><td>Σ</td><td>${fmtW(tot * pin)}</td><td></td><td>${(tot * 100).toFixed(2)}</td><td></td><td class="mut">${fmtW(pin)}</td><td class="mut">100</td><td></td></tr></tfoot></table>
+    ${isTree() ? treeLossTable(D) : ''}</div>
     <div class="kvs">` +
     kv('S11 at f₀', fmtDb(s11, 1) + ' dB', s11 > -15 ? 'bad' : '') + kv('worst output match', fmtDb(worstJ, 1) + ' dB', worstJ > -15 ? 'bad' : '') +
     (n > 1 ? kv('worst isolation', fmtDb(worstIso, 1) + ' dB', worstIso > -15 ? 'bad' : '') : '') +
@@ -1945,8 +2079,7 @@ function drawOutputs(D){
     kv('ideal split 10·log₁₀N', idealLoss.toFixed(2) + ' dB; actual mean ' + fmt(-mean, 2) + ' dB below input') +
     kv('reflected · resistors · lines', `${(Ld.pRefl * 100).toFixed(2)} % · ${(Ld.pRes * 100).toFixed(2)} % · ${(Ld.pLine * 100).toFixed(2)} %`) +
     kv('resistors', resistorCount(D.design) + (D.design.stage && D.design.stage.res ? ' · ' + D.design.stage.res.filter(r => r != null).map(r => (r * S.rMult).toFixed(1)).join(' / ') + ' Ω' : '')) +
-    `</div>`;
-  if(isTree()) html += treeLossTable(D);
+    `</div></div>`;
   $('outputs').innerHTML = html;
 }
 /* Interstage line loss by level (sections of the junctions at that depth, and the interconnects leaving them, then the
@@ -1954,42 +2087,12 @@ function drawOutputs(D){
 function treeLossTable(D){
   const tr = D.design.tree, by = new Array(tr.maxDepth + 1).fill(0);
   D.net.lines.forEach((ln, i) => { const id = ln.id; let lv;
-    if(id.startsWith('o')) lv = tr.maxDepth; else if(id.startsWith('ic')) lv = id.length - 3; else lv = id.split('.')[0].length - 1;
+    if(id.startsWith('o')) lv = tr.maxDepth; else if(/^(ic|sb)/.test(id)) lv = id.length - 3; else lv = id.split('.')[0].length - 1;
     by[Math.min(lv, tr.maxDepth)] += D.L0.pLineEach[i]; });
   const head = by.map((v, i) => `<th>${i < tr.maxDepth ? 'level ' + (i + 1) : 'outputs'}</th>`).join(''), cells = by.map(v => `<td>${(v * 100).toFixed(3)}</td>`).join('');
   return `<h4 style="margin-top:6px">Line loss by level <span class="hint">(% of input${S.lossOn ? '' : '; line loss off'})</span></h4><table class="sheet"><thead><tr>${head}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`;
 }
 // ── END 4 ─────────────────────────────────────────────────────
-
-// ── 5. WIDTH VS RATIO ─────────────────────────────────────────
-function drawRatioPlot(D){
-  const box = $('ratioPlot'), tgt = splitTarget(D);
-  const module = isTree() ? (tgt.nd ? tgt.nd.module : 'wilk') : S.topology === 'tee' ? 'branch' : 'wilk';
-  if(!tgt.enabled || module === 'resY' || (!isTree() && (S.N !== 2 || S.topology === 'resistive'))){
-    box.innerHTML = `<h4>Arm width vs ratio</h4><p class="hint">Shown for a 2-way Wilkinson or branching-line split (the divider, or the selected tree junction).</p>`; return; }
-  const w = Math.max(240, box.clientWidth - 24), h = Math.max(130, box.clientHeight - 48), ms = msFactory(), pts = [];
-  for(let i = 0; i <= 60; i++){
-    const r = 1 + 5 * i / 60, st = module === 'branch' ? teeStage(S.z0, 2, 10 * Math.log10(r), 1, 'binomial', 0, true) : wilkinsonStage(S.z0, 10 * Math.log10(r), 1, 'binomial', 0, false);
-    const a = st.arms;
-    pts.push({ r, w2: ms(a[0][0].Z).W, w3: ms(a[1][0].Z).W, t2: a[0][1] ? ms(a[0][1].Z).W : null, t3: a[1][1] ? ms(a[1][1].Z).W : null });
-  }
-  const ymax = Math.max(1, Math.ceil(Math.max(...pts.map(p => Math.max(p.w2, p.t2 || 0))) * 1.08));
-  const pl = 44, pb = 22, pt = 8, pr = 62, X = r => pl + (w - pl - pr) * (r - 1) / 5, Y = v => pt + (h - pt - pb) * (1 - v / ymax);
-  const line = (key, col, dash) => pts[0][key] == null ? '' : `<path d="${pts.map((p, i) => (i ? 'L' : 'M') + X(p.r).toFixed(1) + ' ' + Y(p[key]).toFixed(1)).join(' ')}" fill="none" stroke="${col}" stroke-width="2" ${dash ? 'stroke-dasharray="5 4"' : ''}/>`;
-  let s = `<svg width="${w}" height="${h}" role="img" aria-label="Arm widths versus power ratio">`;
-  const step = ymax > 8 ? 2 : ymax > 3 ? 1 : 0.5;
-  for(let v = 0; v <= ymax + 1e-9; v += step) s += `<line x1="${pl}" x2="${w - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pl - 6}" y="${Y(v) + 4}" font-size="11" text-anchor="end">${v}</text>`;
-  for(let r = 1; r <= 6; r++) s += `<text x="${X(r)}" y="${h - 6}" font-size="11" text-anchor="middle">${r}:1</text>`;
-  s += `<line x1="${pl}" x2="${w - pr}" y1="${Y(S.minW)}" y2="${Y(S.minW)}" stroke="var(--bad)" stroke-dasharray="3 3"/><text x="${X(1.08)}" y="${Y(S.minW) - 4}" font-size="11" fill="var(--bad)">min W ${S.minW} mm</text>`;
-  s += line('w2', 'var(--s21)') + line('w3', 'var(--s31)') + line('t2', 'var(--s21)', 1) + line('t3', 'var(--s31)', 1);
-  const last = pts[pts.length - 1];
-  s += `<text x="${w - pr + 4}" y="${Y(last.w2) + 4}" font-size="11" fill="var(--s21)">high arm</text><text x="${w - pr + 4}" y="${Math.min(h - pb - 2, Y(last.w3) + 4)}" font-size="11" fill="var(--s31)">low arm</text>`;
-  const rr = 10 ** (Math.abs(tgt.get()) / 10);
-  if(rr <= 6) s += `<line x1="${X(rr)}" x2="${X(rr)}" y1="${pt}" y2="${h - pb}" stroke="var(--txt)" stroke-width="1.5"/><text x="${X(rr) + 4}" y="${pt + 10}" font-size="11">${ratioText(Math.abs(tgt.get()))}</text>`;
-  s += `<text x="12" y="${(pt + h - pb) / 2}" font-size="11" fill="var(--mut)" transform="rotate(-90 12 ${(pt + h - pb) / 2})" text-anchor="middle">W (mm)</text></svg>`;
-  box.innerHTML = `<h4>Arm width vs ratio <span class="hint">(${module === 'branch' ? 'branching line' : 'Wilkinson'}, one section; solid arms, dashed output transformers)</span></h4>` + s;
-}
-// ── END 5 ─────────────────────────────────────────────────────
 
 /* Power Divider Designer — Performance page.
    ============================================================
@@ -2219,6 +2322,7 @@ function sheetRows(D){
       const j = e.id.split('.')[0], where = j === 'x' ? '' : 'J' + (j.slice(1) || 'root') + ' ';
       return where + ({ arm: 'arm', xfmr: 'transformer', eq: 'λ/4 line' }[e.role]) + ' ' + (e.arm + 1) + '·' + (e.k + 1);
     }
+    if(e.role === 'stub') return 'output stub ' + (e.id.startsWith('sb') ? (e.id.slice(2, -1) || 'root') + '→' + (+e.id.slice(-1) + 1) : 'P' + (+e.id.slice(-1) + 2)) + (e.model ? '' : ' (not modelled)');
     if(e.role === 'ic') return 'interconnect ' + (e.id.slice(2, -1) || 'root') + '→' + (+e.id.slice(-1) + 1);
     if(e.role === 'out') return 'output line P' + (e.port + 2) + (e.delay > 1e-3 ? ' (delay ' + e.delay.toFixed(2) + ' mm)' : '');
     return null;
@@ -2226,7 +2330,7 @@ function sheetRows(D){
   D.lay.els.forEach(e => {
     const nm = name(e); if(!nm) return;
     const Z = e.Z || S.z0, th = 360 * e.path.len / lg(Z);
-    rows.push({ id: e.id, el: nm, Z, W: e.W, L: e.path.len, th, shape: e.role === 'arm' || e.role === 'xfmr' || e.role === 'eq' ? shapeSpec(e) : 'straight z₀ line' + (e.delay > 1e-3 ? ' + serpentine' : ''),
+    rows.push({ id: e.id, el: nm, Z, W: e.W, L: e.path.len, th, shape: e.role === 'arm' || e.role === 'xfmr' || e.role === 'eq' ? shapeSpec(e) : e.role === 'stub' ? 'straight, at the arm width' : 'straight z₀ line' + (e.delay > 1e-3 ? ' + serpentine' : ''),
       res: '', warn: (e.warn || []).join('; ') });
   });
   D.lay.res.forEach(r => rows.push({ id: r.id, el: 'resistor ' + r.id.replace(/^x\./, ''), Z: null, W: null, L: null, th: null, shape: '', res: r.R.toFixed(1) + ' Ω, ' + S.fp, warn: '' }));
@@ -2343,6 +2447,7 @@ function buildTheory(){
   <h2>9 · Folding the λ/4 lines</h2>
   <p>A λ/4 line can be bent into an arc (the two arms of a 2-way form the classic ring), a mitred bracket or a meander. The electrical length is held by keeping the <b>centreline</b> length at λ<sub>g</sub>/4 (a mitred corner counts to its sharp corner, a round corner along its arc). The footprint readout is the copper bounding box; "saved" compares it with the straight layout at the same port pitch.</p>
   <p><b>Limits.</b> Arcs need a radius of at least 3<i>W</i>; meander legs closer than 3<i>h</i> couple — coupling speeds the odd mode and shortens the line electrically; bends add capacitance (an optimum mitre, ${mth('<i>m</i> = 52 + 65 e<sup>−1.35<i>W</i>/<i>h</i></sup>')} % of the diagonal, Douville & James 1978, cancels most of it). <b>None of these is in the circuit model</b>: the curves are those of ideal λ/4 lines, and the warnings show where the drawing would detune a real board. The junction bar, the width steps and the T-junction parasitics are drawn but not modelled either; no Kirschning–Jansen bend or T-junction correction is applied in this version.</p>
+  <p><b>Outputs and connectors.</b> The two outputs of a 2-way stage leave the output node as separate z₀ lines turning straight outward; where the last section is an arc (or a tight meander or bracket) each arm first continues for a short stub at its own width. In a tree these stubs are in the model (at the arm's impedance) and cost a little match; on a single divider they are drawn only. The SMA connectors (edge launch at the board edge, vertical inside an H-tree) are drawn, not modelled: the ports are referred to the trace ends.</p>
 
   <h2>10 · How the curves are computed</h2>
   <p>Each line is a lossy two-port, ${mth('<i>Y</i><sub>11</sub> = coth(γℓ)/<i>Z</i>')} and ${mth('<i>Y</i><sub>12</sub> = −1/(<i>Z</i> sinh γℓ)')} with ${mth('γℓ = αℓ + jβℓ')}, stamped into a nodal admittance matrix with the resistors; the internal nodes are eliminated (Kron reduction) and the port matrix is converted to ${mth('<b>S</b> = (<i>y</i><sub>0</sub><b>I</b> − <b>Y</b>)(<i>y</i><sub>0</sub><b>I</b> + <b>Y</b>)<sup>−1</sup>')}. With loads, the node voltages are solved and every power is computed from its own element: reflected, delivered to each load, absorbed in each resistor and lost in each line. Their sum is the energy-balance check (100 % ± 0.1 %).</p>
@@ -2396,7 +2501,7 @@ function tGeom(sub, over){
 const tTree = (N, more) => Object.assign({ N, amp: 'uniform', edgeDB: -10, module: 'wilk', levelMods: [], mods: {}, ratios: {} }, more || {});
 function tDesign(p, gover, sub){
   const d = synthesize(Object.assign({ topology: 'wilkinson', N: 2, ratioDB: 0, M: 1, taper: 'binomial', gm: 0.1, z0: 50, teeXfmr: true, resForm: 'Y', tree: tTree(4) }, p));
-  const lay = layoutDesign(tGeom(sub, gover), d), net = buildNetwork(d, { z0: 50, resOn: p.resOn !== false, rMult: 1, lens: lay.lens });
+  const lay = layoutDesign(tGeom(sub, gover), d), net = buildNetwork(d, { z0: 50, resOn: p.resOn !== false, rMult: 1, lens: lay.lens, zs: lay.zs });
   return { d, lay, net, S: solveS(net, 1, p.loss || 0) };
 }
 const sdb = (M, i, j) => dB20(cabs(mget(M, i, j))), sdeg = (M, i, j) => carg(mget(M, i, j)) * DEG;
@@ -2583,10 +2688,11 @@ function update(full){
   save();
   if(currentPage === 'designer'){
     if(full) buildSide(D);
-    syncSide(D); drawLayout(D); drawSchematic(D, $('schem')); drawOutputs(D); drawRatioPlot(D);
+    syncSide(D); if(S.view3d) show3d(D); else drawLayout(D); drawOutputs(D);
   } else if(currentPage === 'perf') drawPerf(D);
   else if(currentPage === 'params') drawParams(D);
-  $('cmpBtn').setAttribute('aria-pressed', String(!!S.compare)); $('flowBtn').setAttribute('aria-pressed', String(!!S.overlay));
+  $('cmpBtn').setAttribute('aria-pressed', String(!!S.compare)); $('flowBtn').setAttribute('aria-pressed', String(!!S.overlay)); $('v3Btn').setAttribute('aria-pressed', String(!!S.view3d));
+  $('layoutWrap').classList.toggle('v3', !!S.view3d); $('cmpBtn').disabled = $('flowBtn').disabled = !!S.view3d;
   clearTimeout(pendingTimer);
   if(REFINE.pending.size) pendingTimer = setTimeout(function step(){ const more = runPending(); if(!more) update(false); else pendingTimer = setTimeout(step, 0); }, 120);
 }
@@ -2624,6 +2730,8 @@ $('tabs').addEventListener('keydown', e => { const i = PAGES.indexOf(currentPage
 $('themeBtn').addEventListener('click', () => applyTheme(!document.body.classList.contains('dark')));
 $('cmpBtn').addEventListener('click', () => { S.compare = !S.compare; update(false); });
 $('flowBtn').addEventListener('click', () => { S.overlay = !S.overlay; update(false); });
+$('v3Btn').addEventListener('click', () => { S.view3d = !S.view3d; update(false); if(S.view3d) $('view3d').focus(); });
+wire3d();
 let resizeT = 0;
 addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if(D) update(false); }, 120); });
 S.sel = '';

@@ -207,7 +207,7 @@ function drawSections(g, pfx, lanes, nSec){
     });
     x += dx; nodesX.push(x);
   }
-  return { els, nodesX, maxRise };
+  return { els, nodesX, maxRise, lastShape: els.slice(-lanes.length).map(e => ({ kind: e.shape, spec: e.spec, W: e.W })) };
 }
 /* A two-arm stage (2-way Wilkinson or branching line) in its own frame: input at (0, 0) heading +x, arm 0 (to the
    first output) above, arm 1 below; ends at (xEnd, ∓s/2). */
@@ -227,7 +227,19 @@ function stageTwoArm(g, st, pfx){
     res.push({ id: pfx + '.r' + k, R: R * (g.rMult || 1), a: P(x, y[0] + wa / 2), b: P(x, y[1] - wb / 2), fp });
   });
   const xEnd = d.nodesX[nSec];
-  return { els, res, labels: [], ends: [P(xEnd, y[0]), P(xEnd, y[1])], xEnd, s, half: s / 2 + d.maxRise, nodesX: d.nodesX };
+  const last = sec.map(a => a[a.length - 1]), W0 = g.ms(g.z0).W, clr = 0.3;
+  /* The outputs leave as two separate z0 lines that turn straight outward at the output node (s apart, so they never
+     merge). Where the last section's own copper is in the way — an arc arriving vertically, or the last leg of a meander
+     or bracket closer than the z0 half-width — each arm first continues at its own width for the shortest stub that
+     clears it. */
+  const stub = Math.max(0, ...d.lastShape.map(ls => {
+    if(ls.kind === 'arc') return ls.W / 2 + W0 / 2 + clr;
+    if(ls.kind === 'meander') return W0 / 2 + clr - (ls.spec.pitch / 2 - ls.W / 2);
+    if(ls.kind === 'mitred') return W0 / 2 + clr - (ls.spec.lead - ls.W / 2);
+    return 0;
+  }));
+  return { els, res, labels: [], ends: [P(xEnd, y[0]), P(xEnd, y[1])], xEnd, s, half: s / 2 + d.maxRise, nodesX: d.nodesX,
+    stub, endW: last.map(c => c.W), endZ: last.map(c => c.Z) };
 }
 // ── END 5 ─────────────────────────────────────────────────────
 
@@ -299,6 +311,17 @@ function layoutSingle(g, design){
   els.unshift(zLine(pfx + '.in', 'launch', [P(-L0, 0), P(0, 0)], W0, g.h, false));
   const ys = sg.ends.map(e => e.y), span = Math.max(g.pitch * (N - 1), ys[N - 1] - ys[0]);
   const yp = ys.map((y, i) => N === 1 ? y : -span / 2 + span * i / (N - 1));
+  if(sg.stub != null){
+    // two-arm: (a stub at the arm's width if needed, then) the z0 line turns straight out to the port pitch and runs to the edge
+    const xs = sg.xEnd + sg.stub, half = Math.max(span / 2, sg.s / 2, (W0 + 1) / 2), xEnd = xs + Math.max(L0, W0);
+    sg.ends.forEach((e, i) => {
+      if(sg.stub > 1e-9) els.push({ id: pfx + '.st' + i, role: 'stub', Z: sg.endZ[i], W: sg.endW[i], path: polyPath([e, P(xs, e.y)], 'sharp'), outline: polyOutline([e, P(xs, e.y)], sg.endW[i], 0), model: false });
+      const yo = (i === 0 ? -1 : 1) * half;
+      els.push(zLine(pfx + '.out' + i, 'launch', [P(xs, e.y), P(xs, yo), P(xEnd, yo)], W0, g.h, false, { port: i }));
+    });
+    const ports = [{ name: 'P1', at: P(-L0, 0), dir: 2, i: 0 }].concat([-half, half].map((y, i) => ({ name: 'P' + (i + 2), at: P(xEnd, y), dir: 0, i: i + 1 })));
+    return finish({ els, res: sg.res, labels: sg.labels, ports, s: sg.s, W0 });
+  }
   const lead = Math.max(1.5 * W0, 2), step = W0 + Math.max(1, 3 * g.h), xEnd = sg.xEnd + lead + step * Math.ceil((N - 1) / 2) + L0;
   fanOut(sg.xEnd, ys, yp, lead, step, xEnd).forEach((pts, i) => { pts[0] = sg.ends[i]; els.push(zLine(pfx + '.out' + i, 'launch', pts, W0, g.h, false, { port: i })); });
   const ports = [{ name: 'P1', at: P(-L0, 0), dir: 2, i: 0 }].concat(yp.map((y, i) => ({ name: 'P' + (i + 2), at: P(xEnd, y), dir: 0, i: i + 1 })));
@@ -316,7 +339,7 @@ function layoutSingle(g, design){
 function layoutTree(g, design){
   const T = design.tree, W0 = g.ms(g.z0).W, lg0 = g.ms(g.z0).lambdaG, L0 = g.launch, h = g.h;
   const lead = Math.max(1.5 * W0, 2), clr = Math.max(2 * W0, 3 * h, 1.5), H = g.treeLayout === 'H' && (T.N & (T.N - 1)) === 0;
-  const els = [], res = [], labels = [], lens = {}, leaves = [], warnings = [];
+  const els = [], res = [], labels = [], lens = {}, zs = {}, leaves = [], warnings = [];
   const leafHalf = Math.max(g.pitch / 2, W0 / 2 + clr / 2), stages = new Map();      // stage geometry per junction (own frame)
   // place(nd, tf): draws the subtree at transform tf; returns its box in tf's frame
   const place = (nd, tf, thPath, delayRun) => {
@@ -334,20 +357,26 @@ function layoutTree(g, design){
     } else {
       d0 = Math.max(sg.half + clr - dry[0].x0, sg.s / 2 + lead); d1 = Math.max(sg.half + clr - dry[1].x0, sg.s / 2 + lead);
     }
-    const xv = sg.xEnd + lead, box = Object.assign({}, local);
+    const xv = sg.xEnd + (sg.stub != null ? sg.stub : lead), box = Object.assign({}, local);
     const grow = (bx, ctf) => { [P(bx.x0, bx.y0), P(bx.x1, bx.y0), P(bx.x0, bx.y1), P(bx.x1, bx.y1)].forEach(p => { const q = applyTf(ctf, p);
       box.x0 = Math.min(box.x0, q.x); box.x1 = Math.max(box.x1, q.x); box.y0 = Math.min(box.y0, q.y); box.y1 = Math.max(box.y1, q.y); }); };
     const g0 = placeGeom(sg, tf); els.push(...g0.els); res.push(...g0.res); labels.push(...g0.labels);
     nd.children.forEach((c, k) => {
-      const yc = k === 0 ? -d0 : d1, e = sg.ends[k], id = 'ic' + nd.path + k;
-      const pts = [e]; if(Math.abs(yc - e.y) > 1e-9){ pts.push(P(xv, e.y), P(xv, yc)); }
+      const yc = k === 0 ? -d0 : d1, e0 = sg.ends[k], id = 'ic' + nd.path + k;
+      let thStub = 0, e = e0;
+      if(sg.stub > 1e-9){
+        const sid = 'sb' + nd.path + k, sp = [e0, P(xv, e0.y)], m = g.ms(sg.endZ[k]);
+        els.push(placeGeom({ els: [{ id: sid, role: 'stub', Z: sg.endZ[k], W: sg.endW[k], path: polyPath(sp, 'sharp'), outline: polyOutline(sp, sg.endW[k], 0), model: true, grp: pfx }], res: [] }, tf).els[0]);
+        thStub = lens[sid] = 2 * Math.PI * dist(sp[0], sp[1]) / m.lambdaG; zs[sid] = sg.endZ[k]; e = sp[1];
+      }
+      const pts = [e]; if(Math.abs(yc - e.y) > 1e-9){ if(Math.abs(e.x - xv) > 1e-9) pts.push(P(xv, e.y)); pts.push(P(xv, yc)); }
       let ctf;
       if(H){ ctf = { x: xv, y: yc, q: k === 0 ? 3 : 1 }; if(pts.length === 1) pts.push(P(xv, e.y)); }
       else { pts.push(P(xv + lead, yc)); ctf = { x: xv + lead, y: yc, q: 0 }; }
       const line = zLine(id, 'ic', pts, W0, h, true, { grp: pfx });
       const ln = placeGeom({ els: [line], res: [] }, tf).els[0]; els.push(ln);
       lens[id] = 2 * Math.PI * line.path.len / lg0;
-      const cb = place(c, composeTf(tf, ctf), thPath + thArm(k) + lens[id], delayRun);
+      const cb = place(c, composeTf(tf, ctf), thPath + thArm(k) + thStub + lens[id], delayRun);
       grow(cb, ctf); grow({ x0: Math.min(...pts.map(p => p.x)), x1: Math.max(...pts.map(p => p.x)), y0: Math.min(...pts.map(p => p.y)), y1: Math.max(...pts.map(p => p.y)) }, TF0);
     });
     return box;
@@ -396,7 +425,7 @@ function layoutTree(g, design){
   // root input launch (drawn, not modelled)
   els.push(zLine('in', 'launch', [P(-L0, 0), P(0, 0)], W0, h, false));
   const ports = [{ name: 'P1', at: P(-L0, 0), dir: 2, i: 0 }].concat(leaves.map(l => l.port).sort((a, b) => a.i - b.i));
-  const out = finish({ els, res, labels, ports, W0, lens, warnings, thMax, thLeaf: leaves.map((l, i) => ({ idx: l.nd.idx, th: thLeaf[i] + 2 * Math.PI * plan[i].dL / lg0 })) });
+  const out = finish({ els, res, labels, ports, W0, lens, zs, warnings, thMax, thLeaf: leaves.map((l, i) => ({ idx: l.nd.idx, th: thLeaf[i] + 2 * Math.PI * plan[i].dL / lg0 })) });
   return out;
 }
 // Square-wave serpentine adding plan.dL of line: n periods of (up a, across p, down 2a, across p, up a), from (x, y).

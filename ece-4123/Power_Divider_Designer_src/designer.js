@@ -1,14 +1,14 @@
-/* Power Divider Designer — Designer page: the sidebar, the to-scale layout (the centrepiece), hover and selection, the
-   output-power table and readouts, and the width-versus-ratio plot.
+/* Power Divider Designer — Designer page: the sidebar, the to-scale layout (the centrepiece), hover and selection, and
+   the output-power table and readouts.
    ============================================================
    TABLE OF CONTENTS
    1. Sidebar          — topology, outputs, split (or the selected tree junction), tree, stages, shapes, substrate,
                          resistors, power and loss, loads, layout options
-   2. Layout view      — board, copper at true width, resistor land patterns, ports with their power, scale bar,
-                         footprint box, straight-vs-folded side by side, power-flow overlay, growth animation
-   3. Hover            — tooltips and highlighting shared by the layout, the schematic and the sheet
+   2. Layout view      — board, copper at true width, resistor land patterns, SMA connectors, ports with their power,
+                         scale bar, footprint box, straight-vs-folded side by side, power-flow overlay, growth animation
+                         (the 3D view is in view3d.js)
+   3. Hover            — tooltips and highlighting shared by the layout and the parameter sheet
    4. Outputs          — per-output power (W, dBm, %) solved beside ideal, phase, imbalance, loss, bandwidth, R
-   5. Width vs ratio   — the two arm widths and the output transformers from 1:1 to 6:1, current ratio marked
    ============================================================ */
 
 // ── 1. SIDEBAR ────────────────────────────────────────────────
@@ -102,6 +102,7 @@ function buildSide(D){
     numCtl(isTree() ? 'Min output pitch' : 'Port pitch', 'pitch', () => S.pitch, v => { S.pitch = v; }, 1, 200, 0.5, 'mm'),
     numCtl('Port launch', 'launch', () => S.launch, v => { S.launch = v; }, 0, 50, 0.5, 'mm'),
     numCtl('Minimum W', 'minW', () => S.minW, v => { S.minW = v; }, 0.01, 2, 0.01, 'mm'),
+    chk('SMA edge-launch connectors at the ports', 'smaOn', () => S.sma, v => { S.sma = v; }),
     el('button', { class: 'wide', text: 'Reset everything to defaults', on: { click: () => { const f = freshState(); for(const k in f) S[k] = f[k]; S.sel = ''; update(true); } } }));
   side.append(el('div', { id: 'warnBox', role: 'status', 'aria-live': 'polite' }));
 }
@@ -109,7 +110,7 @@ function topologyHint(){
   switch(S.topology){
     case 'tee': return 'Lossless T: input matched (with transformers); outputs neither matched nor isolated.';
     case 'resistive': return 'Resistive: every port matched, −6.02 dB per output for N = 2, no isolation.';
-    case 'tree': return 'Branching cascade of 2-way junctions. Click a junction (schematic or layout) to set its module and ratio.';
+    case 'tree': return 'Branching cascade of 2-way junctions. Click a junction in the layout to set its module and ratio.';
     default: return S.N > 2 ? 'N-way Wilkinson: star of resistors at each section plane (not planar).' : 'Matched at every port, outputs isolated.';
   }
 }
@@ -163,22 +164,43 @@ function buildTreeSide(g, D){
       segCtl('Module', () => T.mods[nd.path] || '', v => { if(v) T.mods[nd.path] = v; else delete T.mods[nd.path]; },
         [['', 'Level'], ['wilk', 'Wilkinson'], ['branch', 'Branching'], ['resY', 'Res. Y']]),
       nd.module === 'resY' && Math.abs(nd.stage.asked) > 1e-6 ? el('div', { class: 'warnline', text: 'A resistive Y splits 1:1 only (asked ' + ratioText(nd.stage.asked) + ').' }) : null)
-      : el('div', { class: 'hint', text: 'Click a junction to edit it.' }));
+      : el('div', { class: 'hint', text: 'Click a junction in the layout to edit it.' }));
 }
 // ── END 1 ─────────────────────────────────────────────────────
 
 // ── 2. LAYOUT VIEW ────────────────────────────────────────────
 let prevIds = new Set(), prevKey = '';
 const tfAttr = tf => tf && (tf.x || tf.y || tf.q) ? `translate(${tf.x.toFixed(4)} ${tf.y.toFixed(4)}) rotate(${tf.q * 90})` : null;
-const grpOf = id => id.startsWith('ic') ? 'j' + id.slice(2, -1) : id.startsWith('j') ? id.split('.')[0] : null;
+const grpOf = id => /^(ic|sb)/.test(id) ? 'j' + id.slice(2, -1) : id.startsWith('j') ? id.split('.')[0] : null;
 /* Draw one layout into group gRoot shifted by dy; returns nothing. k = px per mm (for hairlines and text). */
+// Edge-launch SMA at a port, top view: ground legs, centre pin on the trace, flange at the board edge, barrel.
+const smaLen = () => S.sma ? SMA.flangeT + SMA.barrelL : 0;
+function smaSymbol(p, W0, k){
+  const g = svgEl('g', { class: 'sma', transform: `translate(${p.at.x.toFixed(4)} ${p.at.y.toFixed(4)}) rotate(${(p.dir % 4) * 90})` }), lo = smaLegOffset(W0);
+  [-lo, lo].forEach(v => g.append(svgEl('rect', { class: 'leg', x: -SMA.legL, y: v - SMA.legW / 2, width: SMA.legL, height: SMA.legW })));
+  g.append(svgEl('rect', { class: 'body', x: 0, y: -SMA.flangeW / 2, width: SMA.flangeT, height: SMA.flangeW, 'stroke-width': 0.6 / k }));
+  g.append(svgEl('rect', { class: 'body', x: SMA.flangeT, y: -SMA.barrelD / 2, width: SMA.barrelL, height: SMA.barrelD, 'stroke-width': 0.6 / k }));
+  for(let x = SMA.flangeT + 1.2; x < SMA.flangeT + SMA.barrelL - 0.4; x += 0.8) g.append(svgEl('line', { x1: x, x2: x - 0.4, y1: -SMA.barrelD / 2, y2: SMA.barrelD / 2, stroke: '#8a6d1f', 'stroke-width': 0.5 / k }));
+  g.append(svgEl('rect', { class: 'pin', x: -SMA.pinL, y: -SMA.pinW / 2, width: SMA.pinL + SMA.flangeT, height: SMA.pinW, 'stroke-width': 0.5 / k }));
+  g.append(svgEl('title', {}, SMA.label + ' at ' + p.name));
+  return g;
+}
+// Vertical (through-board) SMA, top view: square body with four ground posts and the centre pin on the trace end.
+function smaVertical(p, k){
+  const g = svgEl('g', { class: 'sma', transform: `translate(${p.at.x.toFixed(4)} ${p.at.y.toFixed(4)})` }), b = VSMA.body / 2, post = 1.1;
+  g.append(svgEl('rect', { class: 'body', x: -b, y: -b, width: 2 * b, height: 2 * b, 'fill-opacity': 0.55, 'stroke-width': 0.6 / k }));
+  [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => g.append(svgEl('rect', { class: 'leg', x: sx * (b - post / 2) - post / 2, y: sy * (b - post / 2) - post / 2, width: post, height: post })));
+  g.append(svgEl('circle', { class: 'pin', cx: 0, cy: 0, r: VSMA.hole / 2, 'stroke-width': 0.5 / k }));
+  g.append(svgEl('title', {}, 'Vertical SMA (through-board) at ' + p.name));
+  return g;
+}
 // Label boxes already placed (mm): place(box) is true and keeps the box if it overlaps none of them.
 function labelSpace(){ const boxes = []; return { boxes, place(b){ if(boxes.some(o => b.x0 < o.x1 && o.x0 < b.x1 && b.y0 < o.y1 && o.y0 < b.y1)) return false; boxes.push(b); return true; } }; }
 function drawOneLayout(gRoot, L, D, k, dy, opts){
   opts.labels = opts.labels || labelSpace();
   const fs = 12 / k, root = svgEl('g', { transform: dy ? `translate(0 ${dy.toFixed(4)})` : null }); gRoot.append(root);
-  const bb = L.bbox, mx = Math.max(3, bb.w * 0.03);
-  root.append(svgEl('rect', { class: 'board', x: bb.x0 - mx, y: bb.y0 - mx, width: bb.w + 2 * mx, height: bb.h + 2 * mx, rx: 1, 'stroke-width': 1 / k }));
+  const bb = L.bbox, mx = Math.max(3, 0.04 * Math.max(bb.w, bb.h)), br = boardRect(L, mx);
+  root.append(svgEl('rect', { class: 'board', x: br.x0, y: br.y0, width: br.x1 - br.x0, height: br.y1 - br.y0, rx: 0.5, 'stroke-width': 1 / k }));
   root.append(svgEl('rect', { class: 'fpbox', 'data-fp': opts.main ? 'main' : 'ref', x: bb.x0, y: bb.y0, width: bb.w, height: bb.h, 'stroke-width': 1 / k, 'stroke-dasharray': (4 / k) + ' ' + (3 / k) }));
   const cu = svgEl('g', { class: 'copper' }); root.append(cu);
   const ids = new Set(), grow = opts.main && prevKey === opts.key;
@@ -213,7 +235,8 @@ function drawOneLayout(gRoot, L, D, k, dy, opts){
   (L.labels || []).forEach(b => { if(b.kind !== 'bridge') return; const p0 = applyTf(b.tf || TF0, b.pts[0]), p1 = applyTf(b.tf || TF0, b.pts[1]);
     root.append(svgEl('line', { class: 'bridge', x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y, 'stroke-width': 1.5 / k, 'stroke-dasharray': (3 / k) + ' ' + (2 / k) }));
     root.append(svgEl('circle', { cx: (p0.x + p1.x) / 2, cy: (p0.y + p1.y) / 2, r: 2.5 / k, class: 'bridgedot' })); });
-  if(opts.title) root.append(svgEl('text', { x: bb.x0, y: bb.y0 - mx - 4 / k, 'font-size': fs, 'font-weight': 600 }, opts.title));
+  if(opts.sma) L.ports.forEach(p => root.append(portOnEdge(L, p) ? smaSymbol(p, L.W0, k) : smaVertical(p, k)));
+  if(opts.title) root.append(svgEl('text', { x: bb.x0, y: br.y0 - 4 / k, 'font-size': fs, 'font-weight': 600 }, opts.title));
   if(opts.main && isTree() && S.sel != null){
     const sel = 'j' + S.sel, pts = [];
     L.els.forEach(e => { if(grpOf(e.id) === sel && e.role !== 'ic') pts.push(...copperPoints(e)); }); L.res.forEach(r => { if(grpOf(r.id) === sel) pts.push(...resistorPoints(r)); });
@@ -230,8 +253,8 @@ function drawLayout(D){
   const bb = L.bbox, rb = R ? R.bbox : null;
   const gap = both ? Math.max(bb.h, rb.h) * 0.25 + 6 : 0;
   const top = rb ? rb.y0 : bb.y0, totH = (rb ? rb.h + gap : 0) + bb.h, minX = Math.min(bb.x0, rb ? rb.x0 : Infinity), maxX = Math.max(bb.x1, rb ? rb.x1 : -Infinity);
-  const totW = maxX - minX, padPx = 70;
-  const k = Math.max(1e-6, Math.min((W - 2 * padPx - 120) / (totW * 1.06 + 6), (H - 2 * padPx) / (totH * 1.06 + 6)));
+  const ex = smaLen() + (S.sma ? 1 : 0), totW = maxX - minX + 2 * ex, padPx = 50;
+  const k = Math.max(1e-6, Math.min((W - 2 * padPx - 120) / (totW * 1.06 + 6), (H - 2 * padPx) / ((totH + 2 * ex) * 1.06 + 6)));
   const vw = W / k, vh = H / k, mx0 = (minX + maxX) / 2, my0 = top + totH / 2;
   svg.setAttribute('viewBox', [mx0 - vw / 2, my0 - vh / 2 + 6 / k, vw, vh].map(v => v.toFixed(4)).join(' '));
   svg.dataset.scale = k.toFixed(6);
@@ -239,20 +262,20 @@ function drawLayout(D){
   const g = svgEl('g'); svg.append(g);
   const fs = 12 / k;
   let dyMain = 0;
-  if(R){ drawOneLayout(g, R, D, k, 0, { title: 'Straight (reference), ' + rb.w.toFixed(1) + ' × ' + rb.h.toFixed(1) + ' mm' }); dyMain = rb.y1 - bb.y0 + gap; }
+  if(R){ drawOneLayout(g, R, D, k, 0, { sma: S.sma, title: 'Straight (reference), ' + rb.w.toFixed(1) + ' × ' + rb.h.toFixed(1) + ' mm' }); dyMain = rb.y1 - bb.y0 + gap; }
   const key = S.topology + '|' + nOut() + '|' + S.tree.layout;
   const labels = labelSpace();
-  const ids = drawOneLayout(g, L, D, k, dyMain, { main: true, key, labels, title: both ? 'Folded, ' + bb.w.toFixed(1) + ' × ' + bb.h.toFixed(1) + ' mm' : null });
+  const ids = drawOneLayout(g, L, D, k, dyMain, { main: true, sma: S.sma, key, labels, title: both ? 'Folded, ' + bb.w.toFixed(1) + ' × ' + bb.h.toFixed(1) + ' mm' : null });
   prevIds = ids; prevKey = key;
   const main = g.lastChild;
   // ports with their solved power
   const pin = pinW();
   L.ports.forEach(p => {
     const left = p.i === 0, d = p.dir % 4, w = left ? pin : pin * D.L0.pLoad[p.i - 1];
-    const off = (S.overlay ? (left ? 70 : 40) : 4) / k, anchor = d === 2 ? 'end' : d === 0 ? 'start' : 'middle';
+    const off = (portOnEdge(L, p) ? smaLen() : S.sma ? VSMA.body / 2 : 0) + (S.overlay ? (left ? 70 : 40) : 4) / k, anchor = d === 2 ? 'end' : d === 0 ? 'start' : 'middle';
     const x = p.at.x + (d === 0 ? off : d === 2 ? -off : 0), y = p.at.y + (d === 1 ? off + fs : d === 3 ? -off : fs * 0.35);
     // the full label, else a short one, else the name only; nothing when even the name would overlap
-    const texts = left ? [p.name + '  ' + fmtW(pin) + ' in', p.name] : [p.name + '  ' + fmtW(w) + ' · ' + fmt(dbm(w), 1) + ' dBm', p.name + ' ' + fmtW(w), p.name];
+    const texts = !portOnEdge(L, p) ? [p.name] : left ? [p.name + '  ' + fmtW(pin) + ' in', p.name] : [p.name + '  ' + fmtW(w) + ' · ' + fmt(dbm(w), 1) + ' dBm', p.name + ' ' + fmtW(w), p.name];
     for(const t of texts){
       const tw = t.length * fs * 0.62, bx = anchor === 'start' ? x : anchor === 'end' ? x - tw : x - tw / 2;
       if(labels.place({ x0: bx, x1: bx + tw, y0: y - fs * 0.85, y1: y + fs * 0.25 })){
@@ -265,11 +288,15 @@ function drawLayout(D){
   const bx = bb.x0, by = bb.y1 + Math.max(3, bb.w * 0.03) + 10 / k;
   main.append(svgEl('path', { id: 'scaleBar', d: `M${bx} ${by - 3 / k} V${by} H${bx + bar} V${by - 3 / k}`, fill: 'none', stroke: 'var(--txt)', 'stroke-width': 1.5 / k, 'data-mm': bar }));
   main.append(svgEl('text', { x: bx + bar + 5 / k, y: by + fs * 0.3, 'font-size': fs }, bar + ' mm'));
-  const sv = (1 - bb.area / D.ref.bbox.area) * 100;
-  $('layoutInfo').textContent = `footprint ${bb.w.toFixed(1)} × ${bb.h.toFixed(1)} mm = ${bb.area.toFixed(0)} mm²` + (D.ref !== D.lay ? ` · ${sv >= 0 ? 'saves' : 'adds'} ${Math.abs(sv).toFixed(0)} % vs straight` : '') +
-    ` · trace ${L.totals.all.toFixed(1)} mm`;
+  $('layoutInfo').textContent = footprintText(D);
   wireHover(svg, D);
   svg.querySelectorAll('[data-grp]').forEach(n => n.addEventListener('click', () => { const gname = n.dataset.grp; if(gname && isTree()){ S.sel = gname.slice(1); update(true); } }));
+}
+// Footprint chip: copper bounding box, saving against the straight layout, total trace length.
+function footprintText(D){
+  const bb = D.lay.bbox, sv = (1 - bb.area / D.ref.bbox.area) * 100;
+  return `footprint ${bb.w.toFixed(1)} × ${bb.h.toFixed(1)} mm = ${bb.area.toFixed(0)} mm²` + (D.ref !== D.lay ? ` · ${sv >= 0 ? 'saves' : 'adds'} ${Math.abs(sv).toFixed(0)} % vs straight` : '') +
+    ` · trace ${D.lay.totals.all.toFixed(1)} mm`;
 }
 // Power-flow overlay: an arrow into P1 and out of each output, width ∝ power; reflected power back out of P1 (amber); a
 // disc on each resistor, area ∝ the power it absorbs (purple).
@@ -285,7 +312,9 @@ function drawFlowOverlay(main, D, k){
       P(back.x - n.x * (hw + 3 / k), back.y - n.y * (hw + 3 / k)), P(back.x - n.x * hw, back.y - n.y * hw), P(base.x - n.x * hw, base.y - n.y * hw)];
     main.append(svgEl('polygon', { class: 'flow ' + cls, points: ptsAttr(pts) }));
   };
-  L.ports.forEach(p => {
+  const sl = smaLen();
+  L.ports.forEach(p0 => {
+    const u0 = rotQ(P(1, 0), p0.dir), p = Object.assign({}, p0, { at: P(p0.at.x + u0.x * sl, p0.at.y + u0.y * sl) });
     if(p.i === 0){ const hIn = wmax / 2, hR = Math.max(1.5 / k, wmax * Ld.pRefl) / 2;
       arrow(P(p.at.x - len - 12 / k, p.at.y - hIn - 2 / k), 0, 1, 'f-in', true);                 // incident: into P1, above the line
       arrow(P(p.at.x - 6 / k, p.at.y + hR + 5 / k), 2, Ld.pRefl, 'f-refl', true); }             // reflected: out of P1, below it
@@ -315,7 +344,7 @@ function elInfo(D, id){
     return `<b>Resistor</b> ${id}<br>R = ${r.R.toFixed(1)} Ω, ${S.fp}<br>absorbs ${(p * 100).toFixed(2)} % of the input (${fmtW(p * pinW())})`; }
   const e = findEl(D, id); if(!e) return '';
   const role = { arm: 'λ/4 arm section', xfmr: 'λ/4 transformer section', eq: 'λ/4 phase-equalising line', launch: 'Port launch (z₀, drawn, not modelled)',
-    junction: 'Junction (drawn, not modelled)', ic: 'Interconnect (z₀, modelled)', out: 'Output line (z₀, modelled)', pad: 'Pad (drawn, not modelled)' }[e.role] || e.role;
+    junction: 'Junction (drawn, not modelled)', stub: 'Output stub at the arm width (' + (isTree() ? 'modelled' : 'drawn, not modelled') + ')', ic: 'Interconnect (z₀, modelled)', out: 'Output line (z₀, modelled)', pad: 'Pad (drawn, not modelled)' }[e.role] || e.role;
   let s = `<b>${role}</b>` + (e.arm != null ? ` · arm ${e.arm + 1}, section ${e.k + 1}` : '') + `<br>${id}<br>`;
   if(e.Z) s += `Z = ${e.Z.toFixed(1)} Ω · W = ${e.W.toFixed(3)} mm<br>`; else s += `W = ${e.W.toFixed(3)} mm<br>`;
   s += `centreline ${e.path.len.toFixed(2)} mm` + (e.lenTarget ? ` (λg/4 = ${e.lenTarget.toFixed(2)} mm, ε_eff = ${e.eeff.toFixed(3)})` : '') + '<br>';
@@ -368,8 +397,9 @@ function drawOutputs(D){
   const idealLoss = n > 0 ? 10 * Math.log10(n) : 0, mean = 10 * Math.log10(Math.max(tot, 1e-15) / n);
   const kv = (k, v, cls) => `<div class="kv"><span>${k}</span><b class="num ${cls || ''}">${v}</b></div>`;
   let html = `<h4>Outputs at f₀ <span class="hint">(${fmtW(pin)} in; solved, with ideal beside)</span></h4>
-    <table class="sheet outs"><thead><tr><th>Port</th><th>Power</th><th>dBm</th><th>% in</th><th>dB re in</th><th>ideal</th><th>ideal %</th><th>∠S<sub>i1</sub> (°)</th></tr></thead><tbody>${rows.join('')}</tbody>
+    <div class="cols"><div><table class="sheet outs"><thead><tr><th>Port</th><th>Power</th><th>dBm</th><th>% in</th><th>dB re in</th><th>ideal</th><th>ideal %</th><th>∠S<sub>i1</sub> (°)</th></tr></thead><tbody>${rows.join('')}</tbody>
     <tfoot><tr><td>Σ</td><td>${fmtW(tot * pin)}</td><td></td><td>${(tot * 100).toFixed(2)}</td><td></td><td class="mut">${fmtW(pin)}</td><td class="mut">100</td><td></td></tr></tfoot></table>
+    ${isTree() ? treeLossTable(D) : ''}</div>
     <div class="kvs">` +
     kv('S11 at f₀', fmtDb(s11, 1) + ' dB', s11 > -15 ? 'bad' : '') + kv('worst output match', fmtDb(worstJ, 1) + ' dB', worstJ > -15 ? 'bad' : '') +
     (n > 1 ? kv('worst isolation', fmtDb(worstIso, 1) + ' dB', worstIso > -15 ? 'bad' : '') : '') +
@@ -378,8 +408,7 @@ function drawOutputs(D){
     kv('ideal split 10·log₁₀N', idealLoss.toFixed(2) + ' dB; actual mean ' + fmt(-mean, 2) + ' dB below input') +
     kv('reflected · resistors · lines', `${(Ld.pRefl * 100).toFixed(2)} % · ${(Ld.pRes * 100).toFixed(2)} % · ${(Ld.pLine * 100).toFixed(2)} %`) +
     kv('resistors', resistorCount(D.design) + (D.design.stage && D.design.stage.res ? ' · ' + D.design.stage.res.filter(r => r != null).map(r => (r * S.rMult).toFixed(1)).join(' / ') + ' Ω' : '')) +
-    `</div>`;
-  if(isTree()) html += treeLossTable(D);
+    `</div></div>`;
   $('outputs').innerHTML = html;
 }
 /* Interstage line loss by level (sections of the junctions at that depth, and the interconnects leaving them, then the
@@ -387,39 +416,10 @@ function drawOutputs(D){
 function treeLossTable(D){
   const tr = D.design.tree, by = new Array(tr.maxDepth + 1).fill(0);
   D.net.lines.forEach((ln, i) => { const id = ln.id; let lv;
-    if(id.startsWith('o')) lv = tr.maxDepth; else if(id.startsWith('ic')) lv = id.length - 3; else lv = id.split('.')[0].length - 1;
+    if(id.startsWith('o')) lv = tr.maxDepth; else if(/^(ic|sb)/.test(id)) lv = id.length - 3; else lv = id.split('.')[0].length - 1;
     by[Math.min(lv, tr.maxDepth)] += D.L0.pLineEach[i]; });
   const head = by.map((v, i) => `<th>${i < tr.maxDepth ? 'level ' + (i + 1) : 'outputs'}</th>`).join(''), cells = by.map(v => `<td>${(v * 100).toFixed(3)}</td>`).join('');
   return `<h4 style="margin-top:6px">Line loss by level <span class="hint">(% of input${S.lossOn ? '' : '; line loss off'})</span></h4><table class="sheet"><thead><tr>${head}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`;
 }
 // ── END 4 ─────────────────────────────────────────────────────
 
-// ── 5. WIDTH VS RATIO ─────────────────────────────────────────
-function drawRatioPlot(D){
-  const box = $('ratioPlot'), tgt = splitTarget(D);
-  const module = isTree() ? (tgt.nd ? tgt.nd.module : 'wilk') : S.topology === 'tee' ? 'branch' : 'wilk';
-  if(!tgt.enabled || module === 'resY' || (!isTree() && (S.N !== 2 || S.topology === 'resistive'))){
-    box.innerHTML = `<h4>Arm width vs ratio</h4><p class="hint">Shown for a 2-way Wilkinson or branching-line split (the divider, or the selected tree junction).</p>`; return; }
-  const w = Math.max(240, box.clientWidth - 24), h = Math.max(130, box.clientHeight - 48), ms = msFactory(), pts = [];
-  for(let i = 0; i <= 60; i++){
-    const r = 1 + 5 * i / 60, st = module === 'branch' ? teeStage(S.z0, 2, 10 * Math.log10(r), 1, 'binomial', 0, true) : wilkinsonStage(S.z0, 10 * Math.log10(r), 1, 'binomial', 0, false);
-    const a = st.arms;
-    pts.push({ r, w2: ms(a[0][0].Z).W, w3: ms(a[1][0].Z).W, t2: a[0][1] ? ms(a[0][1].Z).W : null, t3: a[1][1] ? ms(a[1][1].Z).W : null });
-  }
-  const ymax = Math.max(1, Math.ceil(Math.max(...pts.map(p => Math.max(p.w2, p.t2 || 0))) * 1.08));
-  const pl = 44, pb = 22, pt = 8, pr = 62, X = r => pl + (w - pl - pr) * (r - 1) / 5, Y = v => pt + (h - pt - pb) * (1 - v / ymax);
-  const line = (key, col, dash) => pts[0][key] == null ? '' : `<path d="${pts.map((p, i) => (i ? 'L' : 'M') + X(p.r).toFixed(1) + ' ' + Y(p[key]).toFixed(1)).join(' ')}" fill="none" stroke="${col}" stroke-width="2" ${dash ? 'stroke-dasharray="5 4"' : ''}/>`;
-  let s = `<svg width="${w}" height="${h}" role="img" aria-label="Arm widths versus power ratio">`;
-  const step = ymax > 8 ? 2 : ymax > 3 ? 1 : 0.5;
-  for(let v = 0; v <= ymax + 1e-9; v += step) s += `<line x1="${pl}" x2="${w - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pl - 6}" y="${Y(v) + 4}" font-size="11" text-anchor="end">${v}</text>`;
-  for(let r = 1; r <= 6; r++) s += `<text x="${X(r)}" y="${h - 6}" font-size="11" text-anchor="middle">${r}:1</text>`;
-  s += `<line x1="${pl}" x2="${w - pr}" y1="${Y(S.minW)}" y2="${Y(S.minW)}" stroke="var(--bad)" stroke-dasharray="3 3"/><text x="${X(1.08)}" y="${Y(S.minW) - 4}" font-size="11" fill="var(--bad)">min W ${S.minW} mm</text>`;
-  s += line('w2', 'var(--s21)') + line('w3', 'var(--s31)') + line('t2', 'var(--s21)', 1) + line('t3', 'var(--s31)', 1);
-  const last = pts[pts.length - 1];
-  s += `<text x="${w - pr + 4}" y="${Y(last.w2) + 4}" font-size="11" fill="var(--s21)">high arm</text><text x="${w - pr + 4}" y="${Math.min(h - pb - 2, Y(last.w3) + 4)}" font-size="11" fill="var(--s31)">low arm</text>`;
-  const rr = 10 ** (Math.abs(tgt.get()) / 10);
-  if(rr <= 6) s += `<line x1="${X(rr)}" x2="${X(rr)}" y1="${pt}" y2="${h - pb}" stroke="var(--txt)" stroke-width="1.5"/><text x="${X(rr) + 4}" y="${pt + 10}" font-size="11">${ratioText(Math.abs(tgt.get()))}</text>`;
-  s += `<text x="12" y="${(pt + h - pb) / 2}" font-size="11" fill="var(--mut)" transform="rotate(-90 12 ${(pt + h - pb) / 2})" text-anchor="middle">W (mm)</text></svg>`;
-  box.innerHTML = `<h4>Arm width vs ratio <span class="hint">(${module === 'branch' ? 'branching line' : 'Wilkinson'}, one section; solid arms, dashed output transformers)</span></h4>` + s;
-}
-// ── END 5 ─────────────────────────────────────────────────────

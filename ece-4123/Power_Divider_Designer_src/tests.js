@@ -11,7 +11,7 @@ function tGeom(sub, over){
 const tTree = (N, more) => Object.assign({ N, amp: 'uniform', edgeDB: -10, module: 'wilk', levelMods: [], mods: {}, ratios: {} }, more || {});
 function tDesign(p, gover, sub){
   const d = synthesize(Object.assign({ topology: 'wilkinson', N: 2, ratioDB: 0, M: 1, taper: 'binomial', gm: 0.1, z0: 50, teeXfmr: true, resForm: 'Y', tree: tTree(4) }, p));
-  const lay = layoutDesign(tGeom(sub, gover), d), net = buildNetwork(d, { z0: 50, resOn: p.resOn !== false, rMult: 1, lens: lay.lens });
+  const lay = layoutDesign(tGeom(sub, gover), d), net = buildNetwork(d, { z0: 50, resOn: p.resOn !== false, rMult: 1, lens: lay.lens, zs: lay.zs });
   return { d, lay, net, S: solveS(net, 1, p.loss || 0) };
 }
 const sdb = (M, i, j) => dB20(cabs(mget(M, i, j))), sdeg = (M, i, j) => carg(mget(M, i, j)) * DEG;

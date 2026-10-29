@@ -16,7 +16,7 @@ const DEFAULTS = {
   topology: 'wilkinson', N: 2, ratioDB: 0, M: 1, taper: 'binomial', rippleDB: -20, z0: 50, f0: 2.4e9,
   er: 4.4, h: 1.6, msModel: 'pozar', shapes: new Array(MAX_SEC).fill('straight'), turns: 2, gapH: 3, bend: 'mitre', arcDeg: 180,
   fp: '0603', launch: 5, pitch: 15, minW: 0.15, pin: 1, pinUnit: 'W', resOn: true, rMult: 1, lossOn: false, lossDb: 0.2,
-  teeXfmr: true, resForm: 'Y', loads: [], overlay: false, compare: false,
+  teeXfmr: true, resForm: 'Y', loads: [], overlay: false, compare: false, sma: true, view3d: false,
   tree: { N: 4, layout: 'binary', amp: 'uniform', edgeDB: -10, module: 'wilk', levelMods: [], mods: {}, ratios: {}, equalise: true, pathErr: 0 },
   perf: { traces: {}, mode: 'mag', uLo: 0.2, uHi: 2.4, dbMin: -40, marker: 1.2 },
 };
@@ -148,7 +148,7 @@ const lossDb = () => S.lossOn ? S.lossDb : 0;
 function analyse(design, shapes, opts){
   const o = opts || {};
   const lay = layoutDesign(geomOpts(shapes), design);
-  const net = buildNetwork(design, { z0: S.z0, resOn: S.resOn, rMult: S.rMult, lens: lay.lens });
+  const net = buildNetwork(design, { z0: S.z0, resOn: S.resOn, rMult: S.rMult, lens: lay.lens, zs: lay.zs });
   const nf = net.n > 100 ? 121 : 201;
   const sw = o.noSweep ? null : sweep(net, S.perf.uLo, S.perf.uHi, nf, lossDb());
   const S0 = solveS(net, 1, lossDb());

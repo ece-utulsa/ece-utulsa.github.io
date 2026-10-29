@@ -10,10 +10,11 @@ function update(full){
   save();
   if(currentPage === 'designer'){
     if(full) buildSide(D);
-    syncSide(D); drawLayout(D); drawSchematic(D, $('schem')); drawOutputs(D); drawRatioPlot(D);
+    syncSide(D); if(S.view3d) show3d(D); else drawLayout(D); drawOutputs(D);
   } else if(currentPage === 'perf') drawPerf(D);
   else if(currentPage === 'params') drawParams(D);
-  $('cmpBtn').setAttribute('aria-pressed', String(!!S.compare)); $('flowBtn').setAttribute('aria-pressed', String(!!S.overlay));
+  $('cmpBtn').setAttribute('aria-pressed', String(!!S.compare)); $('flowBtn').setAttribute('aria-pressed', String(!!S.overlay)); $('v3Btn').setAttribute('aria-pressed', String(!!S.view3d));
+  $('layoutWrap').classList.toggle('v3', !!S.view3d); $('cmpBtn').disabled = $('flowBtn').disabled = !!S.view3d;
   clearTimeout(pendingTimer);
   if(REFINE.pending.size) pendingTimer = setTimeout(function step(){ const more = runPending(); if(!more) update(false); else pendingTimer = setTimeout(step, 0); }, 120);
 }
@@ -51,6 +52,8 @@ $('tabs').addEventListener('keydown', e => { const i = PAGES.indexOf(currentPage
 $('themeBtn').addEventListener('click', () => applyTheme(!document.body.classList.contains('dark')));
 $('cmpBtn').addEventListener('click', () => { S.compare = !S.compare; update(false); });
 $('flowBtn').addEventListener('click', () => { S.overlay = !S.overlay; update(false); });
+$('v3Btn').addEventListener('click', () => { S.view3d = !S.view3d; update(false); if(S.view3d) $('view3d').focus(); });
+wire3d();
 let resizeT = 0;
 addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if(D) update(false); }, 120); });
 S.sel = '';

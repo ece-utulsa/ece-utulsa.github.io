@@ -7,6 +7,7 @@ function sheetRows(D){
       const j = e.id.split('.')[0], where = j === 'x' ? '' : 'J' + (j.slice(1) || 'root') + ' ';
       return where + ({ arm: 'arm', xfmr: 'transformer', eq: 'λ/4 line' }[e.role]) + ' ' + (e.arm + 1) + '·' + (e.k + 1);
     }
+    if(e.role === 'stub') return 'output stub ' + (e.id.startsWith('sb') ? (e.id.slice(2, -1) || 'root') + '→' + (+e.id.slice(-1) + 1) : 'P' + (+e.id.slice(-1) + 2)) + (e.model ? '' : ' (not modelled)');
     if(e.role === 'ic') return 'interconnect ' + (e.id.slice(2, -1) || 'root') + '→' + (+e.id.slice(-1) + 1);
     if(e.role === 'out') return 'output line P' + (e.port + 2) + (e.delay > 1e-3 ? ' (delay ' + e.delay.toFixed(2) + ' mm)' : '');
     return null;
@@ -14,7 +15,7 @@ function sheetRows(D){
   D.lay.els.forEach(e => {
     const nm = name(e); if(!nm) return;
     const Z = e.Z || S.z0, th = 360 * e.path.len / lg(Z);
-    rows.push({ id: e.id, el: nm, Z, W: e.W, L: e.path.len, th, shape: e.role === 'arm' || e.role === 'xfmr' || e.role === 'eq' ? shapeSpec(e) : 'straight z₀ line' + (e.delay > 1e-3 ? ' + serpentine' : ''),
+    rows.push({ id: e.id, el: nm, Z, W: e.W, L: e.path.len, th, shape: e.role === 'arm' || e.role === 'xfmr' || e.role === 'eq' ? shapeSpec(e) : e.role === 'stub' ? 'straight, at the arm width' : 'straight z₀ line' + (e.delay > 1e-3 ? ' + serpentine' : ''),
       res: '', warn: (e.warn || []).join('; ') });
   });
   D.lay.res.forEach(r => rows.push({ id: r.id, el: 'resistor ' + r.id.replace(/^x\./, ''), Z: null, W: null, L: null, th: null, shape: '', res: r.R.toFixed(1) + ' Ω, ' + S.fp, warn: '' }));

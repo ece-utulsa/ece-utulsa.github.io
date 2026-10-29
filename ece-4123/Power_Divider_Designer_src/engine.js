@@ -585,8 +585,8 @@ function addResY(net, st, j0, pfx){
   return e;
 }
 /* Network for a design. opts = { z0, resOn, rMult, lens: { id → electrical length at f0 (rad) } }: a tree's
-   interconnects ('ic<path><k>') and output lines ('o<i>', with their delay lines) come from the layout; they are z0
-   lines. The ports of a tree are at the end of its output lines; a single divider's ports are at its terminals. */
+   stubs ('sb<path><k>', at the arm's impedance, zs), interconnects ('ic<path><k>') and output lines ('o<i>', with
+   their delay lines) come from the layout; all but the stubs are z0 lines. The ports of a tree are at the end of its output lines; a single divider's ports are at its terminals. */
 function buildNetwork(design, opts){
   const net = { n: 1, ports: [0], z0: opts.z0, lines: [], res: [], resOn: opts.resOn, rMult: opts.rMult };
   if(design.topology === 'resistive'){
@@ -596,11 +596,12 @@ function buildNetwork(design, opts){
     else { const c = net.n++; net.ports.forEach((p, i) => net.res.push({ a: p, b: c, R: st.R, id: 'x.r' + i })); }
   } else if(design.topology === 'tree'){
     const lens = opts.lens || {}, ports = [];
-    const line = (a0, id) => { const th = lens[id]; if(!(th > 0)) return a0; const b0 = net.n++; net.lines.push({ a: a0, b: b0, Z: opts.z0, th0: th, id }); return b0; };
+    const zs = opts.zs || {};
+    const line = (a0, id) => { const th = lens[id]; if(!(th > 0)) return a0; const b0 = net.n++; net.lines.push({ a: a0, b: b0, Z: zs[id] || opts.z0, th0: th, id }); return b0; };
     const addNode = (nd, inNode) => {
       if(nd.leaf){ ports[nd.idx] = line(inNode, 'o' + nd.idx); return; }
       const pfx = 'j' + nd.path, ends = nd.stage.kind === 'resY' ? addResY(net, nd.stage, inNode, pfx) : addTwoArm(net, nd.stage, inNode, pfx, null);
-      nd.children.forEach((c, k) => addNode(c, line(ends[k], 'ic' + nd.path + k)));
+      nd.children.forEach((c, k) => addNode(c, line(line(ends[k], 'sb' + nd.path + k), 'ic' + nd.path + k)));
     };
     addNode(design.tree.root, 0);
     ports.forEach(n => net.ports.push(n));

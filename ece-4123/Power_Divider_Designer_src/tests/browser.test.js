@@ -28,7 +28,7 @@ function check(name, ok, detail){ if(ok){ pass++; console.log('  ok   ' + name);
   await page.click('#tab_designer'); await page.waitForTimeout(200);
   let seed = 11; const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
   for(let i = 0; i < 300; i++){
-    await page.evaluate(([a, b]) => { const els = [...document.querySelectorAll('#side button, #side select, #layoutBar button, #schem [data-junction]')]; const e = els[Math.floor(a * els.length)];
+    await page.evaluate(([a, b]) => { const els = [...document.querySelectorAll('#side button, #side select, #layoutBar button, #v3bar button')]; const e = els[Math.floor(a * els.length)];
       if(e.tagName === 'SELECT'){ e.value = e.options[Math.floor(b * e.options.length)].value; e.dispatchEvent(new Event('change', { bubbles: true })); } else e.dispatchEvent(new MouseEvent('click', { bubbles: true })); }, [rnd(), rnd()]);
   }
   await page.waitForTimeout(500);

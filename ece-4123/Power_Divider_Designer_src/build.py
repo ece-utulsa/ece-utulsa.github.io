@@ -31,10 +31,12 @@ CHANGELOG = ('\n    v2.0.0 - Wilkinson Power Divider Designer v1.0.0 rebuilt as 
              'spacing warnings, footprint and saving, side-by-side with straight. Input power in W or dBm, output power in W, '
              'dBm and % solved beside ideal, width-vs-ratio plot and minimum-width flag. Performance page (plot, markers, range, '
              'phase, pinned comparison, power flow at f0 and the marker, S-matrix checks, three-port theorem, tree vs direct '
-             'N-way), Parameters page (build sheet, CSV, print), Theory, Experiments and an in-page Tests page.')
+             'N-way), Parameters page (build sheet, CSV, print), Theory, Experiments and an in-page Tests page. SMA connectors '
+             '(edge launch at the board edge, vertical inside an H-tree) and a 3D view of the board (orbit, zoom, height '
+             'exaggeration); the two outputs of every 2-way stage leave the output node as separate lines.')
 # ── END RELEASE ───────────────────────────────────────────────────────
 
-SCRIPTS = ['engine.js', 'layout.js', 'ui.js', 'schematic.js', 'designer.js', 'perf.js', 'params.js', 'docs.js', 'tests.js', 'main.js']
+SCRIPTS = ['engine.js', 'layout.js', 'ui.js', 'view3d.js', 'designer.js', 'perf.js', 'params.js', 'docs.js', 'tests.js', 'main.js']
 FONTS = [('IBMPlexMono-Regular-latin.woff2', 400), ('IBMPlexMono-SemiBold-latin.woff2', 600)]
 HERE = os.path.dirname(os.path.abspath(__file__))
 
