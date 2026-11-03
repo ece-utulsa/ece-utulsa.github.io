@@ -119,6 +119,9 @@ select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(
 .explain th,.explain td{border:1px solid var(--line2);padding:7px 9px;text-align:left;color:#c4cdd8}
 .explain th{background:var(--panel);color:var(--ink);font-weight:600}
 .o{color:var(--out);font-weight:700}.i{color:var(--into);font-weight:700}.c{color:var(--comm);font-weight:700}.f{color:var(--force);font-weight:700}
+:where(button,select,input,summary):focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.panel canvas:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
+#cvGraph{cursor:ew-resize}
 
 @media (max-width:1100px){
   .app{grid-template-columns:1fr}
@@ -130,7 +133,8 @@ select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(
   .top{padding:10px 16px}
   .app{padding:10px 8px}
   .modes button{padding:6px 8px;font-size:12px}
-  .graphs{height:240px}
+  .graphs{height:330px}
+  .graphs .phead{flex-wrap:wrap;padding:6px 10px}
 }
 </style>
 </head>
@@ -140,7 +144,7 @@ select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(
   <div class="brand">
     <span class="dot"></span>
     <div>
-      <h1>Commutation <span class="ver">v3.0.0</span></h1>
+      <h1>Commutation <span class="ver">v3.1.0</span></h1>
       <p>How a split ring keeps the current — and the torque — going the same way</p>
     </div>
   </div>
@@ -301,7 +305,7 @@ select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(
 
 <script>
 /* =====================================================================
-   COMMUTATION — v3.0.0
+   COMMUTATION — v3.1.0
    Conventions (end view, looking along the shaft from the brush end):
      x right, y up, angles CCW from +x.  N pole on top, S pole on bottom,
      field points DOWN through the rotor.  Out of page (•) = toward viewer.
@@ -440,12 +444,27 @@ function evalAt(modeKey, th, pol) {
 const S = {
   mode: 'comm', theta: 60, omega: 0, playing: false, motion: 'free', speed: 0.5, pol: 1,
   follow: 0, view: '3d', flow: true, force: true, field: true, labels: true, pauseComm: false,
-  tween: null, drag: null, tour: -1, flowT: 0,
+  tween: null, drag: null, scrub: false, tour: -1, flowT: 0,
   cam: { yaw: 40, pitch: -20, zoom: 1 }, camTween: null
 };
 let E = evalAt(S.mode, S.theta, S.pol);
 let GRAPH = null;
 const $ = id => document.getElementById(id);
+
+/* render-on-demand bookkeeping: frames are drawn only while something moves or after an input */
+let DIRTY = true, STAGE_VISIBLE = true, FONT_VER = 0;
+const invalidate = () => { DIRTY = true; };
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
+/* Torque is linear in the supply current, so one table per machine (at pol = +1, 0.25° steps)
+   replaces a full nodal solve on every 240 Hz physics sub-step. */
+const LUT = {}, LUT_N = 1440;
+function torqueAt(modeKey, th, pol) {
+  let t = LUT[modeKey];
+  if (!t) { t = LUT[modeKey] = new Float64Array(LUT_N + 1); for (let j = 0; j <= LUT_N; j++) t[j] = evalAt(modeKey, j * 360 / LUT_N, 1).T; }
+  const u = mod(th, 360) * LUT_N / 360, j = Math.min(LUT_N - 1, Math.floor(u)), fr = u - j;
+  return pol * (t[j] + (t[j + 1] - t[j]) * fr);
+}
 
 /* ---------------- dynamics ---------------- */
 const K_ACC = 300, DAMP = 1.8, W_STEADY = 75;
@@ -454,7 +473,7 @@ const rotDir = () => -S.pol;            // +1 CCW, −1 CW (with + on the right 
 function physicsStep(dt) {
   const th0 = S.theta;
   if (S.motion === 'free') {
-    const T = evalAt(S.mode, S.theta, S.pol).T / MODES[S.mode].Tref;
+    const T = torqueAt(S.mode, S.theta, S.pol) / MODES[S.mode].Tref;
     S.omega += (K_ACC * T - DAMP * S.omega) * dt;
     if (Math.abs(S.omega) < 0.4 && Math.abs(T) < 1e-3) S.omega = 0;
   } else S.omega = rotDir() * W_STEADY;
@@ -489,11 +508,31 @@ function stepBy(sign) {
 }
 
 /* ---------------- canvas helpers ---------------- */
+/* Backing store is capped at 2× so a 3× phone doesn't push 2.25× the pixels for no visible gain.
+   o.ver bumps on every resize so cached layers know to rebuild. */
+const DPR_MAX = 2;
 function mkCanvas(id) {
-  const c = $(id), x = c.getContext('2d'), o = { c, x, w: 0, h: 0 };
-  const fit = () => { const r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; if (!r.width) return; c.width = r.width * dpr; c.height = r.height * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0); o.w = r.width; o.h = r.height; };
+  const c = $(id), x = c.getContext('2d'), o = { c, x, w: 0, h: 0, dpr: 1, ver: 0 };
+  const fit = () => {
+    const r = c.getBoundingClientRect(), dpr = Math.min(DPR_MAX, window.devicePixelRatio || 1); if (!r.width) return;
+    const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
+    if (W === c.width && H === c.height && o.w === r.width && o.h === r.height) return;
+    c.width = W; c.height = H; x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    o.w = r.width; o.h = r.height; o.dpr = dpr; o.ver++; invalidate();
+  };
   new ResizeObserver(fit).observe(c); fit();
   return o;
+}
+/* An offscreen layer that matches a canvas and is rebuilt only when its key changes. */
+function mkLayer() { return { c: document.createElement('canvas'), key: null }; }
+function useLayer(L, o, key, paint) {
+  key = key + '|' + o.ver + '|' + FONT_VER;
+  if (L.key !== key) {
+    L.c.width = o.c.width; L.c.height = o.c.height;
+    const lx = L.c.getContext('2d'); lx.setTransform(o.dpr, 0, 0, o.dpr, 0, 0); lx.clearRect(0, 0, o.w, o.h);
+    paint(lx); L.key = key;
+  }
+  o.x.save(); o.x.setTransform(1, 0, 0, 1, 0, 0); o.x.drawImage(L.c, 0, 0); o.x.restore();
 }
 const P = (cx, cy, r, deg) => [cx + Math.cos(deg * DEG) * r, cy - Math.sin(deg * DEG) * r];
 function arrowHead(x, tx, ty, ang, size, color) {
@@ -507,9 +546,14 @@ function arrow(x, x1, y1, x2, y2, color, lw, head) {
   x.strokeStyle = color; x.lineWidth = lw; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke();
   arrowHead(x, x2, y2, Math.atan2(y2 - y1, x2 - x1), head || lw * 3.2, color);
 }
-function label(x, txt, px, py, color, size, weight, align) {
-  x.fillStyle = color; x.font = `${weight || 600} ${size}px "IBM Plex Mono", monospace`;
-  x.textAlign = align || 'center'; x.textBaseline = 'middle'; x.fillText(txt, px, py);
+/* Setting ctx.font re-parses the string every time, so remember the last one per context.
+   halo: draw a dark outline first so the text stays legible over wires and poles. */
+function label(x, txt, px, py, color, size, weight, align, halo) {
+  const f = `${weight || 600} ${size}px "IBM Plex Mono", monospace`;
+  if (x._font !== f) { x.font = f; x._font = f; }
+  x.textAlign = align || 'center'; x.textBaseline = 'middle';
+  if (halo) { x.lineJoin = 'round'; x.lineWidth = 3.5; x.strokeStyle = 'rgba(10,15,21,0.88)'; x.strokeText(txt, px, py); }
+  x.fillStyle = color; x.fillText(txt, px, py);
 }
 /* moving chevrons along a 2-D polyline; v = signed speed (px/s), +: along the point order */
 function flowChevrons(x, pts, v, color, spacing, size) {
@@ -519,16 +563,20 @@ function flowChevrons(x, pts, v, color, spacing, size) {
   const L = cum[cum.length - 1]; if (L < 4) return;
   const n = Math.max(1, Math.round(L / spacing)), sp = L / n;
   const off = mod(S.flowT * v, sp);
-  x.fillStyle = color;
+  /* every chevron goes into one path and one fill (no per-chevron save/rotate/restore) */
+  const shape = [[size, 0], [-size * 0.7, size * 0.75], [-size * 0.25, 0], [-size * 0.7, -size * 0.75]];
+  x.fillStyle = color; x.beginPath();
+  let s = 1;
   for (let j = 0; j < n; j++) {
-    const d = off + j * sp; let s = 1; while (s < cum.length - 1 && cum[s] < d) s++;
+    const d = off + j * sp; while (s < cum.length - 1 && cum[s] < d) s++;
     const t = (d - cum[s - 1]) / ((cum[s] - cum[s - 1]) || 1);
     const px = lerp(pts[s - 1][0], pts[s][0], t), py = lerp(pts[s - 1][1], pts[s][1], t);
     let a = Math.atan2(pts[s][1] - pts[s - 1][1], pts[s][0] - pts[s - 1][0]); if (v < 0) a += Math.PI;
-    x.save(); x.translate(px, py); x.rotate(a);
-    x.beginPath(); x.moveTo(size, 0); x.lineTo(-size * 0.7, size * 0.75); x.lineTo(-size * 0.25, 0); x.lineTo(-size * 0.7, -size * 0.75); x.closePath(); x.fill();
-    x.restore();
+    const ca = Math.cos(a), sa = Math.sin(a);
+    shape.forEach(([u, w], q) => { const X = px + u * ca - w * sa, Y = py + u * sa + w * ca; q ? x.lineTo(X, Y) : x.moveTo(X, Y); });
+    x.closePath();
   }
+  x.fill();
 }
 
 /* =====================================================================
@@ -536,16 +584,10 @@ function flowChevrons(x, pts, v, color, spacing, size) {
    ===================================================================== */
 const cvEnd = mkCanvas('cvEnd'), cvAlt = mkCanvas('cvAlt'), cvGraph = mkCanvas('cvGraph');
 let endGeom = null;
+const endLayer = mkLayer();
 
-function drawEnd() {
-  const { x, w, h } = cvEnd; if (!w) return;
-  x.clearRect(0, 0, w, h);
-  const m = MODES[S.mode], th = S.theta;
-  const cx = w / 2, cy = h / 2 + 6;
-  const R = Math.min(w / 2 / 1.72, (h / 2 - 8) / 1.66);
-  endGeom = { cx, cy, R };
-  const nom = m.nominal;
-
+/* Everything that does not turn with the rotor: drawn once into a layer, reused every frame. */
+function paintStator(x, cx, cy, R) {
   /* yoke */
   x.fillStyle = '#18212b'; x.strokeStyle = '#2b3846'; x.lineWidth = 1;
   x.beginPath(); x.arc(cx, cy, R * 1.64, 0, 2 * Math.PI); x.arc(cx, cy, R * 1.5, 0, 2 * Math.PI, true); x.fill(); x.stroke();
@@ -606,11 +648,22 @@ function drawEnd() {
     label(x, 'B ≈ 0', cx + R * 1.27, cy + 9, 'rgba(228,108,245,0.8)', 10, 600);
   }
 
-  /* rotor */
+  /* rotor disc (rotationally symmetric, so it can live in the static layer) */
   const rg = x.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R);
   rg.addColorStop(0, '#26303c'); rg.addColorStop(1, '#161d26');
   x.fillStyle = rg; x.strokeStyle = '#3c4a5a'; x.lineWidth = 1.5;
   x.beginPath(); x.arc(cx, cy, R, 0, 2 * Math.PI); x.fill(); x.stroke();
+}
+
+function drawEnd() {
+  const { x, w, h } = cvEnd; if (!w) return;
+  x.clearRect(0, 0, w, h);
+  const m = MODES[S.mode], th = S.theta;
+  const cx = w / 2, cy = h / 2 + 6;
+  const R = Math.min(w / 2 / 1.72, (h / 2 - 8) / 1.66);
+  endGeom = { cx, cy, R };
+  const nom = m.nominal;
+  useLayer(endLayer, cvEnd, `${S.field}|${S.labels}`, lx => paintStator(lx, cx, cy, R));
 
   const condR = c => (m.coils === 1 ? 0.84 : (c.layer === 0 ? 0.88 : 0.71)) * R;
   const cr = R * (m.coils === 1 ? 0.1 : 0.075);
@@ -631,9 +684,8 @@ function drawEnd() {
     const followed = m.coils === 1 || c.coil === S.follow;
     const landA = leadLanding(m, c, th);
     const p0 = P(cx, cy, condR(c), c.ang), p2 = P(cx, cy, Rc2 + 1, landA);
-    const pm = P(cx, cy, (condR(c) + Rc2) / 2 + R * 0.05, (c.ang + landA) / 2 + (m.coils === 1 ? 0 : 0));
+    const pm = P(cx, cy, (condR(c) + Rc2) / 2 + R * 0.05, (c.ang + landA) / 2);
     const ctl = [2 * pm[0] - (p0[0] + p2[0]) / 2, 2 * pm[1] - (p0[1] + p2[1]) / 2];
-    const tcur = (c.primed ? -c.cur : c.cur) / m.nominal; // current along lead, sign wrt "seg→coil" for primed
     x.strokeStyle = followed ? curCol(c.cur / nom, 0.85) : 'rgba(140,155,175,0.18)';
     x.lineWidth = followed ? 2.6 : 1;
     x.beginPath(); x.moveTo(p0[0], p0[1]); x.quadraticCurveTo(ctl[0], ctl[1], p2[0], p2[1]); x.stroke();
@@ -651,7 +703,7 @@ function drawEnd() {
     x.fillStyle = '#7b5530'; x.beginPath(); x.arc(cx, cy, Rc2, 0, 2 * Math.PI); x.arc(cx, cy, Rc1, 0, 2 * Math.PI, true); x.fill();
     x.strokeStyle = COL.copper; x.lineWidth = 2; x.beginPath(); x.arc(cx, cy, Rc2, 0, 2 * Math.PI); x.stroke();
     x.setLineDash([3, 3]); x.strokeStyle = '#a0703c'; x.lineWidth = 1; x.beginPath(); x.arc(cx, cy, (Rc1 + Rc2) / 2, 0, 2 * Math.PI); x.stroke(); x.setLineDash([]);
-    if (S.labels) { label(x, 'two full rings', cx, cy - Rc2 - 11, '#d9a46a', 10, 600); label(x, '(one behind the other)', cx, cy + Rc2 + 11, '#d9a46a', 9.5, 500); }
+    if (S.labels) { label(x, 'centre: two full slip rings', 10, h - 28, '#d9a46a', 10, 600, 'left'); label(x, '(one behind the other)', 10, h - 14, '#d9a46a', 9.5, 500, 'left'); }
     // rotation marker so the rings visibly turn
     const mk = P(cx, cy, (Rc1 + Rc2) / 2, th); x.fillStyle = '#e8c08a'; x.beginPath(); x.arc(mk[0], mk[1], 3, 0, 2 * Math.PI); x.fill();
   } else {
@@ -688,12 +740,10 @@ function drawEnd() {
         const yoff = -Math.sin(segMid * DEG) * Rc2 * 0.9;
         const mag = Math.abs(c.cur) / I0;
         if (mag < 0.04) continue;
-        const into = c.cur > 0;
-        const xa = cx + dirx * (r0 + R * 0.02), xb = cx + dirx * (r0 - R * 0.01);
-        x.globalAlpha = 0.4 + 0.6 * mag;
-        const sx = into ? xa : xb, ex = into ? xb : xa;
-        x.strokeStyle = '#fff'; x.lineWidth = 1 + 2 * mag;
-        x.beginPath(); x.moveTo(sx + dirx * 0.1, cy + yoff); x.lineTo(ex, cy + yoff); x.stroke();
+        const into = c.cur > 0;   // + : from the brush into the segment
+        const xo = cx + dirx * (r0 + R * 0.17), xi = cx + dirx * (r0 + R * 0.025);
+        x.globalAlpha = 0.45 + 0.55 * mag;
+        arrow(x, into ? xo : xi, cy + yoff, into ? xi : xo, cy + yoff, '#ffffff', 1 + 1.6 * mag, 4 + 3 * mag);
         x.globalAlpha = 1;
       }
     }
@@ -705,7 +755,7 @@ function drawEnd() {
     x.beginPath(); x.arc(lx1 + dirx * 9, cy, 9, 0, 2 * Math.PI); x.fill(); x.stroke();
     label(x, isPlus ? '+' : '−', lx1 + dirx * 9, cy + 0.5, pcol, 14, 800);
     if (S.flow) {
-      const v = (isPlus ? -dirx : dirx) * 30; // into + brush, out of − brush (toward/away from centre)
+      // into the + brush, out of the − brush
       flowChevrons(x, [[lx1, cy], [lx0, cy]], isPlus ? 30 : -30, '#ffffff', 14, 4.5);
     }
   });
@@ -730,16 +780,17 @@ function drawEnd() {
     const col = curCol(t);
     const followed = m.coils === 1 || c.coil === S.follow;
     if (followed && m.coils > 1) { x.strokeStyle = 'rgba(255,255,255,0.9)'; x.lineWidth = 1.5; x.beginPath(); x.arc(p[0], p[1], cr + 4, 0, 2 * Math.PI); x.stroke(); }
-    x.save(); x.shadowColor = col; x.shadowBlur = 10 * Math.abs(t);
+    const at = Math.min(1, Math.abs(t));
+    if (at > 0.05) { x.fillStyle = curCol(t, 0.22 * at); x.beginPath(); x.arc(p[0], p[1], cr + 5, 0, 2 * Math.PI); x.fill(); } // cheap glow (shadowBlur is costly)
     x.fillStyle = '#0c1014'; x.strokeStyle = col; x.lineWidth = 2.6;
-    x.beginPath(); x.arc(p[0], p[1], cr, 0, 2 * Math.PI); x.fill(); x.stroke(); x.restore();
+    x.beginPath(); x.arc(p[0], p[1], cr, 0, 2 * Math.PI); x.fill(); x.stroke();
     x.strokeStyle = col; x.fillStyle = col;
     if (t > 0.18) { x.beginPath(); x.arc(p[0], p[1], cr * 0.32, 0, 2 * Math.PI); x.fill(); }
     else if (t < -0.18) { const s = cr * 0.5; x.lineWidth = 2.6; x.beginPath(); x.moveTo(p[0] - s, p[1] - s); x.lineTo(p[0] + s, p[1] + s); x.moveTo(p[0] + s, p[1] - s); x.lineTo(p[0] - s, p[1] + s); x.stroke(); }
     else { x.lineWidth = 1.5; x.beginPath(); x.arc(p[0], p[1], cr * 0.42, 0, 2 * Math.PI); x.stroke(); }
     if (S.labels) {
       const lp = P(cx, cy, condR(c) - cr - (m.coils === 1 ? 13 : 10), c.ang);
-      label(x, (c.coil + 1) + (c.primed ? '′' : ''), lp[0], lp[1], followed ? COL.ink : COL.mut, m.coils === 1 ? 13 : 10.5, 700);
+      label(x, (c.coil + 1) + (c.primed ? '′' : ''), lp[0], lp[1], followed ? COL.ink : COL.mut, m.coils === 1 ? 13 : 10.5, 700, 'center', true);
     }
   }
 
@@ -892,7 +943,7 @@ function draw3D() {
     const landP = leadLanding(m, cP, th), landU = leadLanding(m, cU, th);
     const zP = m.slip ? ringZ[0][0] : zc0, zU = m.slip ? ringZ[1][0] : zc0;
     // positive coil current: seg k → lead → primed side (front→back) → back end → unprimed side (back→front) → lead → seg k+1
-    const leadP = [cyl(rc, landP, zP), cyl((rc + rP) / 2 + 0.05, (landP + cP.ang) / 2 + (m.coils > 1 ? 0 : 0), -1.24 - 0.02 * k), cyl(rP, cP.ang, ZF)];
+    const leadP = [cyl(rc, landP, zP), cyl((rc + rP) / 2 + 0.05, (landP + cP.ang) / 2, -1.24 - 0.02 * k), cyl(rP, cP.ang, ZF)];
     if (m.coils > 1) { // long end-connection: swing round the shaft, not through it
       const a0 = landP, a1 = cP.ang; let da = wrap180(a1 - a0);
       leadP.length = 0; for (let i = 0; i <= 10; i++) { const t = i / 10; leadP.push(cyl(lerp(rc, rP, t) + 0.12 * Math.sin(Math.PI * t), a0 + da * t, lerp(zP, ZF, t))); }
@@ -953,7 +1004,7 @@ function draw3D() {
       x.strokeStyle = it.color; x.lineWidth = Math.max(0.6, it.lw * s); x.lineCap = 'round';
       x.beginPath(); x.moveTo(it.pp[0][0], it.pp[0][1]); x.lineTo(it.pp[1][0], it.pp[1][1]); x.stroke(); x.lineCap = 'butt';
     } else if (it.k === 'h') arrowHead(x, it.x, it.y, it.ang, it.size, it.color);
-    else if (it.k === 't') label(x, it.txt, it.x, it.y, it.color, it.size, 800);
+    else if (it.k === 't') label(x, it.txt, it.x, it.y, it.color, it.size, 800, 'center', true);
   }
 
   /* current-flow chevrons, drawn on top so the direction is always visible */
@@ -974,14 +1025,14 @@ function draw3D() {
   plate(plusRight ? 4 : -4, true); plate(plusRight ? -4 : 4, false);
   label(x, plusRight ? '−' : '+', bc[0] - 15, bc[1] - 15, plusRight ? '#7aa7ff' : '#ff6b6b', 14, 800);
   label(x, plusRight ? '+' : '−', bc[0] + 15, bc[1] - 15, plusRight ? '#ff6b6b' : '#7aa7ff', 14, 800);
-  if (S.labels) label(x, 'DC supply', bc[0], bc[1] + 24, COL.mut, 10.5, 600);
+  if (S.labels) label(x, 'DC supply', bc[0], bc[1] + 24, COL.mut, 10.5, 600, 'center', true);
   brushInfo.forEach(b => {
     const p = cam.proj([b.dir * (rc + 0.42), 0.26, b.zcen]);
-    label(x, b.isPlus ? '+ brush' : '− brush', p[0], p[1], b.isPlus ? '#ff8a8a' : '#94b8ff', 11, 700);
+    label(x, b.isPlus ? '+ brush' : '− brush', p[0], p[1], b.isPlus ? '#ff8a8a' : '#94b8ff', 11, 700, 'center', true);
   });
   if (S.labels) {
     const p = cam.proj([0, -0.62, m.slip ? -1.63 : zc1 - 0.05]);
-    label(x, m.slip ? 'slip rings' : 'commutator', p[0], p[1] + 2, '#d9a46a', 10.5, 600);
+    label(x, m.slip ? 'slip rings' : 'commutator', p[0], p[1] + 2, '#d9a46a', 10.5, 600, 'center', true);
   }
   label(x, w > 520 ? 'drag to orbit · scroll to zoom · double-click to reset' : 'drag to orbit', 10, 14, COL.mut2, 10, 500, 'left');
 }
@@ -1027,8 +1078,9 @@ function drawCircuit() {
       label(x, nm, px + (px < cx ? -36 : 36), cy, '#d9a46a', 11, 600);
     }
     // battery
-    x.strokeStyle = '#e6edf4'; x.lineWidth = 3; strokePts(x, [[cx - 6, bot - 14], [cx - 6, bot + 14]]);
-    x.lineWidth = 5; strokePts(x, [[cx + 6, bot - 8], [cx + 6, bot + 8]]);
+    const bp = plusRight ? 6 : -6;   // long thin plate = + terminal
+    x.strokeStyle = '#e6edf4'; x.lineWidth = 3; strokePts(x, [[cx + bp, bot - 14], [cx + bp, bot + 14]]);
+    x.lineWidth = 5; strokePts(x, [[cx - bp, bot - 8], [cx - bp, bot + 8]]);
     label(x, plusRight ? '−' : '+', cx - 18, bot - 18, plusRight ? '#7aa7ff' : '#ff6b6b', 14, 800);
     label(x, plusRight ? '+' : '−', cx + 18, bot - 18, plusRight ? '#ff6b6b' : '#7aa7ff', 14, 800);
     if (S.flow) {
@@ -1053,14 +1105,15 @@ function drawCircuit() {
     const followed = m.coils === 1 || k === S.follow;
     const pts = coilPath(cx, cy, Rk, a0, a1, m.coils === 1 ? 6 : 3);
     const full = [P(cx, cy, Rc2, a0), ...pts, P(cx, cy, Rc2, a1)];
-    x.save(); x.shadowColor = curCol(ik); x.shadowBlur = followed ? 10 : 0;
-    x.strokeStyle = curCol(ik); x.lineWidth = followed ? 3.4 : 2.4; strokePts(x, full); x.restore();
+    x.lineJoin = 'round';
+    if (followed) { x.strokeStyle = curCol(ik, 0.18); x.lineWidth = 10; strokePts(x, full); } // cheap glow (shadowBlur is costly)
+    x.strokeStyle = curCol(ik); x.lineWidth = followed ? 3.4 : 2.4; strokePts(x, full);
     if (S.flow) flowChevrons(x, full, ik * 55, '#ffffff', 30, 5.5);
     if (S.labels) {
       const lp = P(cx, cy, Rk + 26, (a0 + a1) / 2);
-      label(x, 'coil ' + (k + 1), lp[0], lp[1] - 7, followed ? COL.ink : COL.mut, 11, 700);
+      label(x, 'coil ' + (k + 1), lp[0], lp[1] - 7, followed ? COL.ink : COL.mut, 11, 700, 'center', true);
       const val = Math.abs(ik) < 0.05 ? '0' : (ik > 0 ? '+' : '−') + (Math.abs(ik) > 0.95 ? '' : Math.abs(ik).toFixed(2)) + (m.coils === 1 ? 'I' : (Math.abs(ik) > 0.95 ? '½I' : '·½I'));
-      label(x, 'i = ' + val, lp[0], lp[1] + 7, curCol(ik), 10.5, 600);
+      label(x, 'i = ' + val, lp[0], lp[1] + 7, curCol(ik), 10.5, 600, 'center', true);
     }
   }
   // segments
@@ -1083,9 +1136,10 @@ function drawCircuit() {
     label(x, isPlus ? '+' : '−', cx + dir * (Rc1 - Rm * 0.06), cy - bw - 9, isPlus ? '#ff6b6b' : '#7aa7ff', 13, 800);
     if (S.flow) flowChevrons(x, [[cx + dir * 12, cy], [x1, cy]], isPlus ? 40 : -40, '#fff', 16, 4.5);
   }
-  x.strokeStyle = '#e6edf4'; x.lineWidth = 3; strokePts(x, [[cx - 4, cy - 12], [cx - 4, cy + 12]]);
-  x.lineWidth = 5; strokePts(x, [[cx + 4, cy - 7], [cx + 4, cy + 7]]);
-  if (!plusRight) { /* flip plates visually */ }
+  /* battery: long thin plate = +, on the side wired to the + brush */
+  const px = plusRight ? 4 : -4;
+  x.strokeStyle = '#e6edf4'; x.lineWidth = 3; strokePts(x, [[cx + px, cy - 12], [cx + px, cy + 12]]);
+  x.lineWidth = 5; strokePts(x, [[cx - px, cy - 7], [cx - px, cy + 7]]);
   if (S.labels) {
     label(x, 'supply', cx, cy + 24, COL.mut, 10, 600);
     label(x, m.coils === 1 ? 'coil ends land on segments a and b' : 'two parallel paths: + brush → half the coils → − brush', cx, h - 12, COL.mut, 10.5, 500);
@@ -1108,42 +1162,42 @@ function buildGraph() {
     data.push({ psi, i: e.sol.i[k] / MODES[S.mode].nominal, T: -e.T / MODES[S.mode].Tref, Tf: -fol / MODES[S.mode].Tref, comm: e.comm[k], zone: gField(side) < 0.02 ? 0 : poleSign(side) });
   }
   GRAPH = { data, key: S.mode + S.pol + S.follow };
-}
-function drawGraph() {
-  const { x, w, h } = cvGraph; if (!w) return;
-  if (!GRAPH || GRAPH.key !== S.mode + S.pol + S.follow) buildGraph();
-  x.clearRect(0, 0, w, h);
   const m = MODES[S.mode];
-  const L = 54, Rp = 14, T0 = 8, B = 22, gap = 10;
+  $('graphNote').innerHTML = `<span style="color:${COL.N}">red band</span>: ${m.coils === 1 ? 'side 1' : 'side ' + (S.follow + 1)} under N · <span style="color:${COL.S}">blue</span>: under S · <span style="color:${COL.comm}">magenta</span>: reversing · drag to scrub`;
+}
+const graphLayer = mkLayer();
+/* layout shared by the static layer, the moving cursor and the scrub handler */
+function graphGeom() {
+  const { w, h } = cvGraph, L = 54, Rp = 14, T0 = 8, B = 22, gap = 10;
   const rowH = (h - T0 - B - gap * 2) / 3;
-  const X = psi => L + (w - L - Rp) * psi / 360;
+  return { w, h, L, Rp, T0, B, gap, rowH, X: psi => L + (w - L - Rp) * psi / 360, lo: -1.3, hi: 1.75 };
+}
+function paintGraph(x, g) {
+  const m = MODES[S.mode], { w, h, L, Rp, T0, B, gap, rowH, X } = g;
   const coilName = m.coils === 1 ? 'the loop' : 'coil ' + (S.follow + 1);
   const rows = [
-    { key: 'i', title: `current in ${coilName}  (turns with the rotor)`, lo: -1.3, hi: 1.75, ticks: [[1, '+I'], [0, '0'], [-1, '−I']] },
-    { key: 's', title: 'current from the supply  (fixed brushes)', lo: -1.3, hi: 1.75, ticks: [[1, '+I'], [0, '0'], [-1, '−I']] },
-    { key: 'T', title: 'torque on the rotor  (+ = clockwise)', lo: -1.3, hi: 1.75, ticks: [[1, 'max'], [0, '0'], [-1, '−max']] },
+    { key: 'i', title: `current in ${coilName}  (turns with the rotor)`, ticks: [[1, '+I'], [0, '0'], [-1, '−I']] },
+    { key: 's', title: 'current from the supply  (fixed brushes)', ticks: [[1, '+I'], [0, '0'], [-1, '−I']] },
+    { key: 'T', title: 'torque on the rotor  (+ = clockwise)', ticks: [[1, 'max'], [0, '0'], [-1, '−max']] },
   ];
   const d = GRAPH.data;
-  const psiNow = mod(S.theta * rotDir(), 360);
   rows.forEach((r, ri) => {
     const top = T0 + ri * (rowH + gap), bot = top + rowH;
-    const Y = v => bot - (v - r.lo) / (r.hi - r.lo) * rowH;
-    // zone bands: where the followed coil's side 1 is
-    for (let j = 0; j < NG; j++) {
-      const z = d[j].zone, c = d[j].comm;
-      const col = c ? 'rgba(228,108,245,0.16)' : z > 0 ? 'rgba(229,72,77,0.07)' : z < 0 ? 'rgba(62,123,250,0.07)' : 'rgba(140,150,165,0.05)';
-      x.fillStyle = col; x.fillRect(X(d[j].psi), top, X(d[j + 1].psi) - X(d[j].psi) + 0.5, rowH);
-    }
+    const Y = v => bot - (v - g.lo) / (g.hi - g.lo) * rowH;
+    // zone bands: where the followed coil's side 1 is (merged into runs, not 360 thin rects)
+    let j0 = 0;
+    const bandCol = j => d[j].comm ? 'rgba(228,108,245,0.16)' : d[j].zone > 0 ? 'rgba(229,72,77,0.07)' : d[j].zone < 0 ? 'rgba(62,123,250,0.07)' : 'rgba(140,150,165,0.05)';
+    for (let j = 1; j <= NG; j++) if (j === NG || bandCol(j) !== bandCol(j0)) { x.fillStyle = bandCol(j0); x.fillRect(X(d[j0].psi), top, X(d[j].psi) - X(d[j0].psi), rowH); j0 = j; }
     x.strokeStyle = '#223040'; x.lineWidth = 1; x.strokeRect(L + 0.5, top + 0.5, w - L - Rp - 1, rowH - 1);
     for (const [v, t] of r.ticks) {
       x.strokeStyle = v === 0 ? '#2f3e50' : '#1a2532'; x.beginPath(); x.moveTo(L, Y(v) + 0.5); x.lineTo(w - Rp, Y(v) + 0.5); x.stroke();
       label(x, t, L - 6, Y(v), COL.mut2, 9.5, 500, 'right');
     }
-    // traces
     const trace = (fn, color, lw, dash) => {
       x.strokeStyle = color; x.lineWidth = lw; x.setLineDash(dash || []); x.beginPath();
       d.forEach((p, j) => { const yy = Y(fn(p)); j ? x.lineTo(X(p.psi), yy) : x.moveTo(X(p.psi), yy); }); x.stroke(); x.setLineDash([]);
     };
+    x.lineJoin = 'round';
     if (r.key === 'i') {
       // colour each piece by sign
       for (let j = 0; j < NG; j++) { x.strokeStyle = curCol(d[j].i); x.lineWidth = 2.4; x.beginPath(); x.moveTo(X(d[j].psi), Y(d[j].i)); x.lineTo(X(d[j + 1].psi), Y(d[j + 1].i)); x.stroke(); }
@@ -1154,22 +1208,30 @@ function drawGraph() {
       trace(p => p.T, COL.force, 2.4);
     }
     // title on a backing plate so traces never hide it
-    x.font = '600 10.5px "IBM Plex Mono", monospace'; const tw = x.measureText(r.title).width;
+    x.font = x._font = '600 10.5px "IBM Plex Mono", monospace'; const tw = x.measureText(r.title).width;
     x.fillStyle = 'rgba(10,15,21,0.82)'; x.fillRect(L + 4, top + 2, tw + 8, 14);
     label(x, r.title, L + 8, top + 9, COL.mut, 10.5, 600, 'left');
-    // cursor
-    const cxp = X(psiNow);
-    x.strokeStyle = 'rgba(232,179,60,0.85)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(cxp, top); x.lineTo(cxp, bot); x.stroke();
-    let vNow = r.key === 'i' ? E.sol.i[m.coils === 1 ? 0 : S.follow] / m.nominal : r.key === 's' ? S.pol : -E.T / m.Tref;
-    x.fillStyle = r.key === 'i' ? curCol(vNow) : r.key === 's' ? '#fff' : COL.force;
-    x.beginPath(); x.arc(cxp, Y(vNow), 4.5, 0, 2 * Math.PI); x.fill();
   });
-  // x axis
-  const yb = h - B + 12;
-  const stepA = w < 600 ? 90 : 45;
-  for (let a = 0; a < 360; a += stepA) label(x, a + '°', X(a), yb, COL.mut2, 9.5, 500);
-  label(x, '360°', X(360), yb, COL.mut2, 9.5, 500);
-  $('graphNote').innerHTML = `<span style="color:${COL.N}">red band</span>: ${m.coils === 1 ? 'side 1' : 'side ' + (S.follow + 1)} under N · <span style="color:${COL.S}">blue</span>: under S · <span style="color:${COL.comm}">magenta</span>: reversing`;
+  const yb = h - B + 12, stepA = w < 600 ? 90 : 45;
+  for (let a = 0; a < 360; a += stepA) label(x, a + '°', X(a), yb, COL.mut2, 9.5, 500, a ? 'center' : 'left');
+  label(x, '360°', X(360), yb, COL.mut2, 9.5, 500, 'right');
+}
+function drawGraph() {
+  const { x, w } = cvGraph; if (!w) return;
+  if (!GRAPH || GRAPH.key !== S.mode + S.pol + S.follow) buildGraph();
+  x.clearRect(0, 0, cvGraph.w, cvGraph.h);
+  const m = MODES[S.mode], g = graphGeom();
+  useLayer(graphLayer, cvGraph, GRAPH.key, lx => paintGraph(lx, g));
+  // moving cursor + value dots (the only per-frame work)
+  const cxp = g.X(mod(S.theta * rotDir(), 360));
+  const vals = [E.sol.i[m.coils === 1 ? 0 : S.follow] / m.nominal, S.pol, -E.T / m.Tref];
+  x.strokeStyle = 'rgba(232,179,60,0.85)'; x.lineWidth = 1.2;
+  vals.forEach((v, ri) => {
+    const top = g.T0 + ri * (g.rowH + g.gap), bot = top + g.rowH;
+    x.beginPath(); x.moveTo(cxp, top); x.lineTo(cxp, bot); x.stroke();
+    x.fillStyle = ri === 0 ? curCol(v) : ri === 1 ? '#fff' : COL.force;
+    x.beginPath(); x.arc(cxp, bot - (v - g.lo) / (g.hi - g.lo) * g.rowH, 4.5, 0, 2 * Math.PI); x.fill();
+  });
 }
 
 /* =====================================================================
@@ -1180,26 +1242,34 @@ function segOnBrush(bi) {
   const cs = E.sol.contacts.filter(c => c.brush === bi && c.f > 0.02).sort((a, b) => b.f - a.f);
   return cs.map(c => MODES[S.mode].segNames[c.seg]);
 }
+/* Writing textContent/innerHTML/style forces style + layout work, so only write when the value changes. */
+const DOMC = new Map();
+function put(id, prop, val) {
+  const k = id + '.' + prop; if (DOMC.get(k) === val) return; DOMC.set(k, val);
+  const el = $(id);
+  if (prop === 'text') el.textContent = val; else if (prop === 'html') el.innerHTML = val;
+  else if (prop === 'class') el.className = val; else el.style[prop] = val;
+}
 function updateText() {
   const m = MODES[S.mode];
   const plusB = S.pol > 0 ? 0 : 1, minusB = 1 - plusB;
   const onP = segOnBrush(plusB), onM = segOnBrush(minusB);
-  $('kPlus').textContent = m.slip ? '+ brush on' : '+ brush on';
-  $('rPlus').textContent = onP.join(' + ') || '—';
-  $('rMinus').textContent = onM.join(' + ') || '—';
-  $('rPlus').style.color = onP.length > 1 ? COL.comm : COL.ink;
-  $('rMinus').style.color = onM.length > 1 ? COL.comm : COL.ink;
+  put('rPlus', 'text', onP.join(' + ') || '—');
+  put('rMinus', 'text', onM.join(' + ') || '—');
+  put('rPlus', 'color', onP.length > 1 ? COL.comm : COL.ink);
+  put('rMinus', 'color', onM.length > 1 ? COL.comm : COL.ink);
   const k = m.coils === 1 ? 0 : S.follow;
   const ti = E.sol.i[k] / m.nominal;
-  $('rCoil').textContent = fmtI(ti, m); $('rCoil').style.color = curCol(ti);
+  put('rCoil', 'text', fmtI(ti, m)); put('rCoil', 'color', curCol(ti));
   const Tn = -E.T / m.Tref;
-  $('rTorque').textContent = Math.abs(Tn) < 0.02 ? '0' : (Tn > 0 ? 'CW ' : 'CCW ') + Math.abs(Tn).toFixed(2);
-  $('rTorque').style.color = Tn < -0.02 && S.pol > 0 ? '#ff6b6b' : COL.force;
+  // the supply wants CW for pol > 0 and CCW for pol < 0; anything else is the slip-ring failure
+  const backwards = Tn * S.pol < -0.02;
+  put('rTorque', 'text', Math.abs(Tn) < 0.02 ? '0' : (Tn > 0 ? 'CW ' : 'CCW ') + Math.abs(Tn).toFixed(2));
+  put('rTorque', 'color', backwards ? '#ff6b6b' : COL.force);
 
-  const st = $('status');
-  if (E.anyComm) { st.textContent = 'COMMUTATING'; st.className = 'status comm'; }
-  else if (m.slip && Tn < -0.02) { st.textContent = 'TORQUE REVERSED'; st.className = 'status bad'; }
-  else { st.textContent = Math.abs(Tn) < 0.02 ? 'NO TORQUE' : 'CONDUCTING'; st.className = 'status'; }
+  if (E.anyComm) { put('status', 'text', 'COMMUTATING'); put('status', 'class', 'status comm'); }
+  else if (m.slip && backwards) { put('status', 'text', 'TORQUE REVERSED'); put('status', 'class', 'status bad'); }
+  else { put('status', 'text', Math.abs(Tn) < 0.02 ? 'NO TORQUE' : 'CONDUCTING'); put('status', 'class', 'status'); }
 
   const ang = c => mod(c.ang, 360);
   const where = c => c.g < 0.02 ? 'in the neutral zone' : (c.s > 0 ? 'under N' : 'under S');
@@ -1209,9 +1279,10 @@ function updateText() {
     const [c1, c1p] = E.conds;
     if (m.slip) {
       txt = `Side 1 is ${where(c1)}, carrying ${dirTxt(c1)}. Side 1′ is ${where(c1p)}, carrying ${dirTxt(c1p)}. `;
+      const dirName = Tn > 0 ? 'clockwise' : 'counter-clockwise';
       txt += Math.abs(Tn) < 0.02 ? 'Both sides are in the neutral zone, so there is no force.' :
-        Tn > 0 ? 'Both forces turn the rotor <b style="color:var(--force)">clockwise</b>.' :
-          `The slip rings never swap the connections, so now that the sides have changed poles the forces turn the rotor <b style="color:#ff6b6b">counter-clockwise, backwards</b>.`;
+        !backwards ? `Both forces turn the rotor <b style="color:var(--force)">${dirName}</b>.` :
+          `The slip rings never swap the connections, so now that the sides have changed poles the forces turn the rotor <b style="color:#ff6b6b">${dirName}, backwards</b>.`;
     } else if (E.anyComm) {
       txt = `The gap between <b>a</b> and <b>b</b> is under the brushes. Each brush touches <b>both</b> segments, so the loop is shorted and its current is ${fmtI(ti, m) === '0' ? 'passing through zero' : 'ramping toward the opposite direction'}. Both sides are in the neutral zone (B ≈ 0), so no torque is lost.`;
     } else {
@@ -1225,11 +1296,11 @@ function updateText() {
     txt += cc.length ? `Coils <b style="color:var(--comm)">${cc.join(' & ')}</b> are shorted by the brushes and reversing. The others carry ½I each, in two parallel paths. ` : 'All four coils carry ½I, in two parallel paths of two coils each. ';
     txt += `Every conductor under N is <b style="color:var(--out)">•</b> and every one under S is <b style="color:var(--into)">×</b>, so the torque stays <b style="color:var(--force)">${S.pol > 0 ? 'clockwise' : 'counter-clockwise'}</b>.`;
   }
-  $('nowText').innerHTML = txt;
+  put('nowText', 'html', txt);
 
   // dead-spot message: single loop, free motion, stopped with no torque
   const dead = S.mode === 'comm' && S.motion === 'free' && S.playing && Math.abs(S.omega) < 0.5 && Math.abs(Tn) < 0.02 && !S.tween;
-  $('deadMsg').classList.toggle('show', dead);
+  put('deadMsg', 'class', dead ? 'dead show' : 'dead');
 }
 
 /* =====================================================================
@@ -1378,13 +1449,35 @@ endC.addEventListener('pointermove', ev => {
 const endDrag = () => { if (S.drag) { S.drag = null; endC.style.cursor = 'grab'; } };
 endC.addEventListener('pointerup', endDrag); endC.addEventListener('pointercancel', endDrag);
 
+/* scrub the rotor angle by dragging across the graph */
+const grC = $('cvGraph');
+const scrubTo = ev => {
+  const g = graphGeom(), r = grC.getBoundingClientRect();
+  const psi = clamp((ev.clientX - r.left - g.L) / (g.w - g.L - g.Rp), 0, 1) * 360;
+  S.theta = rotDir() * psi; S.omega = 0; S.tween = null;
+};
+grC.addEventListener('pointerdown', ev => { setPlaying(false); S.scrub = true; grC.setPointerCapture(ev.pointerId); scrubTo(ev); });
+grC.addEventListener('pointermove', ev => { if (S.scrub) scrubTo(ev); });
+const endScrub = () => { S.scrub = false; };
+grC.addEventListener('pointerup', endScrub); grC.addEventListener('pointercancel', endScrub);
+
+/* any input may change what is on screen */
+for (const ev of ['click', 'input', 'change', 'keydown', 'wheel', 'pointerdown', 'pointerup']) document.addEventListener(ev, invalidate, true);
+REDUCED.addEventListener?.('change', invalidate);
+/* canvas text is drawn before the web fonts arrive: redraw cached layers once they land */
+document.fonts?.ready.then(() => { FONT_VER++; invalidate(); });
+document.fonts?.addEventListener?.('loadingdone', () => { FONT_VER++; invalidate(); });
+/* stop drawing while the simulation is scrolled out of view (reading the explainer) */
+new IntersectionObserver(es => { STAGE_VISIBLE = es.some(e => e.isIntersecting); invalidate(); }).observe(document.querySelector('.stage'));
+
 /* =====================================================================
    main loop
    ===================================================================== */
-let last = performance.now();
+let last = performance.now(), wasMoving = true;
 function frame(now) {
   const rdt = Math.min(0.05, (now - last) / 1000); last = now;
-  S.flowT += rdt;
+  const flowing = S.flow && !REDUCED.matches;   // reduced motion: arrows stay put but still show direction
+  if (flowing) S.flowT += rdt;
   if (S.camTween) {
     const ct = S.camTween; ct.t = Math.min(1, ct.t + rdt / 0.7); const u = smooth(ct.t);
     S.cam.yaw = ct.from.yaw + wrap180(ct.to.yaw - ct.from.yaw) * u; S.cam.pitch = lerp(ct.from.pitch, ct.to.pitch, u); S.cam.zoom = lerp(ct.from.zoom, ct.to.zoom, u);
@@ -1400,11 +1493,17 @@ function frame(now) {
     for (let j = 0; j < n && S.playing; j++) physicsStep(dt / n);
   }
   S.theta = mod(S.theta + 180, 360) - 180;
-  E = evalAt(S.mode, S.theta, S.pol);
-  drawEnd();
-  if (S.view === '3d') draw3D(); else drawCircuit();
-  drawGraph();
-  updateText();
+  const moving = S.playing || S.tween || S.camTween || S.drag || S.scrub || orbit || flowing;
+  const due = moving || DIRTY || wasMoving;   // one trailing frame after motion stops, so the final pose is drawn
+  wasMoving = moving;
+  if (STAGE_VISIBLE && due) {
+    DIRTY = false;
+    E = evalAt(S.mode, S.theta, S.pol);
+    drawEnd();
+    if (S.view === '3d') draw3D(); else drawCircuit();
+    drawGraph();
+    updateText();
+  }
   requestAnimationFrame(frame);
 }
 setMode('comm'); setMotion('free'); syncPol(); showTour();
