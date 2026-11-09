@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<!--
+  Senior Design WBS, Schedule and Earned Value Tool
+  Version: v1.0.0
+  Released: 2026-11-09
+  Changelog:
+    v1.0.0 - first release from the briefing of Nov 9, 2026 (tasks-only earned value). WBS tree and org-chart diagram with the Show to level control, the Senior Design template to level 3, side-panel editor, rule checks; week-based Gantt with baseline and actual bars, predecessors, milestones, lead-time items, re-baselining with history; task status bar chart (per week / cumulative, area and owner filters); This week routine; earned value chart, SPI trend, start/finish quadrant, measures table and late-task list; printable status report; autosave, project file Save/Open with schema version, CSV exports; help with the lecture equations.
+  Author: Claude Code
+  Briefing: Senior Design WBS, Schedule and Earned Value Tool, Nov 9, 2026 (Douglas Jussaume).
+  One self-contained file: no libraries, no fonts, no network requests at run time.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v1.0.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Senior Design WBS, Schedule and Earned Value v1.0.0</title>
+<style>
+:root{
+  --bg:#f4f6f7; --panel:#ffffff; --panel2:#eef2f4; --line:#c6cfd4; --ink:#1b2328; --mut:#4f5b62; --focus:#0b57d0;
+  --accent:#10668a; --start:#10668a; --finish:#18744a; --pv:#55636b; --ev:#10668a;
+  --a1:#10668a; --a2:#18744a; --a3:#8a5700; --a4:#6a4fc8;
+  --ok:#18744a; --watch:#8a5700; --bad:#b42318; --warnbg:#fff6e5; --badbg:#fdeceb; --okbg:#e8f4ed;
+}
+*{ box-sizing:border-box }
+html,body{ margin:0; height:100% }
+body{ background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px; line-height:1.4; display:flex; flex-direction:column; min-height:100vh }
+button,input,select,textarea{ font:inherit; color:inherit }
+button,select{ background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:.25em .65em; cursor:pointer; min-height:30px }
+button:hover:not(:disabled),select:hover{ border-color:var(--mut) }
+button:disabled{ color:#6b767c; cursor:default; background:var(--panel2) }
+button.primary{ background:var(--accent); color:#fff; border-color:var(--accent) }
+button.danger{ color:var(--bad); border-color:var(--bad) }
+button[aria-pressed="true"]{ background:var(--ink); color:#fff; border-color:var(--ink) }
+input[type=text],input[type=number],textarea,input:not([type]){ background:#fff; border:1px solid var(--line); border-radius:5px; padding:.25em .45em }
+input[type=number]{ width:5em }
+textarea{ width:100%; resize:vertical }
+:focus-visible{ outline:3px solid var(--focus); outline-offset:2px }
+a{ color:var(--accent) }
+h2{ font-size:18px; margin:0 0 .5em } h3{ font-size:16px; margin:1em 0 .4em } h4{ font-size:15px; margin:.8em 0 .3em }
+.mut{ color:var(--mut) } .small{ font-size:13px } .num{ font-variant-numeric:tabular-nums }
+.row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+.sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap }
+/* ── TOP BAR ── */
+#top{ display:flex; align-items:center; gap:10px 16px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap }
+#brand{ font-weight:700; font-size:16px } #pname{ font-weight:600; color:var(--accent); max-width:24em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+#weekctl{ display:flex; align-items:center; gap:4px } #weekctl input{ width:3.6em; text-align:center }
+#filebar{ display:flex; gap:6px; flex-wrap:wrap; margin-left:auto }
+#saved{ font-size:13px; color:var(--mut) } #saved.warn{ color:var(--bad) }
+.chip{ display:inline-block; border-radius:999px; padding:.1em .7em; font-weight:700; font-size:14px; border:2px solid currentColor; white-space:nowrap }
+.chip.on{ color:var(--ok); background:var(--okbg) } .chip.watch{ color:var(--watch); background:var(--warnbg) } .chip.replan{ color:var(--bad); background:var(--badbg) } .chip.none{ color:var(--mut); background:var(--panel2) }
+details.menu{ position:relative } details.menu>summary{ list-style:none; border:1px solid var(--line); border-radius:6px; padding:.25em .65em; cursor:pointer; background:var(--panel); min-height:30px; display:flex; align-items:center }
+details.menu>summary::-webkit-details-marker{ display:none } details.menu>summary::after{ content:' ▾' }
+details.menu>div{ position:absolute; right:0; top:110%; z-index:20; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:6px; display:flex; flex-direction:column; gap:4px; min-width:16em; box-shadow:0 4px 16px rgba(0,0,0,.12) }
+/* ── TABS ── */
+#tabs{ display:flex; gap:2px; padding:8px 14px 0; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap }
+#tabs button{ border-radius:6px 6px 0 0; border-bottom:none; font-weight:600; padding:.4em .9em; background:var(--panel2) }
+#tabs button[aria-selected="true"]{ background:var(--bg); border-color:var(--line); color:var(--accent); box-shadow:inset 0 3px 0 var(--accent) }
+main{ flex:1; padding:14px; min-width:0 }
+[role=tabpanel]{ display:none } [role=tabpanel].on{ display:block }
+.toolbar{ display:flex; gap:8px 14px; align-items:center; flex-wrap:wrap; margin-bottom:10px }
+.toolbar label{ display:flex; gap:6px; align-items:center }
+.seg{ display:inline-flex } .seg button{ border-radius:0 } .seg button:first-child{ border-radius:6px 0 0 6px } .seg button:last-child{ border-radius:0 6px 6px 0 } .seg button+button{ border-left:none }
+.card{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px }
+.note{ background:var(--warnbg); border:1px solid #e6c98f; border-radius:6px; padding:8px 12px; margin-bottom:10px }
+/* ── WBS ── */
+.wbs-grid{ display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:12px; align-items:start }
+@media (max-width:1100px){ .wbs-grid{ grid-template-columns:1fr } }
+table.grid{ border-collapse:collapse; width:100%; background:var(--panel) }
+table.grid th,table.grid td{ border-bottom:1px solid #dde3e6; padding:4px 8px; text-align:left; vertical-align:middle }
+table.grid th{ background:var(--panel2); font-size:13px; position:sticky; top:0; z-index:1 }
+table.grid td.n,table.grid th.n{ text-align:right; font-variant-numeric:tabular-nums }
+table.grid tr.sel td{ background:#e3f0f6 }
+table.grid tr.lev1 td{ font-weight:700 } table.grid tr.lev2 td{ font-weight:600 }
+.tree-name{ display:flex; align-items:center; gap:4px }
+.tw{ width:24px; min-height:24px; padding:0; border:none; background:none; font-size:12px; color:var(--mut) }
+.namebtn{ border:none; background:none; padding:2px 4px; text-align:left; min-height:24px; font-weight:inherit }
+.swatch{ display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:4px; vertical-align:middle }
+.wnum{ font-variant-numeric:tabular-nums; white-space:nowrap }
+.tag{ font-size:12px; border:1px solid var(--line); border-radius:4px; padding:0 .35em; color:var(--mut); white-space:nowrap }
+.late{ color:var(--bad); font-weight:600; white-space:nowrap }
+.st-finished{ color:var(--ok); font-weight:600 } .st-started{ color:var(--accent); font-weight:600 } .st-not{ color:var(--mut) }
+.panel h3{ margin-top:0 } .panel label.f{ display:block; margin:8px 0 2px; font-weight:600; font-size:13px }
+.panel input[type=text],.panel input:not([type]){ width:100% }
+.panel .btns{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px }
+.preds li{ display:flex; justify-content:space-between; gap:6px; align-items:center; margin:2px 0 }
+ul.plain{ list-style:none; padding:0; margin:0 }
+.warnlist li{ margin:3px 0 } .warnlist button{ text-align:left; border-color:#e6c98f; background:var(--warnbg); width:100% }
+.bars{ display:flex; height:22px; border-radius:4px; overflow:hidden; border:1px solid var(--line); margin:4px 0 6px; background:var(--panel2) }
+.bars span{ display:block; height:100% }
+.legend{ display:flex; gap:6px 14px; flex-wrap:wrap; font-size:13px }
+.who{ display:grid; grid-template-columns:10em 1fr 3em; gap:4px 8px; align-items:center; font-size:14px }
+.who .b{ height:12px; background:var(--accent); border-radius:2px }
+/* ── charts ── */
+svg text{ font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif }
+.chartbox{ overflow-x:auto; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px }
+.gantt-row:hover rect.hov{ fill:#eef5f8 }
+.reading{ font-size:16px; font-weight:600; margin:8px 0 }
+/* ── this week ── */
+.radios{ display:flex; gap:4px; flex-wrap:wrap }
+.radios label{ display:flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:6px; padding:2px 8px; cursor:pointer; background:#fff }
+.radios label:has(input:checked){ border-color:var(--ink); background:var(--panel2); font-weight:600 }
+.kpis{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px }
+.kpi{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px }
+.kpi .k{ font-size:13px; color:var(--mut) } .kpi .v{ font-size:22px; font-weight:700; font-variant-numeric:tabular-nums } .kpi .v.u{ font-size:15px; font-weight:600; color:var(--mut) }
+.kpi .d{ font-size:12px; color:var(--mut) }
+.ev-charts{ display:grid; grid-template-columns:1fr 1fr; gap:12px } @media (max-width:1000px){ .ev-charts{ grid-template-columns:1fr } }
+.tablewrap{ overflow-x:auto; max-height:520px; overflow-y:auto; border:1px solid var(--line); border-radius:8px }
+/* ── report ── */
+#report{ background:#fff; max-width:900px; margin:0 auto; padding:24px 28px; border:1px solid var(--line) }
+#report h1{ font-size:22px; margin:0 } #report .kpis{ grid-template-columns:repeat(3,1fr) }
+.printonly{ display:none }
+/* ── dialogs and help ── */
+dialog{ border:1px solid var(--line); border-radius:10px; padding:18px 20px; max-width:min(760px,94vw); box-shadow:0 10px 40px rgba(0,0,0,.25) }
+dialog::backdrop{ background:rgba(20,30,35,.45) }
+#help{ max-height:90vh } #help .body{ max-height:70vh; overflow-y:auto; padding-right:6px }
+math{ font-size:1.12em } .eq{ margin:.5em 0 .5em 1em }
+footer{ padding:8px 14px; font-size:13px; color:var(--mut); border-top:1px solid var(--line); background:var(--panel); display:flex; gap:16px; flex-wrap:wrap }
+/* ── print: only the open tab, at the chosen level ── */
+@media print{
+  @page{ margin:12mm }
+  body{ background:#fff; font-size:11pt; display:block }
+  #top,#tabs,footer,.toolbar,.noprint,.panel,dialog{ display:none !important }
+  main{ padding:0 } .wbs-grid{ display:block } .card{ border:none; padding:0 }
+  #report{ border:none; padding:0; max-width:none }
+  .printonly{ display:block } textarea.screenonly{ display:none }
+  .tablewrap{ max-height:none; overflow:visible; border:none }
+  .chartbox{ overflow:visible; border:none }
+  table.grid th{ position:static }
+  tr,.kpi{ break-inside:avoid }
+  *{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
+}
+</style>
+</head>
+<body>
+<header id="top">
+  <span id="brand">Senior Design WBS, Schedule and Earned Value</span>
+  <span id="pname" title="Project name"></span>
+  <div id="weekctl" role="group" aria-label="Current week">
+    <label for="wk">Current week</label>
+    <button id="wkDown" type="button" aria-label="Previous week">−</button>
+    <input id="wk" type="number" min="0" step="1" data-key="wk">
+    <button id="wkUp" type="button" aria-label="Next week">+</button>
+    <span id="wkOf" class="mut"></span>
+  </div>
+  <span id="sig" class="chip none" aria-live="polite"></span>
+  <div id="filebar">
+    <button id="bNew" type="button">New</button>
+    <button id="bOpen" type="button">Open…</button>
+    <button id="bSave" type="button" class="primary">Save</button>
+    <details class="menu" id="csvMenu"><summary>Export CSV</summary><div>
+      <button id="cWbs" type="button">WBS (to the chosen level)</button>
+      <button id="cStatus" type="button">Status history</button>
+      <button id="cEv" type="button">Weekly earned value table</button>
+    </div></details>
+    <button id="bPrint" type="button">Print</button>
+    <button id="bHelp" type="button">Help</button>
+  </div>
+  <span id="saved" aria-live="polite"></span>
+  <input id="file" type="file" accept=".json,application/json" hidden>
+</header>
+<nav id="tabs" role="tablist" aria-label="Views">
+  <button role="tab" id="t-wbs" aria-controls="p-wbs" data-tab="wbs">1 WBS</button>
+  <button role="tab" id="t-gantt" aria-controls="p-gantt" data-tab="gantt">2 Schedule</button>
+  <button role="tab" id="t-status" aria-controls="p-status" data-tab="status">3 Task status</button>
+  <button role="tab" id="t-week" aria-controls="p-week" data-tab="week">4 This week</button>
+  <button role="tab" id="t-ev" aria-controls="p-ev" data-tab="ev">5 Earned value</button>
+  <button role="tab" id="t-report" aria-controls="p-report" data-tab="report">6 Status report</button>
+</nav>
+<main>
+  <section role="tabpanel" id="p-wbs" aria-labelledby="t-wbs"></section>
+  <section role="tabpanel" id="p-gantt" aria-labelledby="t-gantt"></section>
+  <section role="tabpanel" id="p-status" aria-labelledby="t-status"></section>
+  <section role="tabpanel" id="p-week" aria-labelledby="t-week"></section>
+  <section role="tabpanel" id="p-ev" aria-labelledby="t-ev"></section>
+  <section role="tabpanel" id="p-report" aria-labelledby="t-report"></section>
+</main>
+<footer><span>Senior Design WBS, Schedule and Earned Value Tool <b>v1.0.0</b> (2026-11-09)</span>
+  <span>Works offline. Your work autosaves in this browser; <b>Save</b> writes the project file, which is the copy of record.</span></footer>
+<dialog id="dlg" aria-labelledby="dlgTitle"><form method="dialog">
+  <h2 id="dlgTitle"></h2><p id="dlgText"></p>
+  <label id="dlgInLab" for="dlgIn" class="f"></label><input id="dlgIn" type="text" maxlength="200" style="width:100%">
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel" id="dlgCancel">Cancel</button><button value="ok" id="dlgOk" class="primary">OK</button></div>
+</form></dialog>
+<dialog id="help" aria-labelledby="helpTitle"><h2 id="helpTitle">Help</h2><div class="body" id="helpBody"></div>
+  <div class="row" style="justify-content:flex-end;margin-top:10px"><button id="helpClose" class="primary" type="button">Close</button></div></dialog>
+<script>
+(function(){
+'use strict';
+/* ════════════════════════════════════════════════════════════════════════════════════════════
+   model.js — the project record, the Senior Design template, the WBS tree, task status, baselines,
+   rule checks, file load (validation + schema migration) and CSV. No DOM: Test can call it directly.
+   All dates are week numbers 1..weeks. No hours are stored anywhere (briefing §2, §3).
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+
+const APP_ID = 'sd-wbs-ev';
+const SCHEMA = 1;                         // schema version written into every project file
+const MAX_WEEKS = 60;
+const LIMITS = { elements: 2000, status: 20000, baselines: 200, members: 30, text: 200, long: 4000, preds: 50 };
+const TYPES = ['task', 'milestone', 'lead'];
+const TYPE_LABEL = { task: 'Task', milestone: 'Milestone', lead: 'Lead time' };
+const STATES = ['not', 'started', 'finished'];
+const STATE_LABEL = { not: 'Not started', started: 'Started', finished: 'Finished' };
+const AREA_COLOR = ['#10668a', '#18744a', '#8a5700', '#6a4fc8'];   // 1.0 Design, 2.0 Testing, 3.0 Manufacture, 4.0 PM
+const AREA_COLOR_OTHER = '#4f5b62';
+
+/* The lecture's Senior Design template: four major areas and their 14 sub-areas, exactly (briefing §2). */
+const TEMPLATE = [
+  ['Design', ['Conceptual design', 'Analysis', 'Simulation and modeling', 'Detail design', 'Design reviews']],
+  ['Testing', ['Test plan', 'Testing', 'Final test report']],
+  ['Manufacture', ['Manufacturing plan', 'Procurement', 'Build to the plan']],
+  ['Project Management', ['Reporting', 'Schedule, WBS and earned value', 'Customer contact']],
+];
+
+/* ── PROJECT ────────────────────────────────────────────────────────────────────────────────── */
+
+function newProject(name){
+  const p = { app: APP_ID, schema: SCHEMA, name: name || 'Senior Design project', members: [], weeks: 30, currentWeek: 1,
+    nextId: 1, elements: [{ id: 'root', parent: null, name: name || 'Senior Design project', order: 0, pkg: null }],
+    status: [], baselines: [], actions: '' };
+  TEMPLATE.forEach(([area, subs], i) => {
+    const a = addElement(p, 'root', area, false);
+    subs.forEach(s => addElement(p, a.id, s, false));
+    void i;
+  });
+  return p;
+}
+
+function newId(p){ return 'e' + (p.nextId++).toString(36); }
+
+function blankPkg(type){ return { type: type || 'task', owner: '', start: 1, finish: 1, preds: [], deliverable: '' }; }
+
+/** Add an element under parentId (last among its siblings). isPkg makes it a work package (a leaf). */
+function addElement(p, parentId, name, isPkg, type){
+  const sibs = p.elements.filter(e => e.parent === parentId);
+  const e = { id: newId(p), parent: parentId, name: name || (isPkg ? 'New task' : 'New element'),
+    order: sibs.length ? Math.max(...sibs.map(s => s.order)) + 1 : 0, pkg: isPkg ? blankPkg(type) : null };
+  p.elements.push(e);
+  return e;
+}
+
+/* ── TREE INDEX ─────────────────────────────────────────────────────────────────────────────── */
+
+/** Everything derived from the tree: children in order, WBS numbers, levels, major area, depth-first order.
+    WBS numbers come from the tree position only (never typed in). Root = level 1 (the project, no number);
+    major areas = level 2 "k.0"; level 3 "k.j"; deeper levels append ".i". */
+function indexTree(p){
+  const byId = new Map(), kids = new Map();
+  for(const e of p.elements){ byId.set(e.id, e); kids.set(e.id, []); }
+  for(const e of p.elements) if(e.parent !== null && kids.has(e.parent)) kids.get(e.parent).push(e);
+  for(const list of kids.values()) list.sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : 1));
+  const num = new Map(), level = new Map(), area = new Map(), order = [], pos = new Map();
+  const walk = (e, lev, n, ar) => {
+    num.set(e.id, n); level.set(e.id, lev); area.set(e.id, ar); pos.set(e.id, order.length); order.push(e);
+    kids.get(e.id).forEach((c, i) => {
+      const k = i + 1;
+      if(lev === 1) walk(c, 2, k + '.0', k);
+      else if(lev === 2) walk(c, 3, n.split('.')[0] + '.' + k, ar);
+      else walk(c, lev + 1, n + '.' + k, ar);
+    });
+  };
+  const root = byId.get('root');
+  if(root) walk(root, 1, '', 0);
+  return { byId, kids, num, level, area, order, pos, root };
+}
+
+const isPkg = e => !!(e && e.pkg);
+const isTask = e => !!(e && e.pkg && e.pkg.type === 'task');
+function packages(p, ix){ return ix.order.filter(isPkg); }
+function areaColor(a){ return AREA_COLOR[a - 1] || AREA_COLOR_OTHER; }
+function label(ix, id){ const e = ix.byId.get(id); return e ? ((ix.num.get(id) ? ix.num.get(id) + ' ' : '') + e.name) : '(deleted)'; }
+
+/** All descendants of id (not including id). */
+function descendants(ix, id){
+  const out = [], stack = [...ix.kids.get(id) || []];
+  while(stack.length){ const e = stack.shift(); out.push(e); stack.unshift(...ix.kids.get(e.id)); }
+  return out;
+}
+
+/* ── EDITS ──────────────────────────────────────────────────────────────────────────────────── */
+
+function renumberSiblings(p, parentId){
+  p.elements.filter(e => e.parent === parentId).sort((a, b) => a.order - b.order).forEach((e, i) => { e.order = i; });
+}
+
+/** Move an element up (-1) or down (+1) among its siblings. */
+function moveSibling(p, id, dir){
+  const e = p.elements.find(x => x.id === id); if(!e || e.parent === null) return false;
+  renumberSiblings(p, e.parent);
+  const sibs = p.elements.filter(x => x.parent === e.parent).sort((a, b) => a.order - b.order);
+  const i = sibs.indexOf(e), j = i + dir;
+  if(j < 0 || j >= sibs.length) return false;
+  [sibs[i].order, sibs[j].order] = [sibs[j].order, sibs[i].order];
+  return true;
+}
+
+/** Can element id be moved under newParent? Not under itself or a descendant, not under a package, packages not under the root. */
+function canReparent(p, id, newParent){
+  const ix = indexTree(p), e = ix.byId.get(id), np = ix.byId.get(newParent);
+  if(!e || !np || id === 'root' || id === newParent) return false;
+  if(isPkg(np)) return false;
+  if(isPkg(e) && newParent === 'root') return false;
+  return !descendants(ix, id).some(d => d.id === newParent);
+}
+
+function reparent(p, id, newParent){
+  if(!canReparent(p, id, newParent)) return false;
+  const e = p.elements.find(x => x.id === id), old = e.parent;
+  const sibs = p.elements.filter(x => x.parent === newParent && x !== e);
+  e.parent = newParent; e.order = sibs.length ? Math.max(...sibs.map(s => s.order)) + 1 : 0;
+  renumberSiblings(p, old); renumberSiblings(p, newParent);
+  return true;
+}
+
+/** Indent: make the element the last child of its previous sibling. Outdent: move it after its parent. */
+function indent(p, id){
+  const ix = indexTree(p), e = ix.byId.get(id); if(!e || e.parent === null) return false;
+  const sibs = ix.kids.get(e.parent), i = sibs.indexOf(e);
+  if(i < 1) return false;
+  return reparent(p, id, sibs[i - 1].id);
+}
+function outdent(p, id){
+  const ix = indexTree(p), e = ix.byId.get(id); if(!e || e.parent === null) return false;
+  const par = ix.byId.get(e.parent); if(!par || par.parent === null) return false;
+  if(!canReparent(p, id, par.parent)) return false;
+  const gp = par.parent;
+  p.elements.filter(x => x.parent === gp && x.order > par.order).forEach(x => { x.order += 1; });
+  e.parent = gp; e.order = par.order + 1;
+  renumberSiblings(p, gp);
+  return true;
+}
+
+/** Delete an element and everything under it; drop it from predecessor lists and the status history.
+    Baselines are frozen copies and are left unchanged. */
+function deleteElement(p, id){
+  if(id === 'root') return false;
+  const ix = indexTree(p); if(!ix.byId.has(id)) return false;
+  const gone = new Set([id, ...descendants(ix, id).map(e => e.id)]);
+  const parent = ix.byId.get(id).parent;
+  p.elements = p.elements.filter(e => !gone.has(e.id));
+  for(const e of p.elements) if(e.pkg) e.pkg.preds = e.pkg.preds.filter(q => !gone.has(q));
+  p.status = p.status.filter(s => !gone.has(s.id));
+  renumberSiblings(p, parent);
+  return true;
+}
+
+/** Turn a summary element with no children into a package, or a package back into a summary element. */
+function setIsPackage(p, id, on){
+  const ix = indexTree(p), e = ix.byId.get(id);
+  if(!e || id === 'root') return false;
+  if(on){ if(ix.kids.get(id).length || e.parent === 'root') return false; if(!e.pkg) e.pkg = blankPkg('task'); }
+  else if(e.pkg){ e.pkg = null; p.status = p.status.filter(s => s.id !== id); for(const x of p.elements) if(x.pkg) x.pkg.preds = x.pkg.preds.filter(q => q !== id); }
+  return true;
+}
+
+/** Keep a package's weeks whole and inside 1..weeks; a milestone is zero length (finish = start). */
+function normalizePkg(p, pkg){
+  const W = p.weeks;
+  pkg.start = clampInt(pkg.start, 1, W, 1);
+  pkg.finish = clampInt(pkg.finish, 1, W, pkg.start);
+  if(pkg.type === 'milestone') pkg.finish = pkg.start;
+}
+
+/* ── STATUS ─────────────────────────────────────────────────────────────────────────────────── */
+
+/** Status entries grouped by package and sorted by week. */
+function statusIndex(p){
+  const m = new Map();
+  for(const s of p.status){ if(!m.has(s.id)) m.set(s.id, []); m.get(s.id).push(s); }
+  for(const list of m.values()) list.sort((a, b) => a.week - b.week);
+  return m;
+}
+
+/** State of one package at the end of week w: the latest entry at or before w. Also the actual start (the week it
+    was first marked started or finished in its current run) and actual finish (the week it was marked finished). */
+function trackAt(list, w){
+  let state = 'not', start = null, finish = null;
+  if(list) for(const s of list){
+    if(s.week > w) break;
+    if(state === 'not' && s.state !== 'not') start = s.week;
+    if(s.state === 'not') start = null;
+    if(s.state === 'finished' && state !== 'finished') finish = s.week;
+    if(s.state !== 'finished') finish = null;
+    state = s.state;
+  }
+  return { state, start, finish };
+}
+
+/** Record a package's state at week w. One entry per package per week; an entry that only repeats the state
+    already in effect is not stored. */
+function setStatus(p, id, w, state){
+  if(!STATES.includes(state)) return false;
+  p.status = p.status.filter(s => !(s.id === id && s.week === w));
+  const before = trackAt(statusIndex(p).get(id), w - 1).state;
+  if(state !== before) p.status.push({ id, week: w, state });
+  return true;
+}
+
+/* ── BASELINES ──────────────────────────────────────────────────────────────────────────────── */
+
+/** Freeze every package's planned start and finish weeks. Earlier baselines are kept unchanged. */
+function addBaseline(p, reason, dateISO){
+  const ix = indexTree(p), plan = {};
+  for(const e of packages(p, ix)) plan[e.id] = { s: e.pkg.start, f: e.pkg.finish, t: e.pkg.type, a: ix.area.get(e.id),
+    num: ix.num.get(e.id), name: e.name, owner: e.pkg.owner };
+  const b = { n: p.baselines.length + 1, date: dateISO || new Date().toISOString().slice(0, 10), reason: String(reason || '').slice(0, LIMITS.text), plan };
+  p.baselines.push(b);
+  return b;
+}
+/** The active baseline: always the latest one (PV is computed from it). */
+function activeBaseline(p){ return p.baselines.length ? p.baselines[p.baselines.length - 1] : null; }
+
+/* ── SCHEDULE AND RULE CHECKS ───────────────────────────────────────────────────────────────── */
+
+/** Earliest start of a package from its finish-to-start predecessors (no lag): the week after the latest
+    predecessor finish, or week 1. Predecessors in a loop are reported by checks() and ignored here. */
+function earliestStart(p, ix, id, seen){
+  const e = ix.byId.get(id); if(!isPkg(e)) return 1;
+  seen = seen || new Set(); if(seen.has(id)) return 1; seen.add(id);
+  let es = 1;
+  for(const q of e.pkg.preds){ const pe = ix.byId.get(q); if(isPkg(pe)) es = Math.max(es, pe.pkg.finish + 1); }
+  return es;
+}
+
+function hasCycle(ix, id){
+  const stack = [...(ix.byId.get(id)?.pkg?.preds || [])], seen = new Set();
+  while(stack.length){
+    const q = stack.pop(); if(q === id) return true;
+    if(seen.has(q)) continue; seen.add(q);
+    const e = ix.byId.get(q); if(isPkg(e)) stack.push(...e.pkg.preds);
+  }
+  return false;
+}
+
+/** Rule checks (briefing §2): warnings, never blocks. Each has the element id it belongs to, a kind and plain words. */
+function checks(p, ix){
+  ix = ix || indexTree(p);
+  const out = [], L = id => label(ix, id);
+  const tasks = ix.order.filter(isTask);
+  // Major areas with no tasks
+  for(const a of ix.kids.get('root') || []){
+    if(isPkg(a)) continue;
+    if(!descendants(ix, a.id).some(isTask)) out.push({ id: a.id, kind: 'emptyArea', text: `${L(a.id)} has no work packages.` });
+  }
+  for(const e of ix.order.filter(isPkg)){
+    const k = e.pkg, n = L(e.id);
+    if(k.type === 'task'){
+      const o = k.owner.trim();
+      if(!o) out.push({ id: e.id, kind: 'noOwner', text: `${n} has no owner.` });
+      else if(o.toLowerCase() === 'team') out.push({ id: e.id, kind: 'teamOwner', text: `${n} is owned by "Team". Give it one student.` });
+      const d = k.finish - k.start + 1;
+      if(d > 2) out.push({ id: e.id, kind: 'long', text: `${n} is planned for ${d} weeks, more than 2. Split it into smaller tasks.` });
+      if(!k.deliverable.trim()) out.push({ id: e.id, kind: 'noDeliverable', text: `${n} has no deliverable.` });
+    }
+    if(k.finish < k.start) out.push({ id: e.id, kind: 'order', text: `${n} finishes (week ${k.finish}) before it starts (week ${k.start}).` });
+    if(k.start > p.weeks || k.finish > p.weeks) out.push({ id: e.id, kind: 'range', text: `${n} runs past the last week of the project (week ${p.weeks}).` });
+    if(hasCycle(ix, e.id)) out.push({ id: e.id, kind: 'cycle', text: `${n} is in a loop of predecessors.` });
+    for(const q of k.preds){
+      const pe = ix.byId.get(q); if(!isPkg(pe)) continue;
+      if(k.start <= pe.pkg.finish) out.push({ id: e.id, kind: 'pred',
+        text: `${n} starts in week ${k.start}, before its predecessor ${L(q)} finishes (week ${pe.pkg.finish}). Earliest start: week ${pe.pkg.finish + 1}.` });
+    }
+  }
+  // A student who owns more than 1.5 times the team's average number of tasks
+  const members = p.members.length ? p.members : [...new Set(tasks.map(e => e.pkg.owner.trim()).filter(o => o && o.toLowerCase() !== 'team'))];
+  if(members.length){
+    const count = new Map(members.map(m => [m, 0]));
+    for(const e of tasks){ const o = e.pkg.owner.trim(); if(count.has(o)) count.set(o, count.get(o) + 1); }
+    const avg = [...count.values()].reduce((a, b) => a + b, 0) / members.length;
+    for(const [m, c] of count) if(avg > 0 && c > 1.5 * avg)
+      out.push({ id: 'root', kind: 'overload', who: m, text: `${m} owns ${c} tasks, more than 1.5 times the team average (${avg.toFixed(1)}).` });
+  }
+  // Baseline housekeeping
+  const b = activeBaseline(p);
+  if(b){
+    const added = tasks.filter(e => !b.plan[e.id]).length;
+    if(added) out.push({ id: 'root', kind: 'unbaselined', text: `${added} task${added > 1 ? 's were' : ' was'} added after baseline ${b.n} and ${added > 1 ? 'are' : 'is'} not in earned value yet. Re-baseline to include ${added > 1 ? 'them' : 'it'}.` });
+    const gone = Object.keys(b.plan).filter(id => b.plan[id].t === 'task' && !isTask(ix.byId.get(id))).length;
+    if(gone) out.push({ id: 'root', kind: 'deleted', text: `${gone} task${gone > 1 ? 's' : ''} in baseline ${b.n} ${gone > 1 ? 'were' : 'was'} deleted or changed type; ${gone > 1 ? 'they still count' : 'it still counts'} in PV until you re-baseline.` });
+  }
+  return out;
+}
+
+/* ── FILES ──────────────────────────────────────────────────────────────────────────────────── */
+
+function clampInt(v, lo, hi, dflt){ v = Math.round(Number(v)); return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt; }
+function str(v, max){ return typeof v === 'string' ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').slice(0, max || LIMITS.text) : ''; }
+const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+
+/** Schema migrations: MIGRATE[n] turns a schema-n project into schema n+1. Empty while SCHEMA = 1. */
+const MIGRATE = {};
+
+/** Read a project from parsed JSON (an opened file or browser storage). Checks the app id and schema, migrates older
+    schemas, and rebuilds every field from known keys with bounded types, so a file cannot inject anything.
+    Throws an Error with plain words if the file is not a project of this tool. */
+function loadProject(raw){
+  if(!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('This file is not a project file.');
+  if(raw.app !== APP_ID) throw new Error('This file was not made by the Senior Design WBS, Schedule and Earned Value Tool.');
+  let o = raw, v = Number(raw.schema);
+  if(!Number.isInteger(v) || v < 1) throw new Error('The file has no valid schema version.');
+  if(v > SCHEMA) throw new Error(`The file was made by a newer version of the tool (schema ${v}). Open it with that version.`);
+  while(v < SCHEMA){ o = MIGRATE[v](o); v++; }
+  return sanitize(o);
+}
+
+function sanitize(o){
+  const weeks = clampInt(o.weeks, 1, MAX_WEEKS, 30);
+  const p = { app: APP_ID, schema: SCHEMA, name: str(o.name) || 'Senior Design project',
+    members: [], weeks, currentWeek: clampInt(o.currentWeek, 0, weeks, 1), nextId: 1,
+    elements: [], status: [], baselines: [], actions: str(o.actions, LIMITS.long) };
+  const seenM = new Set();
+  for(const m of Array.isArray(o.members) ? o.members.slice(0, LIMITS.members) : []){
+    const s = str(m).trim(); if(s && !seenM.has(s)){ seenM.add(s); p.members.push(s); }
+  }
+  // Elements: valid ids, unique, reachable from the root, packages are leaves and not directly under the root.
+  const els = Array.isArray(o.elements) ? o.elements.slice(0, LIMITS.elements) : [];
+  const byId = new Map();
+  for(const e of els){
+    if(!e || typeof e !== 'object' || typeof e.id !== 'string' || !ID_RE.test(e.id) || byId.has(e.id)) continue;
+    const parent = e.id === 'root' ? null : (typeof e.parent === 'string' ? e.parent : undefined);
+    if(parent === undefined) continue;
+    let pkg = null;
+    if(e.pkg && typeof e.pkg === 'object'){
+      const t = TYPES.includes(e.pkg.type) ? e.pkg.type : 'task';
+      pkg = { type: t, owner: str(e.pkg.owner), start: clampInt(e.pkg.start, 1, weeks, 1), finish: 1,
+        preds: [], deliverable: str(e.pkg.deliverable, 400) };
+      pkg.finish = t === 'milestone' ? pkg.start : clampInt(e.pkg.finish, 1, weeks, pkg.start);
+      pkg.preds = Array.isArray(e.pkg.preds) ? e.pkg.preds.filter(q => typeof q === 'string' && ID_RE.test(q)).slice(0, LIMITS.preds) : [];
+    }
+    byId.set(e.id, { id: e.id, parent, name: str(e.name) || 'Untitled', order: clampInt(e.order, 0, 1e6, 0), pkg });
+  }
+  if(!byId.has('root')) byId.set('root', { id: 'root', parent: null, name: p.name, order: 0, pkg: null });
+  const root = byId.get('root'); root.pkg = null; root.name = p.name;
+  // keep only elements whose chain reaches the root without a loop; a package may not have children
+  const ok = new Map([['root', true]]);
+  const reaches = id => {
+    const path = []; let cur = id;
+    while(!ok.has(cur)){
+      const e = byId.get(cur); if(!e || path.includes(cur)){ path.forEach(x => ok.set(x, false)); return false; }
+      path.push(cur); cur = e.parent;
+    }
+    const r = ok.get(cur); path.forEach(x => ok.set(x, r)); return r;
+  };
+  const keep = [...byId.values()].filter(e => reaches(e.id));
+  const keepIds = new Set(keep.map(e => e.id));
+  for(const e of keep){
+    const par = byId.get(e.parent);
+    if(par && par.pkg) par.pkg = null;              // a package that has children becomes a summary element
+  }
+  for(const e of keep) if(e.pkg && e.parent === 'root') e.pkg = null;
+  for(const e of keep) if(e.pkg) e.pkg.preds = [...new Set(e.pkg.preds)].filter(q => q !== e.id && keepIds.has(q) && byId.get(q).pkg);
+  p.elements = keep;
+  // ids: nextId past every generated id
+  let maxN = 0;
+  for(const e of keep){ const m = /^e([0-9a-z]+)$/.exec(e.id); if(m) maxN = Math.max(maxN, parseInt(m[1], 36)); }
+  p.nextId = Math.max(clampInt(o.nextId, 1, 1e9, 1), maxN + 1);
+  // Status: known package, week in range, known state; one entry per package and week (the last one wins)
+  const st = new Map();
+  for(const s of Array.isArray(o.status) ? o.status.slice(0, LIMITS.status) : []){
+    if(!s || typeof s !== 'object' || !keepIds.has(s.id) || !byId.get(s.id).pkg || !STATES.includes(s.state)) continue;
+    const w = clampInt(s.week, 1, weeks, NaN); if(!Number.isFinite(w)) continue;
+    st.set(s.id + '@' + w, { id: s.id, week: w, state: s.state });
+  }
+  p.status = [...st.values()];
+  // Baselines: frozen, renumbered 1..n in file order
+  for(const b of Array.isArray(o.baselines) ? o.baselines.slice(0, LIMITS.baselines) : []){
+    if(!b || typeof b !== 'object' || !b.plan || typeof b.plan !== 'object') continue;
+    const plan = {};
+    for(const id of Object.keys(b.plan).slice(0, LIMITS.elements)){
+      const x = b.plan[id]; if(!ID_RE.test(id) || !x || typeof x !== 'object') continue;
+      const s = clampInt(x.s, 1, MAX_WEEKS, 1);
+      plan[id] = { s, f: clampInt(x.f, 1, MAX_WEEKS, s), t: TYPES.includes(x.t) ? x.t : 'task', a: clampInt(x.a, 0, 99, 0),
+        num: str(x.num, 40), name: str(x.name), owner: str(x.owner) };
+    }
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(b.date) ? b.date : '';
+    p.baselines.push({ n: p.baselines.length + 1, date, reason: str(b.reason), plan });
+  }
+  return p;
+}
+
+/** The project file: deterministic JSON of the sanitized project (Save then Open gives an identical project). */
+function serialize(p){ return JSON.stringify(sanitize(p), null, 1); }
+
+/* ── CSV ────────────────────────────────────────────────────────────────────────────────────── */
+
+/** One CSV cell. Text that a spreadsheet would read as a formula is prefixed with ' (CSV injection). */
+function csvCell(v){
+  if(v === null || v === undefined) return '';
+  if(typeof v === 'number') return Number.isFinite(v) ? String(v) : '';
+  let s = String(v);
+  if(/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+/** Rows → CSV text with a UTF-8 byte-order mark and CRLF line ends, so Excel opens it with the right columns. */
+function toCSV(rows){ return '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n'; }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════
+   ev.js — earned value in tasks (briefing §4): the four counts, PV and EV by the 50/50 rule, the derived measures,
+   the start/finish signal, weekly series and the late-task list. Pure functions, no DOM.
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+
+const UNDEF = 'not yet defined';
+
+/** The derived measures from the four counts. Inputs: { BAC, T, Sp, Fp, Sa, Fa } and the week w.
+    Every value is computed at full precision; an undefined value is null, with the reason in why[key].
+    Week 0 (before the project starts) leaves every measure undefined (briefing T3). */
+function measures(c, w){
+  const keys = ['PV', 'EV', 'SV', 'SVpct', 'SPI', 'pct', 'SR', 'FR', 'Tf', 'togo', 'TSPI'];
+  const m = { w, BAC: c.BAC, T: c.T, Sp: c.Sp, Fp: c.Fp, Sa: c.Sa, Fa: c.Fa, why: {} };
+  if(!(w >= 1) || !(c.BAC > 0)){
+    const r = !(c.BAC > 0) ? 'no baselined tasks' : 'week 0';
+    for(const k of keys){ m[k] = null; m.why[k] = r; }
+    m.signal = null; return m;
+  }
+  m.PV = (c.Sp + c.Fp) / 2;
+  m.EV = (c.Sa + c.Fa) / 2;
+  m.SV = m.EV - m.PV;
+  m.pct = m.EV / c.BAC * 100;
+  m.togo = c.BAC - m.EV;
+  if(m.PV > 0){ m.SPI = m.EV / m.PV; m.SVpct = m.SV / m.PV * 100; } else { m.SPI = m.SVpct = null; m.why.SPI = m.why.SVpct = 'PV = 0'; }
+  if(c.Sp > 0) m.SR = c.Sa / c.Sp; else { m.SR = null; m.why.SR = 'Sp = 0'; }
+  if(c.Fp > 0) m.FR = c.Fa / c.Fp; else { m.FR = null; m.why.FR = 'Fp = 0'; }
+  if(m.SPI) m.Tf = c.T / m.SPI; else { m.Tf = null; m.why.Tf = m.SPI === 0 ? 'SPI = 0' : 'SPI not yet defined'; }
+  if(c.BAC !== m.PV) m.TSPI = (c.BAC - m.EV) / (c.BAC - m.PV); else { m.TSPI = null; m.why.TSPI = 'plan complete'; }
+  m.signal = signal(m.SR, m.FR);
+  return m;
+}
+
+/** The start/finish quadrant signal: both ratios ≥ 1 → On plan; one below 1 → Watch; both below 1 → Re-plan.
+    With only one ratio defined (early weeks, nothing planned to finish yet) it is judged alone: ≥ 1 On plan, else Watch. */
+function signal(SR, FR){
+  const r = [SR, FR].filter(x => x !== null && x !== undefined);
+  if(!r.length) return null;
+  const below = r.filter(x => x < 1).length;
+  if(below === 0) return 'On plan';
+  if(below === 2) return 'Re-plan';
+  return 'Watch';
+}
+
+/** Measures straight from inputs (for the lecture's practice problem, T2). */
+function measuresFromInputs(inp){ return measures({ BAC: inp.BAC, T: inp.T, Sp: inp.Sp, Fp: inp.Fp, Sa: inp.Sa, Fa: inp.Fa }, inp.w === undefined ? 1 : inp.w); }
+
+/** The tasks that count in earned value: every type-"task" package in the active baseline, with its baseline weeks,
+    major area and owner (current values for tasks that still exist, frozen values for deleted ones).
+    filter = { area: 0 (all) or 1..n, owner: '' (all) or a name }. */
+function evTasks(p, ix, filter){
+  const b = activeBaseline(p); if(!b) return [];
+  const f = filter || {}, out = [];
+  for(const id of Object.keys(b.plan)){
+    const x = b.plan[id]; if(x.t !== 'task') continue;
+    const e = ix.byId.get(id), live = isTask(e);
+    const area = live ? ix.area.get(id) : x.a, owner = live ? e.pkg.owner.trim() : x.owner;
+    if(f.area && area !== f.area) continue;
+    if(f.owner && owner !== f.owner) continue;
+    out.push({ id, s: x.s, f: x.f, area, owner, live, num: live ? ix.num.get(id) : x.num, name: live ? e.name : x.name, pos: live ? ix.pos.get(id) : 1e9 });
+  }
+  return out;
+}
+
+/** The four counts at week w and BAC, T for a list from evTasks(). Sa and Fa come from the status at w. */
+function counts(tasks, sx, w){
+  let Sp = 0, Fp = 0, Sa = 0, Fa = 0, T = 0;
+  for(const t of tasks){
+    if(t.s <= w) Sp++;
+    if(t.f <= w) Fp++;
+    T = Math.max(T, t.f);
+    if(!t.live) continue;
+    const st = trackAt(sx.get(t.id), w).state;
+    if(st !== 'not') Sa++;
+    if(st === 'finished') Fa++;
+  }
+  return { BAC: tasks.length, T, Sp, Fp, Sa, Fa };
+}
+
+/** Counts and measures for every week 0..weeks. Per-week counts are the week-on-week change of the cumulative counts,
+    so per-week bars summed over weeks 1..w always equal the cumulative bars at w (briefing T8). */
+function series(p, ix, sx, filter){
+  const tasks = evTasks(p, ix, filter), rows = [];
+  for(let w = 0; w <= p.weeks; w++){
+    const c = counts(tasks, sx, w), m = measures(c, w);
+    const prev = rows.length ? rows[rows.length - 1] : { Sp: 0, Fp: 0, Sa: 0, Fa: 0 };
+    m.wk = { Sp: c.Sp - prev.Sp, Fp: c.Fp - prev.Fp, Sa: c.Sa - prev.Sa, Fa: c.Fa - prev.Fa };
+    rows.push(m);
+  }
+  return rows;
+}
+
+/** Tasks late at week w, oldest first: past the baseline start and not started (late start), past the baseline finish
+    and not finished (late finish). One entry per task; ordered by the earliest missed week, a late start before a
+    late finish in the same week, then WBS order. */
+function lateTasks(p, ix, sx, w, filter){
+  const out = [];
+  for(const t of evTasks(p, ix, filter)){
+    if(!t.live) continue;
+    const st = trackAt(sx.get(t.id), w).state;
+    const ls = t.s <= w && st === 'not', lf = t.f <= w && st !== 'finished';
+    if(!ls && !lf) continue;
+    out.push({ id: t.id, num: t.num, name: t.name, owner: t.owner, s: t.s, f: t.f, lateStart: ls, lateFinish: lf,
+      missed: ls ? t.s : t.f, pos: t.pos });
+  }
+  out.sort((a, b) => a.missed - b.missed || (b.lateStart - a.lateStart) || a.pos - b.pos);
+  return out;
+}
+
+/** Late flags for any package (tasks, lead-time items, milestones) against its baseline, or its plan if not baselined. */
+function lateFlags(p, e, sx, w){
+  const b = activeBaseline(p), x = b && b.plan[e.id];
+  const s = x ? x.s : e.pkg.start, f = x ? x.f : e.pkg.finish;
+  const st = trackAt(sx.get(e.id), w).state;
+  return { lateStart: s <= w && st === 'not', lateFinish: f <= w && st !== 'finished' };
+}
+
+/* ── FORMATS ── indices to 2 decimals, counts to 1 decimal, weeks to 1 decimal (briefing §4) */
+const MINUS = '−';
+function sgn(s){ return s.replace(/^-/, MINUS); }
+function fmtCount(v){ return v === null || v === undefined ? UNDEF : sgn(v.toFixed(1)); }
+function fmtIndex(v){ return v === null || v === undefined ? UNDEF : sgn(v.toFixed(2)); }
+function fmtPct(v){ return v === null || v === undefined ? UNDEF : sgn(v.toFixed(1)) + '%'; }
+function fmtWeeks(v){ return v === null || v === undefined ? UNDEF : v.toFixed(1) + ' weeks'; }
+function fmtTSPI(m){ return m.TSPI === null ? (m.why.TSPI === 'plan complete' && m.w >= 1 && m.BAC > 0 ? 'plan complete' : UNDEF) : fmtIndex(m.TSPI); }
+
+/** The headline measures in display form, in the lecture's order, with the definition of each. */
+function measureRows(m){
+  return [
+    ['PV', 'Planned value', fmtCount(m.PV), '½(Sp + Fp)'],
+    ['EV', 'Earned value', fmtCount(m.EV), '½(Sa + Fa)'],
+    ['SV', 'Schedule variance', fmtCount(m.SV), 'EV − PV'],
+    ['SV%', 'Schedule variance %', fmtPct(m.SVpct), 'SV / PV × 100'],
+    ['SPI', 'Schedule performance index', fmtIndex(m.SPI), 'EV / PV'],
+    ['SR', 'Start ratio', fmtIndex(m.SR), 'Sa / Sp'],
+    ['FR', 'Finish ratio', fmtIndex(m.FR), 'Fa / Fp'],
+    ['% complete', 'Percent complete', fmtPct(m.pct), 'EV / BAC × 100'],
+    ['Tf', 'Forecast duration', fmtWeeks(m.Tf), 'T / SPI'],
+    ['To go', 'Tasks to go', fmtCount(m.togo), 'BAC − EV'],
+    ['TSPI', 'To-complete schedule performance index', fmtTSPI(m), '(BAC − EV) / (BAC − PV)'],
+  ];
+}
+
+/** The one-line task status reading for week w (briefing §5 tab 3). */
+function statusLine(m){
+  if(!(m.w >= 1)) return 'Week 0: the project has not started.';
+  return `By week ${m.w}: ${m.Sp} planned to start, ${m.Sa} started; ${m.Fp} planned to finish, ${m.Fa} finished.`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════
+   ui.js — DOM and SVG builders (text only, never HTML strings from data), the view state, autosave to browser
+   storage, project files (Save / Open), CSV export, dialogs, and the rows shared by the WBS and Gantt tabs.
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+
+const LS_PROJECT = 'sd-wbs-ev:project', LS_VIEW = 'sd-wbs-ev:view';
+const $ = id => document.getElementById(id);
+
+/** Element builder. attrs: on* → listeners, other keys → attributes; children: nodes or text. */
+function h(tag, attrs, ...kids){
+  const el = document.createElement(tag);
+  setAttrs(el, attrs); append(el, kids); return el;
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+function s(tag, attrs, ...kids){
+  const el = document.createElementNS(SVGNS, tag);
+  setAttrs(el, attrs); append(el, kids); return el;
+}
+function setAttrs(el, attrs){
+  if(!attrs) return;
+  for(const [k, v] of Object.entries(attrs)){
+    if(v === null || v === undefined || v === false) continue;
+    if(k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else if(k === 'text') el.textContent = v;
+    else if(k === 'value' && 'value' in el && el.namespaceURI !== SVGNS) el.value = v;
+    else if(k === 'checked' || k === 'selected' || k === 'disabled') el[k] = !!v;
+    else el.setAttribute(k, v === true ? '' : String(v));
+  }
+}
+function append(el, kids){
+  for(const k of kids.flat(Infinity)){
+    if(k === null || k === undefined || k === false) continue;
+    el.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  }
+}
+function clear(el){ while(el.firstChild) el.removeChild(el.firstChild); return el; }
+
+/* ── STATE ─────────────────────────────────────────────────────────────────────────────────── */
+
+let P = null;                        // the project
+const V = {                          // the view (kept per browser, not in the project file)
+  tab: 'wbs', level: '3', open: {}, sel: 'root', layout: 'tree', zoom: 'all', gview: 'chart',
+  mode: 'cum', farea: 0, fowner: '', evarea: 0, showAll: false,
+};
+let IX = null, SX = null;            // tree index and status index of P, rebuilt after every change
+let saveTimer = 0, lastSaved = null, storageOK = true, fileDirty = false;
+
+function reindex(){ IX = indexTree(P); SX = statusIndex(P); }
+
+function loadView(){
+  try {
+    const j = JSON.parse(localStorage.getItem(LS_VIEW) || 'null');
+    if(j && typeof j === 'object'){
+      if(['wbs', 'gantt', 'status', 'week', 'ev', 'report'].includes(j.tab)) V.tab = j.tab;
+      if(['1', '2', '3', '4', 'all'].includes(j.level)) V.level = j.level;
+      if(['tree', 'diagram'].includes(j.layout)) V.layout = j.layout;
+      if(['all', 'sd1', 'sd2', 'near'].includes(j.zoom)) V.zoom = j.zoom;
+      if(['chart', 'table'].includes(j.gview)) V.gview = j.gview;
+      if(['cum', 'week'].includes(j.mode)) V.mode = j.mode;
+      V.showAll = j.showAll === true;
+    }
+  } catch { /* storage blocked or unreadable: defaults */ }
+}
+function saveView(){
+  try { localStorage.setItem(LS_VIEW, JSON.stringify({ tab: V.tab, level: V.level, layout: V.layout, zoom: V.zoom, gview: V.gview, mode: V.mode, showAll: V.showAll })); } catch { /* ignore */ }
+}
+
+/** Load the autosaved project, or start from the Senior Design template. */
+function loadStart(){
+  let p = null;
+  try { const raw = localStorage.getItem(LS_PROJECT); if(raw) p = loadProject(JSON.parse(raw)); } catch { p = null; }
+  P = p || newProject();
+  reindex();
+}
+
+function autosave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(LS_PROJECT, serialize(P)); lastSaved = new Date(); storageOK = true; }
+    catch { storageOK = false; }
+    showSaved();
+  }, 300);
+}
+function showSaved(){
+  const el = $('saved');
+  if(!storageOK){ el.textContent = 'Not saved in this browser (storage blocked or full). Use Save.'; el.className = 'warn'; return; }
+  el.className = fileDirty ? 'warn' : '';
+  el.textContent = (lastSaved ? 'Last saved in this browser ' + lastSaved.toLocaleTimeString() : 'Not changed yet') + (fileDirty ? ' · changes not yet saved to a file' : '');
+}
+
+/** Apply a change to the project, then re-index, autosave and redraw. */
+function change(fn){
+  const r = fn();
+  if(r === false) return;
+  for(const e of P.elements) if(e.pkg) normalizePkg(P, e.pkg);
+  P.currentWeek = clampInt(P.currentWeek, 0, P.weeks, 0);
+  P.elements.find(e => e.id === 'root').name = P.name;
+  reindex();
+  if(!IX.byId.has(V.sel)) V.sel = 'root';
+  fileDirty = true;
+  autosave(); render();
+}
+
+/* ── DIALOGS ───────────────────────────────────────────────────────────────────────────────── */
+
+/** A modal question. opts.input → resolves to the text (or null on cancel); otherwise resolves true/false. */
+function ask(title, text, opts){
+  opts = opts || {};
+  return new Promise(res => {
+    const d = $('dlg'), inp = $('dlgIn'), lab = $('dlgInLab');
+    $('dlgTitle').textContent = title; $('dlgText').textContent = text || '';
+    $('dlgOk').textContent = opts.ok || 'OK';
+    $('dlgCancel').style.display = opts.alert ? 'none' : '';
+    inp.style.display = lab.style.display = opts.input ? '' : 'none';
+    lab.textContent = opts.input || ''; inp.value = opts.value || '';
+    d.returnValue = 'cancel';
+    const done = () => { d.removeEventListener('close', done); res(d.returnValue === 'ok' ? (opts.input ? inp.value : true) : (opts.input ? null : false)); };
+    d.addEventListener('close', done);
+    d.showModal();
+    (opts.input ? inp : $('dlgOk')).focus();
+  });
+}
+
+/* ── FILES ─────────────────────────────────────────────────────────────────────────────────── */
+
+function download(name, text, type){
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = h('a', { href: url, download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function slug(t){ return (t || 'project').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 60) || 'project'; }
+
+function saveFile(){
+  download(`${slug(P.name)}_week${P.currentWeek}.json`, serialize(P), 'application/json');
+  fileDirty = false; showSaved();
+}
+
+function openFile(file){
+  if(!file) return;
+  if(file.size > 20 * 1024 * 1024){ ask('Cannot open the file', 'The file is larger than 20 MB, so it is not a project file of this tool.', { alert: true }); return; }
+  const r = new FileReader();
+  r.onload = async () => {
+    let p;
+    try { p = loadProject(JSON.parse(String(r.result))); }
+    catch(e){ ask('Cannot open the file', e instanceof SyntaxError ? 'The file is not valid JSON.' : e.message, { alert: true }); return; }
+    if(fileDirty && !(await ask('Open this project?', 'The project open now has changes that are not saved to a file. They will be replaced.', { ok: 'Open' }))) return;
+    P = p; V.sel = 'root'; V.open = {}; fileDirty = false; reindex(); autosave(); render();
+  };
+  r.onerror = () => ask('Cannot open the file', 'The browser could not read the file.', { alert: true });
+  r.readAsText(file);
+}
+
+async function newFile(){
+  const ok = await ask('Start a new project?', 'This replaces the project open now with the Senior Design template. Save the current project to a file first if you want to keep it.', { ok: 'Start new project' });
+  if(!ok) return;
+  P = newProject(); V.sel = 'root'; V.open = {}; fileDirty = false; reindex(); autosave(); render();
+}
+
+/** Ask for a reason and freeze the plan as a new baseline. */
+async function doBaseline(){
+  const n = P.baselines.length + 1;
+  const reason = await ask(n === 1 ? 'Baseline the schedule' : `Re-baseline (baseline ${n})`,
+    n === 1 ? 'This freezes every package\'s planned start and finish weeks. PV is computed from the baseline.'
+            : `Baseline ${n - 1} is kept unchanged. PV will be computed from baseline ${n}.`,
+    { input: 'Reason', value: n === 1 ? 'Initial baseline' : '', ok: 'Baseline' });
+  if(reason === null) return;
+  change(() => { addBaseline(P, reason.trim() || (n === 1 ? 'Initial baseline' : 'Re-baseline')); });
+}
+
+/* ── ROWS SHARED BY THE WBS AND GANTT TABS ─────────────────────────────────────────────────── */
+
+/** Is element e open (its children shown)? The Show to level selector opens every branch above that level and closes
+    the rest; a branch opened or closed by hand overrides it until the level is changed. */
+function isOpen(e){
+  if(Object.prototype.hasOwnProperty.call(V.open, e.id)) return V.open[e.id];
+  const L = V.level === 'all' ? 99 : Number(V.level);
+  return IX.level.get(e.id) < L;
+}
+function setLevel(l){ V.level = l; V.open = {}; saveView(); render(); }
+
+/** The visible rows, depth first. */
+function visibleRows(){
+  const rows = [];
+  const walk = e => {
+    const kids = IX.kids.get(e.id), open = kids.length > 0 && isOpen(e);
+    rows.push({ e, lev: IX.level.get(e.id), hasKids: kids.length > 0, open });
+    if(open) kids.forEach(walk);
+  };
+  if(IX.root) walk(IX.root);
+  return rows;
+}
+
+/** Roll-up of everything under an element (or the element itself, for a package): tasks, tasks finished at the current
+    week, owners, the earliest planned start and latest planned finish. Each row's counts are the sum of its children's. */
+function rollup(id){
+  const e = IX.byId.get(id), list = isPkg(e) ? [e] : descendants(IX, id).filter(isPkg);
+  let tasks = 0, fin = 0, start = Infinity, finish = -Infinity; const owners = new Set();
+  for(const x of list){
+    start = Math.min(start, x.pkg.start); finish = Math.max(finish, x.pkg.finish);
+    if(x.pkg.type !== 'task') continue;
+    tasks++;
+    if(trackAt(SX.get(x.id), P.currentWeek).state === 'finished') fin++;
+    if(x.pkg.owner.trim()) owners.add(x.pkg.owner.trim());
+  }
+  return { tasks, fin, owners: owners.size, start: list.length ? start : null, finish: list.length ? finish : null };
+}
+
+function levelSelect(){
+  return h('label', null, 'Show to level',
+    h('select', { 'data-key': 'level-' + V.tab, onchange: ev => setLevel(ev.target.value) },
+      [['1', '1 (project)'], ['2', '2 (major areas)'], ['3', '3 (sub-areas)'], ['4', '4 (work packages)'], ['all', 'All']]
+        .map(([v, t]) => h('option', { value: v, selected: V.level === v }, t))));
+}
+
+function weekRange(a, b){ return a === null ? '—' : (a === b ? 'wk ' + a : `wk ${a}–${b}`); }
+function areaSwatch(a){ return h('span', { class: 'swatch', style: `background:${areaColor(a)}`, 'aria-hidden': 'true' }); }
+function stateText(st){ return h('span', { class: 'st-' + st }, STATE_LABEL[st]); }
+function signalClass(sig){ return sig === 'On plan' ? 'on' : sig === 'Watch' ? 'watch' : sig === 'Re-plan' ? 'replan' : 'none'; }
+function signalChip(sig){ return h('span', { class: 'chip ' + signalClass(sig) }, sig || 'Signal not yet defined'); }
+function members(){ return P.members.slice(); }
+function areaOptions(sel){
+  return [h('option', { value: 0, selected: !sel }, 'All major areas'),
+    ...(IX.kids.get('root') || []).map((a, i) => h('option', { value: i + 1, selected: sel === i + 1 }, IX.num.get(a.id) + ' ' + a.name))];
+}
+function ownerOptions(sel){
+  const set = new Set(members());
+  for(const e of IX.order) if(isTask(e) && e.pkg.owner.trim()) set.add(e.pkg.owner.trim());
+  return [h('option', { value: '', selected: !sel }, 'All owners'), ...[...set].sort().map(o => h('option', { value: o, selected: sel === o }, o))];
+}
+/** Go to an element on the WBS tab. */
+function goTo(id){ V.sel = id; V.tab = 'wbs';
+  // open the branch down to it
+  let e = IX.byId.get(id); while(e && e.parent){ V.open[e.parent] = true; e = IX.byId.get(e.parent); }
+  saveView(); render(); const r = document.querySelector(`[data-key="row:${CSS.escape(id)}"]`); if(r) r.focus();
+}
+
+/* ── CSV EXPORTS ───────────────────────────────────────────────────────────────────────────── */
+
+function csvWbs(){
+  const b = activeBaseline(P), rows = [['WBS', 'Level', 'Name', 'Type', 'Owner', 'Planned start week', 'Planned finish week', 'Planned weeks',
+    'Baseline start week', 'Baseline finish week', 'Predecessors', 'Deliverable', `Status at week ${P.currentWeek}`, 'Actual start week', 'Actual finish week', 'Tasks', 'Tasks finished']];
+  for(const r of visibleRows()){
+    const e = r.e, id = e.id, ru = rollup(id);
+    if(isPkg(e)){
+      const k = e.pkg, x = b && b.plan[id], t = trackAt(SX.get(id), P.currentWeek);
+      rows.push([IX.num.get(id), r.lev, e.name, TYPE_LABEL[k.type], k.owner, k.start, k.finish, k.type === 'milestone' ? 0 : k.finish - k.start + 1,
+        x ? x.s : '', x ? x.f : '', k.preds.map(q => IX.num.get(q)).join(' '), k.deliverable, STATE_LABEL[t.state], t.start ?? '', t.finish ?? '',
+        ru.tasks, ru.fin]);
+    } else rows.push([IX.num.get(id) || 'Project', r.lev, e.name, 'Summary', '', ru.start ?? '', ru.finish ?? '', '', '', '', '', '', '', '', '', ru.tasks, ru.fin]);
+  }
+  download(`${slug(P.name)}_WBS_level-${V.level}.csv`, toCSV(rows), 'text/csv');
+}
+function csvStatus(){
+  const rows = [['WBS', 'Name', 'Type', 'Week', 'State']];
+  const list = P.status.slice().sort((a, b) => (IX.pos.get(a.id) - IX.pos.get(b.id)) || a.week - b.week);
+  for(const st of list){ const e = IX.byId.get(st.id); rows.push([IX.num.get(st.id), e.name, TYPE_LABEL[e.pkg.type], st.week, STATE_LABEL[st.state]]); }
+  download(`${slug(P.name)}_status_history.csv`, toCSV(rows), 'text/csv');
+}
+function csvEv(){
+  const rows = [['Week', 'Sp', 'Fp', 'Sa', 'Fa', 'BAC', 'T', 'PV', 'EV', 'SV', 'SV%', 'SPI', 'SR', 'FR', '% complete', 'Forecast duration (weeks)', 'Tasks to go', 'TSPI', 'Signal']];
+  const ser = series(P, IX, SX);
+  const n = v => v === null ? UNDEF : +v.toFixed(4);
+  for(const m of ser.slice(0, P.currentWeek + 1)){
+    rows.push([m.w, m.Sp, m.Fp, m.Sa, m.Fa, m.BAC, m.T, n(m.PV), n(m.EV), n(m.SV), n(m.SVpct), n(m.SPI), n(m.SR), n(m.FR), n(m.pct), n(m.Tf), n(m.togo),
+      m.TSPI === null ? fmtTSPI(m) : n(m.TSPI), m.signal || UNDEF]);
+  }
+  download(`${slug(P.name)}_earned_value_to_week${P.currentWeek}.csv`, toCSV(rows), 'text/csv');
+}
+
+/* ── SMALL SVG CHART HELPERS ───────────────────────────────────────────────────────────────── */
+
+/** Nice integer ticks from 0 to max. */
+function ticks(max, n){
+  if(max <= 0) return [0, 1];
+  const raw = max / (n || 5), mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 5, 10].map(m => m * mag).find(x => x >= raw) || raw;
+  const out = []; for(let v = 0; v <= max + 1e-9; v += step) out.push(+v.toFixed(6));
+  if(out[out.length - 1] < max) out.push(+(out[out.length - 1] + step).toFixed(6));
+  return out;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════
+   wbs.js — Tab 1: the WBS tree (or org-chart diagram) with the Show to level control, the side-panel editor,
+   tasks by major area and by student, and the rule-check warnings.
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+
+function renderWbs(root){
+  const rows = visibleRows();
+  const tb = h('div', { class: 'toolbar' }, levelSelect(),
+    h('span', { class: 'seg', role: 'group', 'aria-label': 'Layout' },
+      h('button', { type: 'button', 'aria-pressed': V.layout === 'tree', 'data-key': 'lay-tree', onclick: () => { V.layout = 'tree'; saveView(); render(); } }, 'Tree'),
+      h('button', { type: 'button', 'aria-pressed': V.layout === 'diagram', 'data-key': 'lay-diag', onclick: () => { V.layout = 'diagram'; saveView(); render(); } }, 'Diagram')),
+    h('span', { class: 'mut small' }, `${rows.length} rows shown. Select a row to edit it in the panel.`));
+  const main = h('div', null, V.layout === 'tree' ? wbsTable(rows) : wbsDiagram(rows), summaryCard(), warningsCard());
+  append(root, [tb, h('div', { class: 'wbs-grid' }, main, editorPanel())]);
+}
+
+/* ── TREE ── */
+function wbsTable(rows){
+  const tbody = h('tbody', { onkeydown: treeKeys });
+  for(const r of rows){
+    const e = r.e, id = e.id, ru = rollup(id), sel = V.sel === id;
+    let owner, weeks, tasks, status;
+    if(isPkg(e)){
+      const k = e.pkg, t = trackAt(SX.get(id), P.currentWeek), lf = lateFlags(P, e, SX, P.currentWeek);
+      owner = k.owner || h('span', { class: 'late' }, 'no owner');
+      weeks = k.type === 'milestone' ? 'wk ' + k.start : `${weekRange(k.start, k.finish)} (${k.finish - k.start + 1})`;
+      tasks = k.type === 'task' ? '1' : h('span', { class: 'tag' }, TYPE_LABEL[k.type]);
+      status = [stateText(t.state), lf.lateStart ? h('span', { class: 'late' }, ' · Late start') : null, lf.lateFinish ? h('span', { class: 'late' }, ' · Late finish') : null];
+    } else {
+      owner = ru.owners ? `${ru.owners} owner${ru.owners > 1 ? 's' : ''}` : '—';
+      weeks = weekRange(ru.start, ru.finish);
+      tasks = String(ru.tasks);
+      status = ru.tasks ? `${ru.fin} of ${ru.tasks} finished` : h('span', { class: 'mut' }, 'no tasks');
+    }
+    const area = IX.area.get(id);
+    const tw = r.hasKids ? h('button', { type: 'button', class: 'tw', tabindex: -1, 'aria-label': r.open ? 'Collapse' : 'Expand',
+      onclick: ev => { ev.stopPropagation(); V.open[id] = !r.open; render(); } }, r.open ? '▼' : '▶') : h('span', { class: 'tw' });
+    const name = h('button', { type: 'button', class: 'namebtn', 'data-key': 'row:' + id, 'data-id': id, tabindex: sel ? 0 : -1,
+      'aria-expanded': r.hasKids ? String(r.open) : null, 'aria-level': r.lev, onclick: () => { V.sel = id; render(); } }, e.name);
+    tbody.append(h('tr', { class: `lev${r.lev}${sel ? ' sel' : ''}`, 'aria-selected': sel ? 'true' : null },
+      h('td', { class: 'wnum' }, area ? areaSwatch(area) : null, IX.num.get(id) || ''),
+      h('td', null, h('div', { class: 'tree-name', style: `padding-left:${(r.lev - 1) * 18}px` }, tw, name)),
+      h('td', null, owner), h('td', { class: 'num' }, weeks), h('td', { class: 'n' }, tasks), h('td', null, status)));
+  }
+  if(!rows.some(r => V.sel === r.e.id)){ const f = tbody.querySelector('.namebtn'); if(f) f.tabIndex = 0; }
+  return h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', { class: 'grid', 'aria-label': 'Work breakdown structure' },
+    h('thead', null, h('tr', null, h('th', null, 'WBS'), h('th', null, 'Name'), h('th', null, 'Owner'), h('th', null, 'Planned weeks'), h('th', { class: 'n' }, 'Tasks'), h('th', null, `Status at week ${P.currentWeek}`))),
+    tbody));
+}
+
+/** Keyboard in the tree: ↑/↓ move, → opens (or goes to the first child), ← closes (or goes to the parent), Home/End. */
+function treeKeys(ev){
+  const btns = [...ev.currentTarget.querySelectorAll('.namebtn')], i = btns.indexOf(document.activeElement);
+  if(i < 0) return;
+  const id = btns[i].dataset.id, e = IX.byId.get(id);
+  const focus = j => { if(j >= 0 && j < btns.length){ btns.forEach(b => { b.tabIndex = -1; }); btns[j].tabIndex = 0; btns[j].focus(); } };
+  if(ev.key === 'ArrowDown') focus(i + 1);
+  else if(ev.key === 'ArrowUp') focus(i - 1);
+  else if(ev.key === 'Home') focus(0);
+  else if(ev.key === 'End') focus(btns.length - 1);
+  else if(ev.key === 'ArrowRight'){ if(IX.kids.get(id).length && !isOpen(e)){ V.open[id] = true; V.sel = id; render(); } else focus(i + 1); }
+  else if(ev.key === 'ArrowLeft'){
+    if(IX.kids.get(id).length && isOpen(e)){ V.open[id] = false; V.sel = id; render(); }
+    else if(e.parent){ V.sel = e.parent; render(); const b = document.querySelector(`[data-key="row:${CSS.escape(e.parent)}"]`); if(b) b.focus(); }
+  } else return;
+  ev.preventDefault();
+}
+
+/* ── DIAGRAM: the same rows as an org chart, like the lecture's WBS slide ── */
+function wbsDiagram(rows){
+  const shown = new Set(rows.map(r => r.e.id));
+  const areas = (IX.kids.get('root') || []).filter(a => shown.has(a.id));
+  const colW = 230, boxW = 210, boxH = 44, gapY = 12, top = 16;
+  const W = Math.max(boxW + 40, areas.length * colW + 20);
+  const items = [];
+  const rootX = W / 2 - boxW / 2;
+  items.push({ e: IX.root, x: rootX, y: top });
+  let maxY = top + boxH;
+  const y2 = top + boxH + 40;
+  areas.forEach((a, i) => {
+    const x = 10 + i * colW + (colW - boxW) / 2;
+    items.push({ e: a, x, y: y2, parentXY: [W / 2, top + boxH], elbow: true });
+    let y = y2 + boxH + gapY;
+    for(const d of rows.filter(r => r.lev > 2 && IX.area.get(r.e.id) === i + 1)){
+      const ind = Math.min(3, d.lev - 3) * 14;
+      items.push({ e: d.e, x: x + 10 + ind, y, w: boxW - 10 - ind, spine: x + 4 + ind });
+      y += boxH + gapY;
+    }
+    maxY = Math.max(maxY, y);
+  });
+  const svg = s('svg', { width: W, height: maxY + 10, viewBox: `0 0 ${W} ${maxY + 10}`, role: 'img', 'aria-label': 'WBS diagram' });
+  // connectors
+  if(areas.length){
+    const midY = top + boxH + 20;
+    svg.append(s('line', { x1: W / 2, y1: top + boxH, x2: W / 2, y2: midY, stroke: '#7b878d' }));
+    const xs = items.filter(t => t.elbow).map(t => t.x + boxW / 2);
+    svg.append(s('line', { x1: Math.min(...xs), y1: midY, x2: Math.max(...xs), y2: midY, stroke: '#7b878d' }));
+    for(const x of xs) svg.append(s('line', { x1: x, y1: midY, x2: x, y2: y2, stroke: '#7b878d' }));
+  }
+  for(const t of items.filter(t => t.spine !== undefined))
+    svg.append(s('path', { d: `M${t.spine} ${t.y - gapY - boxH / 2}V${t.y + boxH / 2}H${t.x}`, fill: 'none', stroke: '#9aa5ab' }));
+  for(const t of items){
+    const e = t.e, id = e.id, a = IX.area.get(id), col = a ? areaColor(a) : '#1b2328', w = t.w || boxW, ru = rollup(id);
+    const sel = V.sel === id, lev = IX.level.get(id);
+    const nm = (IX.num.get(id) ? IX.num.get(id) + ' ' : '') + e.name;
+    const sub = isPkg(e) ? (e.pkg.type === 'task' ? (e.pkg.owner || 'no owner') + ' · ' + weekRange(e.pkg.start, e.pkg.finish) : TYPE_LABEL[e.pkg.type] + ' · ' + weekRange(e.pkg.start, e.pkg.finish))
+      : `${ru.fin} of ${ru.tasks} finished`;
+    const g = s('g', { tabindex: 0, role: 'button', 'aria-label': nm + ', ' + sub, 'data-key': 'box:' + id, style: 'cursor:pointer',
+      onclick: () => { V.sel = id; render(); }, onkeydown: ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); V.sel = id; render(); } } },
+      s('title', { text: nm }),
+      s('rect', { x: t.x, y: t.y, width: w, height: boxH, rx: 5, fill: lev <= 2 ? col : '#fff', stroke: col, 'stroke-width': sel ? 3.5 : 1.5 }),
+      s('text', { x: t.x + 8, y: t.y + 18, 'font-size': 13, 'font-weight': 600, fill: lev <= 2 ? '#fff' : '#1b2328' }, clip(nm, w)),
+      s('text', { x: t.x + 8, y: t.y + 35, 'font-size': 12, fill: lev <= 2 ? '#fff' : '#4f5b62' }, clip(sub, w)));
+    svg.append(g);
+  }
+  return h('div', { class: 'chartbox' }, svg);
+}
+function clip(t, w){ const n = Math.floor((w - 14) / 7); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+
+/* ── SUMMARY: tasks by major area and by student ── */
+function summaryCard(){
+  const areas = IX.kids.get('root') || [], byArea = areas.map(a => rollup(a.id).tasks), total = byArea.reduce((x, y) => x + y, 0);
+  const bar = h('div', { class: 'bars', role: 'img', 'aria-label': 'Tasks by major area: ' + areas.map((a, i) => `${IX.num.get(a.id)} ${a.name} ${byArea[i]}`).join(', ') },
+    areas.map((a, i) => byArea[i] ? h('span', { style: `width:${byArea[i] / total * 100}%;background:${areaColor(i + 1)}` }) : null));
+  const legend = h('div', { class: 'legend' }, areas.map((a, i) => h('span', null, areaSwatch(i + 1), `${IX.num.get(a.id)} ${a.name}: ${byArea[i]}`)));
+  const tasks = IX.order.filter(isTask), who = new Map(members().map(m => [m, 0]));
+  let none = 0;
+  for(const e of tasks){ const o = e.pkg.owner.trim(); if(!o || o.toLowerCase() === 'team') none++; else who.set(o, (who.get(o) || 0) + 1); }
+  const max = Math.max(1, ...who.values());
+  const over = new Set(checks(P, IX).filter(c => c.kind === 'overload').map(c => c.who));
+  const rows = [...who].map(([m, c]) => [h('span', null, m), h('div', null, h('div', { class: 'b', style: `width:${c / max * 100}%` })),
+    h('span', { class: 'num' }, c, over.has(m) ? h('span', { class: 'late' }, ' high') : null)]);
+  return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, `Tasks by major area (${total} tasks)`), bar, legend,
+    h('h3', null, 'Tasks by student'),
+    who.size ? h('div', { class: 'who' }, rows) : h('p', { class: 'mut' }, 'Add the team members in the project panel (select the top row).'),
+    none ? h('p', { class: 'late' }, `${none} task${none > 1 ? 's have' : ' has'} no single owner.`) : null);
+}
+
+function warningsCard(){
+  const list = checks(P, IX);
+  return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, `Rule checks (${list.length})`),
+    list.length ? h('ul', { class: 'plain warnlist' }, list.map((c, i) => h('li', null,
+      h('button', { type: 'button', 'data-key': 'warn:' + i, onclick: () => goTo(c.id) }, '⚠ ', c.text))))
+      : h('p', { class: 'mut' }, 'No warnings.'));
+}
+
+/* ── EDITOR PANEL ── */
+function editorPanel(){
+  const id = V.sel, e = IX.byId.get(id) || IX.root;
+  const panel = h('aside', { class: 'card panel', 'aria-label': 'Editor' });
+  if(e.id === 'root') projectEditor(panel);
+  else if(isPkg(e)) packageEditor(panel, e);
+  else summaryEditor(panel, e);
+  return panel;
+}
+
+function field(lab, input){ const idf = 'f-' + (input.dataset.key || Math.random().toString(36).slice(2)); input.id = idf; return [h('label', { class: 'f', for: idf }, lab), input]; }
+function textField(lab, key, val, set, opts){
+  return field(lab, h('input', Object.assign({ type: 'text', 'data-key': key, value: val, maxlength: 200, onchange: ev => change(() => set(ev.target.value)) }, opts || {})));
+}
+
+function projectEditor(panel){
+  append(panel, [h('h3', null, 'Project'),
+    textField('Project name', 'p-name', P.name, v => { P.name = v.trim() || 'Senior Design project'; }),
+    field('Team members (one per line)', h('textarea', { rows: 5, 'data-key': 'p-mem', onchange: ev => change(() => {
+      P.members = [...new Set(ev.target.value.split(/\n/).map(x => x.trim()).filter(Boolean))].slice(0, LIMITS.members); }) }, P.members.join('\n'))),
+    field('Project length (weeks)', h('input', { type: 'number', min: 1, max: MAX_WEEKS, 'data-key': 'p-weeks', value: P.weeks,
+      onchange: ev => change(() => { P.weeks = clampInt(ev.target.value, 1, MAX_WEEKS, P.weeks); }) })),
+    h('p', { class: 'mut small' }, `Senior Design 1 is weeks 1–${Math.ceil(P.weeks / 2)}; Senior Design 2 is weeks ${Math.ceil(P.weeks / 2) + 1}–${P.weeks}.`),
+    h('div', { class: 'btns' }, h('button', { type: 'button', 'data-key': 'add-area', onclick: () => change(() => { V.sel = addElement(P, 'root', 'New major area', false).id; }) }, '+ Major area')),
+    h('h3', null, 'Baselines'), baselineList(),
+    h('div', { class: 'btns' }, h('button', { type: 'button', class: 'primary', 'data-key': 'bl', onclick: doBaseline }, P.baselines.length ? 'Re-baseline…' : 'Baseline the schedule…'))]);
+}
+
+function baselineList(){
+  if(!P.baselines.length) return h('p', { class: 'mut' }, 'No baseline yet. Baseline the schedule when the plan is agreed; PV and the planned counts come from it.');
+  return h('ul', { class: 'plain small' }, P.baselines.slice().reverse().map((b, i) => h('li', null,
+    h('b', null, `Baseline ${b.n}`), ` · ${b.date} · ${b.reason || '—'} · ${Object.values(b.plan).filter(x => x.t === 'task').length} tasks`, i === 0 ? h('b', null, ' (active)') : null)));
+}
+
+function moveButtons(e){
+  return h('div', { class: 'btns' },
+    h('button', { type: 'button', 'data-key': 'mv-up', onclick: () => change(() => moveSibling(P, e.id, -1)) }, '↑ Up'),
+    h('button', { type: 'button', 'data-key': 'mv-dn', onclick: () => change(() => moveSibling(P, e.id, 1)) }, '↓ Down'),
+    h('button', { type: 'button', 'data-key': 'mv-in', onclick: () => change(() => indent(P, e.id)) }, '→ Indent'),
+    h('button', { type: 'button', 'data-key': 'mv-out', onclick: () => change(() => outdent(P, e.id)) }, '← Outdent'));
+}
+function deleteButton(e){
+  return h('button', { type: 'button', class: 'danger', 'data-key': 'del', onclick: async () => {
+    const n = descendants(IX, e.id).length;
+    if(await ask('Delete ' + label(IX, e.id) + '?', n ? `This also deletes the ${n} element${n > 1 ? 's' : ''} under it and their status history. Baselines are not changed.` : 'Its status history is deleted too. Baselines are not changed.', { ok: 'Delete' }))
+      change(() => { const par = e.parent; deleteElement(P, e.id); V.sel = par; });
+  } }, 'Delete');
+}
+
+function summaryEditor(panel, e){
+  const lev = IX.level.get(e.id), ru = rollup(e.id), add = (pkg, type, nm) => change(() => { V.open[e.id] = true; V.sel = addElement(P, e.id, nm, pkg, type).id; });
+  append(panel, [h('h3', null, `${IX.num.get(e.id)} ${e.name}`), h('p', { class: 'mut small' }, `Level ${lev} · ${ru.tasks} tasks, ${ru.fin} finished · ${weekRange(ru.start, ru.finish)}`),
+    textField('Name', 'e-name', e.name, v => { e.name = v.trim() || e.name; }),
+    h('h4', null, 'Add under it'),
+    h('div', { class: 'btns' },
+      h('button', { type: 'button', class: 'primary', 'data-key': 'add-task', onclick: () => add(true, 'task', 'New task') }, '+ Task'),
+      h('button', { type: 'button', 'data-key': 'add-ms', onclick: () => add(true, 'milestone', 'New milestone') }, '+ Milestone'),
+      h('button', { type: 'button', 'data-key': 'add-lead', onclick: () => add(true, 'lead', 'New lead-time item') }, '+ Lead time'),
+      h('button', { type: 'button', 'data-key': 'add-sub', onclick: () => add(false, null, 'New element') }, '+ Sub-element')),
+    h('h4', null, 'Move'), moveButtons(e),
+    h('div', { class: 'btns' },
+      lev > 2 && !IX.kids.get(e.id).length ? h('button', { type: 'button', 'data-key': 'to-pkg', onclick: () => change(() => setIsPackage(P, e.id, true)) }, 'Make it a work package') : null,
+      deleteButton(e))]);
+}
+
+function packageEditor(panel, e){
+  const k = e.pkg, id = e.id, t = trackAt(SX.get(id), P.currentWeek), es = earliestStart(P, IX, id), b = activeBaseline(P), x = b && b.plan[id];
+  const dl = h('datalist', { id: 'dl-members' }, members().map(m => h('option', { value: m })));
+  const others = IX.order.filter(o => isPkg(o) && o.id !== id && !k.preds.includes(o.id));
+  const predSel = h('select', { 'data-key': 'pred-add', 'aria-label': 'Add a predecessor', onchange: ev => { const v = ev.target.value; if(v) change(() => { k.preds.push(v); }); } },
+    h('option', { value: '' }, 'Add a predecessor…'), others.map(o => h('option', { value: o.id }, label(IX, o.id))));
+  const hist = (SX.get(id) || []);
+  append(panel, [h('h3', null, `${IX.num.get(id)} ${e.name}`),
+    h('p', { class: 'mut small' }, `${TYPE_LABEL[k.type]}${k.type === 'task' ? ' (counts as one task in earned value)' : ' (shown on the schedule, not counted as a task)'}`),
+    textField('Name', 'e-name', e.name, v => { e.name = v.trim() || e.name; }),
+    field('Type', h('select', { 'data-key': 'k-type', onchange: ev => change(() => { k.type = ev.target.value; }) },
+      TYPES.map(ty => h('option', { value: ty, selected: k.type === ty }, TYPE_LABEL[ty])))),
+    textField('Owner (one student)', 'k-owner', k.owner, v => { k.owner = v.trim(); }, { list: 'dl-members' }), dl,
+    h('div', { class: 'row' },
+      h('div', null, field(k.type === 'milestone' ? 'Week' : 'Planned start week', h('input', { type: 'number', min: 1, max: P.weeks, 'data-key': 'k-start', value: k.start,
+        onchange: ev => change(() => { const v = clampInt(ev.target.value, 1, P.weeks, k.start); const d = k.finish - k.start; k.start = v; if(k.finish < v) k.finish = v + Math.max(0, d); }) }))),
+      k.type === 'milestone' ? null : h('div', null, field('Planned finish week', h('input', { type: 'number', min: 1, max: P.weeks, 'data-key': 'k-finish', value: k.finish,
+        onchange: ev => change(() => { k.finish = clampInt(ev.target.value, 1, P.weeks, k.finish); }) })))),
+    h('p', { class: 'small' + (k.type === 'task' && k.finish - k.start + 1 > 2 ? ' late' : ' mut') },
+      k.type === 'milestone' ? 'A milestone is zero length.' : `${k.finish - k.start + 1} week${k.finish > k.start ? 's' : ''}${k.type === 'task' && k.finish - k.start + 1 > 2 ? ' — more than 2: consider splitting it.' : ''}`,
+      x ? ` Baseline ${b.n}: ${weekRange(x.s, x.f)}.` : ' Not in a baseline yet.'),
+    h('label', { class: 'f' }, 'Predecessors (finish to start)'),
+    k.preds.length ? h('ul', { class: 'plain preds' }, k.preds.map(q => {
+      const pe = IX.byId.get(q), bad = pe && k.start <= pe.pkg.finish;
+      return h('li', null, h('span', { class: bad ? 'late' : '' }, `${label(IX, q)} (finishes wk ${pe.pkg.finish})${bad ? ' — starts too early' : ''}`),
+        h('button', { type: 'button', 'aria-label': 'Remove predecessor ' + label(IX, q), 'data-key': 'pred-x:' + q, onclick: () => change(() => { k.preds = k.preds.filter(z => z !== q); }) }, '×'));
+    })) : h('p', { class: 'mut small' }, 'None.'),
+    predSel,
+    h('p', { class: 'small' }, `Earliest start: week ${es}. `, k.start !== es && k.preds.length ? h('button', { type: 'button', 'data-key': 'use-es', onclick: () => change(() => {
+      const d = k.finish - k.start; k.start = Math.min(es, P.weeks); k.finish = Math.min(P.weeks, k.start + d); }) }, `Move to week ${es}`) : null),
+    field('Deliverable', h('input', { type: 'text', maxlength: 400, 'data-key': 'k-del', value: k.deliverable, onchange: ev => change(() => { k.deliverable = ev.target.value.trim(); }) })),
+    h('label', { class: 'f' }, `Status at week ${P.currentWeek}`),
+    P.currentWeek >= 1 ? statusRadios(id, t.state) : h('p', { class: 'mut small' }, 'Set the current week to 1 or later to record status.'),
+    hist.length ? h('p', { class: 'mut small' }, 'History: ' + hist.map(z => `wk ${z.week} ${STATE_LABEL[z.state].toLowerCase()}`).join(', ')) : null,
+    h('h4', null, 'Move'), moveButtons(e),
+    h('div', { class: 'btns' }, h('button', { type: 'button', 'data-key': 'to-sum', onclick: () => change(() => setIsPackage(P, id, false)) }, 'Make it a summary element'), deleteButton(e))]);
+}
+
+/** Three radio buttons that set a package's state at the current week. */
+function statusRadios(id, state){
+  const name = 'st-' + id + '-' + V.tab;
+  return h('div', { class: 'radios', role: 'radiogroup', 'aria-label': 'Status of ' + label(IX, id) },
+    STATES.map(st => h('label', null, h('input', { type: 'radio', name, value: st, checked: state === st, 'data-key': `st:${id}:${st}`,
+      onchange: () => change(() => setStatus(P, id, P.currentWeek, st)) }), STATE_LABEL[st])));
+}
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════
+   gantt.js — Tab 2: the week-based Gantt chart (same rows as the WBS tab), its table view, and baselining.
+   Baseline bars are outlined; actual bars are solid; summary bars span their packages in the area colour.
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+
+function zoomRange(){
+  const N = P.weeks, half = Math.ceil(N / 2), c = Math.max(1, P.currentWeek);
+  if(V.zoom === 'sd1') return [1, half];
+  if(V.zoom === 'sd2') return [Math.min(N, half + 1), N];
+  if(V.zoom === 'near'){ let a = Math.max(1, c - 3), b = Math.min(N, a + 7); a = Math.max(1, b - 7); return [a, b]; }
+  return [1, N];
+}
+
+function renderGantt(root){
+  const b = activeBaseline(P);
+  const tb = h('div', { class: 'toolbar' }, levelSelect(),
+    h('label', null, 'Zoom', h('select', { 'data-key': 'zoom', onchange: ev => { V.zoom = ev.target.value; saveView(); render(); } },
+      [['all', 'Whole project'], ['sd1', 'Senior Design 1'], ['sd2', 'Senior Design 2'], ['near', '8 weeks around today']].map(([v, t]) => h('option', { value: v, selected: V.zoom === v }, t)))),
+    h('span', { class: 'seg', role: 'group', 'aria-label': 'View' },
+      h('button', { type: 'button', 'aria-pressed': V.gview === 'chart', 'data-key': 'gv-chart', onclick: () => { V.gview = 'chart'; saveView(); render(); } }, 'Chart'),
+      h('button', { type: 'button', 'aria-pressed': V.gview === 'table', 'data-key': 'gv-table', onclick: () => { V.gview = 'table'; saveView(); render(); } }, 'Table')),
+    h('button', { type: 'button', class: 'primary', 'data-key': 'g-bl', onclick: doBaseline }, b ? 'Re-baseline…' : 'Baseline the schedule…'),
+    h('span', { class: 'mut small' }, b ? `Active: baseline ${b.n} (${b.date}${b.reason ? ', ' + b.reason : ''})` : 'No baseline yet: outlined bars show the current plan.'));
+  const rows = visibleRows();
+  const preds = checks(P, IX).filter(c => c.kind === 'pred');
+  append(root, [tb, V.gview === 'chart' ? ganttChart(rows) : ganttTable(rows),
+    preds.length ? h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Predecessor warnings'),
+      h('ul', { class: 'plain warnlist' }, preds.map((c, i) => h('li', null, h('button', { type: 'button', 'data-key': 'gw:' + i, onclick: () => goTo(c.id) }, '⚠ ', c.text))))) : null,
+    h('p', { class: 'mut small' }, 'Outlined bar: baseline (planned start to planned finish). Solid bar: actual (first marked started to marked finished, or to today if still open). ',
+      'Hatched bar: lead time (no work). Diamond: milestone. Arrows: finish-to-start predecessors. A thin dashed line under a bar shows the current plan where it differs from the baseline.')]);
+}
+
+/** Planned weeks of a package as drawn: the active baseline if the package is in it, else the current plan. */
+function drawnPlan(e){
+  const b = activeBaseline(P), x = b && b.plan[e.id];
+  return x ? { s: x.s, f: x.f, base: true } : { s: e.pkg.start, f: e.pkg.finish, base: false };
+}
+
+function ganttChart(rows){
+  const [w0, w1] = zoomRange(), nW = w1 - w0 + 1;
+  const LW = 430, rowH = 28, headH = 46, cw = Math.max(22, Math.min(64, Math.floor(1080 / nW)));
+  const W = LW + nW * cw + 10, H = headH + rows.length * rowH + 6;
+  const X = w => LW + (w - w0) * cw;               // left edge of week w
+  const half = Math.ceil(P.weeks / 2), cur = P.currentWeek;
+  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Gantt chart, weeks ${w0} to ${w1}. The same rows are in the Table view.` });
+  const defs = s('defs', null,
+    s('clipPath', { id: 'gclip' }, s('rect', { x: LW, y: 0, width: nW * cw, height: H })),
+    s('pattern', { id: 'hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, s('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: '#7b878d', 'stroke-width': 2 })),
+    s('marker', { id: 'arrow', viewBox: '0 0 8 8', refX: 7, refY: 4, markerWidth: 7, markerHeight: 7, orient: 'auto' }, s('path', { d: 'M0 0L8 4L0 8z', fill: '#4f5b62' })));
+  svg.append(defs);
+  // semester bands and week numbers
+  for(const [a, bnd, t] of [[1, half, 'Senior Design 1'], [half + 1, P.weeks, 'Senior Design 2']]){
+    const a2 = Math.max(a, w0), b2 = Math.min(bnd, w1); if(a2 > b2) continue;
+    svg.append(s('rect', { x: X(a2), y: 2, width: (b2 - a2 + 1) * cw, height: 20, fill: t.endsWith('1') ? '#e3edf2' : '#ece7f7', stroke: '#fff' }),
+      s('text', { x: X(a2) + 6, y: 16, 'font-size': 12, 'font-weight': 600, fill: '#1b2328' }, t));
+  }
+  for(let w = w0; w <= w1; w++){
+    svg.append(s('text', { x: X(w) + cw / 2, y: 38, 'font-size': 11, 'text-anchor': 'middle', fill: w === cur ? '#b42318' : '#4f5b62', 'font-weight': w === cur ? 700 : 400 }, w));
+    svg.append(s('line', { x1: X(w), y1: headH - 4, x2: X(w), y2: H, stroke: w === half + 1 ? '#9aa5ab' : '#e3e8eb' }));
+  }
+  svg.append(s('text', { x: 6, y: 38, 'font-size': 12, 'font-weight': 600, fill: '#4f5b62' }, 'WBS  Name'), s('text', { x: LW - 8, y: 38, 'font-size': 12, 'text-anchor': 'end', 'font-weight': 600, fill: '#4f5b62' }, 'Flag'));
+  const yOf = new Map(), body = s('g', { 'clip-path': 'url(#gclip)' });
+  rows.forEach((r, i) => {
+    const e = r.e, id = e.id, y = headH + i * rowH, a = IX.area.get(id), col = a ? areaColor(a) : '#1b2328';
+    yOf.set(id, y);
+    const g = s('g', { class: 'gantt-row' }, s('rect', { class: 'hov', x: 0, y, width: W, height: rowH, fill: i % 2 ? '#fafbfc' : '#fff' }));
+    svg.append(g);
+    const nm = (IX.num.get(id) ? IX.num.get(id) + '  ' : '') + e.name;
+    g.append(s('text', { x: 6 + Math.max(0, r.lev - 1) * 10, y: y + 18, 'font-size': 13, 'font-weight': r.lev <= 2 ? 700 : r.lev === 3 ? 600 : 400, fill: '#1b2328' }, clip(nm, 330 - (r.lev - 1) * 10)),
+      s('title', { text: nm }));
+    if(isPkg(e)){
+      const lf = lateFlags(P, e, SX, cur);
+      const flag = lf.lateStart && lf.lateFinish ? 'Late start & finish' : lf.lateStart ? 'Late start' : lf.lateFinish ? 'Late finish' : '';
+      if(flag) g.append(s('text', { x: LW - 8, y: y + 18, 'font-size': 12, 'font-weight': 700, 'text-anchor': 'end', fill: '#b42318' }, flag));
+      const k = e.pkg, pl = drawnPlan(e), t = trackAt(SX.get(id), cur);
+      if(k.type === 'milestone'){
+        const cx = X(pl.s) + cw / 2, cy = y + rowH / 2;
+        body.append(s('path', { d: `M${cx} ${cy - 9}L${cx + 9} ${cy}L${cx} ${cy + 9}L${cx - 9} ${cy}z`, fill: t.state === 'finished' ? col : '#fff', stroke: col, 'stroke-width': 2 }),
+          s('text', { x: cx + 13, y: cy + 4, 'font-size': 11, fill: '#1b2328' }, e.name));
+      } else {
+        body.append(s('rect', { x: X(pl.s) + 1, y: y + 4, width: (pl.f - pl.s + 1) * cw - 2, height: 9, rx: 2,
+          fill: k.type === 'lead' ? 'url(#hatch)' : '#fff', stroke: col, 'stroke-width': 1.6, 'stroke-dasharray': pl.base ? null : '4 2' }));
+        if(pl.base && (k.start !== pl.s || k.finish !== pl.f))
+          body.append(s('line', { x1: X(k.start) + 1, y1: y + rowH - 2, x2: X(k.finish + 1) - 1, y2: y + rowH - 2, stroke: col, 'stroke-dasharray': '3 2' }));
+        if(t.start !== null){
+          const end = t.finish !== null ? t.finish : Math.max(t.start, cur);
+          body.append(s('rect', { x: X(t.start) + 1, y: y + 15, width: (end - t.start + 1) * cw - 2, height: 9, rx: 2, fill: col, opacity: k.type === 'lead' ? 0.6 : 1 }));
+          if(t.finish === null) body.append(s('text', { x: X(end + 1) + 3, y: y + 23, 'font-size': 10, fill: '#4f5b62' }, 'open'));
+        }
+      }
+    } else {
+      const ru = rollup(id);
+      if(ru.start !== null){
+        const x1 = X(ru.start), x2 = X(ru.finish + 1);
+        body.append(s('path', { d: `M${x1} ${y + 8}H${x2}V${y + 20}L${x2 - 5} ${y + 14}H${x1 + 5}L${x1} ${y + 20}z`, fill: col }));
+      }
+    }
+  });
+  svg.append(body);
+  // predecessor arrows between visible packages
+  const arrows = s('g', { 'clip-path': 'url(#gclip)', fill: 'none', stroke: '#4f5b62', 'stroke-width': 1.2 });
+  for(const r of rows){
+    if(!isPkg(r.e)) continue;
+    for(const q of r.e.pkg.preds){
+      if(!yOf.has(q)) continue;
+      const pe = IX.byId.get(q), pa = drawnPlan(pe), pb = drawnPlan(r.e);
+      const xa = pe.pkg.type === 'milestone' ? X(pa.s) + cw / 2 + 9 : X(pa.f + 1) - 1, ya = yOf.get(q) + 9;
+      const xb = r.e.pkg.type === 'milestone' ? X(pb.s) + cw / 2 - 9 : X(pb.s) + 1, yb = yOf.get(r.e.id) + 9;
+      const mid = Math.max(xa + 6, Math.min(xb - 6, xa + 6));
+      arrows.append(s('path', { d: `M${xa} ${ya}H${mid}V${yb}H${xb}`, 'marker-end': 'url(#arrow)', stroke: xb <= xa ? '#b42318' : '#4f5b62' }));
+    }
+  }
+  svg.append(arrows);
+  // today line at the end of the current week
+  if(cur >= w0 - 1 && cur <= w1){
+    const xt = X(cur + 1);
+    svg.append(s('line', { x1: xt, y1: 24, x2: xt, y2: H, stroke: '#b42318', 'stroke-width': 2 }),
+      s('text', { x: xt - 3, y: H - 4, 'font-size': 11, 'font-weight': 700, 'text-anchor': 'end', fill: '#b42318' }, `Today: end of week ${cur}`));
+  }
+  return h('div', { class: 'chartbox' }, svg);
+}
+
+function ganttTable(rows){
+  const tb = h('tbody');
+  for(const r of rows){
+    const e = r.e, id = e.id;
+    let cells;
+    if(isPkg(e)){
+      const k = e.pkg, pl = drawnPlan(e), t = trackAt(SX.get(id), P.currentWeek), lf = lateFlags(P, e, SX, P.currentWeek);
+      cells = [TYPE_LABEL[k.type], k.owner, pl.s, pl.f, pl.base ? 'baseline' : 'plan', t.start ?? '—', t.finish ?? (t.start !== null ? 'open' : '—'),
+        h('span', { class: 'late' }, [lf.lateStart ? 'Late start' : '', lf.lateFinish ? 'Late finish' : ''].filter(Boolean).join(', '))];
+    } else {
+      const ru = rollup(id);
+      cells = ['Summary', ru.owners ? ru.owners + ' owners' : '', ru.start ?? '—', ru.finish ?? '—', 'span', '', '', `${ru.fin} of ${ru.tasks} finished`];
+    }
+    tb.append(h('tr', { class: 'lev' + r.lev }, h('td', { class: 'wnum' }, IX.num.get(id) || ''), h('td', null, h('span', { style: `padding-left:${(r.lev - 1) * 14}px` }, e.name)),
+      cells.map((c, i) => h('td', { class: i >= 2 && i <= 6 && i !== 4 ? 'n' : null }, c))));
+  }
+  return h('div', { class: 'tablewrap', style: 'max-height:none' }, h('table', { class: 'grid', 'aria-label': 'Schedule table' },
+    h('thead', null, h('tr', null, ['WBS', 'Name', 'Type', 'Owner', 'Planned start', 'Planned finish', 'From', 'Actual start', 'Actual finish', `Late at week ${P.currentWeek}`]
+      .map((t, i) => h('th', { class: i >= 4 && i <= 8 && i !== 6 ? 'n' : null }, t)))), tb));
+}
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════
+   status.js — Tab 3: the task status bar chart (Sp, Sa, Fp, Fa by week, per week or cumulative, filtered by area
+   and owner) with its table and one-line reading; Tab 4: This week (set each task's status, then read the numbers).
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+
+function noBaselineNote(){
+  return h('div', { class: 'note' }, 'No baseline yet. Planned counts and PV come from the baseline: ',
+    h('button', { type: 'button', class: 'primary', 'data-key': 'nb-bl', onclick: doBaseline }, 'Baseline the schedule…'));
+}
+
+function renderStatus(root){
+  const filter = { area: V.farea, owner: V.fowner }, ser = series(P, IX, SX, filter), cur = P.currentWeek;
+  const tb = h('div', { class: 'toolbar' },
+    h('span', { class: 'seg', role: 'group', 'aria-label': 'Counts' },
+      h('button', { type: 'button', 'aria-pressed': V.mode === 'week', 'data-key': 'm-week', onclick: () => { V.mode = 'week'; saveView(); render(); } }, 'Per week'),
+      h('button', { type: 'button', 'aria-pressed': V.mode === 'cum', 'data-key': 'm-cum', onclick: () => { V.mode = 'cum'; saveView(); render(); } }, 'Cumulative')),
+    h('label', null, 'Major area', h('select', { 'data-key': 'f-area', onchange: ev => { V.farea = Number(ev.target.value); render(); } }, areaOptions(V.farea))),
+    h('label', null, 'Owner', h('select', { 'data-key': 'f-owner', onchange: ev => { V.fowner = ev.target.value; render(); } }, ownerOptions(V.fowner))));
+  const m = ser[Math.min(cur, P.weeks)];
+  append(root, [activeBaseline(P) ? null : noBaselineNote(), tb,
+    h('p', { class: 'reading', 'aria-live': 'polite' }, statusLine(m)),
+    statusChart(ser, cur, V.mode === 'cum'),
+    h('div', { class: 'legend', style: 'margin:6px 0 12px' },
+      legendKey('outline', 'var(--start)', 'Planned to start (Sp)'), legendKey('solid', 'var(--start)', 'Actually started (Sa)'),
+      legendKey('outline', 'var(--finish)', 'Planned to finish (Fp)'), legendKey('solid', 'var(--finish)', 'Actually finished (Fa)'),
+      h('span', { class: 'mut' }, `Weeks after week ${cur} show planned bars only. Milestones and lead-time items are not tasks and are not counted.`)),
+    statusTable(ser, cur, V.mode === 'cum')]);
+}
+
+function legendKey(kind, col, text){
+  return h('span', null, h('span', { class: 'swatch', style: kind === 'solid' ? `background:${col}` : `border:2px solid ${col};background:#fff;width:12px;height:12px`, 'aria-hidden': 'true' }), text);
+}
+
+/** Grouped bars: for each week, planned start (outlined blue), actual start (solid blue), planned finish (outlined green),
+    actual finish (solid green). */
+function statusChart(ser, cur, cum, width){
+  const N = P.weeks, val = (m, k) => cum ? m[k] : m.wk[k];
+  let max = 1;
+  for(let w = 1; w <= N; w++) for(const k of ['Sp', 'Fp', 'Sa', 'Fa']) if(k[1] === 'p' || w <= cur) max = Math.max(max, val(ser[w], k));
+  const tk = ticks(max, 5), top = tk[tk.length - 1];
+  const L = 44, R = 10, T = 12, B = 34, gw = Math.max(26, Math.min(48, Math.floor(((width || 1150) - L - R) / N)));
+  const W = L + R + N * gw, H = 300, ph = H - T - B, Y = v => T + ph - v / top * ph, bw = (gw - 6) / 4;
+  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Task status bar chart, ${cum ? 'cumulative' : 'per week'}. The values are in the table below.` });
+  for(const v of tk){ svg.append(s('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: '#e3e8eb' }), s('text', { x: L - 6, y: Y(v) + 4, 'font-size': 11, 'text-anchor': 'end', fill: '#4f5b62' }, v)); }
+  const series4 = [['Sp', '#10668a', false], ['Sa', '#10668a', true], ['Fp', '#18744a', false], ['Fa', '#18744a', true]];
+  for(let w = 1; w <= N; w++){
+    const x0 = L + (w - 1) * gw + 3;
+    series4.forEach(([k, col, solid], j) => {
+      if(solid && w > cur) return;
+      const v = val(ser[w], k); if(!v) return;
+      const y = Y(Math.max(0, v)), hgt = Math.abs(Y(0) - Y(v));
+      svg.append(s('rect', { x: x0 + j * bw + 0.5, y: v >= 0 ? y : Y(0), width: bw - 1, height: Math.max(1, hgt), fill: solid ? col : '#fff', stroke: col, 'stroke-width': solid ? 0 : 1.5 },
+        s('title', { text: `Week ${w}: ${{ Sp: 'planned to start', Sa: 'started', Fp: 'planned to finish', Fa: 'finished' }[k]} ${v}` })));
+    });
+    svg.append(s('text', { x: x0 + (gw - 6) / 2, y: H - B + 16, 'font-size': 11, 'text-anchor': 'middle', fill: w === cur ? '#b42318' : '#4f5b62', 'font-weight': w === cur ? 700 : 400 }, w));
+  }
+  svg.append(s('line', { x1: L, x2: W - R, y1: Y(0), y2: Y(0), stroke: '#4f5b62' }),
+    s('text', { x: L + (W - L - R) / 2, y: H - 4, 'font-size': 12, 'text-anchor': 'middle', fill: '#4f5b62' }, 'Week'),
+    s('text', { x: 12, y: T + ph / 2, 'font-size': 12, 'text-anchor': 'middle', fill: '#4f5b62', transform: `rotate(-90 12 ${T + ph / 2})` }, cum ? 'Tasks (cumulative)' : 'Tasks per week'));
+  if(cur >= 1 && cur < N){ const x = L + cur * gw; svg.append(s('line', { x1: x, x2: x, y1: T, y2: Y(0), stroke: '#b42318', 'stroke-dasharray': '4 3' })); }
+  return h('div', { class: 'chartbox' }, svg);
+}
+
+function statusTable(ser, cur, cum){
+  const v = (m, k) => cum ? m[k] : m.wk[k];
+  return h('div', { class: 'tablewrap' }, h('table', { class: 'grid', 'aria-label': 'Task status counts by week' },
+    h('thead', null, h('tr', null, h('th', null, 'Week'), h('th', { class: 'n' }, 'Planned to start'), h('th', { class: 'n' }, 'Actually started'),
+      h('th', { class: 'n' }, 'Planned to finish'), h('th', { class: 'n' }, 'Actually finished'))),
+    h('tbody', null, ser.slice(1).map(m => h('tr', { class: m.w === cur ? 'sel' : null }, h('td', null, m.w === cur ? `${m.w} (current)` : m.w),
+      h('td', { class: 'n' }, v(m, 'Sp')), h('td', { class: 'n' }, m.w <= cur ? v(m, 'Sa') : ''),
+      h('td', { class: 'n' }, v(m, 'Fp')), h('td', { class: 'n' }, m.w <= cur ? v(m, 'Fa') : ''))))));
+}
+
+/* ── TAB 4: THIS WEEK ── */
+function renderWeek(root){
+  const w = P.currentWeek;
+  const pk = IX.order.filter(isPkg);
+  const active = e => {
+    const pl = drawnPlan(e), t = trackAt(SX.get(e.id), w);
+    return (pl.s <= w && w <= pl.f) || t.state === 'started' || (t.state === 'not' && pl.s <= w);
+  };
+  const list = V.showAll ? pk : pk.filter(active);
+  const ser = series(P, IX, SX), m = ser[Math.min(w, P.weeks)];
+  const step1 = h('div', { class: 'card' }, h('h2', null, `1. Mark each open task at week ${w}`),
+    h('div', { class: 'toolbar' }, h('label', null, h('input', { type: 'checkbox', checked: V.showAll, 'data-key': 'showall', onchange: ev => { V.showAll = ev.target.checked; saveView(); render(); } }), 'Show all packages'),
+      h('span', { class: 'mut small' }, V.showAll ? `${list.length} packages.` : `${list.length} of ${pk.length} packages: active in the plan this week, or still open.`)),
+    w < 1 ? h('p', { class: 'note' }, 'The current week is 0. Set it to week 1 or later (top bar) to record status.') :
+    list.length ? h('div', { class: 'tablewrap' }, h('table', { class: 'grid', 'aria-label': 'Status this week' },
+      h('thead', null, h('tr', null, h('th', null, 'WBS'), h('th', null, 'Task'), h('th', null, 'Owner'), h('th', null, 'Planned'), h('th', null, `Status at week ${w}`), h('th', null, 'Flag'))),
+      h('tbody', null, list.map(e => {
+        const pl = drawnPlan(e), t = trackAt(SX.get(e.id), w), lf = lateFlags(P, e, SX, w);
+        return h('tr', null, h('td', { class: 'wnum' }, areaSwatch(IX.area.get(e.id)), IX.num.get(e.id)),
+          h('td', null, e.name, e.pkg.type !== 'task' ? h('span', { class: 'tag', style: 'margin-left:6px' }, TYPE_LABEL[e.pkg.type]) : null),
+          h('td', null, e.pkg.owner || '—'), h('td', { class: 'num' }, weekRange(pl.s, pl.f)), h('td', null, statusRadios(e.id, t.state)),
+          h('td', { class: 'late' }, [lf.lateStart ? 'Late start' : '', lf.lateFinish ? 'Late finish' : ''].filter(Boolean).join(', ')));
+      })))) : h('p', { class: 'mut' }, 'No packages are active or open this week.'));
+  const step2 = h('div', { class: 'card' }, h('h2', null, '2. Read the numbers'),
+    activeBaseline(P) ? null : noBaselineNote(),
+    h('p', { class: 'reading' }, statusLine(m), ' ', signalChip(m.signal)),
+    kpiGrid(m));
+  append(root, [step1, step2]);
+}
+
+/** The four counts and every measure as tiles; undefined values say "not yet defined" in words. */
+function kpiGrid(m, only){
+  const tiles = [['Sp', 'Planned to start', m.Sp], ['Sa', 'Actually started', m.Sa], ['Fp', 'Planned to finish', m.Fp], ['Fa', 'Actually finished', m.Fa], ['BAC', 'Tasks in baseline', m.BAC]]
+    .map(([k, d, v]) => [k, String(v ?? 0), d]);
+  const rows = measureRows(m).map(r => [r[0], r[2], r[1] + ' = ' + r[3]]);
+  const all = [...tiles, ...rows].filter(t => !only || only.includes(t[0]));
+  return h('div', { class: 'kpis' }, all.map(([k, v, d]) => h('div', { class: 'kpi' }, h('div', { class: 'k' }, k), h('div', { class: 'v' + (v === UNDEF || v === 'plan complete' ? ' u' : '') }, v), h('div', { class: 'd' }, d))));
+}
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════
+   evtab.js — Tab 5: the cumulative earned value chart (PV, EV, SV bracket, forecast at the current SPI), the SPI trend,
+   the start-versus-finish quadrant with the team's weekly path, the measures table and the late-task list.
+   Tab 6: the one-page printable status report.
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+
+function evFilter(){ return { area: V.evarea }; }
+
+function renderEv(root){
+  const ser = series(P, IX, SX, evFilter()), cur = P.currentWeek, m = ser[cur];
+  const tb = h('div', { class: 'toolbar' },
+    h('label', null, 'Measures for', h('select', { 'data-key': 'ev-area', onchange: ev => { V.evarea = Number(ev.target.value); render(); } },
+      areaOptions(V.evarea).map((o, i) => { if(i === 0) o.textContent = 'Whole project'; return o; }))),
+    h('span', null, 'Signal at week ' + cur + ': ', signalChip(m.signal)));
+  append(root, [activeBaseline(P) ? null : noBaselineNote(), tb,
+    h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Cumulative earned value (tasks)'), evChart(ser, cur, 1100), evLegend()),
+    h('div', { class: 'ev-charts' },
+      h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'SPI by week'), spiChart(ser, cur)),
+      h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Start versus finish'), quadChart(ser, cur))),
+    h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, `Late tasks at week ${cur}`), lateList(cur)),
+    h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Every measure by week'), measuresTable(ser, cur))]);
+}
+
+function evLegend(){
+  return h('div', { class: 'legend', style: 'margin-top:6px' },
+    h('span', null, lineKey('#55636b', 'dashed'), 'PV — planned value'), h('span', null, lineKey('#10668a', 'solid'), 'EV — earned value'),
+    h('span', null, 'SV — bracket at the current week'), h('span', null, lineKey('#10668a', 'dotted'), 'Forecast at the current SPI'));
+}
+function lineKey(col, style){
+  return h('span', { 'aria-hidden': 'true', style: `display:inline-block;width:26px;border-top:3px ${style} ${col};vertical-align:middle;margin-right:5px` });
+}
+
+/** PV across the whole baseline, EV to the current week, the SV bracket, and the forecast line to Tf. */
+function evChart(ser, cur, width){
+  const m = ser[cur], BAC = m.BAC || 0, T = m.T || 0, N = P.weeks;
+  const xMax = Math.max(N, T, m.Tf ? Math.min(Math.ceil(m.Tf) + 1, 2 * N) : 0);
+  const L = 50, R = 20, Tm = 20, B = 40, W = width || 900, H = 340, pw = W - L - R, ph = H - Tm - B;
+  const tk = ticks(Math.max(1, BAC), 5), top = tk[tk.length - 1];
+  const X = w => L + w / xMax * pw, Y = v => Tm + ph - v / top * ph;
+  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img',
+    'aria-label': `Cumulative earned value chart. At week ${cur}: PV ${fmtCount(m.PV)}, EV ${fmtCount(m.EV)}, SV ${fmtCount(m.SV)}. The values are in the measures table.` });
+  for(const v of tk) svg.append(s('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: '#e3e8eb' }), s('text', { x: L - 6, y: Y(v) + 4, 'font-size': 11, 'text-anchor': 'end', fill: '#4f5b62' }, v));
+  for(const w of ticks(xMax, 10)) if(w <= xMax) svg.append(s('text', { x: X(w), y: H - B + 16, 'font-size': 11, 'text-anchor': 'middle', fill: '#4f5b62' }, w));
+  svg.append(s('line', { x1: L, x2: W - R, y1: Y(0), y2: Y(0), stroke: '#4f5b62' }), s('line', { x1: L, x2: L, y1: Tm, y2: Y(0), stroke: '#4f5b62' }),
+    s('text', { x: L + pw / 2, y: H - 6, 'font-size': 12, 'text-anchor': 'middle', fill: '#4f5b62' }, 'Week'),
+    s('text', { x: 14, y: Tm + ph / 2, 'font-size': 12, 'text-anchor': 'middle', fill: '#4f5b62', transform: `rotate(-90 14 ${Tm + ph / 2})` }, 'Tasks'));
+  if(!BAC){ svg.append(s('text', { x: L + pw / 2, y: Tm + ph / 2, 'font-size': 14, 'text-anchor': 'middle', fill: '#4f5b62' }, 'No baselined tasks yet: baseline the schedule.')); return h('div', { class: 'chartbox' }, svg); }
+  // BAC line and plan finish
+  svg.append(s('line', { x1: L, x2: W - R, y1: Y(BAC), y2: Y(BAC), stroke: '#9aa5ab', 'stroke-dasharray': '2 3' }), s('text', { x: W - R - 4, y: Y(BAC) - 4, 'font-size': 11, 'text-anchor': 'end', fill: '#4f5b62' }, `BAC ${BAC}`));
+  if(T){ svg.append(s('line', { x1: X(T), x2: X(T), y1: Tm, y2: Y(0), stroke: '#55636b', 'stroke-dasharray': '6 4' }), s('text', { x: X(T) + 4, y: Tm + 10, 'font-size': 11, fill: '#55636b' }, `Plan finish T = week ${T}`)); }
+  const pv = ser.map(r => r.PV === null ? null : [X(r.w), Y(r.PV)]).filter(Boolean);
+  pv.unshift([X(0), Y(0)]);
+  svg.append(s('polyline', { points: pv.map(p => p.join(',')).join(' '), fill: 'none', stroke: '#55636b', 'stroke-width': 2.2, 'stroke-dasharray': '7 4' }));
+  if(cur >= 1){
+    const ev = [[X(0), Y(0)], ...ser.slice(1, cur + 1).map(r => [X(r.w), Y(r.EV || 0)])];
+    svg.append(s('polyline', { points: ev.map(p => p.join(',')).join(' '), fill: 'none', stroke: '#10668a', 'stroke-width': 3 }));
+    svg.append(s('circle', { cx: X(cur), cy: Y(m.EV), r: 4, fill: '#10668a' }));
+    // SV bracket
+    if(m.SV !== null && m.SV !== 0){
+      const x = X(cur) + 8, y1 = Y(m.PV), y2 = Y(m.EV);
+      svg.append(s('path', { d: `M${x - 4} ${y1}H${x}V${y2}H${x - 4}`, fill: 'none', stroke: '#1b2328', 'stroke-width': 1.5 }),
+        s('text', { x: x + 4, y: (y1 + y2) / 2 + 4, 'font-size': 12, 'font-weight': 700, fill: m.SV < 0 ? '#b42318' : '#18744a' }, `SV = ${fmtCount(m.SV)}`));
+    }
+    if(m.Tf !== null && m.EV < BAC){
+      const xf = X(Math.min(m.Tf, xMax));
+      svg.append(s('line', { x1: X(cur), y1: Y(m.EV), x2: xf, y2: Y(BAC), stroke: '#10668a', 'stroke-width': 2, 'stroke-dasharray': '2 4' }));
+      svg.append(s('line', { x1: xf, x2: xf, y1: Tm, y2: Y(0), stroke: '#10668a', 'stroke-dasharray': '2 4' }),
+        s('text', { x: xf + 4, y: Tm + 24, 'font-size': 11, fill: '#10668a' }, `Forecast Tf = ${m.Tf.toFixed(1)}${m.Tf > xMax ? ' (off the chart)' : ''}`));
+    }
+  }
+  return h('div', { class: 'chartbox' }, svg);
+}
+
+function spiChart(ser, cur){
+  const pts = ser.slice(1, cur + 1).filter(r => r.SPI !== null);
+  const W = 520, H = 260, L = 44, R = 12, T = 12, B = 34, pw = W - L - R, ph = H - T - B, N = P.weeks;
+  const top = Math.max(1.5, ...pts.map(r => r.SPI)) * 1.05;
+  const X = w => L + (w - 1) / Math.max(1, N - 1) * pw, Y = v => T + ph - v / top * ph;
+  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'SPI by week. The values are in the measures table.', style: 'max-width:100%;height:auto' });
+  for(const v of [0, 0.5, 1, 1.5, 2].filter(v => v <= top)) svg.append(s('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: v === 1 ? '#4f5b62' : '#e3e8eb', 'stroke-dasharray': v === 1 ? '4 3' : null }),
+    s('text', { x: L - 6, y: Y(v) + 4, 'font-size': 11, 'text-anchor': 'end', fill: '#4f5b62' }, v.toFixed(1)));
+  for(const w of ticks(N, 8)) if(w >= 1 && w <= N) svg.append(s('text', { x: X(w), y: H - B + 16, 'font-size': 11, 'text-anchor': 'middle', fill: '#4f5b62' }, w));
+  svg.append(s('text', { x: L + pw / 2, y: H - 4, 'font-size': 12, 'text-anchor': 'middle', fill: '#4f5b62' }, 'Week'));
+  if(pts.length){
+    svg.append(s('polyline', { points: pts.map(r => X(r.w) + ',' + Y(r.SPI)).join(' '), fill: 'none', stroke: '#10668a', 'stroke-width': 2.5 }));
+    for(const r of pts) svg.append(s('circle', { cx: X(r.w), cy: Y(r.SPI), r: 3, fill: '#10668a' }, s('title', { text: `Week ${r.w}: SPI ${fmtIndex(r.SPI)}` })));
+  } else svg.append(s('text', { x: L + pw / 2, y: T + ph / 2, 'font-size': 13, 'text-anchor': 'middle', fill: '#4f5b62' }, 'SPI not yet defined'));
+  return svg;
+}
+
+/** Start ratio across, finish ratio up, split at 1; the team's dot week by week. */
+function quadChart(ser, cur){
+  const pts = ser.slice(1, cur + 1).filter(r => r.SR !== null && r.FR !== null);
+  const W = 520, H = 300, L = 44, R = 12, T = 12, B = 38, pw = W - L - R, ph = H - T - B;
+  const mx = Math.max(2, ...pts.map(r => r.SR)) * 1.02, my = Math.max(2, ...pts.map(r => r.FR)) * 1.02;
+  const X = v => L + v / mx * pw, Y = v => T + ph - v / my * ph;
+  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', style: 'max-width:100%;height:auto',
+    'aria-label': 'Start versus finish quadrant: start ratio across, finish ratio up. The values are in the measures table.' });
+  svg.append(s('rect', { x: L, y: T, width: X(1) - L, height: Y(1) - T, fill: '#fff6e5' }), s('rect', { x: X(1), y: Y(1), width: W - R - X(1), height: Y(0) - Y(1), fill: '#fff6e5' }),
+    s('rect', { x: X(1), y: T, width: W - R - X(1), height: Y(1) - T, fill: '#e8f4ed' }), s('rect', { x: L, y: Y(1), width: X(1) - L, height: Y(0) - Y(1), fill: '#fdeceb' }),
+    s('line', { x1: X(1), x2: X(1), y1: T, y2: Y(0), stroke: '#4f5b62' }), s('line', { x1: L, x2: W - R, y1: Y(1), y2: Y(1), stroke: '#4f5b62' }),
+    s('text', { x: W - R - 6, y: T + 16, 'font-size': 13, 'font-weight': 700, 'text-anchor': 'end', fill: '#18744a' }, 'On plan'),
+    s('text', { x: L + 6, y: T + 16, 'font-size': 13, 'font-weight': 700, fill: '#8a5700' }, 'Watch'),
+    s('text', { x: W - R - 6, y: Y(0) - 8, 'font-size': 13, 'font-weight': 700, 'text-anchor': 'end', fill: '#8a5700' }, 'Watch'),
+    s('text', { x: L + 6, y: Y(0) - 8, 'font-size': 13, 'font-weight': 700, fill: '#b42318' }, 'Re-plan'),
+    s('text', { x: L + pw / 2, y: H - 4, 'font-size': 12, 'text-anchor': 'middle', fill: '#4f5b62' }, 'Start ratio SR = Sa / Sp'),
+    s('text', { x: 12, y: T + ph / 2, 'font-size': 12, 'text-anchor': 'middle', fill: '#4f5b62', transform: `rotate(-90 12 ${T + ph / 2})` }, 'Finish ratio FR = Fa / Fp'));
+  for(const v of [0, 0.5, 1, 1.5, 2]){ if(v <= mx) svg.append(s('text', { x: X(v), y: Y(0) + 14, 'font-size': 11, 'text-anchor': 'middle', fill: '#4f5b62' }, v.toFixed(1)));
+    if(v <= my) svg.append(s('text', { x: L - 6, y: Y(v) + 4, 'font-size': 11, 'text-anchor': 'end', fill: '#4f5b62' }, v.toFixed(1))); }
+  if(pts.length){
+    svg.append(s('polyline', { points: pts.map(r => X(r.SR) + ',' + Y(r.FR)).join(' '), fill: 'none', stroke: '#55636b', 'stroke-width': 1.5 }));
+    pts.forEach((r, i) => {
+      const last = i === pts.length - 1;
+      svg.append(s('circle', { cx: X(r.SR), cy: Y(r.FR), r: last ? 7 : 3.5, fill: last ? '#10668a' : '#9aa5ab', stroke: '#fff' }, s('title', { text: `Week ${r.w}: SR ${fmtIndex(r.SR)}, FR ${fmtIndex(r.FR)}, ${r.signal}` })));
+      if(last) svg.append(s('text', { x: X(r.SR) + 10, y: Y(r.FR) - 8, 'font-size': 12, 'font-weight': 700, fill: '#1b2328' }, `Week ${r.w}`));
+    });
+  } else svg.append(s('text', { x: L + pw / 2, y: T + ph / 2 + 30, 'font-size': 13, 'text-anchor': 'middle', fill: '#4f5b62' }, 'SR and FR not yet both defined'));
+  return svg;
+}
+
+function lateList(w, filter){
+  const list = lateTasks(P, IX, SX, w, filter || evFilter());
+  if(!list.length) return h('p', { class: 'mut' }, 'No late tasks.');
+  return h('ul', { class: 'plain' }, list.map(l => h('li', { style: 'margin:3px 0' },
+    h('b', null, `${l.num} ${l.name}`), ` (${l.owner || 'no owner'}, planned wk ${l.s}–${l.f}): `,
+    h('span', { class: 'late' }, [l.lateStart ? 'late start' : '', l.lateFinish ? 'late finish' : ''].filter(Boolean).join(' and ')))));
+}
+
+function measuresTable(ser, cur){
+  const cols = ['Week', 'Sp', 'Fp', 'Sa', 'Fa', 'PV', 'EV', 'SV', 'SV%', 'SPI', 'SR', 'FR', '% complete', 'Tf (weeks)', 'To go', 'TSPI', 'Signal'];
+  return h('div', { class: 'tablewrap' }, h('table', { class: 'grid', 'aria-label': 'Earned value measures by week' },
+    h('thead', null, h('tr', null, cols.map((c, i) => h('th', { class: i && i < 16 ? 'n' : null }, c)))),
+    h('tbody', null, ser.slice(1, cur + 1).map(m => h('tr', { class: m.w === cur ? 'sel' : null },
+      [m.w, m.Sp, m.Fp, m.Sa, m.Fa, fmtCount(m.PV), fmtCount(m.EV), fmtCount(m.SV), fmtPct(m.SVpct), fmtIndex(m.SPI), fmtIndex(m.SR), fmtIndex(m.FR), fmtPct(m.pct),
+        m.Tf === null ? UNDEF : m.Tf.toFixed(1), fmtCount(m.togo), fmtTSPI(m)].map((v, i) => h('td', { class: i ? 'n' : null }, v)),
+      h('td', null, signalChip(m.signal)))))));
+}
+
+/* ── TAB 6: STATUS REPORT ── */
+function renderReport(root){
+  const cur = P.currentWeek, ser = series(P, IX, SX), m = ser[cur];
+  const moved = IX.order.filter(isPkg).filter(e => (SX.get(e.id) || []).some(z => z.week === cur))
+    .map(e => ({ e, t: trackAt(SX.get(e.id), cur), was: trackAt(SX.get(e.id), cur - 1).state }));
+  const head = [['PV', fmtCount(m.PV)], ['EV', fmtCount(m.EV)], ['SV', fmtCount(m.SV)], ['SPI', fmtIndex(m.SPI)], ['SR', fmtIndex(m.SR)], ['FR', fmtIndex(m.FR)],
+    ['Percent complete', fmtPct(m.pct)], ['Forecast finish', m.Tf === null ? UNDEF : `week ${m.Tf.toFixed(1)} (plan: week ${m.T})`], ['TSPI', fmtTSPI(m)]];
+  const ta = h('textarea', { class: 'screenonly', rows: 5, 'data-key': 'actions', 'aria-label': 'Actions', maxlength: LIMITS.long,
+    onchange: ev => change(() => { P.actions = ev.target.value; }) }, P.actions);
+  append(root, [h('div', { class: 'toolbar' }, h('button', { type: 'button', class: 'primary', 'data-key': 'r-print', onclick: () => window.print() }, 'Print or save as PDF'),
+      h('span', { class: 'mut small' }, 'One page. Use the browser\'s print dialog to save it as a PDF, then paste it into the weekly status report.')),
+    h('article', { id: 'report' },
+      h('div', { class: 'row', style: 'justify-content:space-between' }, h('div', null, h('h1', null, P.name), h('p', { class: 'mut', style: 'margin:2px 0 0' },
+        `Status report · week ${cur} of ${P.weeks} · ${new Date().toISOString().slice(0, 10)}${activeBaseline(P) ? ` · baseline ${activeBaseline(P).n}` : ' · no baseline'}`)),
+        signalChip(m.signal)),
+      h('h3', null, 'Headline numbers (tasks)'),
+      h('div', { class: 'kpis' }, head.map(([k, v]) => h('div', { class: 'kpi' }, h('div', { class: 'k' }, k), h('div', { class: 'v' + (v === UNDEF || v === 'plan complete' ? ' u' : '') }, v)))),
+      h('p', { class: 'reading' }, statusLine(m)),
+      h('h3', null, 'Cumulative earned value'), evChart(ser, cur, 840),
+      h('h3', null, 'Late tasks'), lateList(cur, {}),
+      h('h3', null, `Tasks started or finished in week ${cur}`),
+      moved.length ? h('ul', { class: 'plain' }, moved.map(x => h('li', null, `${IX.num.get(x.e.id)} ${x.e.name} (${x.e.pkg.owner || 'no owner'}): ${STATE_LABEL[x.was].toLowerCase()} → `, stateText(x.t.state))))
+        : h('p', { class: 'mut' }, 'None.'),
+      h('h3', null, 'Actions'), ta, h('div', { class: 'printonly', style: 'white-space:pre-wrap;border:1px solid #c6cfd4;padding:8px;min-height:4em' }, P.actions || ' '))]);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════
+   main.js — the help panel (lecture terms, template, 50/50 rule, equations as MathML), the top bar, tabs,
+   the render cycle with focus kept across redraws, and start-up.
+   ════════════════════════════════════════════════════════════════════════════════════════════ */
+
+const MATHNS = 'http://www.w3.org/1998/Math/MathML';
+/** Tiny MathML builder: m('mi','PV') etc. */
+function m(tag, ...kids){
+  const el = document.createElementNS(MATHNS, tag);
+  for(const k of kids) el.append(typeof k === 'string' ? document.createTextNode(k) : k);
+  return el;
+}
+const mi = t => m('mi', t), mo = t => m('mo', t), mn = t => m('mn', t);
+const sub = (a, b) => m('msub', mi(a), mi(b));
+const frac = (a, b) => m('mfrac', a, b);
+const row = (...k) => m('mrow', ...k);
+function eq(...k){ const e = m('math', row(...k)); e.setAttribute('display', 'block'); return h('div', { class: 'eq' }, e); }
+
+function buildHelp(){
+  const B = $('helpBody');
+  clear(B);
+  append(B, [
+    h('p', null, 'This tool follows the Senior Design 1 lectures: ', h('b', null, 'Work Breakdown Structure'), ', ', h('b', null, 'Earned Value'), ' and ', h('b', null, 'Earned Value Equations'), '. ',
+      'Earned value is counted in ', h('b', null, 'tasks'), ', not hours: there are no time cards.'),
+    h('h3', null, 'The weekly routine (about 10 minutes)'),
+    h('ol', null, h('li', null, 'Set the current week in the top bar.'), h('li', null, 'On ', h('b', null, '4 This week'), ', mark each open task not started, started or finished.'),
+      h('li', null, 'Read the four counts and the measures, then print ', h('b', null, '6 Status report'), ' for the weekly status report.'), h('li', null, 'Save the project file.')),
+    h('h3', null, 'Senior Design template'),
+    h('ul', null, TEMPLATE.map(([a, subs], i) => h('li', null, h('b', null, `${i + 1}.0 ${a}: `), subs.map((x, j) => `${i + 1}.${j + 1} ${x}`).join(', ')))),
+    h('p', null, 'Add your work packages under the sub-areas. The lowest level is the ', h('b', null, 'work package'), ', which is one ', h('b', null, 'task'),
+      ' in earned value: one owner, planned start and finish weeks, a deliverable and its predecessors. Every task counts the same, so keep tasks similar in size (2 weeks or less). ',
+      'Milestones (PDR, CDR, final demo) and lead-time items (a part order) are shown on the schedule but are not tasks.'),
+    h('h3', null, 'The 50/50 rule'),
+    h('p', null, 'A task earns half when it is started and the other half when it is finished. The four counts, cumulative to the end of week w, from the active baseline:'),
+    h('ul', null, h('li', null, h('b', null, 'Sp'), ' tasks planned to start; ', h('b', null, 'Fp'), ' tasks planned to finish;'),
+      h('li', null, h('b', null, 'Sa'), ' tasks actually started (or finished); ', h('b', null, 'Fa'), ' tasks actually finished.'),
+      h('li', null, h('b', null, 'BAC'), ' is the number of tasks in the baseline; ', h('b', null, 'T'), ' is the planned duration, the latest baseline finish week.')),
+    eq(mi('PV'), mo('='), frac(mn('1'), mn('2')), mo('('), sub('S', 'p'), mo('+'), sub('F', 'p'), mo(')'), m('mspace', ''), mi('EV'), mo('='), frac(mn('1'), mn('2')), mo('('), sub('S', 'a'), mo('+'), sub('F', 'a'), mo(')')),
+    h('h3', null, 'Measures'),
+    eq(mi('SV'), mo('='), mi('EV'), mo('−'), mi('PV')),
+    eq(mi('SV%'), mo('='), frac(mi('SV'), mi('PV')), mo('×'), mn('100')),
+    eq(mi('SPI'), mo('='), frac(mi('EV'), mi('PV'))),
+    eq(mi('% complete'), mo('='), frac(mi('EV'), mi('BAC')), mo('×'), mn('100')),
+    eq(mi('SR'), mo('='), frac(sub('S', 'a'), sub('S', 'p')), m('mspace', ''), mi('FR'), mo('='), frac(sub('F', 'a'), sub('F', 'p'))),
+    eq(sub('T', 'f'), mo('='), frac(mi('T'), mi('SPI')), m('mspace', ''), mi('tasks to go'), mo('='), mi('BAC'), mo('−'), mi('EV')),
+    eq(mi('TSPI'), mo('='), frac(row(mi('BAC'), mo('−'), mi('EV')), row(mi('BAC'), mo('−'), mi('PV')))),
+    h('p', null, 'A measure that would divide by zero shows ', h('i', null, 'not yet defined'), ': SPI and SV% when PV = 0, SR when Sp = 0, FR when Fp = 0, Tf when SPI = 0, and TSPI when BAC = PV (', h('i', null, 'plan complete'), '). Week 0 leaves every measure undefined.'),
+    h('h3', null, 'Signal (start and finish quadrant)'),
+    h('ul', null, h('li', null, h('b', null, 'On plan'), ': SR and FR both at least 1.'), h('li', null, h('b', null, 'Watch'), ': one of them below 1.'), h('li', null, h('b', null, 'Re-plan'), ': both below 1.'),
+      h('li', null, 'Early on, when only SR is defined (nothing planned to finish yet), the signal is judged on SR alone.')),
+    h('h3', null, 'Files'),
+    h('p', null, 'Your work autosaves in this browser, but browser storage can be cleared. ', h('b', null, 'Save'), ' writes the project file (JSON): that is the copy of record. Send it to your instructor, who opens it with ', h('b', null, 'Open'), '. ',
+      h('b', null, 'Export CSV'), ' writes the WBS (to the chosen level), the status history or the weekly earned value table for a spreadsheet.'),
+    h('h3', null, 'Keyboard'),
+    h('p', null, 'Tab moves between controls. In the WBS tree, ↑ ↓ move between rows, → opens a branch, ← closes it or goes to the parent, Enter selects. Ctrl+S (⌘S) saves the project file.')]);
+}
+
+/* ── TOP BAR AND TABS ── */
+function renderTop(){
+  const sig = series(P, IX, SX)[P.currentWeek].signal, chip = $('sig');
+  chip.className = 'chip ' + signalClass(sig); chip.textContent = sig ? `Week ${P.currentWeek}: ${sig}` : 'Signal not yet defined';
+  $('pname').textContent = P.name;
+  const wk = $('wk'); wk.max = P.weeks; if(document.activeElement !== wk) wk.value = P.currentWeek;
+  $('wkOf').textContent = `of ${P.weeks}`;
+  $('wkDown').disabled = P.currentWeek <= 0; $('wkUp').disabled = P.currentWeek >= P.weeks;
+  for(const b of document.querySelectorAll('#tabs [role=tab]')){
+    const on = b.dataset.tab === V.tab;
+    b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1;
+    $('p-' + b.dataset.tab).classList.toggle('on', on);
+  }
+  showSaved();
+}
+
+const RENDER = { wbs: renderWbs, gantt: renderGantt, status: renderStatus, week: renderWeek, ev: renderEv, report: renderReport };
+
+/** Redraw the top bar and the open tab, keeping keyboard focus on the same control. */
+function render(){
+  const a = document.activeElement, key = a && a.dataset ? a.dataset.key : null;
+  renderTop();
+  const panel = clear($('p-' + V.tab));
+  RENDER[V.tab](panel);
+  if(key && key !== 'wk'){ const el = document.querySelector(`[data-key="${CSS.escape(key)}"]`); if(el) el.focus(); }
+}
+
+function setTab(t){ V.tab = t; saveView(); render(); }
+
+function wire(){
+  $('wk').addEventListener('change', ev => change(() => { P.currentWeek = clampInt(ev.target.value, 0, P.weeks, P.currentWeek); }));
+  $('wkDown').addEventListener('click', () => change(() => { P.currentWeek = Math.max(0, P.currentWeek - 1); }));
+  $('wkUp').addEventListener('click', () => change(() => { P.currentWeek = Math.min(P.weeks, P.currentWeek + 1); }));
+  $('bNew').addEventListener('click', newFile);
+  $('bOpen').addEventListener('click', () => { $('file').value = ''; $('file').click(); });
+  $('file').addEventListener('change', ev => openFile(ev.target.files[0]));
+  $('bSave').addEventListener('click', saveFile);
+  const closeMenu = () => { $('csvMenu').open = false; };
+  $('cWbs').addEventListener('click', () => { closeMenu(); csvWbs(); });
+  $('cStatus').addEventListener('click', () => { closeMenu(); csvStatus(); });
+  $('cEv').addEventListener('click', () => { closeMenu(); csvEv(); });
+  $('csvMenu').addEventListener('keydown', ev => { if(ev.key === 'Escape'){ closeMenu(); $('csvMenu').querySelector('summary').focus(); } });
+  $('bPrint').addEventListener('click', () => window.print());
+  $('bHelp').addEventListener('click', () => { $('help').showModal(); $('helpClose').focus(); });
+  $('helpClose').addEventListener('click', () => $('help').close());
+  const tabs = [...document.querySelectorAll('#tabs [role=tab]')];
+  tabs.forEach((b, i) => {
+    b.addEventListener('click', () => setTab(b.dataset.tab));
+    b.addEventListener('keydown', ev => {
+      const j = ev.key === 'ArrowRight' ? (i + 1) % tabs.length : ev.key === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length : ev.key === 'Home' ? 0 : ev.key === 'End' ? tabs.length - 1 : -1;
+      if(j < 0) return; ev.preventDefault(); setTab(tabs[j].dataset.tab); tabs[j].focus();
+    });
+  });
+  document.addEventListener('keydown', ev => { if((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's'){ ev.preventDefault(); saveFile(); } });
+  window.addEventListener('beforeunload', () => { try { localStorage.setItem(LS_PROJECT, serialize(P)); } catch { /* ignore */ } });
+}
+
+loadView();
+loadStart();
+buildHelp();
+wire();
+render();
+})();
+</script>
+</body>
+</html>
