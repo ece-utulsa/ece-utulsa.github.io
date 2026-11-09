@@ -26,7 +26,7 @@ const TEMPLATE = [
 /* ── PROJECT ────────────────────────────────────────────────────────────────────────────────── */
 
 function newProject(name){
-  const p = { app: APP_ID, schema: SCHEMA, name: name || 'Senior Design project', members: [], weeks: 30, currentWeek: 0,
+  const p = { app: APP_ID, schema: SCHEMA, name: name || 'Senior Design project', example: false, members: [], weeks: 30, currentWeek: 0,
     nextId: 1, elements: [{ id: 'root', parent: null, name: name || 'Senior Design project', order: 0, pkg: null }],
     status: [], baselines: [], actions: '' };
   TEMPLATE.forEach(([area, subs], i) => {
@@ -39,7 +39,7 @@ function newProject(name){
 
 function newId(p){ return 'e' + (p.nextId++).toString(36); }
 
-function blankPkg(type){ return { type: type || 'task', owner: '', start: 1, finish: 1, preds: [], deliverable: '' }; }
+function blankPkg(type){ return { type: type || 'task', owner: '', start: 1, finish: 1, preds: [], deliverable: '', longOk: false, longWhy: '' }; }
 
 /** Add an element under parentId (last among its siblings). isPkg makes it a work package (a leaf). */
 function addElement(p, parentId, name, isPkg, type){
@@ -260,7 +260,7 @@ function checks(p, ix){
       if(!o) out.push({ id: e.id, kind: 'noOwner', text: `${n} has no owner.` });
       else if(o.toLowerCase() === 'team') out.push({ id: e.id, kind: 'teamOwner', text: `${n} is owned by "Team". Give it one student.` });
       const d = k.finish - k.start + 1;
-      if(d > 2) out.push({ id: e.id, kind: 'long', text: `${n} is planned for ${d} weeks, more than 2. Split it into smaller tasks.` });
+      if(d > 2 && !k.longOk) out.push({ id: e.id, kind: 'long', text: `${n} is planned for ${d} weeks, more than 2. Split it into smaller tasks.` });
       if(!k.deliverable.trim()) out.push({ id: e.id, kind: 'noDeliverable', text: `${n} has no deliverable.` });
     }
     if(k.finish < k.start) out.push({ id: e.id, kind: 'order', text: `${n} finishes (week ${k.finish}) before it starts (week ${k.start}).` });
@@ -282,6 +282,13 @@ function checks(p, ix){
       out.push({ id: 'root', kind: 'overload', who: m, text: `${m} owns ${c} tasks, more than 1.5 times the team average (${avg.toFixed(1)}).` });
   }
   return out;
+}
+
+/** Tasks longer than 2 weeks that the team accepted (change briefing C9): not warned, listed with their reason. */
+function acceptedExceptions(p, ix){
+  ix = ix || indexTree(p);
+  return ix.order.filter(e => isTask(e) && e.pkg.longOk && e.pkg.finish - e.pkg.start + 1 > 2).map(e => ({ id: e.id,
+    text: `${label(ix, e.id)}: ${e.pkg.finish - e.pkg.start + 1} weeks, accepted${e.pkg.longWhy ? ' — ' + e.pkg.longWhy : ' (no reason given)'}.` }));
 }
 
 /* ── FILES ──────────────────────────────────────────────────────────────────────────────────── */
@@ -308,7 +315,7 @@ function loadProject(raw){
 
 function sanitize(o){
   const weeks = clampInt(o.weeks, 1, MAX_WEEKS, 30);
-  const p = { app: APP_ID, schema: SCHEMA, name: str(o.name) || 'Senior Design project',
+  const p = { app: APP_ID, schema: SCHEMA, name: str(o.name) || 'Senior Design project', example: o.example === true,
     members: [], weeks, currentWeek: clampInt(o.currentWeek, 0, weeks, 1), nextId: 1,
     elements: [], status: [], baselines: [], actions: str(o.actions, LIMITS.long) };
   const seenM = new Set();
@@ -326,7 +333,7 @@ function sanitize(o){
     if(e.pkg && typeof e.pkg === 'object'){
       const t = TYPES.includes(e.pkg.type) ? e.pkg.type : 'task';
       pkg = { type: t, owner: str(e.pkg.owner), start: clampInt(e.pkg.start, 1, weeks, 1), finish: 1,
-        preds: [], deliverable: str(e.pkg.deliverable, 400) };
+        preds: [], deliverable: str(e.pkg.deliverable, 400), longOk: e.pkg.longOk === true, longWhy: str(e.pkg.longWhy) };
       pkg.finish = t === 'milestone' ? pkg.start : clampInt(e.pkg.finish, 1, weeks, pkg.start);
       pkg.preds = Array.isArray(e.pkg.preds) ? e.pkg.preds.filter(q => typeof q === 'string' && ID_RE.test(q)).slice(0, LIMITS.preds) : [];
     }

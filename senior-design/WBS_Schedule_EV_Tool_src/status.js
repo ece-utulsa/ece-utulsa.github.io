@@ -14,6 +14,7 @@ function renderStatus(root){
     h('span', { class: 'seg', role: 'group', 'aria-label': 'Counts' },
       h('button', { type: 'button', 'aria-pressed': V.mode === 'week', 'data-key': 'm-week', onclick: () => { V.mode = 'week'; saveView(); render(); } }, 'Per week'),
       h('button', { type: 'button', 'aria-pressed': V.mode === 'cum', 'data-key': 'm-cum', onclick: () => { V.mode = 'cum'; saveView(); render(); } }, 'Cumulative')),
+    zoomSelect(),
     h('label', null, 'Major area', h('select', { 'data-key': 'f-area', onchange: ev => { V.farea = Number(ev.target.value); render(); } }, areaOptions(V.farea))),
     h('label', null, 'Owner', h('select', { 'data-key': 'f-owner', onchange: ev => { V.fowner = ev.target.value; render(); } }, ownerOptions(V.fowner))));
   const m = ser[Math.min(cur, P.weeks)];
@@ -34,41 +35,47 @@ function legendKey(kind, col, text){
 /** Grouped bars: for each week, planned start (outlined blue), actual start (solid blue), planned finish (outlined green),
     actual finish (solid green). */
 function statusChart(ser, cur, cum, width){
-  const N = P.weeks, val = (m, k) => cum ? m[k] : m.wk[k];
+  const [a, b] = chartRange('status', ser[cur]), nW = b - a + 1, val = (m, k) => cum ? m[k] : m.wk[k];
   let max = 1;
-  for(let w = 1; w <= N; w++) for(const k of ['Sp', 'Fp', 'Sa', 'Fa']) if(k[1] === 'p' || w <= cur) max = Math.max(max, val(ser[w], k));
+  for(let w = a; w <= b; w++) for(const k of ['Sp', 'Fp', 'Sa', 'Fa']) if(k[1] === 'p' || w <= cur) max = Math.max(max, val(ser[w], k));
   const tk = ticks(max, 5), top = tk[tk.length - 1];
-  const L = 44, R = 10, T = 12, B = 34, gw = Math.max(26, Math.min(48, Math.floor(((width || 1150) - L - R) / N)));
-  const W = L + R + N * gw, H = 300, ph = H - T - B, Y = v => T + ph - v / top * ph, bw = (gw - 6) / 4;
-  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Task status bar chart, ${cum ? 'cumulative' : 'per week'}. The values are in the table below.` });
-  for(const v of tk){ svg.append(s('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: '#e3e8eb' }), s('text', { x: L - 6, y: Y(v) + 4, 'font-size': 11, 'text-anchor': 'end', fill: '#4f5b62' }, v)); }
+  const L = 52, R = 12, T = 14, B = 50, gw = Math.max(26, Math.min(96, Math.floor(((width || 1390) - L - R) / nW)));
+  const W = L + R + nW * gw, H = 340, ph = H - T - B, Y = v => T + ph - v / top * ph, bw = (gw - 8) / 4;
+  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', style: 'max-width:100%;height:auto', 'aria-label': `Task status bar chart, ${cum ? 'cumulative' : 'per week'}, weeks ${a} to ${b}. The values are in the table below.` });
+  for(const v of tk){ svg.append(s('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: '#e3e8eb' }), s('text', { x: L - 8, y: Y(v) + 5, 'font-size': 13, 'text-anchor': 'end', fill: '#4f5b62' }, v)); }
   const series4 = [['Sp', '#10668a', false], ['Sa', '#10668a', true], ['Fp', '#18744a', false], ['Fa', '#18744a', true]];
-  for(let w = 1; w <= N; w++){
-    const x0 = L + (w - 1) * gw + 3;
+  for(let w = a; w <= b; w++){
+    const x0 = L + (w - a) * gw + 4;
     series4.forEach(([k, col, solid], j) => {
       if(solid && w > cur) return;
       const v = val(ser[w], k); if(!v) return;
       const y = Y(Math.max(0, v)), hgt = Math.abs(Y(0) - Y(v));
-      svg.append(s('rect', { x: x0 + j * bw + 0.5, y: v >= 0 ? y : Y(0), width: bw - 1, height: Math.max(1, hgt), fill: solid ? col : '#fff', stroke: col, 'stroke-width': solid ? 0 : 1.5 },
+      svg.append(s('rect', { x: x0 + j * bw + 0.75, y: v >= 0 ? y : Y(0), width: bw - 1.5, height: Math.max(1, hgt), fill: solid ? col : '#fff', stroke: col, 'stroke-width': solid ? 0 : 1.8 },
         s('title', { text: `Week ${w}: ${{ Sp: 'planned to start', Sa: 'started', Fp: 'planned to finish', Fa: 'finished' }[k]} ${v}` })));
     });
-    svg.append(s('text', { x: x0 + (gw - 6) / 2, y: H - B + 16, 'font-size': 11, 'text-anchor': 'middle', fill: w === cur ? '#b42318' : '#4f5b62', 'font-weight': w === cur ? 700 : 400 }, w));
+    svg.append(s('text', { x: x0 + (gw - 8) / 2, y: H - B + 20, 'font-size': 13, 'text-anchor': 'middle', fill: w === cur ? '#b42318' : '#4f5b62', 'font-weight': w === cur ? 700 : 400 }, w));
   }
   svg.append(s('line', { x1: L, x2: W - R, y1: Y(0), y2: Y(0), stroke: '#4f5b62' }),
-    s('text', { x: L + (W - L - R) / 2, y: H - 4, 'font-size': 12, 'text-anchor': 'middle', fill: '#4f5b62' }, 'Week'),
-    s('text', { x: 12, y: T + ph / 2, 'font-size': 12, 'text-anchor': 'middle', fill: '#4f5b62', transform: `rotate(-90 12 ${T + ph / 2})` }, cum ? 'Tasks (cumulative)' : 'Tasks per week'));
-  if(cur >= 1 && cur < N){ const x = L + cur * gw; svg.append(s('line', { x1: x, x2: x, y1: T, y2: Y(0), stroke: '#b42318', 'stroke-dasharray': '4 3' })); }
+    s('text', { x: L + (W - L - R) / 2, y: H - 8, 'font-size': 14, 'text-anchor': 'middle', fill: '#4f5b62' }, 'Week'),
+    s('text', { x: 16, y: T + ph / 2, 'font-size': 14, 'text-anchor': 'middle', fill: '#4f5b62', transform: `rotate(-90 16 ${T + ph / 2})` }, cum ? 'Tasks (cumulative)' : 'Tasks per week'));
+  if(cur >= a && cur < b){ const x = L + (cur - a + 1) * gw; svg.append(s('line', { x1: x, x2: x, y1: T, y2: Y(0), stroke: '#b42318', 'stroke-dasharray': '5 3', 'stroke-width': 1.5 }),
+    halo({ x: x + 6, y: T + 16, 'font-size': 14, 'font-weight': 700, fill: '#b42318' }, `Week ${cur}`)); }
   return h('div', { class: 'chartbox' }, svg);
 }
 
+/** The counts by week: weeks 1 to the current week plus 4 by default, or all weeks (change briefing C6). */
 function statusTable(ser, cur, cum){
-  const v = (m, k) => cum ? m[k] : m.wk[k];
-  return h('div', { class: 'tablewrap' }, h('table', { class: 'grid', 'aria-label': 'Task status counts by week' },
+  const v = (m, k) => cum ? m[k] : m.wk[k], last = V.allWeeks ? P.weeks : Math.min(P.weeks, Math.max(1, cur) + 4);
+  return h('div', null,
+    h('div', { class: 'toolbar', style: 'margin:0 0 6px' }, h('label', null, h('input', { type: 'checkbox', checked: V.allWeeks, 'data-key': 'allweeks',
+      onchange: ev => { V.allWeeks = ev.target.checked; render(); } }), 'Show all weeks'),
+      h('span', { class: 'mut small' }, V.allWeeks ? `Weeks 1–${P.weeks}.` : `Weeks 1–${last} (the current week plus 4).`)),
+    h('div', { class: 'tablewrap' }, h('table', { class: 'grid', 'aria-label': 'Task status counts by week' },
     h('thead', null, h('tr', null, h('th', null, 'Week'), h('th', { class: 'n' }, 'Planned to start'), h('th', { class: 'n' }, 'Actually started'),
       h('th', { class: 'n' }, 'Planned to finish'), h('th', { class: 'n' }, 'Actually finished'))),
-    h('tbody', null, ser.slice(1).map(m => h('tr', { class: m.w === cur ? 'sel' : null }, h('td', null, m.w === cur ? `${m.w} (current)` : m.w),
+    h('tbody', null, ser.slice(1, last + 1).map(m => h('tr', { class: m.w === cur ? 'sel' : null }, h('td', null, m.w === cur ? `${m.w} (current)` : m.w),
       h('td', { class: 'n' }, v(m, 'Sp')), h('td', { class: 'n' }, m.w <= cur ? v(m, 'Sa') : ''),
-      h('td', { class: 'n' }, v(m, 'Fp')), h('td', { class: 'n' }, m.w <= cur ? v(m, 'Fa') : ''))))));
+      h('td', { class: 'n' }, v(m, 'Fp')), h('td', { class: 'n' }, m.w <= cur ? v(m, 'Fa') : '')))))));
 }
 
 /* ── TAB 4: THIS WEEK ── */
@@ -97,15 +104,34 @@ function renderWeek(root){
   const step2 = h('div', { class: 'card' }, h('h2', null, '2. Read the numbers'),
     activeBaseline(P) ? null : noBaselineNote(),
     h('p', { class: 'reading' }, statusLine(m), ' ', signalChip(m)),
-    kpiGrid(m));
+    weekNumbers(m));
   append(root, [step1, step2]);
 }
 
-/** The four counts and every measure as tiles; undefined values say "not yet defined" in words. */
-function kpiGrid(m, only){
-  const tiles = [['Sp', 'Planned to start', m.Sp], ['Sa', 'Actually started', m.Sa], ['Fp', 'Planned to finish', m.Fp], ['Fa', 'Actually finished', m.Fa], ['BAC', 'Tasks in baseline', m.BAC]]
-    .map(([k, d, v]) => [k, String(v ?? 0), d]);
-  const rows = measureRows(m).map(r => [r[0], r[2], r[1] + ' = ' + r[3]]);
-  const all = [...tiles, ...rows].filter(t => !only || only.includes(t[0]));
-  return h('div', { class: 'kpis' }, all.map(([k, v, d]) => h('div', { class: 'kpi' }, h('div', { class: 'k' }, k), h('div', { class: 'v' + (v === UNDEF || v === 'plan complete' ? ' u' : '') }, v), h('div', { class: 'd' }, d))));
+/** This week's numbers (change briefing C7): a headline row of four large cards, each with a reading in words, then
+    smaller cards for the counts and for value and variance. Each formula is in a tooltip shown on hover or focus. */
+function weekNumbers(m){
+  const rd = readings(m), mr = Object.fromEntries(measureRows(m).map(r => [r[0], r]));
+  const u = v => v === UNDEF || v === 'plan complete' || v === 'Signal not yet defined' || v === 'Planning (week 0)';
+  let tipN = 0;
+  const card = (big, key, value, reading, formula, extra) => {
+    const id = 'tip-' + (++tipN);
+    return h('div', { class: 'kpi' + (big ? ' big' : ''), tabindex: formula ? 0 : null, 'aria-describedby': formula ? id : null, 'data-key': 'kpi:' + key },
+      h('div', { class: 'k' }, key), h('div', { class: 'v' + (u(value) ? ' u' : '') + (extra || '') }, value),
+      reading ? h('div', { class: 'r' }, reading) : null,
+      formula ? h('div', { class: 'f', role: 'tooltip', id }, formula) : null);
+  };
+  const sig = signalText(m);
+  const head = h('div', { class: 'kpis headline' },
+    card(true, 'Signal', sig, rd.signal, 'From the start ratio SR and the finish ratio FR: both ≥ 1 On plan; one below 1 Watch; both below 1 Re-plan.', ' sig-' + signalClass(m.signal)),
+    card(true, 'SPI', mr.SPI[2], rd.spi, 'Schedule performance index = EV / PV'),
+    card(true, 'SR and FR', m.SR === null && m.FR === null ? UNDEF : `${fmtIndex(m.SR)} / ${fmtIndex(m.FR)}`, rd.ratios, 'Start ratio SR = Sa / Sp; finish ratio FR = Fa / Fp'),
+    card(true, 'Forecast finish', m.Tf === null ? UNDEF : `Week ${m.Tf.toFixed(1)}`, (m.T ? `Plan: week ${m.T}. ` : '') + rd.forecast, 'Forecast duration Tf = T / SPI, where T is the planned finish week'));
+  const counts = [['Sp', 'Planned to start', m.Sp], ['Sa', 'Actually started', m.Sa], ['Fp', 'Planned to finish', m.Fp], ['Fa', 'Actually finished', m.Fa], ['BAC', 'Tasks in the WBS', m.BAC]]
+    .map(([k, d, v]) => card(false, k, String(v ?? 0), d, null));
+  const vals = ['PV', 'EV', 'SV', 'SV%', '% complete', 'To go', 'TSPI'].map(k => card(false, k, mr[k][2], mr[k][1], `${mr[k][1]} = ${mr[k][3]}`));
+  return h('div', null, head,
+    h('h3', null, 'Counts'), h('div', { class: 'kpis small' }, counts),
+    h('h3', null, 'Value and variance'), h('div', { class: 'kpis small' }, vals),
+    h('p', { class: 'mut small' }, 'Hover over a card, or move to it with Tab, to see its formula. All the formulas are in Help.'));
 }

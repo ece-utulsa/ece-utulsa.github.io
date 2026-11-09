@@ -40,7 +40,7 @@ function clear(el){ while(el.firstChild) el.removeChild(el.firstChild); return e
 let P = null;                        // the project
 const V = {                          // the view (kept per browser, not in the project file)
   tab: 'wbs', level: '3', open: {}, sel: 'root', layout: 'tree', zoom: 'all', gview: 'chart',
-  mode: 'cum', farea: 0, fowner: '', evarea: 0, showAll: false,
+  mode: 'cum', farea: 0, fowner: '', evarea: 0, showAll: false, czoom: 'plan', allWeeks: false,
 };
 let IX = null, SX = null;            // tree index and status index of P, rebuilt after every change
 let saveTimer = 0, lastSaved = null, storageOK = true, fileDirty = false;
@@ -57,12 +57,13 @@ function loadView(){
       if(['all', 'sd1', 'sd2', 'near'].includes(j.zoom)) V.zoom = j.zoom;
       if(['chart', 'table'].includes(j.gview)) V.gview = j.gview;
       if(['cum', 'week'].includes(j.mode)) V.mode = j.mode;
+      if(['plan', 'sem', 'all'].includes(j.czoom)) V.czoom = j.czoom;
       V.showAll = j.showAll === true;
     }
   } catch { /* storage blocked or unreadable: defaults */ }
 }
 function saveView(){
-  try { localStorage.setItem(LS_VIEW, JSON.stringify({ tab: V.tab, level: V.level, layout: V.layout, zoom: V.zoom, gview: V.gview, mode: V.mode, showAll: V.showAll })); } catch { /* ignore */ }
+  try { localStorage.setItem(LS_VIEW, JSON.stringify({ tab: V.tab, level: V.level, layout: V.layout, zoom: V.zoom, gview: V.gview, mode: V.mode, showAll: V.showAll, czoom: V.czoom })); } catch { /* ignore */ }
 }
 
 /** Load the autosaved project, or start from the Senior Design template. */
@@ -132,7 +133,7 @@ function download(name, text, type){
 function slug(t){ return (t || 'project').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 60) || 'project'; }
 
 function saveFile(){
-  download(`${slug(P.name)}_week${P.currentWeek}.json`, serialize(P), 'application/json');
+  download(P.example ? `Lecture-example-week-${P.currentWeek}.json` : `${slug(P.name)}_week${P.currentWeek}.json`, serialize(P), 'application/json');
   fileDirty = false; showSaved();
 }
 
@@ -149,6 +150,12 @@ function openFile(file){
   };
   r.onerror = () => ask('Cannot open the file', 'The browser could not read the file.', { alert: true });
   r.readAsText(file);
+}
+
+/** Load the built-in lecture example (change briefing C3), asking first if there is unsaved work. */
+async function openExample(){
+  if(fileDirty && !(await ask('Open the lecture example?', 'The project open now has changes that are not saved to a file. The example replaces it. Save your project first if you want to keep it.', { ok: 'Open the example' }))) return;
+  P = lectureExample(); V.sel = 'root'; V.open = {}; fileDirty = false; reindex(); autosave(); render();
 }
 
 async function newFile(){
@@ -269,6 +276,27 @@ function csvEv(){
 }
 
 /* ── SMALL SVG CHART HELPERS ───────────────────────────────────────────────────────────────── */
+
+/** Week range of a chart (change briefing C5). kind: 'status' (bars, weeks a..b), 'ev' (cumulative, weeks a-1..b),
+    'spi' (weeks a..b). Plan span: week 1 to the plan finish T (and, for earned value, the forecast Tf), plus one week;
+    the SPI chart to the current week plus 4. One semester: the semester holding the current week. Whole project: 1..weeks. */
+function chartRange(kind, m, zoom){
+  const N = P.weeks, half = Math.ceil(N / 2), cur = Math.max(1, P.currentWeek), T = m.T || 0, Tf = m.Tf || 0;
+  zoom = zoom || V.czoom;
+  if(zoom === 'sem') return cur <= half ? [1, half] : [half + 1, N];
+  if(zoom === 'all') return [1, kind === 'ev' ? Math.max(N, Math.min(2 * N, Math.ceil(Tf))) : N];
+  if(kind === 'spi') return [1, Math.max(2, Math.min(N, cur + 4))];
+  let end = Math.max(T, cur);
+  if(kind === 'ev') end = Math.max(end, Math.min(2 * N, Tf));
+  end = Math.ceil(end) + 1;
+  return [1, Math.max(2, kind === 'ev' ? end : Math.min(N, end))];
+}
+function zoomSelect(){
+  return h('label', null, 'Zoom', h('select', { 'data-key': 'czoom-' + V.tab, onchange: ev => { V.czoom = ev.target.value; saveView(); render(); } },
+    [['plan', 'Plan span'], ['sem', 'One semester'], ['all', 'Whole project']].map(([v, t]) => h('option', { value: v, selected: V.czoom === v }, t))));
+}
+/** Text with a white halo, so lines passing behind it never make it unreadable. */
+function halo(attrs, text){ return s('text', Object.assign({ 'paint-order': 'stroke', stroke: '#fff', 'stroke-width': 5, 'stroke-linejoin': 'round' }, attrs), text); }
 
 /** Nice integer ticks from 0 to max. */
 function ticks(max, n){

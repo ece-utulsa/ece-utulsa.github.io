@@ -47,7 +47,8 @@ h2{ font-size:18px; margin:0 0 .5em } h3{ font-size:16px; margin:1em 0 .4em } h4
 #brand{ font-weight:700; font-size:16px } #pname{ font-weight:600; color:var(--accent); max-width:24em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 #weekctl{ display:flex; align-items:center; gap:4px } #weekctl input{ width:3.6em; text-align:center }
 #filebar{ display:flex; gap:6px; flex-wrap:wrap; margin-left:auto }
-#saved{ font-size:13px; color:var(--mut) } #saved.warn{ color:var(--bad) }
+#saved{ font-size:13px; color:var(--mut) }
+.exbadge{ background:#6a4fc8; color:#fff; font-weight:700; font-size:13px; letter-spacing:.06em; text-transform:uppercase; border-radius:4px; padding:.15em .55em } #saved.warn{ color:var(--bad) }
 .chip{ display:inline-block; border-radius:999px; padding:.1em .7em; font-weight:700; font-size:14px; border:2px solid currentColor; white-space:nowrap }
 .chip.on{ color:var(--ok); background:var(--okbg) } .chip.watch{ color:var(--watch); background:var(--warnbg) } .chip.replan{ color:var(--bad); background:var(--badbg) } .chip.none{ color:var(--mut); background:var(--panel2) }
 details.menu{ position:relative } details.menu>summary{ list-style:none; border:1px solid var(--line); border-radius:6px; padding:.25em .65em; cursor:pointer; background:var(--panel); min-height:30px; display:flex; align-items:center }
@@ -107,6 +108,18 @@ svg text{ font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,
 .kpi{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px }
 .kpi .k{ font-size:13px; color:var(--mut) } .kpi .v{ font-size:22px; font-weight:700; font-variant-numeric:tabular-nums } .kpi .v.u{ font-size:15px; font-weight:600; color:var(--mut) }
 .kpi .d{ font-size:12px; color:var(--mut) }
+.kpi{ position:relative } .kpi:focus-visible{ outline:3px solid var(--focus) }
+.kpi .r{ font-size:14px; color:var(--ink); margin-top:2px }
+.kpi .f{ display:none; position:absolute; left:8px; right:8px; top:100%; margin-top:4px; z-index:30; background:var(--ink); color:#fff; font-size:13px; padding:6px 8px; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.2) }
+.kpi:hover .f,.kpi:focus .f,.kpi:focus-within .f{ display:block }
+.kpis.headline{ grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:6px } @media (max-width:900px){ .kpis.headline{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
+.kpi.big{ padding:12px 14px; border-width:2px } .kpi.big .k{ font-size:14px; font-weight:600 } .kpi.big .v{ font-size:32px; line-height:1.15 } .kpi.big .v.u{ font-size:18px }
+.kpi.big .r{ font-size:15px; font-weight:600 }
+.kpis.small{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)) } .kpis.small .v{ font-size:20px } .kpis.small .r{ font-size:13px; color:var(--mut) }
+.v[class*=sig-]{ font-variant-numeric:normal; letter-spacing:0 }
+.accept{ background:var(--panel2); border-radius:6px; padding:6px 10px; margin:6px 0 } .accept p{ margin:4px 0 0 }
+.warnlist.accepted button{ background:var(--okbg); border-color:#9cc9ad }
+.v.sig-on{ color:var(--ok) } .v.sig-watch{ color:var(--watch) } .v.sig-replan{ color:var(--bad) }
 .ev-charts{ display:grid; grid-template-columns:1fr 1fr; gap:12px } @media (max-width:1000px){ .ev-charts{ grid-template-columns:1fr } }
 .tablewrap{ overflow-x:auto; max-height:520px; overflow-y:auto; border:1px solid var(--line); border-radius:8px }
 /* ── report ── */
@@ -149,7 +162,7 @@ footer{ padding:8px 14px; font-size:13px; color:var(--mut); border-top:1px solid
 <body>
 <header id="top">
   <span id="brand">Senior Design WBS, Schedule and Earned Value</span>
-  <span id="pname" title="Project name"></span>
+  <span id="pname" title="Project name"></span><span id="exBadge" class="exbadge" hidden title="This is the built-in lecture example, not your own project">Example</span>
   <div id="weekctl" role="group" aria-label="Current week">
     <label for="wk">Current week</label>
     <button id="wkDown" type="button" aria-label="Previous week">−</button>
@@ -161,6 +174,7 @@ footer{ padding:8px 14px; font-size:13px; color:var(--mut); border-top:1px solid
   <div id="filebar">
     <button id="bNew" type="button">New</button>
     <button id="bOpen" type="button">Open…</button>
+    <button id="bExample" type="button" title="Load the week-6 team from the Earned Value lectures">Open the lecture example</button>
     <button id="bSave" type="button" class="primary">Save</button>
     <details class="menu" id="csvMenu"><summary>Export CSV</summary><div>
       <button id="cWbs" type="button">WBS (to the chosen level)</button>

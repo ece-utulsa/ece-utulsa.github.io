@@ -13,9 +13,14 @@ import re
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.0.2'
+VERSION = '1.0.3'
 RELEASED = '2026-11-09'
-CHANGELOG = ('\n    v1.0.2 - the how-to guide is built into the Help panel (works offline), from the same source as the guide web page. '
+CHANGELOG = ('\n    v1.0.3 - change briefing of Nov 9 (ease of use and visuals; no calculation changed): BAC labelled Tasks in the WBS; '
+             'Open the lecture example (week-6 team, 40 tasks) with an Example badge and title; chart text for a projector (13 px, '
+             'key labels 15 px bold, no overlaps); Plan span / One semester / Whole project zoom on Task status, Earned value and SPI; '
+             'Task status table to the current week plus 4 with Show all weeks; This week headline cards with readings in words and '
+             'formula tooltips; quadrant labelled with the lecture words; accepted exceptions to the 2-week rule; screenshot script. '
+             '\n    v1.0.2 - the how-to guide is built into the Help panel (works offline), from the same source as the guide web page. '
              '\n    v1.0.1 - editor panel wraps long predecessor warnings; full stop after the planned length; Help links to the how-to guide. '
              '\n    v1.0.0 - first release from the briefing of Nov 9, 2026 (tasks-only earned value). WBS tree and org-chart '
              'diagram with the Show to level control, the Senior Design template to level 3, side-panel editor, rule checks; '
@@ -25,7 +30,7 @@ CHANGELOG = ('\n    v1.0.2 - the how-to guide is built into the Help panel (work
              'project file Save/Open with schema version, CSV exports; help with the lecture equations.')
 # ── END RELEASE ───────────────────────────────────────────────────────
 
-SCRIPTS = ['model.js', 'ev.js', 'ui.js', 'wbs.js', 'gantt.js', 'status.js', 'evtab.js', 'main.js']
+SCRIPTS = ['model.js', 'ev.js', 'example.js', 'ui.js', 'wbs.js', 'gantt.js', 'status.js', 'evtab.js', 'main.js']
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
