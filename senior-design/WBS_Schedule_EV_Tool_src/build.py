@@ -9,12 +9,14 @@ Usage:  python3 build.py            writes ../WBS_Schedule_EV_Tool_v<VERSION>.ht
         python3 build.py OUT.html   writes OUT.html
 """
 import os
+import re
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.0.1'
+VERSION = '1.0.2'
 RELEASED = '2026-11-09'
-CHANGELOG = ('\n    v1.0.1 - editor panel wraps long predecessor warnings; full stop after the planned length; Help links to the how-to guide. '
+CHANGELOG = ('\n    v1.0.2 - the how-to guide is built into the Help panel (works offline), from the same source as the guide web page. '
+             '\n    v1.0.1 - editor panel wraps long predecessor warnings; full stop after the planned length; Help links to the how-to guide. '
              '\n    v1.0.0 - first release from the briefing of Nov 9, 2026 (tasks-only earned value). WBS tree and org-chart '
              'diagram with the Show to level control, the Senior Design template to level 3, side-panel editor, rule checks; '
              'week-based Gantt with baseline and actual bars, predecessors, milestones, lead-time items, re-baselining with '
@@ -41,10 +43,37 @@ def script():
     return "(function(){\n'use strict';\n" + body + '})();'
 
 
+def guide(in_tool):
+    """The how-to guide (guide.html). In the tool: no figures (screenshots stay on the web page) and ids prefixed g-
+    so they cannot clash with the tool's own ids."""
+    g = re.sub(r'<!--.*?-->\n?', '', read('guide.html'), flags=re.S)
+    if in_tool:
+        g = re.sub(r'\s*<figure>.*?</figure>', '', g, flags=re.S)
+        g = re.sub(r'id="([a-z][a-z0-9-]*)"', r'id="g-\1"', g)
+        g = re.sub(r'href="#([a-z][a-z0-9-]*)"', r'href="#g-\1"', g)
+        if '<img' in g or '<script' in g.lower():
+            raise SystemExit('guide.html: unexpected <img> or <script> left for the tool')
+    return g
+
+
+def tool_file():
+    return 'WBS_Schedule_EV_Tool_v%s.html' % VERSION
+
+
+def guide_page():
+    """The guide web page (guide_page.html + guide.html, figures kept)."""
+    page = read('guide_page.html')
+    for key, val in (('@@GUIDE@@', guide(False)), ('@@TOOLFILE@@', tool_file()), ('@@VERSION@@', 'v' + VERSION)):
+        page = page.replace(key, val)
+    if '@@' in page:
+        raise SystemExit('unfilled placeholder in the guide page')
+    return page
+
+
 def build():
     """Fill the template and return the page."""
     page = read('template.html')
-    for key, val in (('@@SCRIPT@@', script()), ('@@VERSION@@', 'v' + VERSION), ('@@RELEASED@@', RELEASED),
+    for key, val in (('@@GUIDE@@', guide(True)), ('@@SCRIPT@@', script()), ('@@VERSION@@', 'v' + VERSION), ('@@RELEASED@@', RELEASED),
                      ('@@CHANGELOG@@', CHANGELOG)):
         page = page.replace(key, val)
     if '@@' in page:
@@ -53,7 +82,12 @@ def build():
 
 
 if __name__ == '__main__':
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, '..', 'WBS_Schedule_EV_Tool_v%s.html' % VERSION)
+    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, '..', tool_file())
     with open(out, 'w', encoding='utf-8', newline='\n') as f:
         f.write(build())
     print('wrote', os.path.normpath(out), os.path.getsize(out), 'bytes')
+    if len(sys.argv) == 1:
+        gout = os.path.join(HERE, '..', 'WBS_Schedule_EV_Tool_Guide.html')
+        with open(gout, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(guide_page())
+        print('wrote', os.path.normpath(gout), os.path.getsize(gout), 'bytes')

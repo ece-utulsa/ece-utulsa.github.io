@@ -1,6 +1,6 @@
 # Senior Design WBS, Schedule and Earned Value Tool — sources
 
-`../WBS_Schedule_EV_Tool_v1.0.1.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
+`../WBS_Schedule_EV_Tool_v1.0.2.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
 It is one offline HTML file (about 125 kB): plain JavaScript, no libraries, no fonts, no network requests (a Content-Security-Policy
 in the page blocks them).
 
@@ -14,6 +14,8 @@ in the page blocks them).
 | `gantt.js` | Tab 2: Gantt chart and table, baselining |
 | `status.js` | Tab 3: task status bar chart and table; Tab 4: This week |
 | `evtab.js` | Tab 5: earned value chart, SPI trend, start/finish quadrant, measures table, late tasks; Tab 6: status report |
+| `guide.html` | The how-to guide: one source for the guide web page and the tool's Help panel (the build drops the screenshots and prefixes ids `g-` for the tool) |
+| `guide_page.html` | Page shell of `../WBS_Schedule_EV_Tool_Guide.html` (screenshots in `../guide-img/`) |
 | `main.js` | Help panel (MathML equations), top bar, tabs, render cycle, start-up |
 | `build.py` | Concatenates the scripts in one strict-mode function and fills the release fields |
 | `tests/build-check.js` | Builder's smoke check of the calculation core in Node |
@@ -26,7 +28,7 @@ Test writes that from the briefing, independently of this build.
 ## Build and test
 
 ```sh
-python3 build.py                                   # writes ../WBS_Schedule_EV_Tool_v1.0.1.html
+python3 build.py      # writes ../WBS_Schedule_EV_Tool_v1.0.2.html and ../WBS_Schedule_EV_Tool_Guide.html
 node tests/build-check.js
 NODE_PATH=$(npm root -g) node tests/browser-smoke.js   # needs Playwright
 ```

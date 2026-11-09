@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to Use the WBS, Schedule and Earned Value Tool</title>
+<style>
+:root{ --bg:#f4f6f7; --panel:#fff; --line:#c6cfd4; --ink:#1b2328; --mut:#4f5b62; --accent:#10668a; --ok:#18744a; --watch:#8a5700; --bad:#b42318;
+  --tipbg:#e8f4ed; --tipline:#9cc9ad; --warnbg:#fff6e5; --warnline:#e6c98f; }
+*{ box-sizing:border-box }
+html{ scroll-behavior:smooth }
+body{ margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:17px; line-height:1.55 }
+a{ color:var(--accent) }
+:focus-visible{ outline:3px solid #0b57d0; outline-offset:2px }
+header{ background:var(--panel); border-bottom:1px solid var(--line); padding:28px 16px 22px }
+header .in, main{ max-width:960px; margin:0 auto }
+h1{ font-size:30px; line-height:1.15; margin:0 0 8px }
+.lede{ color:var(--mut); margin:0 0 16px; max-width:62ch }
+.btn{ display:inline-block; background:var(--accent); color:#fff; text-decoration:none; font-weight:600; padding:.5em 1em; border-radius:6px }
+.btn.sec{ background:var(--panel); color:var(--accent); border:1px solid var(--line) }
+main{ padding:20px 16px 60px }
+nav.toc{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin-bottom:28px }
+nav.toc h2{ font-size:15px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut) }
+nav.toc ol{ margin:0; padding-left:1.4em; columns:2; column-gap:32px } @media (max-width:640px){ nav.toc ol{ columns:1 } }
+section{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px 24px; margin-bottom:20px; scroll-margin-top:12px }
+section h2{ font-size:23px; margin:0 0 10px } section h3{ font-size:18px; margin:18px 0 6px }
+.step{ display:inline-block; background:var(--accent); color:#fff; border-radius:999px; font-size:14px; font-weight:700; padding:.05em .65em; margin-right:8px; vertical-align:3px }
+.tip,.warn{ border-radius:8px; padding:10px 14px; margin:12px 0 }
+.tip{ background:var(--tipbg); border:1px solid var(--tipline) } .warn{ background:var(--warnbg); border:1px solid var(--warnline) }
+.tip b:first-child,.warn b:first-child{ margin-right:4px }
+figure{ margin:14px 0 } figure img{ width:100%; height:auto; border:1px solid var(--line); border-radius:8px; display:block }
+figcaption{ font-size:14px; color:var(--mut); margin-top:6px }
+kbd,.ui{ font-family:inherit; background:#eef2f4; border:1px solid var(--line); border-radius:4px; padding:0 .35em; font-size:.92em; white-space:nowrap }
+table{ border-collapse:collapse; width:100%; margin:10px 0; font-size:16px }
+th,td{ border-bottom:1px solid #dde3e6; padding:6px 8px; text-align:left; vertical-align:top } th{ background:#eef2f4 }
+.sig{ font-weight:700; border:2px solid currentColor; border-radius:999px; padding:0 .6em; white-space:nowrap }
+.on{ color:var(--ok) } .watch{ color:var(--watch) } .replan{ color:var(--bad) }
+dl dt{ font-weight:700; margin-top:10px } dl dd{ margin:2px 0 0 0 }
+footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px }
+@media print{ body{ background:#fff; font-size:11pt } header,section,nav.toc{ border:none; padding:0 } .btn{ display:none } section{ break-inside:auto } figure{ break-inside:avoid } }
+</style>
+</head>
+<body>
+<header><div class="in">
+  <p style="margin:0 0 6px"><a href="./">← Senior Design tools</a></p>
+  <h1>How to use the WBS, Schedule and Earned Value Tool</h1>
+  <p class="lede">Step-by-step instructions and tips for Senior Design teams: build your Work Breakdown Structure, schedule it,
+    baseline it, and track earned value every week in about ten minutes. The terms and equations are the same as in the
+    Senior Design 1 lectures on the WBS and earned value.</p>
+  <a class="btn" href="@@TOOLFILE@@">Open the tool</a>
+  <a class="btn sec" href="#weekly">Jump to the weekly routine</a>
+</div></header>
+<main>
+@@GUIDE@@<p style="text-align:center"><a class="btn" href="@@TOOLFILE@@">Open the tool</a></p>
+</main>
+<footer>Senior Design WBS, Schedule and Earned Value Tool @@VERSION@@ · How-to guide · University of Tulsa, Electrical and Computer Engineering</footer>
+</body>
+</html>

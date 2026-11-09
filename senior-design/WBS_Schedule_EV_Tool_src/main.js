@@ -22,7 +22,6 @@ function buildHelp(){
   append(B, [
     h('p', null, 'This tool follows the Senior Design 1 lectures: ', h('b', null, 'Work Breakdown Structure'), ', ', h('b', null, 'Earned Value'), ' and ', h('b', null, 'Earned Value Equations'), '. ',
       'Earned value is counted in ', h('b', null, 'tasks'), ', not hours: there are no time cards.'),
-    h('p', null, h('a', { href: 'WBS_Schedule_EV_Tool_Guide.html', target: '_blank', rel: 'noopener' }, 'Open the full how-to guide'), ' (on the course site: step-by-step instructions and tips).'),
     h('h3', null, 'The weekly routine (about 10 minutes)'),
     h('p', null, 'Week 0 is for planning: build the WBS, schedule it and baseline it. Then move to week 1 (the + button in the top bar).'),
     h('ol', null, h('li', null, 'Set the current week in the top bar.'), h('li', null, 'On ', h('b', null, '4 This week'), ', mark each open task not started, started or finished.'),
@@ -105,6 +104,15 @@ function wire(){
   $('bPrint').addEventListener('click', () => window.print());
   $('bHelp').addEventListener('click', () => { $('help').showModal(); $('helpClose').focus(); });
   $('helpClose').addEventListener('click', () => $('help').close());
+  const helpPart = guide => { $('guideBody').hidden = !guide; $('helpBody').hidden = guide; $('hGuide').setAttribute('aria-pressed', guide); $('hRef').setAttribute('aria-pressed', !guide); };
+  $('hGuide').addEventListener('click', () => helpPart(true));
+  $('hRef').addEventListener('click', () => helpPart(false));
+  // contents links inside the guide scroll the guide, without changing the page address
+  $('guideBody').addEventListener('click', ev => {
+    const a = ev.target.closest('a[href^="#"]'); if(!a) return;
+    const t = document.getElementById(a.getAttribute('href').slice(1)); if(!t) return;
+    ev.preventDefault(); t.scrollIntoView({ block: 'start' }); t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true });
+  });
   const tabs = [...document.querySelectorAll('#tabs [role=tab]')];
   tabs.forEach((b, i) => {
     b.addEventListener('click', () => setTab(b.dataset.tab));
