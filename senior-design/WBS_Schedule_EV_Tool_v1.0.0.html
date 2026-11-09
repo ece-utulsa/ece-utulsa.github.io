@@ -472,14 +472,6 @@ function checks(p, ix){
     for(const [m, c] of count) if(avg > 0 && c > 1.5 * avg)
       out.push({ id: 'root', kind: 'overload', who: m, text: `${m} owns ${c} tasks, more than 1.5 times the team average (${avg.toFixed(1)}).` });
   }
-  // Baseline housekeeping
-  const b = activeBaseline(p);
-  if(b){
-    const added = tasks.filter(e => !b.plan[e.id]).length;
-    if(added) out.push({ id: 'root', kind: 'unbaselined', text: `${added} task${added > 1 ? 's were' : ' was'} added after baseline ${b.n} and ${added > 1 ? 'are' : 'is'} not in earned value yet. Re-baseline to include ${added > 1 ? 'them' : 'it'}.` });
-    const gone = Object.keys(b.plan).filter(id => b.plan[id].t === 'task' && !isTask(ix.byId.get(id))).length;
-    if(gone) out.push({ id: 'root', kind: 'deleted', text: `${gone} task${gone > 1 ? 's' : ''} in baseline ${b.n} ${gone > 1 ? 'were' : 'was'} deleted or changed type; ${gone > 1 ? 'they still count' : 'it still counts'} in PV until you re-baseline.` });
-  }
   return out;
 }
 
@@ -643,19 +635,20 @@ function signal(SR, FR){
 /** Measures straight from inputs (for the lecture's practice problem, T2). */
 function measuresFromInputs(inp){ return measures({ BAC: inp.BAC, T: inp.T, Sp: inp.Sp, Fp: inp.Fp, Sa: inp.Sa, Fa: inp.Fa }, inp.w === undefined ? 1 : inp.w); }
 
-/** The tasks that count in earned value: every type-"task" package in the active baseline, with its baseline weeks,
-    major area and owner (current values for tasks that still exist, frozen values for deleted ones).
+/** The tasks that count in earned value: every type-"task" package in the WBS now (the WBS is a living document).
+    Planned weeks come from the active baseline for tasks in it, and from the current plan for tasks added since.
+    Deleted tasks, and tasks changed to another type, drop out. Nothing counts until the schedule is first baselined.
     filter = { area: 0 (all) or 1..n, owner: '' (all) or a name }. */
 function evTasks(p, ix, filter){
   const b = activeBaseline(p); if(!b) return [];
   const f = filter || {}, out = [];
-  for(const id of Object.keys(b.plan)){
-    const x = b.plan[id]; if(x.t !== 'task') continue;
-    const e = ix.byId.get(id), live = isTask(e);
-    const area = live ? ix.area.get(id) : x.a, owner = live ? e.pkg.owner.trim() : x.owner;
+  for(const e of ix.order){
+    if(!isTask(e)) continue;
+    const id = e.id, x = b.plan[id], area = ix.area.get(id), owner = e.pkg.owner.trim();
     if(f.area && area !== f.area) continue;
     if(f.owner && owner !== f.owner) continue;
-    out.push({ id, s: x.s, f: x.f, area, owner, live, num: live ? ix.num.get(id) : x.num, name: live ? e.name : x.name, pos: live ? ix.pos.get(id) : 1e9 });
+    const base = !!(x && x.t === 'task');
+    out.push({ id, s: base ? x.s : e.pkg.start, f: base ? x.f : e.pkg.finish, base, area, owner, live: true, num: ix.num.get(id), name: e.name, pos: ix.pos.get(id) });
   }
   return out;
 }
@@ -1265,7 +1258,7 @@ function packageEditor(panel, e){
         onchange: ev => change(() => { k.finish = clampInt(ev.target.value, 1, P.weeks, k.finish); }) })))),
     h('p', { class: 'small' + (k.type === 'task' && k.finish - k.start + 1 > 2 ? ' late' : ' mut') },
       k.type === 'milestone' ? 'A milestone is zero length.' : `${k.finish - k.start + 1} week${k.finish > k.start ? 's' : ''}${k.type === 'task' && k.finish - k.start + 1 > 2 ? ' — more than 2: consider splitting it.' : ''}`,
-      x ? ` Baseline ${b.n}: ${weekRange(x.s, x.f)}.` : ' Not in a baseline yet.'),
+      x ? ` Baseline ${b.n}: ${weekRange(x.s, x.f)} (PV uses these weeks).` : (b ? ' Added after the baseline: it counts in earned value from these planned weeks.' : ' Not in a baseline yet.')),
     h('label', { class: 'f' }, 'Predecessors (finish to start)'),
     k.preds.length ? h('ul', { class: 'plain preds' }, k.preds.map(q => {
       const pe = IX.byId.get(q), bad = pe && k.start <= pe.pkg.finish;
@@ -1320,7 +1313,7 @@ function renderGantt(root){
     preds.length ? h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Predecessor warnings'),
       h('ul', { class: 'plain warnlist' }, preds.map((c, i) => h('li', null, h('button', { type: 'button', 'data-key': 'gw:' + i, onclick: () => goTo(c.id) }, '⚠ ', c.text))))) : null,
     h('p', { class: 'mut small' }, 'Outlined bar: baseline (planned start to planned finish). Solid bar: actual (first marked started to marked finished, or to today if still open). ',
-      'Hatched bar: lead time (no work). Diamond: milestone. Arrows: finish-to-start predecessors. A thin dashed line under a bar shows the current plan where it differs from the baseline.')]);
+      'Dashed outline: added after the baseline (it counts from its planned weeks). Hatched bar: lead time (no work). Diamond: milestone. Arrows: finish-to-start predecessors. A thin dashed line under a bar shows the current plan where it differs from the baseline.')]);
 }
 
 /** Planned weeks of a package as drawn: the active baseline if the package is in it, else the current plan. */
@@ -1747,7 +1740,8 @@ function buildHelp(){
     h('p', null, 'A task earns half when it is started and the other half when it is finished. The four counts, cumulative to the end of week w, from the active baseline:'),
     h('ul', null, h('li', null, h('b', null, 'Sp'), ' tasks planned to start; ', h('b', null, 'Fp'), ' tasks planned to finish;'),
       h('li', null, h('b', null, 'Sa'), ' tasks actually started (or finished); ', h('b', null, 'Fa'), ' tasks actually finished.'),
-      h('li', null, h('b', null, 'BAC'), ' is the number of tasks in the baseline; ', h('b', null, 'T'), ' is the planned duration, the latest baseline finish week.')),
+      h('li', null, h('b', null, 'BAC'), ' is the number of tasks in the WBS; ', h('b', null, 'T'), ' is the planned duration, the latest planned finish week of the tasks.'),
+      h('li', null, 'The WBS is a living document: a task added after the baseline counts straight away, using its planned weeks; a deleted task drops out. Tasks in the baseline keep their baseline weeks for PV until you re-baseline.')),
     eq(mi('PV'), mo('='), frac(mn('1'), mn('2')), mo('('), sub('S', 'p'), mo('+'), sub('F', 'p'), mo(')'), m('mspace', ''), mi('EV'), mo('='), frac(mn('1'), mn('2')), mo('('), sub('S', 'a'), mo('+'), sub('F', 'a'), mo(')')),
     h('h3', null, 'Measures'),
     eq(mi('SV'), mo('='), mi('EV'), mo('−'), mi('PV')),

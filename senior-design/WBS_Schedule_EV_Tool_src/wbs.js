@@ -229,7 +229,7 @@ function packageEditor(panel, e){
         onchange: ev => change(() => { k.finish = clampInt(ev.target.value, 1, P.weeks, k.finish); }) })))),
     h('p', { class: 'small' + (k.type === 'task' && k.finish - k.start + 1 > 2 ? ' late' : ' mut') },
       k.type === 'milestone' ? 'A milestone is zero length.' : `${k.finish - k.start + 1} week${k.finish > k.start ? 's' : ''}${k.type === 'task' && k.finish - k.start + 1 > 2 ? ' — more than 2: consider splitting it.' : ''}`,
-      x ? ` Baseline ${b.n}: ${weekRange(x.s, x.f)}.` : ' Not in a baseline yet.'),
+      x ? ` Baseline ${b.n}: ${weekRange(x.s, x.f)} (PV uses these weeks).` : (b ? ' Added after the baseline: it counts in earned value from these planned weeks.' : ' Not in a baseline yet.')),
     h('label', { class: 'f' }, 'Predecessors (finish to start)'),
     k.preds.length ? h('ul', { class: 'plain preds' }, k.preds.map(q => {
       const pe = IX.byId.get(q), bad = pe && k.start <= pe.pkg.finish;

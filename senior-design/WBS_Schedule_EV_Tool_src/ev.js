@@ -45,19 +45,20 @@ function signal(SR, FR){
 /** Measures straight from inputs (for the lecture's practice problem, T2). */
 function measuresFromInputs(inp){ return measures({ BAC: inp.BAC, T: inp.T, Sp: inp.Sp, Fp: inp.Fp, Sa: inp.Sa, Fa: inp.Fa }, inp.w === undefined ? 1 : inp.w); }
 
-/** The tasks that count in earned value: every type-"task" package in the active baseline, with its baseline weeks,
-    major area and owner (current values for tasks that still exist, frozen values for deleted ones).
+/** The tasks that count in earned value: every type-"task" package in the WBS now (the WBS is a living document).
+    Planned weeks come from the active baseline for tasks in it, and from the current plan for tasks added since.
+    Deleted tasks, and tasks changed to another type, drop out. Nothing counts until the schedule is first baselined.
     filter = { area: 0 (all) or 1..n, owner: '' (all) or a name }. */
 function evTasks(p, ix, filter){
   const b = activeBaseline(p); if(!b) return [];
   const f = filter || {}, out = [];
-  for(const id of Object.keys(b.plan)){
-    const x = b.plan[id]; if(x.t !== 'task') continue;
-    const e = ix.byId.get(id), live = isTask(e);
-    const area = live ? ix.area.get(id) : x.a, owner = live ? e.pkg.owner.trim() : x.owner;
+  for(const e of ix.order){
+    if(!isTask(e)) continue;
+    const id = e.id, x = b.plan[id], area = ix.area.get(id), owner = e.pkg.owner.trim();
     if(f.area && area !== f.area) continue;
     if(f.owner && owner !== f.owner) continue;
-    out.push({ id, s: x.s, f: x.f, area, owner, live, num: live ? ix.num.get(id) : x.num, name: live ? e.name : x.name, pos: live ? ix.pos.get(id) : 1e9 });
+    const base = !!(x && x.t === 'task');
+    out.push({ id, s: base ? x.s : e.pkg.start, f: base ? x.f : e.pkg.finish, base, area, owner, live: true, num: ix.num.get(id), name: e.name, pos: ix.pos.get(id) });
   }
   return out;
 }

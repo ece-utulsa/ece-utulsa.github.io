@@ -44,9 +44,12 @@ Choices made in the build (check these in review):
   every measure is "not yet defined" (T3), and status is recorded from week 1.
 - **Nothing planned to finish yet** (Fp = 0; agreed with Douglas): progress is judged on getting tasks started. SR ≥ 1 is
   On plan, below 1 is Watch, and the signal reads "(on starts)".
-- **T** is the latest baseline finish week of the tasks (milestones and lead-time items excluded), matching BAC.
-- **Active baseline** is always the latest. Tasks added after it are not in earned value until re-baselining
-  (a rule-check warning says so); tasks deleted after it still count in PV (also warned).
+- **T** is the latest planned finish week of the tasks only (milestones and lead-time items excluded), matching BAC
+  (agreed with Douglas).
+- **The WBS is a living document** (agreed with Douglas). Earned value always uses the tasks in the WBS now: a task added
+  after the baseline counts at once in BAC, T, PV and EV, using its planned weeks; a deleted task (or one changed to a
+  milestone or lead-time item) drops out. Tasks in the active baseline (always the latest) keep their baseline weeks for PV,
+  so a slipped plan still shows until the team re-baselines. Weeks already past are recomputed with the current task list.
 - **Late** means the baseline start (or finish) week is at or before the current week and the task has not started
   (or finished). Late-task order: earliest missed week, a late start before a late finish in the same week, then WBS order.
 - **Per-week bars** are the week-on-week change of the cumulative counts, so they always sum to the cumulative bars even

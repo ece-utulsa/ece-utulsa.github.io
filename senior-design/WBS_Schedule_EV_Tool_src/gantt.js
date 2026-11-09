@@ -27,7 +27,7 @@ function renderGantt(root){
     preds.length ? h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Predecessor warnings'),
       h('ul', { class: 'plain warnlist' }, preds.map((c, i) => h('li', null, h('button', { type: 'button', 'data-key': 'gw:' + i, onclick: () => goTo(c.id) }, '⚠ ', c.text))))) : null,
     h('p', { class: 'mut small' }, 'Outlined bar: baseline (planned start to planned finish). Solid bar: actual (first marked started to marked finished, or to today if still open). ',
-      'Hatched bar: lead time (no work). Diamond: milestone. Arrows: finish-to-start predecessors. A thin dashed line under a bar shows the current plan where it differs from the baseline.')]);
+      'Dashed outline: added after the baseline (it counts from its planned weeks). Hatched bar: lead time (no work). Diamond: milestone. Arrows: finish-to-start predecessors. A thin dashed line under a bar shows the current plan where it differs from the baseline.')]);
 }
 
 /** Planned weeks of a package as drawn: the active baseline if the package is in it, else the current plan. */

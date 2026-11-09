@@ -24,5 +24,8 @@ const e = A.measures({ BAC: 10, T: 8, Sp: 3, Fp: 0, Sa: 2, Fa: 0 }, 2);
 ok('signal on starts', e.signal === 'Watch' && e.basis === 'starts', e.signal + ' / ' + e.basis);
 ok('per-week sums = cumulative', sum.Sp === 10 && sum.Fp === 8 && sum.Sa === 8 && sum.Fa === 6);
 ok('round trip', A.serialize(A.loadProject(JSON.parse(A.serialize(p)))) === A.serialize(p));
+// The WBS is a living document: a task added after the baseline counts at once; a deleted task drops out.
+vm.runInContext('var lp = loadProject(JSON.parse(t1Project())); var lix = indexTree(lp); var add = addElement(lp, lix.order.find(e => lix.num.get(e.id) === "2.1").id, "Test rig", true); Object.assign(add.pkg, { start: 5, finish: 6 }); setStatus(lp, add.id, 6, "started"); deleteElement(lp, lix.order.find(e => lix.num.get(e.id) === "1.4.2").id); lix = indexTree(lp); var lc = counts(evTasks(lp, lix), statusIndex(lp), 6);', ctx);
+ok('living WBS (add 2.1.2, delete 1.4.2)', ctx.lc.BAC === 40 && ctx.lc.Sp === 10 && ctx.lc.Fp === 9 && ctx.lc.Sa === 9 && ctx.lc.Fa === 6, JSON.stringify(ctx.lc));
 let threw = false; try { A.loadProject({ app: 'sd-wbs-ev', schema: 99 }); } catch { threw = true; } ok('newer schema refused', threw);
 console.log(fail ? `\n${fail} failed` : '\nall passed'); process.exit(fail ? 1 : 0);

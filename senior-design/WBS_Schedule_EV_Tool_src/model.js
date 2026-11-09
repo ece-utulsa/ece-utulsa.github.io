@@ -281,14 +281,6 @@ function checks(p, ix){
     for(const [m, c] of count) if(avg > 0 && c > 1.5 * avg)
       out.push({ id: 'root', kind: 'overload', who: m, text: `${m} owns ${c} tasks, more than 1.5 times the team average (${avg.toFixed(1)}).` });
   }
-  // Baseline housekeeping
-  const b = activeBaseline(p);
-  if(b){
-    const added = tasks.filter(e => !b.plan[e.id]).length;
-    if(added) out.push({ id: 'root', kind: 'unbaselined', text: `${added} task${added > 1 ? 's were' : ' was'} added after baseline ${b.n} and ${added > 1 ? 'are' : 'is'} not in earned value yet. Re-baseline to include ${added > 1 ? 'them' : 'it'}.` });
-    const gone = Object.keys(b.plan).filter(id => b.plan[id].t === 'task' && !isTask(ix.byId.get(id))).length;
-    if(gone) out.push({ id: 'root', kind: 'deleted', text: `${gone} task${gone > 1 ? 's' : ''} in baseline ${b.n} ${gone > 1 ? 'were' : 'was'} deleted or changed type; ${gone > 1 ? 'they still count' : 'it still counts'} in PV until you re-baseline.` });
-  }
   return out;
 }
 
