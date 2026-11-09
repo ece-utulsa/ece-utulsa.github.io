@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earned Value — Senior Design 1</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+html,body{margin:0;height:100%;background:#2b3338;overflow:hidden;font-family:'IBM Plex Sans',Arial,sans-serif}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+.page{position:absolute;left:0;top:0;width:1920px;height:1080px;display:none}
+.page.on{display:block}
+.slide{position:absolute!important;left:0;top:0;width:1920px;height:1080px;box-sizing:border-box;overflow:hidden}
+.slide *{box-sizing:border-box}
+.slide p,.slide h1,.slide h2,.slide h3,.slide ul{margin:0}
+.slide ul{padding-left:1.15em}
+.slide li{margin:0 0 .25em}
+.slide table{border-collapse:collapse}
+.slide th,.slide td{padding:.35em .6em;border-bottom:1px solid #d6dde0;text-align:left;vertical-align:top}
+.slide th{font-weight:700;border-bottom:2px solid #1a2328}
+.slide iframe{border:0}
+.conn{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none;overflow:visible}
+[data-build-in]{transition:opacity .45s ease,transform .45s ease}
+.pending{opacity:0!important}
+.pending.rise{transform:translateY(40px)} .pending.left{transform:translateX(-60px)} .pending.pop{transform:scale(.6)}
+#bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:10px;align-items:center;justify-content:center;padding:8px;
+  font:14px 'IBM Plex Mono',monospace;color:#dfe6e9;background:rgba(20,26,30,.75);opacity:0;transition:opacity .3s}
+body:hover #bar{opacity:1}
+#bar button{font:inherit;background:#3b464c;color:#fff;border:0;border-radius:6px;padding:6px 12px;cursor:pointer}
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:38%;overflow:auto;background:#fbfaf6;color:#1a2328;
+  font:17px/1.55 'IBM Plex Sans',Arial,sans-serif;padding:18px 28px 56px;box-shadow:0 -6px 24px rgba(0,0,0,.3);display:none}
+#notes.on{display:block} #notes b{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#55636b;letter-spacing:.1em}
+</style></head><body>
+<div id="stage">
+<div class="page"><section class="slide" id="cover" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px; display:flex; flex-direction:column">
+<div style="position:absolute; left:1120px; top:260px; width:680px; height:460px; background:#ffffff; border-radius:20px; box-shadow:0px 4px 16px rgba(26,35,40,0.08)"></div>
+<svg aria-label="Planned and earned task curves over a semester" style="position:absolute; left:1160px; top:300px" width="600" height="380" viewBox="0 0 600 380"><line x1="30" y1="350" x2="570" y2="350" stroke="#b8c0c4" stroke-width="2"/><polyline points="30.0,350.0 66.0,342.0 102.0,330.0 138.0,318.0 174.0,306.0 210.0,294.0 246.0,278.0 282.0,258.0 318.0,234.0 354.0,206.0 390.0,174.0 426.0,142.0 462.0,110.0 498.0,78.0 534.0,50.0 570.0,30.0" fill="none" stroke="#55636b" stroke-width="6" stroke-dasharray="14 10" stroke-linecap="round"/><polyline points="30.0,350.0 66.0,342.0 102.0,334.0 138.0,326.0 174.0,314.0 210.0,306.0 246.0,294.0" fill="none" stroke="#10668a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<p style="position:absolute; left:1600px; top:300px; width:170px; font-size:26px; color:#55636b; line-height:1.3; font-weight:700">Plan</p><p style="position:absolute; left:1430px; top:590px; width:140px; font-size:26px; color:#10668a; line-height:1.3; font-weight:700">Earned</p>
+<p style="position:absolute; left:128px; top:300px; width:900px; font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#10668a; letter-spacing:3px">SENIOR DESIGN 1 · LECTURE</p>
+<h1 style="position:absolute; left:128px; top:350px; width:900px; font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:120px; font-weight:800; line-height:1.0; letter-spacing:-2px">Earned Value</h1>
+<p style="position:absolute; left:128px; top:500px; width:900px; font-size:40px; color:#1a2328; line-height:1.3; font-weight:600">Is your project on schedule? Count the tasks, every week.</p>
+<p style="position:absolute; left:128px; top:620px; width:900px; font-size:28px; color:#55636b; line-height:1.3">Electrical and Computer Engineering · University of Tulsa</p>
+
+</section>
+</div><div class="page"><section class="slide" id="three-numbers" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#10668a; letter-spacing:3px">WHY EARNED VALUE</p>
+<h2 style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:60px; font-weight:800; line-height:1.05; letter-spacing:-1px">Busy is not the same as on schedule</h2>
+<p style="position:absolute; left:128px; top:290px; width:960px; font-size:30px; color:#1a2328; line-height:1.3; font-weight:600">Week 6. “We are working on eight tasks.” Is the team on schedule?</p>
+<p data-build-in="fade order 1" style="position:absolute; left:128px; top:414px; width:300px; font-size:26px; color:#55636b; line-height:1.3">Planned to start</p>
+<div data-build-in="left order 1" style="position:absolute; left:440px; top:400px; width:560px; height:64px; background:#ffffff; border:4px solid #10668a; border-radius:8px"></div>
+<p data-build-in="fade order 1" style="position:absolute; left:1020px; top:410px; width:140px; font-size:40px; color:#10668a; line-height:1.3; font-weight:800">10</p>
+<p data-build-in="fade order 2" style="position:absolute; left:128px; top:522px; width:300px; font-size:26px; color:#55636b; line-height:1.3">Actually started</p>
+<div data-build-in="left order 2" style="position:absolute; left:440px; top:508px; width:448px; height:64px; background:#10668a; border-radius:8px"></div>
+<p data-build-in="fade order 2" style="position:absolute; left:908px; top:518px; width:140px; font-size:40px; color:#10668a; line-height:1.3; font-weight:800">8</p>
+<p data-build-in="fade order 3" style="position:absolute; left:128px; top:630px; width:300px; font-size:26px; color:#55636b; line-height:1.3">Planned to finish</p>
+<div data-build-in="left order 3" style="position:absolute; left:440px; top:616px; width:448px; height:64px; background:#ffffff; border:4px solid #18744a; border-radius:8px"></div>
+<p data-build-in="fade order 3" style="position:absolute; left:908px; top:626px; width:140px; font-size:40px; color:#18744a; line-height:1.3; font-weight:800">8</p>
+<p data-build-in="fade order 4" style="position:absolute; left:128px; top:738px; width:300px; font-size:26px; color:#55636b; line-height:1.3">Actually finished</p>
+<div data-build-in="left order 4" style="position:absolute; left:440px; top:724px; width:336px; height:64px; background:#18744a; border-radius:8px"></div>
+<p data-build-in="fade order 4" style="position:absolute; left:796px; top:734px; width:140px; font-size:40px; color:#18744a; line-height:1.3; font-weight:800">6</p>
+<p data-build-in="fade order 5" style="position:absolute; left:128px; top:840px; width:960px; font-size:28px; color:#c2412f; line-height:1.3; font-style:italic; font-weight:600">Busy is not the same as done: 2 tasks behind on starts, 2 behind on finishes.</p>
+<div data-build-in="rise order 6" style="position:absolute; left:1240px; top:290px; width:552px; height:180px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:6px; padding:24px 32px">
+<p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:44px; font-weight:800; color:#1a2328">Task</p><p style="font-size:26px; color:#55636b; line-height:1.3">One work package from your WBS. Every task counts the same.</p>
+</div>
+<div data-build-in="rise order 7" style="position:absolute; left:1240px; top:495px; width:552px; height:180px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:6px; padding:24px 32px">
+<p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:44px; font-weight:800; color:#55636b">PV</p><p style="font-size:26px; color:#55636b; line-height:1.3">Planned value: tasks the baseline says should be earned by now</p>
+</div>
+<div data-build-in="rise order 8" style="position:absolute; left:1240px; top:700px; width:552px; height:180px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:6px; padding:24px 32px">
+<p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:44px; font-weight:800; color:#10668a">EV</p><p style="font-size:26px; color:#55636b; line-height:1.3">Earned value: tasks actually earned by now</p>
+</div>
+<div style="position:absolute; left:128px; bottom:64px; width:1664px; display:flex; justify-content:space-between">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">Senior Design 1 · Earned Value</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">02</p>
+</div>
+
+</section>
+</div><div class="page"><section class="slide" id="fifty-fifty" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#10668a; letter-spacing:3px">MEASURING EARNED VALUE</p>
+<h2 style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:60px; font-weight:800; line-height:1.05; letter-spacing:-1px">Each task is earned by the 50/50 rule</h2>
+<div data-build-in="rise order 1" style="position:absolute; left:128px; top:300px; width:528px; height:380px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:22px">
+<h3 style="font-size:36px; font-weight:700">Not started</h3><div style="width:464px; height:48px; background:#e6ebee; border-radius:24px; display:flex; flex-direction:row"></div><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:72px; font-weight:800; color:#10668a">0</p><p style="font-size:26px; color:#55636b">earned</p>
+</div>
+<div data-build-in="rise order 2" style="position:absolute; left:696px; top:300px; width:528px; height:380px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:22px">
+<h3 style="font-size:36px; font-weight:700">Started</h3><div style="width:464px; height:48px; background:#e6ebee; border-radius:24px; display:flex; flex-direction:row"><div style="width:50%; height:48px; background:#10668a; border-radius:24px"></div></div><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:72px; font-weight:800; color:#10668a">½ task</p><p style="font-size:26px; color:#55636b">earned</p>
+</div>
+<div data-build-in="rise order 3" style="position:absolute; left:1264px; top:300px; width:528px; height:380px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:22px">
+<h3 style="font-size:36px; font-weight:700">Finished</h3><div style="width:464px; height:48px; background:#e6ebee; border-radius:24px; display:flex; flex-direction:row"><div style="width:100%; height:48px; background:#10668a; border-radius:24px"></div></div><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:72px; font-weight:800; color:#10668a">1 task</p><p style="font-size:26px; color:#55636b">earned</p>
+</div>
+<div data-build-in="rise order 4" style="position:absolute; left:128px; top:720px; width:1664px; height:160px; display:flex; flex-direction:row; align-items:center; gap:48px; background:#e1eef4; border:2px solid #10668a; border-radius:16px; padding:0px 40px"><p style="flex:1; font-size:30px; line-height:1.3"><b>Earned value</b> = ½ × tasks started + ½ × tasks finished</p><p style="flex:1; font-size:30px; line-height:1.3"><b>Planned value</b> = ½ × planned starts + ½ × planned finishes</p></div>
+<div style="position:absolute; left:128px; bottom:64px; width:1664px; display:flex; justify-content:space-between">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">Senior Design 1 · Earned Value</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">03</p>
+</div>
+
+</section>
+</div><div class="page"><section class="slide" id="example" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#10668a; letter-spacing:3px">WORKED EXAMPLE</p>
+<h2 style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:60px; font-weight:800; line-height:1.05; letter-spacing:-1px">One team at week 6, task by task</h2>
+<table style="position:absolute; left:128px; top:280px; width:1664px; font-size:26px; font-variant-numeric:tabular-nums; background:#ffffff"><tr><th style="width:9%">WBS</th><th style="width:37%">Task started or due by week 6</th><th style="width:14%">Plan (wk)</th><th style="width:16%">Status</th><th style="width:12%; text-align:right">PV</th><th style="width:12%; text-align:right">EV</th></tr><tr><td>1.1.1</td><td>Requirements and specification</td><td>1–2</td><td style="color:#18744a">Finished</td><td style="text-align:right">1</td><td style="text-align:right; color:#10668a">1</td></tr><tr style="background:#f1f3f2"><td>1.1.2</td><td>Concepts and trade study</td><td>2–4</td><td style="color:#18744a">Finished</td><td style="text-align:right">1</td><td style="text-align:right; color:#10668a">1</td></tr><tr><td>1.2.1</td><td>Power budget analysis</td><td>3–4</td><td style="color:#18744a">Finished</td><td style="text-align:right">1</td><td style="text-align:right; color:#10668a">1</td></tr><tr style="background:#f1f3f2"><td>1.3.1</td><td>Circuit simulation</td><td>4–6</td><td style="color:#18744a">Finished</td><td style="text-align:right">1</td><td style="text-align:right; color:#10668a">1</td></tr><tr><td>1.4.1</td><td>Schematic capture</td><td>5–6</td><td style="color:#8a5700">Started</td><td style="text-align:right">1</td><td style="text-align:right; color:#10668a">½</td></tr><tr style="background:#f1f3f2"><td>1.4.2</td><td>PCB layout</td><td>6–8</td><td style="color:#55636b">Not started</td><td style="text-align:right">½</td><td style="text-align:right; color:#10668a">0</td></tr><tr><td>2.1.1</td><td>Test plan draft</td><td>5–6</td><td style="color:#55636b">Not started</td><td style="text-align:right">1</td><td style="text-align:right; color:#10668a">0</td></tr><tr style="background:#f1f3f2"><td>3.1.1</td><td>Parts list and lead times</td><td>5–7</td><td style="color:#8a5700">Started</td><td style="text-align:right">½</td><td style="text-align:right; color:#10668a">½</td></tr><tr><td>4.1.1</td><td>Status reports, weeks 1–6</td><td>1–6</td><td style="color:#18744a">Finished</td><td style="text-align:right">1</td><td style="text-align:right; color:#10668a">1</td></tr><tr style="background:#f1f3f2"><td>4.2.1</td><td>WBS and schedule baseline</td><td>1–2</td><td style="color:#18744a">Finished</td><td style="text-align:right">1</td><td style="text-align:right; color:#10668a">1</td></tr><tr style="background:#e1eef4"><td></td><td>Totals at week 6 (tasks)</td><td></td><td></td><td style="text-align:right">PV 9</td><td style="text-align:right; color:#10668a">EV 7</td></tr></table>
+<div style="position:absolute; left:128px; bottom:64px; width:1664px; display:flex; justify-content:space-between">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">Senior Design 1 · Earned Value</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">04</p>
+</div>
+
+</section>
+</div><div class="page"><section class="slide" id="s-curve" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#10668a; letter-spacing:3px">THE PICTURE</p>
+<h2 style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:60px; font-weight:800; line-height:1.05; letter-spacing:-1px">Two curves tell the schedule story</h2>
+<iframe style="position:absolute; left:128px; top:280px; width:1664px; height:610px" srcdoc="&lt;!doctype html&gt;&lt;html&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;/head&gt;&lt;body style=&quot;margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;border-radius:16px;overflow:hidden&quot;&gt;&lt;svg id=&quot;s&quot; width=&quot;1664&quot; height=&quot;610&quot; viewBox=&quot;0 0 1664 610&quot;&gt;&lt;/svg&gt;&lt;script&gt;const PV=[0, 1, 2.5, 4, 5.5, 7, 9, 11.5, 14.5, 18, 22, 26, 30, 34, 37.5, 40],EV=[0, 1, 2, 3, 4.5, 5.5, 7];const W=20,HM=40,L=110,R=1600,T=90,B=530,N=&#x27;http://www.w3.org/2000/svg&#x27;,s=document.getElementById(&#x27;s&#x27;);const X=w=&gt;L+w*(R-L)/W,Y=h=&gt;B-h*(B-T)/HM;function el(t,a,x){const e=document.createElementNS(N,t);for(const k in a)e.setAttribute(k,a[k]);if(x!==undefined)e.textContent=x;s.appendChild(e);return e;}function txt(x,y,t,c,w,anc){return el(&#x27;text&#x27;,{x,y,fill:c||&#x27;#55636b&#x27;,&#x27;font-size&#x27;:26,&#x27;font-weight&#x27;:w||400,&#x27;text-anchor&#x27;:anc||&#x27;start&#x27;},t);}function axes(){for(let h=0;h&lt;=40;h+=10){el(&#x27;line&#x27;,{x1:L,y1:Y(h),x2:R,y2:Y(h),stroke:&#x27;#e3e7ea&#x27;,&#x27;stroke-width&#x27;:2});txt(L-14,Y(h)+9,h,null,400,&#x27;end&#x27;);}for(let w=0;w&lt;=W;w+=5)txt(X(w),B+40,&#x27;week &#x27;+w,null,400,&#x27;middle&#x27;);txt(L-14,T-40,&#x27;tasks&#x27;,null,400,&#x27;end&#x27;);}function path(a,n){let d=&#x27;&#x27;;for(let i=0;i&lt;=n;i++){const j=Math.min(i,a.length-1);d+=(i?&#x27;L&#x27;:&#x27;M&#x27;)+X(j)+&#x27; &#x27;+Y(a[j]);}return d;}let pv,ev;function reset(){while(s.firstChild)s.removeChild(s.firstChild);axes();pv=el(&#x27;path&#x27;,{d:&#x27;&#x27;,fill:&#x27;none&#x27;,stroke:&#x27;#55636b&#x27;,&#x27;stroke-width&#x27;:5,&#x27;stroke-dasharray&#x27;:&#x27;14 10&#x27;});ev=el(&#x27;path&#x27;,{d:&#x27;&#x27;,fill:&#x27;none&#x27;,stroke:&#x27;#10668a&#x27;,&#x27;stroke-width&#x27;:7,&#x27;stroke-linejoin&#x27;:&#x27;round&#x27;,&#x27;stroke-linecap&#x27;:&#x27;round&#x27;});}function legend(){[[&#x27;PV  planned value&#x27;,&#x27;#55636b&#x27;],[&#x27;EV  earned value&#x27;,&#x27;#10668a&#x27;],[&#x27;Forecast at SPI 0.78&#x27;,&#x27;#10668a&#x27;]].forEach((it,i)=&gt;{el(&#x27;rect&#x27;,{x:150,y:110+i*46,width:40,height:8,fill:it[1],opacity:i==2?0.5:1});txt(204,122+i*46,it[0],it[1],700);});}function marks(){const x=X(6);el(&#x27;line&#x27;,{x1:x,y1:T+95,x2:x,y2:B,stroke:&#x27;#1a2328&#x27;,&#x27;stroke-width&#x27;:2,&#x27;stroke-dasharray&#x27;:&#x27;6 6&#x27;});txt(x,T+80,&#x27;today: week 6&#x27;,&#x27;#1a2328&#x27;,700,&#x27;middle&#x27;);el(&#x27;line&#x27;,{x1:x+30,y1:Y(9),x2:x+30,y2:Y(7),stroke:&#x27;#8a5700&#x27;,&#x27;stroke-width&#x27;:6});txt(x+46,Y(8)+10,&#x27;SV = 7 − 9 = −2 tasks&#x27;,&#x27;#8a5700&#x27;,700);el(&#x27;line&#x27;,{x1:X(6),y1:Y(7),x2:X(19.3),y2:Y(40),stroke:&#x27;#10668a&#x27;,&#x27;stroke-width&#x27;:5,&#x27;stroke-dasharray&#x27;:&#x27;4 10&#x27;,opacity:0.6});el(&#x27;line&#x27;,{x1:X(15),y1:Y(40),x2:X(19.3),y2:Y(40),stroke:&#x27;#c2412f&#x27;,&#x27;stroke-width&#x27;:6});el(&#x27;circle&#x27;,{cx:X(15),cy:Y(40),r:9,fill:&#x27;#55636b&#x27;});el(&#x27;circle&#x27;,{cx:X(19.3),cy:Y(40),r:9,fill:&#x27;#10668a&#x27;});txt(X(15)-12,Y(40)-18,&#x27;plan: week 15&#x27;,&#x27;#55636b&#x27;,700,&#x27;end&#x27;);txt(1655,Y(40)-18,&#x27;forecast: week 19&#x27;,&#x27;#10668a&#x27;,700,&#x27;end&#x27;);txt(X(16.5),Y(40)+40,&#x27;+4 weeks&#x27;,&#x27;#c2412f&#x27;,700,&#x27;middle&#x27;);}let t=0;function step(){t++;if(t&lt;=15)pv.setAttribute(&#x27;d&#x27;,path(PV,t));else if(t&lt;=21){ev.setAttribute(&#x27;d&#x27;,path(EV,t-15));}else if(t===22){legend();marks();}else if(t&gt;55){t=0;reset();}}reset();setInterval(step,320);&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;" sandbox="allow-scripts" title="Animated chart"></iframe>
+<div style="position:absolute; left:128px; bottom:64px; width:1664px; display:flex; justify-content:space-between">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">Senior Design 1 · Earned Value</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">05</p>
+</div>
+
+</section>
+</div><div class="page"><section class="slide" id="variances" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#10668a; letter-spacing:3px">THE MEASURES</p>
+<h2 style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:60px; font-weight:800; line-height:1.05; letter-spacing:-1px">Four numbers from the task counts</h2>
+<div data-build-in="rise order 1" style="position:absolute; left:128px; top:290px; width:812px; height:285px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b; letter-spacing:2px">SCHEDULE VARIANCE</p><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:56px; font-weight:700; line-height:1.1"><span style="color:#10668a">SV</span> = EV − PV</p><p style="font-size:32px; font-weight:600; font-variant-numeric:tabular-nums">7 − 9 = −2 tasks</p><p style="font-size:26px; color:#c2412f">Negative: behind schedule</p>
+</div>
+<div data-build-in="rise order 2" style="position:absolute; left:980px; top:290px; width:812px; height:285px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b; letter-spacing:2px">SCHEDULE PERFORMANCE INDEX</p><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:56px; font-weight:700; line-height:1.1"><span style="color:#10668a">SPI</span> = EV ÷ PV</p><p style="font-size:32px; font-weight:600; font-variant-numeric:tabular-nums">7 ÷ 9 = 0.78</p><p style="font-size:26px; color:#c2412f">Below 1: progress is 78% of plan</p>
+</div>
+<div data-build-in="rise order 3" style="position:absolute; left:128px; top:605px; width:812px; height:285px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b; letter-spacing:2px">START AND FINISH RATIOS</p><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:40px; font-weight:700; line-height:1.1"><span style="color:#10668a">Started ÷ planned</span> · <span style="color:#18744a">Finished ÷ planned</span></p><p style="font-size:32px; font-weight:600; font-variant-numeric:tabular-nums">8 ÷ 10 = 0.80 · 6 ÷ 8 = 0.75</p><p style="font-size:26px; color:#c2412f">Both below 1: behind on starting and finishing</p>
+</div>
+<div data-build-in="rise order 4" style="position:absolute; left:980px; top:605px; width:812px; height:285px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b; letter-spacing:2px">PERCENT COMPLETE</p><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:56px; font-weight:700; line-height:1.1"><span style="color:#10668a">% complete</span> = EV ÷ BAC</p><p style="font-size:32px; font-weight:600; font-variant-numeric:tabular-nums">7 ÷ 40 = 18%</p><p style="font-size:26px; color:#c2412f">Planned by now: 9 ÷ 40 = 23%</p>
+</div>
+<div style="position:absolute; left:128px; bottom:64px; width:1664px; display:flex; justify-content:space-between">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">Senior Design 1 · Earned Value</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">06</p>
+</div>
+
+</section>
+</div><div class="page"><section class="slide" id="quadrant" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#10668a; letter-spacing:3px">READING THE SIGNALS</p>
+<h2 style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:60px; font-weight:800; line-height:1.05; letter-spacing:-1px">Starting versus finishing</h2>
+<svg aria-label="Start ratio against finish ratio quadrant chart; the team at 0.80 and 0.75 sits in the behind on both quadrant" style="position:absolute; left:300px; top:290px" width="600" height="600" viewBox="0 0 600 600"><rect x="0" y="0" width="300.0" height="300.0" fill="#fdf3e3"/><rect x="300.0" y="0" width="300.0" height="300.0" fill="#e3f4ea"/><rect x="0" y="300.0" width="300.0" height="300.0" fill="#fbe4e0"/><rect x="300.0" y="300.0" width="300.0" height="300.0" fill="#fdf3e3"/><line x1="300.0" y1="0" x2="300.0" y2="600" stroke="#1a2328" stroke-width="3"/><line x1="0" y1="300.0" x2="600" y2="300.0" stroke="#1a2328" stroke-width="3"/><circle cx="180.0" cy="450.0" r="18" fill="#c2412f" stroke="#ffffff" stroke-width="5"/></svg>
+<p style="position:absolute; left:620.0px; top:310px; width:270px; font-size:24px; color:#18744a; line-height:1.3; font-weight:700">On plan</p>
+<p style="position:absolute; left:320px; top:310px; width:260px; font-size:24px; color:#8a5700; line-height:1.3; font-weight:700">Starting late, finishing well</p>
+<p style="position:absolute; left:320px; top:820px; width:260px; font-size:24px; color:#c2412f; line-height:1.3; font-weight:700">Behind on both</p>
+<p style="position:absolute; left:620.0px; top:820px; width:270px; font-size:24px; color:#8a5700; line-height:1.3; font-weight:700">Starting, not finishing</p>
+<p style="position:absolute; left:360.0px; top:766.0px; width:240px; font-size:24px; color:#c2412f; line-height:1.3; font-weight:700; text-align:center">Our team, week 6</p>
+<p style="position:absolute; left:300px; top:904px; width:600px; font-size:24px; color:#55636b; line-height:1.3; text-align:center">Start ratio →</p>
+<p style="position:absolute; left:128px; top:560.0px; width:160px; font-size:24px; color:#55636b; line-height:1.3; text-align:right">Finish ratio ↑</p>
+<div data-build-in="rise order 1" style="position:absolute; left:1100px; top:300px; width:692px; height:170px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:8px; padding:24px 32px">
+<h3 style="font-size:34px; font-weight:700; color:#18744a">Both 1 or above</h3><p style="font-size:28px; line-height:1.3">On plan. Keep going.</p>
+</div>
+<div data-build-in="rise order 2" style="position:absolute; left:1100px; top:500px; width:692px; height:170px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:8px; padding:24px 32px">
+<h3 style="font-size:34px; font-weight:700; color:#8a5700">One below 1</h3><p style="font-size:28px; line-height:1.3">Starting, not finishing: too much open at once. Finish before starting more.</p>
+</div>
+<div data-build-in="rise order 3" style="position:absolute; left:1100px; top:700px; width:692px; height:170px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:8px; padding:24px 32px">
+<h3 style="font-size:34px; font-weight:700; color:#c2412f">Both below 1</h3><p style="font-size:28px; line-height:1.3">Behind on both. Re-plan with your advisor now.</p>
+</div>
+<div style="position:absolute; left:128px; bottom:64px; width:1664px; display:flex; justify-content:space-between">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">Senior Design 1 · Earned Value</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">07</p>
+</div>
+
+</section>
+</div><div class="page"><section class="slide" id="forecast" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#10668a; letter-spacing:3px">LOOKING AHEAD</p>
+<h2 style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:60px; font-weight:800; line-height:1.05; letter-spacing:-1px">When will the project finish?</h2>
+<p style="position:absolute; left:128px; top:290px; width:600px; font-size:26px; color:#55636b; line-height:1.3">Planned duration</p>
+<div data-build-in="left order 1" style="position:absolute; left:128px; top:330px; width:1000px; height:64px; background:#55636b; border-radius:8px"></div>
+<p style="position:absolute; left:1150px; top:336px; width:400px; font-size:34px; color:#55636b; line-height:1.3; font-weight:700">15 weeks</p>
+<p data-build-in="fade order 2" style="position:absolute; left:128px; top:420px; width:700px; font-size:26px; color:#55636b; line-height:1.3">Forecast at today’s SPI of 0.78</p>
+<div data-build-in="left order 2" style="position:absolute; left:128px; top:460px; width:1000px; height:64px; background:#10668a; border-radius:8px 0px 0px 8px"></div>
+<div data-build-in="left order 3" style="position:absolute; left:1128px; top:460px; width:286px; height:64px; background:#c2412f; border-radius:0px 8px 8px 0px"></div>
+<p data-build-in="fade order 3" style="position:absolute; left:1436px; top:466px; width:350px; font-size:34px; color:#c2412f; line-height:1.3; font-weight:700">19.3 weeks</p>
+<div data-build-in="rise order 4" style="position:absolute; left:128px; top:590px; width:528px; height:290px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px; padding:28px">
+<p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:34px; font-weight:700; line-height:1.1"><span style="color:#10668a">Forecast</span> = planned weeks ÷ SPI</p><p style="font-size:28px; font-weight:600; font-variant-numeric:tabular-nums">15 ÷ 0.78 = 19.3 weeks</p><p style="font-size:24px; color:#55636b">About 4 weeks late at this pace</p>
+</div>
+<div data-build-in="rise order 5" style="position:absolute; left:696px; top:590px; width:528px; height:290px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px; padding:28px">
+<p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:34px; font-weight:700; line-height:1.1"><span style="color:#10668a">Tasks to go</span> = BAC − EV</p><p style="font-size:28px; font-weight:600; font-variant-numeric:tabular-nums">40 − 7 = 33 tasks</p><p style="font-size:24px; color:#55636b">Still to be earned</p>
+</div>
+<div data-build-in="rise order 6" style="position:absolute; left:1264px; top:590px; width:528px; height:290px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px; padding:28px">
+<p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:700; line-height:1.1"><span style="color:#c2412f">TSPI</span> = (BAC − EV) ÷ (BAC − PV)</p><p style="font-size:28px; font-weight:600; font-variant-numeric:tabular-nums">33 ÷ 31 = 1.06</p><p style="font-size:24px; color:#55636b">Pace needed to finish on time</p>
+</div>
+<div style="position:absolute; left:128px; bottom:64px; width:1664px; display:flex; justify-content:space-between">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">Senior Design 1 · Earned Value</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">08</p>
+</div>
+
+</section>
+</div><div class="page"><section class="slide" id="act" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#10668a; letter-spacing:3px">EVERY WEEK</p>
+<h2 style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:60px; font-weight:800; line-height:1.05; letter-spacing:-1px">Ten minutes a week, then act</h2>
+<div data-build-in="rise order 1" style="position:absolute; left:128px; top:290px; width:386px; height:220px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px">
+<div style="display:flex; flex-direction:row; align-items:center; gap:16px"><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:56px; font-weight:800; color:#10668a; line-height:1">1</p><h3 style="font-size:32px; font-weight:700">Mark status</h3></div><p style="font-size:26px; color:#55636b; line-height:1.3">Each task: not started, started or finished</p>
+</div>
+<div data-build-in="rise order 2" style="position:absolute; left:554px; top:290px; width:386px; height:220px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px">
+<div style="display:flex; flex-direction:row; align-items:center; gap:16px"><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:56px; font-weight:800; color:#10668a; line-height:1">2</p><h3 style="font-size:32px; font-weight:700">Count</h3></div><p style="font-size:26px; color:#55636b; line-height:1.3">Planned and actual starts and finishes</p>
+</div>
+<div data-build-in="rise order 3" style="position:absolute; left:980px; top:290px; width:386px; height:220px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px">
+<div style="display:flex; flex-direction:row; align-items:center; gap:16px"><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:56px; font-weight:800; color:#10668a; line-height:1">3</p><h3 style="font-size:32px; font-weight:700">Compute</h3></div><p style="font-size:26px; color:#55636b; line-height:1.3">PV, EV, SV, SPI, ratios, forecast</p>
+</div>
+<div data-build-in="rise order 4" style="position:absolute; left:1406px; top:290px; width:386px; height:220px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:12px">
+<div style="display:flex; flex-direction:row; align-items:center; gap:16px"><p style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:56px; font-weight:800; color:#10668a; line-height:1">4</p><h3 style="font-size:32px; font-weight:700">Report</h3></div><p style="font-size:26px; color:#55636b; line-height:1.3">Chart and numbers in the status report</p>
+</div>
+<p data-build-in="fade order 5" style="position:absolute; left:128px; top:550px; width:1664px; font-size:32px; color:#1a2328; line-height:1.3; font-weight:700">When SPI or a ratio drops below 1</p>
+<div data-build-in="rise order 6" style="position:absolute; left:128px; top:610px; width:386px; height:270px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:10px">
+<h3 style="font-size:30px; font-weight:700; color:#c2412f">Find the late tasks</h3><p style="font-size:26px; color:#55636b; line-height:1.3">Here: 2.1.1 and 1.4.2 not started; 1.4.1 late finishing</p>
+</div>
+<div data-build-in="rise order 7" style="position:absolute; left:554px; top:610px; width:386px; height:270px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:10px">
+<h3 style="font-size:30px; font-weight:700; color:#c2412f">Finish before starting</h3><p style="font-size:26px; color:#55636b; line-height:1.3">Close open tasks before opening new ones</p>
+</div>
+<div data-build-in="rise order 8" style="position:absolute; left:980px; top:610px; width:386px; height:270px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:10px">
+<h3 style="font-size:30px; font-weight:700; color:#c2412f">Re-plan openly</h3><p style="font-size:26px; color:#55636b; line-height:1.3">Change the baseline only with your advisor</p>
+</div>
+<div data-build-in="rise order 9" style="position:absolute; left:1406px; top:610px; width:386px; height:270px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:10px">
+<h3 style="font-size:30px; font-weight:700; color:#c2412f">Report it</h3><p style="font-size:26px; color:#55636b; line-height:1.3">Good or bad, in every status report</p>
+</div>
+<div style="position:absolute; left:128px; bottom:64px; width:1664px; display:flex; justify-content:space-between">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">Senior Design 1 · Earned Value</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">09</p>
+</div>
+
+</section>
+</div><div class="page"><section class="slide" id="industry" data-transition="fade" style="background:#f7f6f2; color:#1a2328; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 128px 160px; display:flex; flex-direction:column; gap:12px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b; letter-spacing:3px">IN INDUSTRY</p>
+<h2 style="font-family:'Archivo', 'IBM Plex Sans', Arial, sans-serif; font-size:60px; font-weight:800; line-height:1.05; letter-spacing:-1px">What changes in your first job</h2>
+<div data-build-in="rise order 1" style="position:absolute; left:128px; top:290px; width:812px; height:420px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:20px">
+<h3 style="font-size:40px; font-weight:700; color:#10668a">Senior Design this year</h3><ul style="font-size:30px; line-height:1.35; color:#1a2328"><li>Unit: tasks (work packages)</li><li>Earned by the 50/50 rule</li><li>No time cards</li><li>Measures schedule: SV, SPI, forecast finish</li></ul>
+</div>
+<div data-build-in="rise order 2" style="position:absolute; left:980px; top:290px; width:812px; height:420px; display:flex; flex-direction:column; gap:14px; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0px 4px 16px rgba(26,35,40,0.08); gap:20px">
+<h3 style="font-size:40px; font-weight:700; color:#55636b">Industry practice</h3><ul style="font-size:30px; line-height:1.35; color:#1a2328"><li>Unit: budgeted hours or dollars</li><li>Earned by the same rules</li><li>Time cards give actual cost, AC</li><li>Adds cost: CV, CPI, estimate at completion</li></ul>
+</div>
+<div data-build-in="rise order 3" style="position:absolute; left:128px; top:750px; width:1664px; height:130px; display:flex; align-items:center; background:#e1eef4; border:2px solid #10668a; border-radius:16px; padding:0px 40px"><p style="font-size:30px; line-height:1.3">Same idea, different unit. In your first job you will add <b>hours, time cards and cost</b>; the cost equations are in Lecture 3 for reference.</p></div>
+<div style="position:absolute; left:128px; bottom:64px; width:1664px; display:flex; justify-content:space-between">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">Senior Design 1 · Earned Value</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace; font-size:24px; color:#55636b">10</p>
+</div>
+
+</section>
+</div>
+</div>
+<div id="notes"><b>LECTURE NOTES</b><p id="ntext"></p></div>
+<div id="bar"><button id="prev" aria-label="Previous">◀</button><span id="pos"></span><button id="next" aria-label="Next">▶</button>
+<button id="nbtn">Notes (N)</button><button id="fbtn">Full screen (F)</button><span>Senior Design 1 · Lecture 2</span></div>
+<script>
+const NOTES=["Last lecture you built a Work Breakdown Structure and a baseline schedule. This lecture is about measuring progress against that plan, every week, with numbers instead of opinions. In industry, earned value is measured in budgeted hours or dollars and tracked against time cards. For Senior Design this year we use a simpler version that needs no time cards: we count tasks. Every work package is one task. We count how many tasks were planned to start and finish by now, and how many actually did. The dashed line is the plan; the blue line is the value of the work actually earned. When blue falls below the plan, you are behind.", "Ask a Senior Design team how they are doing and you will usually hear how busy they are: \u201cwe are working on eight tasks.\u201d That says nothing about whether they are on schedule. Earned value answers that with four counts taken straight from the baseline schedule and the task status. Here is a team at week 6. The baseline says 10 tasks should have started by now and 8 should have finished. In fact 8 have started and 6 have finished. They are two tasks behind on starts and two behind on finishes. In past years we did this with labor hours and time cards. This year we use task counts, which need no time cards: every work package is one task, and every task counts the same. That is why your WBS work packages should be roughly the same size, one to two weeks of work for one person. Planned value, PV, is the number of tasks the baseline says should have been earned by now. Earned value, EV, is the number of tasks actually earned. The next slide shows how a task is earned.", "How much has a task earned? We use the 50/50 rule. A task earns nothing before it starts, half a task when it starts, and the other half when it is finished, meaning its deliverable exists. Percent complete is not used, because it is subjective: everything seems to sit at 90 percent for weeks. The rule turns into two simple sums. Earned value is one half of the number of tasks started plus one half of the number of tasks finished. Planned value is the same sum from the baseline: one half of the planned starts plus one half of the planned finishes. A finished task counts in both the started and the finished numbers, so it earns a whole task. These are the same four counts as the last slide, and the tool your teams will use draws them as a bar chart every week.", "Here is the worked example for the rest of the lecture. The team\u2019s semester plan has 40 tasks over 15 weeks, so the budget at completion, BAC, is 40 tasks. These are the ten tasks the baseline had planned to start by week 6; eight of them were also planned to finish by week 6. Planned value: eight tasks due by week 6 earn a full task each in the plan, and PCB layout and the parts list were planned to have started, so they earn a half each: 9 tasks. Earned value: six tasks are finished, a full task each; schematic capture and the parts list have started, a half each; PCB layout and the test plan draft have not started. That is 7 tasks. Check it with the counts from the earlier slide: one half of 10 plus 8 is 9, and one half of 8 plus 6 is 7. The table also shows where the team is behind: the test plan draft and PCB layout have not started, and schematic capture is late finishing.", "This is the earned value chart, and it plays itself in Present mode. First the dashed planned value line: the baseline, the cumulative number of tasks planned to be earned week by week, rising to all 40 tasks at week 15. It is S-shaped because projects start slowly, run hard in the middle and taper at the end. Then earned value in blue, week by week up to today, week 6. The vertical gap at today is the schedule variance: earned value 7 minus planned value 9, two tasks behind. The dotted line projects earned value forward at the team\u2019s current pace, a schedule performance index of 0.78. At that pace the 40 tasks are done at about week 19, four weeks late, which would push into the next semester. A healthy project keeps the blue line on top of the dashed line. Your team should update this chart every week.", "Four measures come straight from the counts. Schedule variance, SV, is earned value minus planned value: 7 minus 9 is minus 2 tasks, so the team is two tasks\u2019 worth of work behind. Zero is on plan, positive is ahead, negative is behind. The schedule performance index, SPI, is earned value divided by planned value: 7 over 9 is 0.78, so the team is earning 78 percent of the planned progress. One is on plan, above one is ahead, below one is behind. The start and finish ratios split that into two: tasks started over tasks planned to start, 8 over 10 or 0.80; and tasks finished over tasks planned to finish, 6 over 8 or 0.75. Percent complete is earned value over the 40 tasks in the plan: about 18 percent, where the plan expected 23 percent by now. The third lecture goes through each equation one at a time.", "The two ratios together tell you what kind of trouble a team is in. Plot the start ratio across and the finish ratio up, split at 1. Top right: starting and finishing on plan. Top left: tasks are starting late, but what starts gets finished; often the team is short of people or hours. Bottom right: the team starts tasks on time but does not finish them, the classic student pattern of too much work open at once. The fix is to finish open tasks before starting new ones. Bottom left: behind on both, where our week-6 team sits at 0.80 and 0.75. That calls for a re-plan with your advisor now, not at the next design review. Watch the trend as well as the position: a dot moving toward the top right each week is good news even if it is still in the wrong quadrant.", "Earned value also forecasts. If the team keeps working at today\u2019s pace, the forecast duration is the planned duration divided by SPI: 15 weeks over 0.78 is about 19.3 weeks, roughly four weeks late, which would push the end of the semester\u2019s work into the next one. Tasks to go is the budget at completion minus earned value: 40 minus 7, 33 tasks. The to-complete schedule performance index, TSPI, is the work left divided by the planned work left: 33 over 31, about 1.06. To finish on time, the team must now earn tasks 6 percent faster than the plan, while it is currently earning them 22 percent slower. That gap is the conversation to have with your advisor this week. A note of caution: this simple forecast assumes the pace stays the same, so treat it as a warning, not a promise.", "Earned value only works if it is updated every week, so make it a routine owned by the person responsible for WBS 4.2. One: mark every task not started, started or finished. Two: count the planned and actual starts and finishes up to this week. Three: compute planned value, earned value, the schedule variance, SPI, the two ratios and the forecast. Four: put the chart and the numbers in the weekly status report. With no time cards it takes about ten minutes. Then act on what the numbers say. Find the late tasks: in our example the test plan draft and PCB layout have not started, and schematic capture is late finishing. Finish open tasks before starting new ones. Re-plan openly: change the baseline only with your advisor\u2019s agreement, and keep the old one so you can show what changed. And report it, good or bad: a team that reports two tasks behind and a plan to recover earns far more trust than one that reports nothing until the final review.", "One last comparison. What we do this year is earned value for schedule: the unit is a task, earned by the 50/50 rule, with no time cards, and it tells you whether you are on schedule and when you will finish. In industry the method is the same, but the unit is budgeted hours or dollars, so a big work package counts for more than a small one. Engineers fill in time cards, which give the actual cost, AC. That adds a second set of measures for cost: the cost variance, earned value minus actual cost; the cost performance index, earned value over actual cost; and the estimate at completion, the budget divided by CPI. You will be asked those questions in your first job: how much will it cost, how much have you spent. Lecture 3 gives those equations for reference, after the task-count equations we use this year."];
+const S=[...document.querySelectorAll('.page')], stage=document.getElementById('stage');
+let i=0, step=0;
+function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(${(innerWidth-1920*k)/2}px,${(innerHeight-1080*k)/2}px) scale(${k})`;}
+function builds(s){return [...s.querySelectorAll('[data-build-in]')].map(e=>{const m=e.dataset.buildIn.match(/order (\d+)/);return {e,o:m?+m[1]:1,k:e.dataset.buildIn.split(' ')[0]};});}
+function orders(s){return [...new Set(builds(s).map(b=>b.o))].sort((a,b)=>a-b);}
+function apply(){const s=S[i];builds(s).forEach(b=>{const ord=orders(s);const shown=ord.indexOf(b.o)<step;b.e.classList.toggle('pending',!shown);b.e.classList.add(b.k);});}
+function show(n,atEnd){S[i].classList.remove('on');i=Math.max(0,Math.min(S.length-1,n));S[i].classList.add('on');step=atEnd?orders(S[i]).length:0;apply();
+ document.getElementById('pos').textContent=(i+1)+' / '+S.length;document.getElementById('ntext').textContent=NOTES[i];history.replaceState(null,'','#'+(i+1));}
+function next(){if(step<orders(S[i]).length){step++;apply();}else if(i<S.length-1)show(i+1);}
+function prev(){if(step>0){step--;apply();}else if(i>0)show(i-1,true);}
+addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next();}
+ else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev();}
+ else if(e.key==='n'||e.key==='N')document.getElementById('notes').classList.toggle('on');
+ else if(e.key==='f'||e.key==='F')document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+ else if(e.key==='Home')show(0);else if(e.key==='End')show(S.length-1,true);});
+stage.addEventListener('click',next);
+document.getElementById('next').onclick=next;document.getElementById('prev').onclick=prev;
+document.getElementById('nbtn').onclick=()=>document.getElementById('notes').classList.toggle('on');
+document.getElementById('fbtn').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+addEventListener('resize',fit);fit();
+show(Math.max(0,(parseInt(location.hash.slice(1))||1)-1));
+</script></body></html>
