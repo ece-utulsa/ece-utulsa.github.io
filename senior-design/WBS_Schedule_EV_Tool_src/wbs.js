@@ -110,7 +110,7 @@ function wbsDiagram(rows){
       s('title', { text: nm }),
       s('rect', { x: t.x, y: t.y, width: w, height: boxH, rx: 5, fill: lev <= 2 ? col : '#fff', stroke: col, 'stroke-width': sel ? 3.5 : 1.5 }),
       s('text', { x: t.x + 8, y: t.y + 18, 'font-size': 13, 'font-weight': 600, fill: lev <= 2 ? '#fff' : '#1b2328' }, clip(nm, w)),
-      s('text', { x: t.x + 8, y: t.y + 35, 'font-size': 12, fill: lev <= 2 ? '#fff' : '#4f5b62' }, clip(sub, w)));
+      s('text', { x: t.x + 8, y: t.y + 35, 'font-size': 13, fill: lev <= 2 ? '#fff' : '#4f5b62' }, clip(sub, w)));
     svg.append(g);
   }
   return h('div', { class: 'chartbox' }, svg);
@@ -141,7 +141,17 @@ function warningsCard(){
   return h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, `Rule checks (${list.length})`),
     list.length ? h('ul', { class: 'plain warnlist' }, list.map((c, i) => h('li', null,
       h('button', { type: 'button', 'data-key': 'warn:' + i, onclick: () => goTo(c.id) }, '⚠ ', c.text))))
-      : h('p', { class: 'mut' }, 'No warnings.'));
+      : h('p', { class: 'mut' }, 'No warnings.'),
+    acceptedCard());
+}
+
+/** Tasks longer than 2 weeks that the team accepted (change briefing C9), with their reasons. */
+function acceptedCard(){
+  const list = acceptedExceptions(P, IX);
+  if(!list.length) return null;
+  return [h('h3', null, `Accepted exceptions (${list.length})`),
+    h('ul', { class: 'plain warnlist accepted' }, list.map((c, i) => h('li', null,
+      h('button', { type: 'button', 'data-key': 'acc:' + i, onclick: () => goTo(c.id) }, '✓ ', c.text))))];
 }
 
 /* ── EDITOR PANEL ── */
@@ -227,9 +237,15 @@ function packageEditor(panel, e){
         onchange: ev => change(() => { const v = clampInt(ev.target.value, 1, P.weeks, k.start); const d = k.finish - k.start; k.start = v; if(k.finish < v) k.finish = v + Math.max(0, d); }) }))),
       k.type === 'milestone' ? null : h('div', null, field('Planned finish week', h('input', { type: 'number', min: 1, max: P.weeks, 'data-key': 'k-finish', value: k.finish,
         onchange: ev => change(() => { k.finish = clampInt(ev.target.value, 1, P.weeks, k.finish); }) })))),
-    h('p', { class: 'small' + (k.type === 'task' && k.finish - k.start + 1 > 2 ? ' late' : ' mut') },
-      k.type === 'milestone' ? 'A milestone is zero length.' : `${k.finish - k.start + 1} week${k.finish > k.start ? 's' : ''}${k.type === 'task' && k.finish - k.start + 1 > 2 ? ' — more than 2: consider splitting it.' : '.'}`,
+    h('p', { class: 'small' + (k.type === 'task' && k.finish - k.start + 1 > 2 && !k.longOk ? ' late' : ' mut') },
+      k.type === 'milestone' ? 'A milestone is zero length.' : `${k.finish - k.start + 1} week${k.finish > k.start ? 's' : ''}${k.type === 'task' && k.finish - k.start + 1 > 2 ? (k.longOk ? ' — longer than 2, accepted.' : ' — more than 2: consider splitting it, or accept it below.') : '.'}`,
       x ? ` Baseline ${b.n}: ${weekRange(x.s, x.f)} (PV uses these weeks).` : (b ? ' Added after the baseline: it counts in earned value from these planned weeks.' : ' Not in a baseline yet.')),
+    k.type === 'task' && (k.finish - k.start + 1 > 2 || k.longOk) ? h('div', { class: 'accept' },
+      h('label', null, h('input', { type: 'checkbox', checked: k.longOk, 'data-key': 'k-longok', onchange: ev => change(() => { k.longOk = ev.target.checked; }) }),
+        ' Accepted: longer than 2 weeks'),
+      k.longOk ? field('Reason', h('input', { type: 'text', maxlength: 200, 'data-key': 'k-longwhy', value: k.longWhy, placeholder: 'e.g. ongoing all term, one report a week',
+        onchange: ev => change(() => { k.longWhy = ev.target.value.trim(); }) })) : null,
+      h('p', { class: 'mut small' }, 'An accepted task leaves the warning list and is listed under Accepted exceptions. It still counts as one task.')) : null,
     h('label', { class: 'f' }, 'Predecessors (finish to start)'),
     k.preds.length ? h('ul', { class: 'plain preds' }, k.preds.map(q => {
       const pe = IX.byId.get(q), bad = pe && k.start <= pe.pkg.finish;

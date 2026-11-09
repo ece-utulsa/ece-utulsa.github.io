@@ -15,6 +15,9 @@ const page = 'file://' + path.resolve(SRC, '..', fs.readdirSync(path.join(SRC, '
   await pg.click('#t-status'); const line = await pg.textContent('.reading');
   if(line !== 'By week 6: 10 planned to start, 8 started; 8 planned to finish, 6 finished.') errs.push('reading: ' + line);
   if((await pg.textContent('#sig')) !== 'Week 6: Re-plan') errs.push('signal: ' + await pg.textContent('#sig'));
+  await pg.click('#bExample'); await pg.waitForTimeout(100);
+  if(!(await pg.title()).startsWith('Example')) errs.push('example title: ' + await pg.title());
+  if((await pg.textContent('#sig')) !== 'Week 6: Re-plan') errs.push('example signal: ' + await pg.textContent('#sig'));
   await b.close();
   console.log(errs.length ? 'FAIL\n' + errs.join('\n') : 'browser smoke passed'); process.exit(errs.length ? 1 : 0);
 })();

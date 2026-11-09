@@ -154,3 +154,30 @@ function statusLine(m){
   if(!(m.w >= 1)) return 'Week 0: planning. The project starts at week 1.';
   return `By week ${m.w}: ${m.Sp} planned to start, ${m.Sa} started; ${m.Fp} planned to finish, ${m.Fa} finished.`;
 }
+
+/** One-line readings in words for the This week headline (change briefing C7). Every value undefined → a plain reason. */
+function readings(m){
+  const r = {};
+  if(!(m.w >= 1)){ r.signal = r.spi = r.ratios = r.forecast = 'Week 0 is the planning week.'; return r; }
+  if(!(m.BAC > 0)){ r.signal = r.spi = r.ratios = r.forecast = 'No baselined tasks yet.'; return r; }
+  // signal
+  const sLate = m.SR !== null && m.SR < 1, fLate = m.FR !== null && m.FR < 1;
+  if(!m.signal) r.signal = 'Nothing is planned to start yet.';
+  else if(m.basis === 'starts') r.signal = sLate ? 'Judged on starts: tasks are starting late.' : 'Judged on starts: tasks are starting on time.';
+  else if(m.basis === 'finishes') r.signal = fLate ? 'Judged on finishes: tasks are finishing late.' : 'Judged on finishes: tasks are finishing on time.';
+  else r.signal = sLate && fLate ? 'Behind on both starts and finishes.' : sLate ? 'Starting late, finishing well.' : fLate ? 'Starting, not finishing.' : 'Starting and finishing on plan.';
+  // SPI
+  if(m.SPI === null) r.spi = 'Nothing is planned yet.';
+  else { const pc = Math.round(m.SPI * 100); r.spi = pc < 100 ? `Behind: ${pc}% of planned progress.` : pc > 100 ? `Ahead: ${pc}% of planned progress.` : 'On plan: 100% of planned progress.'; }
+  // SR and FR
+  const part = (v, verb) => v === null ? null : `${verb} ${v < 1 ? 'late' : 'on time'} (${v.toFixed(2)})`;
+  const ps = [part(m.SR, 'starting'), part(m.FR, 'finishing')].filter(Boolean);
+  r.ratios = ps.length ? ps.join(' and ').replace(/^./, c => c.toUpperCase()) + '.' : 'Not yet defined.';
+  // forecast
+  if(m.Tf === null) r.forecast = 'Not yet defined: no progress to project.';
+  else {
+    const d = m.Tf - m.T, n = Math.round(Math.abs(d)), wk = n === 1 ? 'week' : 'weeks';
+    r.forecast = Math.abs(d) < 0.5 ? 'On time at this pace.' : d > 0 ? `About ${n} ${wk} late at this pace.` : `About ${n} ${wk} early at this pace.`;
+  }
+  return r;
+}

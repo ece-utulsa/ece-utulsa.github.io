@@ -64,6 +64,8 @@ function renderTop(){
   chip.textContent = P.currentWeek < 1 ? 'Week 0: planning' : `Week ${P.currentWeek}: ${signalText(ms)}`;
   chip.title = ms.basis === 'starts' ? 'Nothing is planned to finish yet, so progress is judged on starts (SR) alone.' : '';
   $('pname').textContent = P.name;
+  $('exBadge').hidden = !P.example;
+  document.title = (P.example ? 'Example — ' : '') + P.name + ' · Senior Design WBS, Schedule and Earned Value';
   const wk = $('wk'); wk.max = P.weeks; if(document.activeElement !== wk) wk.value = P.currentWeek;
   $('wkOf').textContent = `of ${P.weeks}`;
   $('wkDown').disabled = P.currentWeek <= 0; $('wkUp').disabled = P.currentWeek >= P.weeks;
@@ -96,6 +98,7 @@ function wire(){
   $('bOpen').addEventListener('click', () => { $('file').value = ''; $('file').click(); });
   $('file').addEventListener('change', ev => openFile(ev.target.files[0]));
   $('bSave').addEventListener('click', saveFile);
+  $('bExample').addEventListener('click', openExample);
   const closeMenu = () => { $('csvMenu').open = false; };
   $('cWbs').addEventListener('click', () => { closeMenu(); csvWbs(); });
   $('cStatus').addEventListener('click', () => { closeMenu(); csvStatus(); });

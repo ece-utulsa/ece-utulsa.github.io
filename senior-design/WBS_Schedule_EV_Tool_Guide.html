@@ -47,7 +47,7 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
   <p class="lede">Step-by-step instructions and tips for Senior Design teams: build your Work Breakdown Structure, schedule it,
     baseline it, and track earned value every week in about ten minutes. The terms and equations are the same as in the
     Senior Design 1 lectures on the WBS and earned value.</p>
-  <a class="btn" href="WBS_Schedule_EV_Tool_v1.0.2.html">Open the tool</a>
+  <a class="btn" href="WBS_Schedule_EV_Tool_v1.0.3.html">Open the tool</a>
   <a class="btn sec" href="#weekly">Jump to the weekly routine</a>
 </div></header>
 <main>
@@ -81,6 +81,12 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
     <tr><td><b>6 Status report</b></td><td>Print a one-page report for the weekly status report.</td></tr>
   </table>
   <p>The top bar holds the <b>current week</b> (with − and + buttons), the <b>signal</b> for that week, and the file buttons.</p>
+  <h3>See it filled in first: the lecture example</h3>
+  <p>Click <span class="ui">Open the lecture example</span> in the top bar to load the week-6 team from the Earned Value lectures:
+    40 tasks owned by Ana, Ben, Cara and Dev, planned to finish in week 15, baselined, and at week 6. Every tab then shows the
+    lecture's numbers (PV 9, EV 7, SPI 0.78, Re-plan). The top bar and the window title say <span class="ui">Example</span> so
+    nobody mistakes it for a real project, and <span class="ui">Save</span> names the file <code>Lecture-example-week-6.json</code>.
+    Explore it freely, then click <span class="ui">New</span> to start your own project.</p>
   <div class="tip"><b>Tip.</b> Choose one student, normally the owner of WBS 4.2 (schedule, WBS and earned value), to keep the file
     and do the weekly update. Everyone else sends that student their task status.</div>
 </section>
@@ -144,6 +150,10 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
     <li>A task that starts before a predecessor finishes.</li>
   </ul>
   <p>They are warnings, not blocks. Fix them before you baseline.</p>
+  <h3>Accepted exceptions</h3>
+  <p>Some tasks really do run longer than 2 weeks, such as weekly status reports for a whole term. Rather than learn to ignore the
+    warning, select the task and tick <b>Accepted: longer than 2 weeks</b>, then give a short reason. The task leaves the warning list
+    and is listed under <b>Accepted exceptions</b> with its reason, so your advisor can see the decision. It still counts as one task.</p>
 </section>
 
 <section id="schedule">
@@ -179,7 +189,9 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
     <li><b>Set the week.</b> Press <span class="ui">+</span> in the top bar to move to the new week.</li>
     <li><b>Mark each task.</b> On <b>4 This week</b>, set each listed task to <b>Not started</b>, <b>Started</b> or <b>Finished</b>.
       Only tasks active in the plan this week, or still open, are listed. Tick <b>Show all packages</b> to see everything.</li>
-    <li><b>Read the numbers.</b> The second half of the tab shows the four counts, every measure and the signal.</li>
+    <li><b>Read the numbers.</b> The first row of large cards answers "behind or not, and why": the signal, SPI, the start and
+      finish ratios, and the forecast finish, each with a reading in words such as "Behind: 78% of planned progress". Below them are
+      the counts and the value and variance numbers. Hover over a card, or move to it with <kbd>Tab</kbd>, to see its formula.</li>
     <li><b>Print the report</b> from <b>6 Status report</b> and paste it into your weekly status report.</li>
     <li><b>Save</b> the project file.</li>
   </ol>
@@ -216,7 +228,15 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
     <li><span class="sig replan">Re-plan</span> Both below 1.</li>
   </ul>
   <p>Early in the project, before any task is planned to finish, progress is judged on getting tasks started (SR alone), and the
-    signal says <b>(on starts)</b>.</p>
+    signal says <b>(on starts)</b>. In the rare case that tasks are planned to finish but none to start, it says <b>(on finishes)</b>.</p>
+  <p>On <b>5 Earned value</b>, the start-versus-finish quadrant names each corner as the lecture does: <i>On plan</i> (top right),
+    <i>Starting late, finishing well</i> (top left), <i>Starting, not finishing</i> (bottom right) and <i>Behind on both</i> (bottom left).
+    The dot moves week by week; the big dot is this week.</p>
+  <h3>Zoom on the charts</h3>
+  <p>The Task status and Earned value charts have a <b>Zoom</b> control. <b>Plan span</b> (the default) runs from week 1 to the plan finish,
+    and on the Earned value chart to the forecast finish too, plus one week, so the bars and lines fill the chart. <b>One semester</b>
+    shows the semester you are in, and <b>Whole project</b> shows all the weeks. The table under the Task status chart lists week 1 to
+    the current week plus 4; tick <b>Show all weeks</b> for the rest.</p>
   <figure><img src="guide-img/earned-value.jpg" alt="The Earned value tab: cumulative PV and EV in tasks, the SV bracket at week 6 and a dotted forecast to week 19.3" width="1440" height="860" loading="lazy">
     <figcaption>The Earned value tab. Dashed PV, solid EV to today, the SV bracket, and the dotted forecast at the current SPI.</figcaption></figure>
   <h3>Example: the lecture's week-6 team</h3>
@@ -265,6 +285,7 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
     <dt>Open</dt><dd><span class="ui">Open…</span> loads a project file. Instructors and advisors use it to open a team's file. Files from older
       versions of the tool still open.</dd>
     <dt>New</dt><dd>Starts again from the template. Save your current project first.</dd>
+    <dt>Open the lecture example</dt><dd>Loads the built-in week-6 lecture team. It asks first if your project has changes not saved to a file.</dd>
     <dt>Export CSV</dt><dd>Three spreadsheets for Excel: the WBS at the chosen level, the status history, and the weekly earned value table.</dd>
   </dl>
   <div class="tip"><b>Tip.</b> If two students edit at the same time, the last file saved wins. Agree that one student keeps the file.</div>
@@ -303,8 +324,8 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
       branch, <kbd>←</kbd> closes it or goes to the parent. When a tab name has focus, <kbd>←</kbd> <kbd>→</kbd> move between the tabs.</dd>
   </dl>
 </section>
-<p style="text-align:center"><a class="btn" href="WBS_Schedule_EV_Tool_v1.0.2.html">Open the tool</a></p>
+<p style="text-align:center"><a class="btn" href="WBS_Schedule_EV_Tool_v1.0.3.html">Open the tool</a></p>
 </main>
-<footer>Senior Design WBS, Schedule and Earned Value Tool v1.0.2 · How-to guide · University of Tulsa, Electrical and Computer Engineering</footer>
+<footer>Senior Design WBS, Schedule and Earned Value Tool v1.0.3 · How-to guide · University of Tulsa, Electrical and Computer Engineering</footer>
 </body>
 </html>

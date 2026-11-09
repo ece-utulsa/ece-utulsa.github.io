@@ -38,7 +38,7 @@ function drawnPlan(e){
 
 function ganttChart(rows){
   const [w0, w1] = zoomRange(), nW = w1 - w0 + 1;
-  const LW = 430, rowH = 28, headH = 46, cw = Math.max(22, Math.min(64, Math.floor(1080 / nW)));
+  const LW = 450, rowH = 30, headH = 50, cw = Math.max(22, Math.min(64, Math.floor(1080 / nW)));
   const W = LW + nW * cw + 10, H = headH + rows.length * rowH + 6;
   const X = w => LW + (w - w0) * cw;               // left edge of week w
   const half = Math.ceil(P.weeks / 2), cur = P.currentWeek;
@@ -52,13 +52,13 @@ function ganttChart(rows){
   for(const [a, bnd, t] of [[1, half, 'Senior Design 1'], [half + 1, P.weeks, 'Senior Design 2']]){
     const a2 = Math.max(a, w0), b2 = Math.min(bnd, w1); if(a2 > b2) continue;
     svg.append(s('rect', { x: X(a2), y: 2, width: (b2 - a2 + 1) * cw, height: 20, fill: t.endsWith('1') ? '#e3edf2' : '#ece7f7', stroke: '#fff' }),
-      s('text', { x: X(a2) + 6, y: 16, 'font-size': 12, 'font-weight': 600, fill: '#1b2328' }, t));
+      s('text', { x: X(a2) + 6, y: 16, 'font-size': 13, 'font-weight': 600, fill: '#1b2328' }, t));
   }
   for(let w = w0; w <= w1; w++){
-    svg.append(s('text', { x: X(w) + cw / 2, y: 38, 'font-size': 11, 'text-anchor': 'middle', fill: w === cur ? '#b42318' : '#4f5b62', 'font-weight': w === cur ? 700 : 400 }, w));
+    svg.append(s('text', { x: X(w) + cw / 2, y: 38, 'font-size': 13, 'text-anchor': 'middle', fill: w === cur ? '#b42318' : '#4f5b62', 'font-weight': w === cur ? 700 : 400 }, w));
     svg.append(s('line', { x1: X(w), y1: headH - 4, x2: X(w), y2: H, stroke: w === half + 1 ? '#9aa5ab' : '#e3e8eb' }));
   }
-  svg.append(s('text', { x: 6, y: 38, 'font-size': 12, 'font-weight': 600, fill: '#4f5b62' }, 'WBS  Name'), s('text', { x: LW - 8, y: 38, 'font-size': 12, 'text-anchor': 'end', 'font-weight': 600, fill: '#4f5b62' }, 'Flag'));
+  svg.append(s('text', { x: 6, y: 38, 'font-size': 13, 'font-weight': 600, fill: '#4f5b62' }, 'WBS  Name'), s('text', { x: LW - 8, y: 38, 'font-size': 13, 'text-anchor': 'end', 'font-weight': 600, fill: '#4f5b62' }, 'Flag'));
   const yOf = new Map(), body = s('g', { 'clip-path': 'url(#gclip)' });
   rows.forEach((r, i) => {
     const e = r.e, id = e.id, y = headH + i * rowH, a = IX.area.get(id), col = a ? areaColor(a) : '#1b2328';
@@ -71,12 +71,12 @@ function ganttChart(rows){
     if(isPkg(e)){
       const lf = lateFlags(P, e, SX, cur);
       const flag = lf.lateStart && lf.lateFinish ? 'Late start & finish' : lf.lateStart ? 'Late start' : lf.lateFinish ? 'Late finish' : '';
-      if(flag) g.append(s('text', { x: LW - 8, y: y + 18, 'font-size': 12, 'font-weight': 700, 'text-anchor': 'end', fill: '#b42318' }, flag));
+      if(flag) g.append(s('text', { x: LW - 8, y: y + 18, 'font-size': 13, 'font-weight': 700, 'text-anchor': 'end', fill: '#b42318' }, flag));
       const k = e.pkg, pl = drawnPlan(e), t = trackAt(SX.get(id), cur);
       if(k.type === 'milestone'){
         const cx = X(pl.s) + cw / 2, cy = y + rowH / 2;
         body.append(s('path', { d: `M${cx} ${cy - 9}L${cx + 9} ${cy}L${cx} ${cy + 9}L${cx - 9} ${cy}z`, fill: t.state === 'finished' ? col : '#fff', stroke: col, 'stroke-width': 2 }),
-          s('text', { x: cx + 13, y: cy + 4, 'font-size': 11, fill: '#1b2328' }, e.name));
+          s('text', { x: cx + 13, y: cy + 4, 'font-size': 13, fill: '#1b2328' }, e.name));
       } else {
         body.append(s('rect', { x: X(pl.s) + 1, y: y + 4, width: (pl.f - pl.s + 1) * cw - 2, height: 9, rx: 2,
           fill: k.type === 'lead' ? 'url(#hatch)' : '#fff', stroke: col, 'stroke-width': 1.6, 'stroke-dasharray': pl.base ? null : '4 2' }));
@@ -85,7 +85,7 @@ function ganttChart(rows){
         if(t.start !== null){
           const end = t.finish !== null ? t.finish : Math.max(t.start, cur);
           body.append(s('rect', { x: X(t.start) + 1, y: y + 15, width: (end - t.start + 1) * cw - 2, height: 9, rx: 2, fill: col, opacity: k.type === 'lead' ? 0.6 : 1 }));
-          if(t.finish === null) body.append(s('text', { x: X(end + 1) + 3, y: y + 23, 'font-size': 10, fill: '#4f5b62' }, 'open'));
+          if(t.finish === null) body.append(s('text', { x: X(end + 1) + 3, y: y + 23, 'font-size': 13, fill: '#4f5b62' }, 'open'));
         }
       }
     } else {
@@ -115,7 +115,7 @@ function ganttChart(rows){
   if(cur >= w0 - 1 && cur <= w1){
     const xt = X(cur + 1);
     svg.append(s('line', { x1: xt, y1: 24, x2: xt, y2: H, stroke: '#b42318', 'stroke-width': 2 }),
-      s('text', { x: xt - 3, y: H - 4, 'font-size': 11, 'font-weight': 700, 'text-anchor': 'end', fill: '#b42318' }, `Today: end of week ${cur}`));
+      s('text', { x: xt - 3, y: H - 4, 'font-size': 14, 'font-weight': 700, 'text-anchor': 'end', fill: '#b42318', 'paint-order': 'stroke', stroke: '#fff', 'stroke-width': 4 }, `Today: end of week ${cur}`));
   }
   return h('div', { class: 'chartbox' }, svg);
 }

@@ -1,6 +1,6 @@
 # Senior Design WBS, Schedule and Earned Value Tool — sources
 
-`../WBS_Schedule_EV_Tool_v1.0.2.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
+`../WBS_Schedule_EV_Tool_v1.0.3.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
 It is one offline HTML file (about 125 kB): plain JavaScript, no libraries, no fonts, no network requests (a Content-Security-Policy
 in the page blocks them).
 
@@ -14,24 +14,32 @@ in the page blocks them).
 | `gantt.js` | Tab 2: Gantt chart and table, baselining |
 | `status.js` | Tab 3: task status bar chart and table; Tab 4: This week |
 | `evtab.js` | Tab 5: earned value chart, SPI trend, start/finish quadrant, measures table, late tasks; Tab 6: status report |
+| `example.js` | The built-in lecture example: the week-6 team (40 tasks, Ana, Ben, Cara, Dev), `lectureExample()` |
+| `screenshots.js` | Regenerates the guide's four screenshots from the built tool (lecture example, 1440 × 860, JPEG 82); `--release DIR` also captures all six tabs and the guide page |
 | `guide.html` | The how-to guide: one source for the guide web page and the tool's Help panel (the build drops the screenshots and prefixes ids `g-` for the tool) |
 | `guide_page.html` | Page shell of `../WBS_Schedule_EV_Tool_Guide.html` (screenshots in `../guide-img/`) |
 | `main.js` | Help panel (MathML equations), top bar, tabs, render cycle, start-up |
 | `build.py` | Concatenates the scripts in one strict-mode function and fills the release fields |
 | `tests/build-check.js` | Builder's smoke check of the calculation core in Node |
+| `tests/fixtures/` | Project files made by v1.0.0 and v1.0.2, with the numbers those versions computed (old files must give the same numbers) |
+| `release-shots/` | Screenshots of each release for review |
 | `tests/browser-smoke.js` | Builder's smoke test in Chromium: every tab renders, no console error, no network request |
 
-`model.js` and `ev.js` have no DOM, so Test can load them directly (see `tests/build-check.js` for how).
+`model.js`, `ev.js` and `example.js` have no DOM, so Test can load them directly (see `tests/build-check.js` for how).
 The two `tests/` scripts are the builder's own smoke checks. **They are not the acceptance suite**: per the briefing (§8),
 Test writes that from the briefing, independently of this build.
 
 ## Build and test
 
 ```sh
-python3 build.py      # writes ../WBS_Schedule_EV_Tool_v1.0.2.html and ../WBS_Schedule_EV_Tool_Guide.html
+python3 build.py      # writes ../WBS_Schedule_EV_Tool_v1.0.3.html and ../WBS_Schedule_EV_Tool_Guide.html
 node tests/build-check.js
 NODE_PATH=$(npm root -g) node tests/browser-smoke.js   # needs Playwright
+NODE_PATH=$(npm root -g) node screenshots.js           # every release: regenerate ../guide-img/
 ```
+
+The release fields (version, date, changelog) are at the top of `build.py`. Older builds stay in `senior-design/` so old links keep working;
+the course page (`../index.html`) links the newest.
 
 ## Decisions to know (questions settled with Douglas, and choices where the briefing is silent)
 
@@ -40,6 +48,29 @@ Settled on 2026-11-09:
 - **Template stops at level 3** (the 14 sub-areas); teams write their own work packages.
 - **One 30-week file** across Senior Design 1 and 2 (length adjustable, 1–60). SD1 is weeks 1–⌈N/2⌉.
 - **One file at a time**; no class view in v1. Published on a new `senior-design/` course page; no lecture-deck link yet.
+
+Rulings of Nov 9 (change briefing v1.0.3), now part of the spec:
+- **BAC** is the number of tasks in the **current WBS**, including tasks added after the baseline; it is labelled
+  "Tasks in the WBS" everywhere.
+- **Tasks added after the baseline** count at once, using their planned weeks; past weeks are recalculated with the current
+  task list.
+- **Signal suffix:** "(on starts)" when Fp = 0, "(on finishes)" when Sp = 0.
+
+v1.0.3 changes (change briefing of Nov 9; no calculation changed):
+- **Lecture example** (C3): Open the lecture example loads `lectureExample()`; the project carries `example: true`, the top bar
+  and window title say Example, and Save names the file `Lecture-example-week-N.json`. New clears it.
+- **Projector text** (C4): chart text at least 13 px, key annotations 15 px bold with a white halo; plan-finish and forecast labels
+  are placed beside their lines and move up a row rather than overlap; the quadrant's week label sits away from the 1.0 lines.
+- **Zoom** (C5) on Task status, Earned value and SPI: Plan span (default: week 1 to the plan finish T, and on the Earned value
+  chart to the forecast Tf too, plus one week; SPI to the current week plus 4), One semester (the one holding the current week),
+  Whole project. The Task status plan span leaves out Tf, which it does not plot, so the example fills weeks 1–16.
+- **Task status table** (C6): weeks 1 to the current week plus 4, Show all weeks for the rest.
+- **This week** (C7): headline cards (signal, SPI, SR and FR, forecast finish) with readings in words from `readings()` in
+  `ev.js`; Counts and Value and variance rows; formulas in tooltips on hover or keyboard focus.
+- **Quadrant** (C8): signal words plus the lecture's descriptions. The top-right description reads "Starting and finishing on plan"
+  (the briefing gives only "On plan", which is already the signal word).
+- **Accepted exceptions** (C9): per-task `longOk` and `longWhy`; an accepted task over 2 weeks leaves the warnings and is listed under
+  Accepted exceptions. Added fields default to off, so the schema stays 1 and older files open unchanged.
 
 Choices made in the build (check these in review):
 - **Week 0 is the planning week** (agreed with Douglas): new projects open at week 0, the top bar says "Week 0: planning",
