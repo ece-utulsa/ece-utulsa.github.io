@@ -217,7 +217,7 @@ const TEMPLATE = [
 /* ── PROJECT ────────────────────────────────────────────────────────────────────────────────── */
 
 function newProject(name){
-  const p = { app: APP_ID, schema: SCHEMA, name: name || 'Senior Design project', members: [], weeks: 30, currentWeek: 1,
+  const p = { app: APP_ID, schema: SCHEMA, name: name || 'Senior Design project', members: [], weeks: 30, currentWeek: 0,
     nextId: 1, elements: [{ id: 'root', parent: null, name: name || 'Senior Design project', order: 0, pkg: null }],
     status: [], baselines: [], actions: '' };
   TEMPLATE.forEach(([area, subs], i) => {
@@ -625,6 +625,7 @@ function measures(c, w){
   if(m.SPI) m.Tf = c.T / m.SPI; else { m.Tf = null; m.why.Tf = m.SPI === 0 ? 'SPI = 0' : 'SPI not yet defined'; }
   if(c.BAC !== m.PV) m.TSPI = (c.BAC - m.EV) / (c.BAC - m.PV); else { m.TSPI = null; m.why.TSPI = 'plan complete'; }
   m.signal = signal(m.SR, m.FR);
+  m.basis = m.SR !== null && m.FR === null ? 'starts' : m.SR === null && m.FR !== null ? 'finishes' : m.signal ? 'both' : null;
   return m;
 }
 
@@ -739,8 +740,15 @@ function measureRows(m){
 }
 
 /** The one-line task status reading for week w (briefing §5 tab 3). */
+/** The signal in words. Week 0 is the planning week. With nothing planned to finish yet, progress is judged on starts. */
+function signalText(m){
+  if(!(m.w >= 1)) return 'Planning (week 0)';
+  if(!m.signal) return 'Signal not yet defined';
+  return m.basis === 'starts' ? m.signal + ' (on starts)' : m.basis === 'finishes' ? m.signal + ' (on finishes)' : m.signal;
+}
+
 function statusLine(m){
-  if(!(m.w >= 1)) return 'Week 0: the project has not started.';
+  if(!(m.w >= 1)) return 'Week 0: planning. The project starts at week 1.';
   return `By week ${m.w}: ${m.Sp} planned to start, ${m.Sa} started; ${m.Fp} planned to finish, ${m.Fa} finished.`;
 }
 
@@ -963,7 +971,7 @@ function weekRange(a, b){ return a === null ? '—' : (a === b ? 'wk ' + a : `wk
 function areaSwatch(a){ return h('span', { class: 'swatch', style: `background:${areaColor(a)}`, 'aria-hidden': 'true' }); }
 function stateText(st){ return h('span', { class: 'st-' + st }, STATE_LABEL[st]); }
 function signalClass(sig){ return sig === 'On plan' ? 'on' : sig === 'Watch' ? 'watch' : sig === 'Re-plan' ? 'replan' : 'none'; }
-function signalChip(sig){ return h('span', { class: 'chip ' + signalClass(sig) }, sig || 'Signal not yet defined'); }
+function signalChip(m){ return h('span', { class: 'chip ' + signalClass(m.signal), title: m.basis === 'starts' ? 'Nothing is planned to finish yet, so progress is judged on starts (SR) alone.' : null }, signalText(m)); }
 function members(){ return P.members.slice(); }
 function areaOptions(sel){
   return [h('option', { value: 0, selected: !sel }, 'All major areas'),
@@ -1009,7 +1017,7 @@ function csvEv(){
   const n = v => v === null ? UNDEF : +v.toFixed(4);
   for(const m of ser.slice(0, P.currentWeek + 1)){
     rows.push([m.w, m.Sp, m.Fp, m.Sa, m.Fa, m.BAC, m.T, n(m.PV), n(m.EV), n(m.SV), n(m.SVpct), n(m.SPI), n(m.SR), n(m.FR), n(m.pct), n(m.Tf), n(m.togo),
-      m.TSPI === null ? fmtTSPI(m) : n(m.TSPI), m.signal || UNDEF]);
+      m.TSPI === null ? fmtTSPI(m) : n(m.TSPI), signalText(m)]);
   }
   download(`${slug(P.name)}_earned_value_to_week${P.currentWeek}.csv`, toCSV(rows), 'text/csv');
 }
@@ -1524,7 +1532,7 @@ function renderWeek(root){
       })))) : h('p', { class: 'mut' }, 'No packages are active or open this week.'));
   const step2 = h('div', { class: 'card' }, h('h2', null, '2. Read the numbers'),
     activeBaseline(P) ? null : noBaselineNote(),
-    h('p', { class: 'reading' }, statusLine(m), ' ', signalChip(m.signal)),
+    h('p', { class: 'reading' }, statusLine(m), ' ', signalChip(m)),
     kpiGrid(m));
   append(root, [step1, step2]);
 }
@@ -1551,7 +1559,7 @@ function renderEv(root){
   const tb = h('div', { class: 'toolbar' },
     h('label', null, 'Measures for', h('select', { 'data-key': 'ev-area', onchange: ev => { V.evarea = Number(ev.target.value); render(); } },
       areaOptions(V.evarea).map((o, i) => { if(i === 0) o.textContent = 'Whole project'; return o; }))),
-    h('span', null, 'Signal at week ' + cur + ': ', signalChip(m.signal)));
+    h('span', null, 'Signal at week ' + cur + ': ', signalChip(m)));
   append(root, [activeBaseline(P) ? null : noBaselineNote(), tb,
     h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Cumulative earned value (tasks)'), evChart(ser, cur, 1100), evLegend()),
     h('div', { class: 'ev-charts' },
@@ -1673,7 +1681,7 @@ function measuresTable(ser, cur){
     h('tbody', null, ser.slice(1, cur + 1).map(m => h('tr', { class: m.w === cur ? 'sel' : null },
       [m.w, m.Sp, m.Fp, m.Sa, m.Fa, fmtCount(m.PV), fmtCount(m.EV), fmtCount(m.SV), fmtPct(m.SVpct), fmtIndex(m.SPI), fmtIndex(m.SR), fmtIndex(m.FR), fmtPct(m.pct),
         m.Tf === null ? UNDEF : m.Tf.toFixed(1), fmtCount(m.togo), fmtTSPI(m)].map((v, i) => h('td', { class: i ? 'n' : null }, v)),
-      h('td', null, signalChip(m.signal)))))));
+      h('td', null, signalChip(m)))))));
 }
 
 /* ── TAB 6: STATUS REPORT ── */
@@ -1690,7 +1698,7 @@ function renderReport(root){
     h('article', { id: 'report' },
       h('div', { class: 'row', style: 'justify-content:space-between' }, h('div', null, h('h1', null, P.name), h('p', { class: 'mut', style: 'margin:2px 0 0' },
         `Status report · week ${cur} of ${P.weeks} · ${new Date().toISOString().slice(0, 10)}${activeBaseline(P) ? ` · baseline ${activeBaseline(P).n}` : ' · no baseline'}`)),
-        signalChip(m.signal)),
+        signalChip(m)),
       h('h3', null, 'Headline numbers (tasks)'),
       h('div', { class: 'kpis' }, head.map(([k, v]) => h('div', { class: 'kpi' }, h('div', { class: 'k' }, k), h('div', { class: 'v' + (v === UNDEF || v === 'plan complete' ? ' u' : '') }, v)))),
       h('p', { class: 'reading' }, statusLine(m)),
@@ -1727,6 +1735,7 @@ function buildHelp(){
     h('p', null, 'This tool follows the Senior Design 1 lectures: ', h('b', null, 'Work Breakdown Structure'), ', ', h('b', null, 'Earned Value'), ' and ', h('b', null, 'Earned Value Equations'), '. ',
       'Earned value is counted in ', h('b', null, 'tasks'), ', not hours: there are no time cards.'),
     h('h3', null, 'The weekly routine (about 10 minutes)'),
+    h('p', null, 'Week 0 is for planning: build the WBS, schedule it and baseline it. Then move to week 1 (the + button in the top bar).'),
     h('ol', null, h('li', null, 'Set the current week in the top bar.'), h('li', null, 'On ', h('b', null, '4 This week'), ', mark each open task not started, started or finished.'),
       h('li', null, 'Read the four counts and the measures, then print ', h('b', null, '6 Status report'), ' for the weekly status report.'), h('li', null, 'Save the project file.')),
     h('h3', null, 'Senior Design template'),
@@ -1748,10 +1757,10 @@ function buildHelp(){
     eq(mi('SR'), mo('='), frac(sub('S', 'a'), sub('S', 'p')), m('mspace', ''), mi('FR'), mo('='), frac(sub('F', 'a'), sub('F', 'p'))),
     eq(sub('T', 'f'), mo('='), frac(mi('T'), mi('SPI')), m('mspace', ''), mi('tasks to go'), mo('='), mi('BAC'), mo('−'), mi('EV')),
     eq(mi('TSPI'), mo('='), frac(row(mi('BAC'), mo('−'), mi('EV')), row(mi('BAC'), mo('−'), mi('PV')))),
-    h('p', null, 'A measure that would divide by zero shows ', h('i', null, 'not yet defined'), ': SPI and SV% when PV = 0, SR when Sp = 0, FR when Fp = 0, Tf when SPI = 0, and TSPI when BAC = PV (', h('i', null, 'plan complete'), '). Week 0 leaves every measure undefined.'),
+    h('p', null, 'A measure that would divide by zero shows ', h('i', null, 'not yet defined'), ': SPI and SV% when PV = 0, SR when Sp = 0, FR when Fp = 0, Tf when SPI = 0, and TSPI when BAC = PV (', h('i', null, 'plan complete'), '). Week 0 is the planning week: build the WBS and baseline it there; every measure is undefined until week 1.'),
     h('h3', null, 'Signal (start and finish quadrant)'),
     h('ul', null, h('li', null, h('b', null, 'On plan'), ': SR and FR both at least 1.'), h('li', null, h('b', null, 'Watch'), ': one of them below 1.'), h('li', null, h('b', null, 'Re-plan'), ': both below 1.'),
-      h('li', null, 'Early on, when only SR is defined (nothing planned to finish yet), the signal is judged on SR alone.')),
+      h('li', null, 'When nothing is planned to finish yet (Fp = 0), progress is judged on getting tasks started: SR ≥ 1 is On plan, SR below 1 is Watch. The signal then says "(on starts)".')),
     h('h3', null, 'Files'),
     h('p', null, 'Your work autosaves in this browser, but browser storage can be cleared. ', h('b', null, 'Save'), ' writes the project file (JSON): that is the copy of record. Send it to your instructor, who opens it with ', h('b', null, 'Open'), '. ',
       h('b', null, 'Export CSV'), ' writes the WBS (to the chosen level), the status history or the weekly earned value table for a spreadsheet.'),
@@ -1761,8 +1770,10 @@ function buildHelp(){
 
 /* ── TOP BAR AND TABS ── */
 function renderTop(){
-  const sig = series(P, IX, SX)[P.currentWeek].signal, chip = $('sig');
-  chip.className = 'chip ' + signalClass(sig); chip.textContent = sig ? `Week ${P.currentWeek}: ${sig}` : 'Signal not yet defined';
+  const ms = series(P, IX, SX)[P.currentWeek], chip = $('sig');
+  chip.className = 'chip ' + signalClass(ms.signal);
+  chip.textContent = P.currentWeek < 1 ? 'Week 0: planning' : `Week ${P.currentWeek}: ${signalText(ms)}`;
+  chip.title = ms.basis === 'starts' ? 'Nothing is planned to finish yet, so progress is judged on starts (SR) alone.' : '';
   $('pname').textContent = P.name;
   const wk = $('wk'); wk.max = P.weeks; if(document.activeElement !== wk) wk.value = P.currentWeek;
   $('wkOf').textContent = `of ${P.weeks}`;

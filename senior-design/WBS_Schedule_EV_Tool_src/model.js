@@ -26,7 +26,7 @@ const TEMPLATE = [
 /* ── PROJECT ────────────────────────────────────────────────────────────────────────────────── */
 
 function newProject(name){
-  const p = { app: APP_ID, schema: SCHEMA, name: name || 'Senior Design project', members: [], weeks: 30, currentWeek: 1,
+  const p = { app: APP_ID, schema: SCHEMA, name: name || 'Senior Design project', members: [], weeks: 30, currentWeek: 0,
     nextId: 1, elements: [{ id: 'root', parent: null, name: name || 'Senior Design project', order: 0, pkg: null }],
     status: [], baselines: [], actions: '' };
   TEMPLATE.forEach(([area, subs], i) => {

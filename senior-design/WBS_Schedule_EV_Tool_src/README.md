@@ -40,8 +40,10 @@ Settled on 2026-11-09:
 - **One file at a time**; no class view in v1. Published on a new `senior-design/` course page; no lecture-deck link yet.
 
 Choices made in the build (check these in review):
-- **Week 0** leaves every measure "not yet defined" (T3), even SV and tasks to go.
-- **Signal with one ratio undefined** (early weeks, Fp = 0): judged on the defined ratio alone, ≥ 1 On plan, else Watch.
+- **Week 0 is the planning week** (agreed with Douglas): new projects open at week 0, the top bar says "Week 0: planning",
+  every measure is "not yet defined" (T3), and status is recorded from week 1.
+- **Nothing planned to finish yet** (Fp = 0; agreed with Douglas): progress is judged on getting tasks started. SR ≥ 1 is
+  On plan, below 1 is Watch, and the signal reads "(on starts)".
 - **T** is the latest baseline finish week of the tasks (milestones and lead-time items excluded), matching BAC.
 - **Active baseline** is always the latest. Tasks added after it are not in earned value until re-baselining
   (a rule-check warning says so); tasks deleted after it still count in PV (also warned).

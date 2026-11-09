@@ -11,7 +11,7 @@ function renderEv(root){
   const tb = h('div', { class: 'toolbar' },
     h('label', null, 'Measures for', h('select', { 'data-key': 'ev-area', onchange: ev => { V.evarea = Number(ev.target.value); render(); } },
       areaOptions(V.evarea).map((o, i) => { if(i === 0) o.textContent = 'Whole project'; return o; }))),
-    h('span', null, 'Signal at week ' + cur + ': ', signalChip(m.signal)));
+    h('span', null, 'Signal at week ' + cur + ': ', signalChip(m)));
   append(root, [activeBaseline(P) ? null : noBaselineNote(), tb,
     h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Cumulative earned value (tasks)'), evChart(ser, cur, 1100), evLegend()),
     h('div', { class: 'ev-charts' },
@@ -133,7 +133,7 @@ function measuresTable(ser, cur){
     h('tbody', null, ser.slice(1, cur + 1).map(m => h('tr', { class: m.w === cur ? 'sel' : null },
       [m.w, m.Sp, m.Fp, m.Sa, m.Fa, fmtCount(m.PV), fmtCount(m.EV), fmtCount(m.SV), fmtPct(m.SVpct), fmtIndex(m.SPI), fmtIndex(m.SR), fmtIndex(m.FR), fmtPct(m.pct),
         m.Tf === null ? UNDEF : m.Tf.toFixed(1), fmtCount(m.togo), fmtTSPI(m)].map((v, i) => h('td', { class: i ? 'n' : null }, v)),
-      h('td', null, signalChip(m.signal)))))));
+      h('td', null, signalChip(m)))))));
 }
 
 /* ── TAB 6: STATUS REPORT ── */
@@ -150,7 +150,7 @@ function renderReport(root){
     h('article', { id: 'report' },
       h('div', { class: 'row', style: 'justify-content:space-between' }, h('div', null, h('h1', null, P.name), h('p', { class: 'mut', style: 'margin:2px 0 0' },
         `Status report · week ${cur} of ${P.weeks} · ${new Date().toISOString().slice(0, 10)}${activeBaseline(P) ? ` · baseline ${activeBaseline(P).n}` : ' · no baseline'}`)),
-        signalChip(m.signal)),
+        signalChip(m)),
       h('h3', null, 'Headline numbers (tasks)'),
       h('div', { class: 'kpis' }, head.map(([k, v]) => h('div', { class: 'kpi' }, h('div', { class: 'k' }, k), h('div', { class: 'v' + (v === UNDEF || v === 'plan complete' ? ' u' : '') }, v)))),
       h('p', { class: 'reading' }, statusLine(m)),

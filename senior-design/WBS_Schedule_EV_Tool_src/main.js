@@ -23,6 +23,7 @@ function buildHelp(){
     h('p', null, 'This tool follows the Senior Design 1 lectures: ', h('b', null, 'Work Breakdown Structure'), ', ', h('b', null, 'Earned Value'), ' and ', h('b', null, 'Earned Value Equations'), '. ',
       'Earned value is counted in ', h('b', null, 'tasks'), ', not hours: there are no time cards.'),
     h('h3', null, 'The weekly routine (about 10 minutes)'),
+    h('p', null, 'Week 0 is for planning: build the WBS, schedule it and baseline it. Then move to week 1 (the + button in the top bar).'),
     h('ol', null, h('li', null, 'Set the current week in the top bar.'), h('li', null, 'On ', h('b', null, '4 This week'), ', mark each open task not started, started or finished.'),
       h('li', null, 'Read the four counts and the measures, then print ', h('b', null, '6 Status report'), ' for the weekly status report.'), h('li', null, 'Save the project file.')),
     h('h3', null, 'Senior Design template'),
@@ -44,10 +45,10 @@ function buildHelp(){
     eq(mi('SR'), mo('='), frac(sub('S', 'a'), sub('S', 'p')), m('mspace', ''), mi('FR'), mo('='), frac(sub('F', 'a'), sub('F', 'p'))),
     eq(sub('T', 'f'), mo('='), frac(mi('T'), mi('SPI')), m('mspace', ''), mi('tasks to go'), mo('='), mi('BAC'), mo('−'), mi('EV')),
     eq(mi('TSPI'), mo('='), frac(row(mi('BAC'), mo('−'), mi('EV')), row(mi('BAC'), mo('−'), mi('PV')))),
-    h('p', null, 'A measure that would divide by zero shows ', h('i', null, 'not yet defined'), ': SPI and SV% when PV = 0, SR when Sp = 0, FR when Fp = 0, Tf when SPI = 0, and TSPI when BAC = PV (', h('i', null, 'plan complete'), '). Week 0 leaves every measure undefined.'),
+    h('p', null, 'A measure that would divide by zero shows ', h('i', null, 'not yet defined'), ': SPI and SV% when PV = 0, SR when Sp = 0, FR when Fp = 0, Tf when SPI = 0, and TSPI when BAC = PV (', h('i', null, 'plan complete'), '). Week 0 is the planning week: build the WBS and baseline it there; every measure is undefined until week 1.'),
     h('h3', null, 'Signal (start and finish quadrant)'),
     h('ul', null, h('li', null, h('b', null, 'On plan'), ': SR and FR both at least 1.'), h('li', null, h('b', null, 'Watch'), ': one of them below 1.'), h('li', null, h('b', null, 'Re-plan'), ': both below 1.'),
-      h('li', null, 'Early on, when only SR is defined (nothing planned to finish yet), the signal is judged on SR alone.')),
+      h('li', null, 'When nothing is planned to finish yet (Fp = 0), progress is judged on getting tasks started: SR ≥ 1 is On plan, SR below 1 is Watch. The signal then says "(on starts)".')),
     h('h3', null, 'Files'),
     h('p', null, 'Your work autosaves in this browser, but browser storage can be cleared. ', h('b', null, 'Save'), ' writes the project file (JSON): that is the copy of record. Send it to your instructor, who opens it with ', h('b', null, 'Open'), '. ',
       h('b', null, 'Export CSV'), ' writes the WBS (to the chosen level), the status history or the weekly earned value table for a spreadsheet.'),
@@ -57,8 +58,10 @@ function buildHelp(){
 
 /* ── TOP BAR AND TABS ── */
 function renderTop(){
-  const sig = series(P, IX, SX)[P.currentWeek].signal, chip = $('sig');
-  chip.className = 'chip ' + signalClass(sig); chip.textContent = sig ? `Week ${P.currentWeek}: ${sig}` : 'Signal not yet defined';
+  const ms = series(P, IX, SX)[P.currentWeek], chip = $('sig');
+  chip.className = 'chip ' + signalClass(ms.signal);
+  chip.textContent = P.currentWeek < 1 ? 'Week 0: planning' : `Week ${P.currentWeek}: ${signalText(ms)}`;
+  chip.title = ms.basis === 'starts' ? 'Nothing is planned to finish yet, so progress is judged on starts (SR) alone.' : '';
   $('pname').textContent = P.name;
   const wk = $('wk'); wk.max = P.weeks; if(document.activeElement !== wk) wk.value = P.currentWeek;
   $('wkOf').textContent = `of ${P.weeks}`;

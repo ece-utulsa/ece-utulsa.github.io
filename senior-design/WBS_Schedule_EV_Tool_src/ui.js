@@ -217,7 +217,7 @@ function weekRange(a, b){ return a === null ? '—' : (a === b ? 'wk ' + a : `wk
 function areaSwatch(a){ return h('span', { class: 'swatch', style: `background:${areaColor(a)}`, 'aria-hidden': 'true' }); }
 function stateText(st){ return h('span', { class: 'st-' + st }, STATE_LABEL[st]); }
 function signalClass(sig){ return sig === 'On plan' ? 'on' : sig === 'Watch' ? 'watch' : sig === 'Re-plan' ? 'replan' : 'none'; }
-function signalChip(sig){ return h('span', { class: 'chip ' + signalClass(sig) }, sig || 'Signal not yet defined'); }
+function signalChip(m){ return h('span', { class: 'chip ' + signalClass(m.signal), title: m.basis === 'starts' ? 'Nothing is planned to finish yet, so progress is judged on starts (SR) alone.' : null }, signalText(m)); }
 function members(){ return P.members.slice(); }
 function areaOptions(sel){
   return [h('option', { value: 0, selected: !sel }, 'All major areas'),
@@ -263,7 +263,7 @@ function csvEv(){
   const n = v => v === null ? UNDEF : +v.toFixed(4);
   for(const m of ser.slice(0, P.currentWeek + 1)){
     rows.push([m.w, m.Sp, m.Fp, m.Sa, m.Fa, m.BAC, m.T, n(m.PV), n(m.EV), n(m.SV), n(m.SVpct), n(m.SPI), n(m.SR), n(m.FR), n(m.pct), n(m.Tf), n(m.togo),
-      m.TSPI === null ? fmtTSPI(m) : n(m.TSPI), m.signal || UNDEF]);
+      m.TSPI === null ? fmtTSPI(m) : n(m.TSPI), signalText(m)]);
   }
   download(`${slug(P.name)}_earned_value_to_week${P.currentWeek}.csv`, toCSV(rows), 'text/csv');
 }

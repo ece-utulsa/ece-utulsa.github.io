@@ -96,7 +96,7 @@ function renderWeek(root){
       })))) : h('p', { class: 'mut' }, 'No packages are active or open this week.'));
   const step2 = h('div', { class: 'card' }, h('h2', null, '2. Read the numbers'),
     activeBaseline(P) ? null : noBaselineNote(),
-    h('p', { class: 'reading' }, statusLine(m), ' ', signalChip(m.signal)),
+    h('p', { class: 'reading' }, statusLine(m), ' ', signalChip(m)),
     kpiGrid(m));
   append(root, [step1, step2]);
 }

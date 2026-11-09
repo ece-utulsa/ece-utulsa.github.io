@@ -27,6 +27,7 @@ function measures(c, w){
   if(m.SPI) m.Tf = c.T / m.SPI; else { m.Tf = null; m.why.Tf = m.SPI === 0 ? 'SPI = 0' : 'SPI not yet defined'; }
   if(c.BAC !== m.PV) m.TSPI = (c.BAC - m.EV) / (c.BAC - m.PV); else { m.TSPI = null; m.why.TSPI = 'plan complete'; }
   m.signal = signal(m.SR, m.FR);
+  m.basis = m.SR !== null && m.FR === null ? 'starts' : m.SR === null && m.FR !== null ? 'finishes' : m.signal ? 'both' : null;
   return m;
 }
 
@@ -141,7 +142,14 @@ function measureRows(m){
 }
 
 /** The one-line task status reading for week w (briefing §5 tab 3). */
+/** The signal in words. Week 0 is the planning week. With nothing planned to finish yet, progress is judged on starts. */
+function signalText(m){
+  if(!(m.w >= 1)) return 'Planning (week 0)';
+  if(!m.signal) return 'Signal not yet defined';
+  return m.basis === 'starts' ? m.signal + ' (on starts)' : m.basis === 'finishes' ? m.signal + ' (on finishes)' : m.signal;
+}
+
 function statusLine(m){
-  if(!(m.w >= 1)) return 'Week 0: the project has not started.';
+  if(!(m.w >= 1)) return 'Week 0: planning. The project starts at week 1.';
   return `By week ${m.w}: ${m.Sp} planned to start, ${m.Sa} started; ${m.Fp} planned to finish, ${m.Fa} finished.`;
 }

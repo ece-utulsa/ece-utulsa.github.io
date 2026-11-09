@@ -20,6 +20,8 @@ ok('practice problem', near(q.PV, 31, .05) && near(q.EV, 26, .05) && near(q.SPI,
 ok('week 0 undefined', A.measureRows(A.measures(c, 0)).every(r => r[2] === 'not yet defined'));
 ok('plan complete', A.measureRows(A.measures({ BAC: 4, T: 2, Sp: 4, Fp: 4, Sa: 4, Fa: 3 }, 3)).find(r => r[0] === 'TSPI')[2] === 'plan complete');
 const ser = A.series(p, ix, sx), sum = { Sp: 0, Fp: 0, Sa: 0, Fa: 0 }; for(let w = 1; w <= 6; w++) for(const k in sum) sum[k] += ser[w].wk[k];
+const e = A.measures({ BAC: 10, T: 8, Sp: 3, Fp: 0, Sa: 2, Fa: 0 }, 2);
+ok('signal on starts', e.signal === 'Watch' && e.basis === 'starts', e.signal + ' / ' + e.basis);
 ok('per-week sums = cumulative', sum.Sp === 10 && sum.Fp === 8 && sum.Sa === 8 && sum.Fa === 6);
 ok('round trip', A.serialize(A.loadProject(JSON.parse(A.serialize(p)))) === A.serialize(p));
 let threw = false; try { A.loadProject({ app: 'sd-wbs-ev', schema: 99 }); } catch { threw = true; } ok('newer schema refused', threw);
