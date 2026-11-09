@@ -12,9 +12,10 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 RELEASED = '2026-11-09'
-CHANGELOG = ('\n    v1.0.0 - first release from the briefing of Nov 9, 2026 (tasks-only earned value). WBS tree and org-chart '
+CHANGELOG = ('\n    v1.0.1 - editor panel wraps long predecessor warnings; full stop after the planned length; Help links to the how-to guide. '
+             '\n    v1.0.0 - first release from the briefing of Nov 9, 2026 (tasks-only earned value). WBS tree and org-chart '
              'diagram with the Show to level control, the Senior Design template to level 3, side-panel editor, rule checks; '
              'week-based Gantt with baseline and actual bars, predecessors, milestones, lead-time items, re-baselining with '
              'history; task status bar chart (per week / cumulative, area and owner filters); This week routine; earned value '

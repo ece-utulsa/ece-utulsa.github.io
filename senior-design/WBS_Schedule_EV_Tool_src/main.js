@@ -22,6 +22,7 @@ function buildHelp(){
   append(B, [
     h('p', null, 'This tool follows the Senior Design 1 lectures: ', h('b', null, 'Work Breakdown Structure'), ', ', h('b', null, 'Earned Value'), ' and ', h('b', null, 'Earned Value Equations'), '. ',
       'Earned value is counted in ', h('b', null, 'tasks'), ', not hours: there are no time cards.'),
+    h('p', null, h('a', { href: 'WBS_Schedule_EV_Tool_Guide.html', target: '_blank', rel: 'noopener' }, 'Open the full how-to guide'), ' (on the course site: step-by-step instructions and tips).'),
     h('h3', null, 'The weekly routine (about 10 minutes)'),
     h('p', null, 'Week 0 is for planning: build the WBS, schedule it and baseline it. Then move to week 1 (the + button in the top bar).'),
     h('ol', null, h('li', null, 'Set the current week in the top bar.'), h('li', null, 'On ', h('b', null, '4 This week'), ', mark each open task not started, started or finished.'),

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <!--
   Senior Design WBS, Schedule and Earned Value Tool
-  Version: v1.0.0
+  Version: v1.0.1
   Released: 2026-11-09
   Changelog:
+    v1.0.1 - editor panel wraps long predecessor warnings; full stop after the planned length; Help links to the how-to guide. 
     v1.0.0 - first release from the briefing of Nov 9, 2026 (tasks-only earned value). WBS tree and org-chart diagram with the Show to level control, the Senior Design template to level 3, side-panel editor, rule checks; week-based Gantt with baseline and actual bars, predecessors, milestones, lead-time items, re-baselining with history; task status bar chart (per week / cumulative, area and owner filters); This week routine; earned value chart, SPI trend, start/finish quadrant, measures table and late-task list; printable status report; autosave, project file Save/Open with schema version, CSV exports; help with the lecture equations.
   Author: Claude Code
   Briefing: Senior Design WBS, Schedule and Earned Value Tool, Nov 9, 2026 (Douglas Jussaume).
@@ -13,9 +14,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v1.0.0">
+<meta name="version" content="v1.0.1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
-<title>Senior Design WBS, Schedule and Earned Value v1.0.0</title>
+<title>Senior Design WBS, Schedule and Earned Value v1.0.1</title>
 <style>
 :root{
   --bg:#f4f6f7; --panel:#ffffff; --panel2:#eef2f4; --line:#c6cfd4; --ink:#1b2328; --mut:#4f5b62; --focus:#0b57d0;
@@ -86,6 +87,8 @@ table.grid tr.lev1 td{ font-weight:700 } table.grid tr.lev2 td{ font-weight:600 
 .panel input[type=text],.panel input:not([type]){ width:100% }
 .panel .btns{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px }
 .preds li{ display:flex; justify-content:space-between; gap:6px; align-items:center; margin:2px 0 }
+.preds li>span{ flex:1; min-width:0; overflow-wrap:anywhere; white-space:normal }
+.panel{ min-width:0; overflow-wrap:anywhere }
 ul.plain{ list-style:none; padding:0; margin:0 }
 .warnlist li{ margin:3px 0 } .warnlist button{ text-align:left; border-color:#e6c98f; background:var(--warnbg); width:100% }
 .bars{ display:flex; height:22px; border-radius:4px; overflow:hidden; border:1px solid var(--line); margin:4px 0 6px; background:var(--panel2) }
@@ -177,7 +180,7 @@ footer{ padding:8px 14px; font-size:13px; color:var(--mut); border-top:1px solid
   <section role="tabpanel" id="p-ev" aria-labelledby="t-ev"></section>
   <section role="tabpanel" id="p-report" aria-labelledby="t-report"></section>
 </main>
-<footer><span>Senior Design WBS, Schedule and Earned Value Tool <b>v1.0.0</b> (2026-11-09)</span>
+<footer><span>Senior Design WBS, Schedule and Earned Value Tool <b>v1.0.1</b> (2026-11-09)</span>
   <span>Works offline. Your work autosaves in this browser; <b>Save</b> writes the project file, which is the copy of record.</span></footer>
 <dialog id="dlg" aria-labelledby="dlgTitle"><form method="dialog">
   <h2 id="dlgTitle"></h2><p id="dlgText"></p>
@@ -1257,7 +1260,7 @@ function packageEditor(panel, e){
       k.type === 'milestone' ? null : h('div', null, field('Planned finish week', h('input', { type: 'number', min: 1, max: P.weeks, 'data-key': 'k-finish', value: k.finish,
         onchange: ev => change(() => { k.finish = clampInt(ev.target.value, 1, P.weeks, k.finish); }) })))),
     h('p', { class: 'small' + (k.type === 'task' && k.finish - k.start + 1 > 2 ? ' late' : ' mut') },
-      k.type === 'milestone' ? 'A milestone is zero length.' : `${k.finish - k.start + 1} week${k.finish > k.start ? 's' : ''}${k.type === 'task' && k.finish - k.start + 1 > 2 ? ' — more than 2: consider splitting it.' : ''}`,
+      k.type === 'milestone' ? 'A milestone is zero length.' : `${k.finish - k.start + 1} week${k.finish > k.start ? 's' : ''}${k.type === 'task' && k.finish - k.start + 1 > 2 ? ' — more than 2: consider splitting it.' : '.'}`,
       x ? ` Baseline ${b.n}: ${weekRange(x.s, x.f)} (PV uses these weeks).` : (b ? ' Added after the baseline: it counts in earned value from these planned weeks.' : ' Not in a baseline yet.')),
     h('label', { class: 'f' }, 'Predecessors (finish to start)'),
     k.preds.length ? h('ul', { class: 'plain preds' }, k.preds.map(q => {
@@ -1727,6 +1730,7 @@ function buildHelp(){
   append(B, [
     h('p', null, 'This tool follows the Senior Design 1 lectures: ', h('b', null, 'Work Breakdown Structure'), ', ', h('b', null, 'Earned Value'), ' and ', h('b', null, 'Earned Value Equations'), '. ',
       'Earned value is counted in ', h('b', null, 'tasks'), ', not hours: there are no time cards.'),
+    h('p', null, h('a', { href: 'WBS_Schedule_EV_Tool_Guide.html', target: '_blank', rel: 'noopener' }, 'Open the full how-to guide'), ' (on the course site: step-by-step instructions and tips).'),
     h('h3', null, 'The weekly routine (about 10 minutes)'),
     h('p', null, 'Week 0 is for planning: build the WBS, schedule it and baseline it. Then move to week 1 (the + button in the top bar).'),
     h('ol', null, h('li', null, 'Set the current week in the top bar.'), h('li', null, 'On ', h('b', null, '4 This week'), ', mark each open task not started, started or finished.'),

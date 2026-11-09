@@ -1,6 +1,6 @@
 # Senior Design WBS, Schedule and Earned Value Tool — sources
 
-`../WBS_Schedule_EV_Tool_v1.0.0.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
+`../WBS_Schedule_EV_Tool_v1.0.1.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
 It is one offline HTML file (about 125 kB): plain JavaScript, no libraries, no fonts, no network requests (a Content-Security-Policy
 in the page blocks them).
 
@@ -26,7 +26,7 @@ Test writes that from the briefing, independently of this build.
 ## Build and test
 
 ```sh
-python3 build.py                                   # writes ../WBS_Schedule_EV_Tool_v1.0.0.html
+python3 build.py                                   # writes ../WBS_Schedule_EV_Tool_v1.0.1.html
 node tests/build-check.js
 NODE_PATH=$(npm root -g) node tests/browser-smoke.js   # needs Playwright
 ```
