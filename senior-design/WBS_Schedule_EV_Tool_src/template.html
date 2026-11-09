@@ -85,6 +85,8 @@ table.grid tr.lev1 td{ font-weight:700 } table.grid tr.lev2 td{ font-weight:600 
 .panel input[type=text],.panel input:not([type]){ width:100% }
 .panel .btns{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px }
 .preds li{ display:flex; justify-content:space-between; gap:6px; align-items:center; margin:2px 0 }
+.preds li>span{ flex:1; min-width:0; overflow-wrap:anywhere; white-space:normal }
+.panel{ min-width:0; overflow-wrap:anywhere }
 ul.plain{ list-style:none; padding:0; margin:0 }
 .warnlist li{ margin:3px 0 } .warnlist button{ text-align:left; border-color:#e6c98f; background:var(--warnbg); width:100% }
 .bars{ display:flex; height:22px; border-radius:4px; overflow:hidden; border:1px solid var(--line); margin:4px 0 6px; background:var(--panel2) }
@@ -114,7 +116,18 @@ svg text{ font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,
 /* ── dialogs and help ── */
 dialog{ border:1px solid var(--line); border-radius:10px; padding:18px 20px; max-width:min(760px,94vw); box-shadow:0 10px 40px rgba(0,0,0,.25) }
 dialog::backdrop{ background:rgba(20,30,35,.45) }
-#help{ max-height:90vh } #help .body{ max-height:70vh; overflow-y:auto; padding-right:6px }
+#help{ max-height:92vh; width:min(900px,94vw) } #help .body{ max-height:72vh; overflow-y:auto; padding-right:8px; margin-top:10px }
+/* the built-in how-to guide (guide.html) */
+#guideBody{ font-size:15px; line-height:1.5 } #guideBody section{ border-top:1px solid var(--line); padding-top:6px; margin-top:12px }
+#guideBody h2{ font-size:19px; margin:8px 0 6px } #guideBody h3{ font-size:16px; margin:12px 0 4px }
+#guideBody nav.toc{ background:var(--panel2); border-radius:8px; padding:8px 14px } #guideBody nav.toc h2{ font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); margin:0 0 4px }
+#guideBody nav.toc ol{ columns:2; margin:0; padding-left:1.4em }
+#guideBody .step{ display:inline-block; background:var(--accent); color:#fff; border-radius:999px; font-size:13px; font-weight:700; padding:0 .6em; margin-right:6px }
+#guideBody .tip,#guideBody .warn{ border-radius:6px; padding:8px 12px; margin:10px 0 } #guideBody .tip{ background:var(--okbg); border:1px solid #9cc9ad } #guideBody .warn{ background:var(--warnbg); border:1px solid #e6c98f }
+#guideBody kbd,#guideBody .ui{ font-family:inherit; background:var(--panel2); border:1px solid var(--line); border-radius:4px; padding:0 .3em; font-size:.92em; white-space:nowrap }
+#guideBody table{ border-collapse:collapse; width:100% } #guideBody th,#guideBody td{ border-bottom:1px solid #dde3e6; padding:4px 6px; text-align:left; vertical-align:top } #guideBody th{ background:var(--panel2) }
+#guideBody .sig{ font-weight:700; border:2px solid currentColor; border-radius:999px; padding:0 .5em } #guideBody .on{ color:var(--ok) } #guideBody .watch{ color:var(--watch) } #guideBody .replan{ color:var(--bad) }
+#guideBody dl dt{ font-weight:700; margin-top:8px } #guideBody dl dd{ margin:2px 0 0 0 }
 math{ font-size:1.12em } .eq{ margin:.5em 0 .5em 1em }
 footer{ padding:8px 14px; font-size:13px; color:var(--mut); border-top:1px solid var(--line); background:var(--panel); display:flex; gap:16px; flex-wrap:wrap }
 /* ── print: only the open tab, at the chosen level ── */
@@ -183,7 +196,11 @@ footer{ padding:8px 14px; font-size:13px; color:var(--mut); border-top:1px solid
   <label id="dlgInLab" for="dlgIn" class="f"></label><input id="dlgIn" type="text" maxlength="200" style="width:100%">
   <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel" id="dlgCancel">Cancel</button><button value="ok" id="dlgOk" class="primary">OK</button></div>
 </form></dialog>
-<dialog id="help" aria-labelledby="helpTitle"><h2 id="helpTitle">Help</h2><div class="body" id="helpBody"></div>
+<dialog id="help" aria-labelledby="helpTitle"><div class="row" style="justify-content:space-between"><h2 id="helpTitle" style="margin:0">Help</h2>
+  <span class="seg" role="group" aria-label="Help section"><button type="button" id="hGuide" aria-pressed="true">How-to guide</button><button type="button" id="hRef" aria-pressed="false">Equations and terms</button></span></div>
+  <div class="body" id="guideBody">@@GUIDE@@
+    <p class="mut small">This guide is built into the tool, so it works offline. A copy with screenshots is on the course site: <a href="WBS_Schedule_EV_Tool_Guide.html" target="_blank" rel="noopener">How to use the tool</a>.</p></div>
+  <div class="body" id="helpBody" hidden></div>
   <div class="row" style="justify-content:flex-end;margin-top:10px"><button id="helpClose" class="primary" type="button">Close</button></div></dialog>
 <script>
 @@SCRIPT@@

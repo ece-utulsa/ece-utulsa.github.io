@@ -1,0 +1,254 @@
+<!-- The how-to guide: the one source for the guide web page (with figures) and the tool's Help panel (figures removed).
+     build.py fills it into guide_page.html and template.html. Links to screenshots are relative to senior-design/. -->
+<nav class="toc" aria-label="Contents"><h2>Contents</h2><ol>
+  <li><a href="#overview">How the tool works</a></li>
+  <li><a href="#setup">Set up the project (week 0)</a></li>
+  <li><a href="#wbs">Build the WBS</a></li>
+  <li><a href="#schedule">Schedule the tasks</a></li>
+  <li><a href="#baseline">Baseline the schedule</a></li>
+  <li><a href="#weekly">The weekly routine</a></li>
+  <li><a href="#numbers">Read the numbers</a></li>
+  <li><a href="#report">The status report</a></li>
+  <li><a href="#changes">Changing the plan</a></li>
+  <li><a href="#files">Saving and sharing</a></li>
+  <li><a href="#tips">Tips for a good WBS</a></li>
+  <li><a href="#faq">Questions and fixes</a></li>
+</ol></nav>
+
+<section id="overview">
+  <h2>1. How the tool works</h2>
+  <p>The tool has three linked parts. The <b>WBS</b> lists the work. Its lowest level, the <b>work package</b>, is one
+    <b>task</b>. The tasks, with their planned weeks, make the <b>schedule</b>. Once the schedule is <b>baselined</b>, the tool
+    measures <b>earned value</b> each week by counting tasks started and finished. No hours are logged.</p>
+  <table>
+    <tr><th>Tab</th><th>Use it to</th></tr>
+    <tr><td><b>1 WBS</b></td><td>Build and edit the tree; see tasks by area and by student; fix the rule-check warnings.</td></tr>
+    <tr><td><b>2 Schedule</b></td><td>See the Gantt chart; baseline or re-baseline; check predecessors.</td></tr>
+    <tr><td><b>3 Task status</b></td><td>Compare tasks planned to start and finish with tasks actually started and finished, week by week.</td></tr>
+    <tr><td><b>4 This week</b></td><td>The weekly update: mark each task, then read the numbers.</td></tr>
+    <tr><td><b>5 Earned value</b></td><td>The PV and EV chart, forecast, SPI trend, start/finish quadrant, late tasks, and every measure by week.</td></tr>
+    <tr><td><b>6 Status report</b></td><td>Print a one-page report for the weekly status report.</td></tr>
+  </table>
+  <p>The top bar holds the <b>current week</b> (with − and + buttons), the <b>signal</b> for that week, and the file buttons.</p>
+  <div class="tip"><b>Tip.</b> Choose one student, normally the owner of WBS 4.2 (schedule, WBS and earned value), to keep the file
+    and do the weekly update. Everyone else sends that student their task status.</div>
+</section>
+
+<section id="setup">
+  <h2><span class="step">Step 1</span>Set up the project (week 0)</h2>
+  <p>Open the tool. A new project starts with the <b>Senior Design template</b> at <b>week 0</b>, the planning week. The top bar says
+    <span class="ui">Week 0: planning</span>. Every measure reads <i>not yet defined</i> until week 1. That is expected.</p>
+  <ol>
+    <li>On <b>1 WBS</b>, click the top row (the project).</li>
+    <li>In the panel on the right, enter the <b>project name</b> and the <b>team members</b>, one per line.</li>
+    <li>Leave the <b>project length</b> at 30 weeks (Senior Design 1 is weeks 1–15, Senior Design 2 is weeks 16–30) unless your
+      instructor tells you otherwise.</li>
+    <li>Click <span class="ui">Save</span> to write the project file. Keep it in your team's shared folder.</li>
+  </ol>
+  <p>The template holds the four major areas and their sub-areas from the lecture:</p>
+  <ul>
+    <li><b>1.0 Design:</b> 1.1 Conceptual design, 1.2 Analysis, 1.3 Simulation and modeling, 1.4 Detail design, 1.5 Design reviews</li>
+    <li><b>2.0 Testing:</b> 2.1 Test plan, 2.2 Testing, 2.3 Final test report</li>
+    <li><b>3.0 Manufacture:</b> 3.1 Manufacturing plan, 3.2 Procurement, 3.3 Build to the plan</li>
+    <li><b>4.0 Project Management:</b> 4.1 Reporting, 4.2 Schedule, WBS and earned value, 4.3 Customer contact</li>
+  </ul>
+</section>
+
+<section id="wbs">
+  <h2><span class="step">Step 2</span>Build the WBS</h2>
+  <p>Your team writes the work packages under the sub-areas. Everything is done on <b>1 WBS</b>: select a row, then use the panel on the right.</p>
+  <figure><img src="guide-img/wbs.jpg" alt="The WBS tab: the tree with work packages on the left and the editor panel for task 1.4.1 on the right" width="1440" height="860" loading="lazy">
+    <figcaption>The WBS tab at level 4. The selected task, 1.4.1 Schematic capture, is open in the editor panel.</figcaption></figure>
+  <h3>Add a task (work package)</h3>
+  <ol>
+    <li>Click a sub-area, for example <b>1.4 Detail design</b>.</li>
+    <li>Under <b>Add under it</b>, click <span class="ui">+ Task</span>. It appears as 1.4.1, the next one as 1.4.2, and so on.</li>
+    <li>Fill in the <b>name</b>, the <b>owner</b> (one student), the <b>planned start and finish weeks</b> and the <b>deliverable</b>.
+      Each field saves when you press <kbd>Enter</kbd> or move to the next field.</li>
+  </ol>
+  <h3>Add more depth</h3>
+  <p>Click <span class="ui">+ Sub-element</span> to add a summary level, for example 1.4.1 PCB. Then select it and add tasks under it:
+    1.4.1.1, 1.4.1.2. There is no limit on depth. WBS numbers always come from each row's position and renumber by themselves.</p>
+  <h3>Rearrange</h3>
+  <ul>
+    <li><span class="ui">↑ Up</span> and <span class="ui">↓ Down</span> reorder a row among its siblings.</li>
+    <li><span class="ui">→ Indent</span> puts a row under the row above it. <span class="ui">← Outdent</span> moves it up one level.</li>
+    <li><span class="ui">Make it a summary element</span> turns a task into a heading you can add rows under.
+      <span class="ui">Make it a work package</span> does the reverse for an empty heading.</li>
+    <li><span class="ui">Delete</span> removes a row and everything under it.</li>
+    <li>To add a major area (5.0 and so on), select the project row and click <span class="ui">+ Major area</span>.</li>
+  </ul>
+  <h3>See the level you want</h3>
+  <p><b>Show to level</b> opens every branch down to that level: <b>2</b> major areas, <b>3</b> sub-areas, <b>4</b> work packages, or
+    <b>All</b>. Click ▶ or ▼ to open or close one branch. <span class="ui">Diagram</span> draws the same rows as an org chart, like the
+    lecture's WBS slide. The Schedule tab uses the same level, and printing and the WBS CSV export use it too.</p>
+  <h3>Rule checks</h3>
+  <p>Warnings at the bottom of the tab flag the following. Click a warning to jump to that row.</p>
+  <ul>
+    <li>A task with no owner, or with "Team" as the owner.</li>
+    <li>A task longer than 2 weeks.</li>
+    <li>A task with no deliverable.</li>
+    <li>A major area with no tasks.</li>
+    <li>A student who owns more than 1.5 times the team average.</li>
+    <li>A task that starts before a predecessor finishes.</li>
+  </ul>
+  <p>They are warnings, not blocks. Fix them before you baseline.</p>
+</section>
+
+<section id="schedule">
+  <h2><span class="step">Step 3</span>Schedule the tasks</h2>
+  <ul>
+    <li><b>Weeks.</b> Each task has a planned start and finish week. A 1-week task starts and finishes in the same week.</li>
+    <li><b>Predecessors.</b> In the task's panel, use <b>Add a predecessor…</b> to add tasks that must finish before this one can start
+      (finish to start). The panel shows the <b>earliest start</b>. If the task starts too early it turns red, and
+      <span class="ui">Move to week N</span> fixes it in one click.</li>
+    <li><b>Milestones</b> (PDR, CDR, final demo): click <span class="ui">+ Milestone</span>. A milestone is a single week, drawn as a diamond.</li>
+    <li><b>Lead time</b> (a part order, a board fab): click <span class="ui">+ Lead time</span> and give it the weeks it takes. It is drawn as a hatched bar.</li>
+  </ul>
+  <p>Milestones and lead-time items are shown on the schedule but are <b>not tasks</b>, so they do not count in earned value.</p>
+  <figure><img src="guide-img/schedule.jpg" alt="The Schedule tab: Gantt chart for Senior Design 1 at level 4 with baseline and actual bars and a today line at week 6" width="1440" height="860" loading="lazy">
+    <figcaption>The Schedule tab, zoomed to Senior Design 1. Outlined bars are the baseline, solid bars are actual progress, and the red line is today. Late tasks are flagged in words.</figcaption></figure>
+  <p>On <b>2 Schedule</b>, <b>Zoom</b> shows the whole project, one semester, or 8 weeks around today. <span class="ui">Table</span>
+    gives the same rows as a printable table.</p>
+</section>
+
+<section id="baseline">
+  <h2><span class="step">Step 4</span>Baseline the schedule</h2>
+  <p>When the team agrees the plan, click <span class="ui">Baseline the schedule…</span> on <b>2 Schedule</b> (or in the project panel)
+    and give a reason such as "Initial baseline". This freezes every task's planned weeks. <b>PV</b> (planned value) is computed from
+    the baseline, so nothing is measured until you baseline.</p>
+  <p>Then press <span class="ui">+</span> in the top bar to move to <b>week 1</b>. The project has started.</p>
+  <div class="warn"><b>Important.</b> Baseline once, at the end of planning. Do not re-baseline every time a task slips: that hides the slip.
+    Re-baseline only when the plan really changes, for example after a design review, and always give the reason.</div>
+</section>
+
+<section id="weekly">
+  <h2><span class="step">Step 5</span>The weekly routine (about 10 minutes)</h2>
+  <ol>
+    <li><b>Set the week.</b> Press <span class="ui">+</span> in the top bar to move to the new week.</li>
+    <li><b>Mark each task.</b> On <b>4 This week</b>, set each listed task to <b>Not started</b>, <b>Started</b> or <b>Finished</b>.
+      Only tasks active in the plan this week, or still open, are listed. Tick <b>Show all packages</b> to see everything.</li>
+    <li><b>Read the numbers.</b> The second half of the tab shows the four counts, every measure and the signal.</li>
+    <li><b>Print the report</b> from <b>6 Status report</b> and paste it into your weekly status report.</li>
+    <li><b>Save</b> the project file.</li>
+  </ol>
+  <figure><img src="guide-img/this-week.jpg" alt="The This week tab: six open tasks with Not started, Started and Finished buttons, then the four counts and the measures" width="1440" height="860" loading="lazy">
+    <figcaption>The This week tab at week 6: mark each task, then read the numbers.</figcaption></figure>
+  <div class="tip"><b>Tip.</b> A task is <b>started</b> when real work on it has begun, and <b>finished</b> only when its deliverable is
+    done. "Almost finished" is still Started. Be strict: the numbers are only as honest as the status.</div>
+  <p>Status is recorded for the current week. To correct an earlier week, set the top bar back to that week, change the status,
+    then return to the current week.</p>
+</section>
+
+<section id="numbers">
+  <h2>6. Read the numbers</h2>
+  <p>Earned value is counted in tasks by the <b>50/50 rule</b>: a task earns half when it starts and the other half when it finishes.
+    Every count is cumulative to the end of the current week.</p>
+  <table>
+    <tr><th>Measure</th><th>Meaning</th><th>How it is found</th></tr>
+    <tr><td>Sp, Fp</td><td>Tasks planned to start, planned to finish</td><td>From the baseline</td></tr>
+    <tr><td>Sa, Fa</td><td>Tasks actually started, actually finished</td><td>From the status you enter</td></tr>
+    <tr><td>BAC</td><td>Number of tasks in the WBS</td><td></td></tr>
+    <tr><td>PV, EV</td><td>Planned value, earned value (in tasks)</td><td>PV = ½(Sp + Fp), EV = ½(Sa + Fa)</td></tr>
+    <tr><td>SV, SV%</td><td>Schedule variance: negative means behind</td><td>SV = EV − PV; SV% = SV / PV × 100</td></tr>
+    <tr><td>SPI</td><td>Schedule performance index: below 1 means behind</td><td>EV / PV</td></tr>
+    <tr><td>SR, FR</td><td>Start ratio, finish ratio</td><td>SR = Sa / Sp; FR = Fa / Fp</td></tr>
+    <tr><td>% complete</td><td>Share of the project earned</td><td>EV / BAC × 100</td></tr>
+    <tr><td>Tf</td><td>Forecast duration in weeks at the current pace</td><td>T / SPI (T = planned finish week)</td></tr>
+    <tr><td>TSPI</td><td>The SPI needed from now on to finish on time</td><td>(BAC − EV) / (BAC − PV)</td></tr>
+  </table>
+  <h3>The signal</h3>
+  <p>The signal comes from the start and finish ratios, like the lecture's quadrant:</p>
+  <ul>
+    <li><span class="sig on">On plan</span> SR and FR both at least 1.</li>
+    <li><span class="sig watch">Watch</span> One of them below 1.</li>
+    <li><span class="sig replan">Re-plan</span> Both below 1.</li>
+  </ul>
+  <p>Early in the project, before any task is planned to finish, progress is judged on getting tasks started (SR alone), and the
+    signal says <b>(on starts)</b>.</p>
+  <figure><img src="guide-img/earned-value.jpg" alt="The Earned value tab: cumulative PV and EV in tasks, the SV bracket at week 6 and a dotted forecast to week 19.3" width="1440" height="860" loading="lazy">
+    <figcaption>The Earned value tab. Dashed PV, solid EV to today, the SV bracket, and the dotted forecast at the current SPI.</figcaption></figure>
+  <h3>Example: the lecture's week-6 team</h3>
+  <p>40 tasks, planned finish week 15. By week 6, 10 tasks were planned to start and 8 to finish; 8 have started and 6 have finished.
+    PV = ½(10 + 8) = 9 and EV = ½(8 + 6) = 7, so SV = −2 and SPI = 0.78. SR = 0.80 and FR = 0.75 are both below 1: <span class="sig replan">Re-plan</span>.
+    At this pace the project takes 15 / 0.78 = 19.3 weeks. To finish on time the team needs TSPI = 33 / 31 = 1.06 from now on.</p>
+  <h3>What to do about it</h3>
+  <ul>
+    <li><b>Start ratio low:</b> tasks are not getting started. Check owners and predecessors, and look at the late-start list.</li>
+    <li><b>Finish ratio low:</b> tasks start but drag on. Split big tasks, clear blockers, and agree what "finished" means.</li>
+    <li><b>TSPI well above 1:</b> the team must work faster than it has so far. Talk with your advisor about scope or schedule.</li>
+  </ul>
+</section>
+
+<section id="report">
+  <h2>7. The status report</h2>
+  <p><b>6 Status report</b> is one printable page: the signal, the headline numbers, the task status line, the earned value chart, the
+    late tasks, the tasks started or finished this week, and an <b>Actions</b> box. Type the team's actions in the box, then click
+    <span class="ui">Print or save as PDF</span>. Choose <b>Save as PDF</b> in the print dialog and paste the PDF into your weekly status report.</p>
+  <p><span class="ui">Print</span> in the top bar prints whichever tab is open. Use it on the WBS or Schedule tab, at the level you have chosen.</p>
+</section>
+
+<section id="changes">
+  <h2>8. Changing the plan</h2>
+  <p>The WBS is a living document. Change it as the project moves forward:</p>
+  <ul>
+    <li><b>New task:</b> add it as usual. It counts in earned value straight away, using its planned weeks. No re-baseline is needed.</li>
+    <li><b>Task no longer needed:</b> delete it. It drops out of every count.</li>
+    <li><b>Task slipped:</b> change its planned weeks if you like, but PV still uses its <b>baseline</b> weeks, so the slip stays visible.
+      A thin dashed line on the Gantt chart shows the new plan.</li>
+    <li><b>The plan really changed</b>, for example after CDR: <span class="ui">Re-baseline…</span> with a reason. Earlier baselines are kept,
+      and PV uses the new one.</li>
+  </ul>
+  <div class="warn"><b>Note.</b> Past weeks are recalculated with the current task list. Adding a task planned for weeks already passed
+    raises PV for those weeks and shows the task as late.</div>
+</section>
+
+<section id="files">
+  <h2>9. Saving and sharing</h2>
+  <dl>
+    <dt>Autosave</dt><dd>Every change is saved in this browser at once. The top bar shows the time. Browser storage can be cleared, and it
+      does not move to another computer.</dd>
+    <dt>Save (the copy of record)</dt><dd><span class="ui">Save</span> (or <kbd>Ctrl</kbd>+<kbd>S</kbd> / <kbd>⌘</kbd>+<kbd>S</kbd>) downloads the
+      project file (<code>.json</code>), named for the project and the week. Save after every weekly update and keep the files in your team's
+      shared folder. The top bar warns you when there are changes not yet saved to a file.</dd>
+    <dt>Open</dt><dd><span class="ui">Open…</span> loads a project file. Instructors and advisors use it to open a team's file. Files from older
+      versions of the tool still open.</dd>
+    <dt>New</dt><dd>Starts again from the template. Save your current project first.</dd>
+    <dt>Export CSV</dt><dd>Three spreadsheets for Excel: the WBS at the chosen level, the status history, and the weekly earned value table.</dd>
+  </dl>
+  <div class="tip"><b>Tip.</b> If two students edit at the same time, the last file saved wins. Agree that one student keeps the file.</div>
+</section>
+
+<section id="tips">
+  <h2>10. Tips for a good WBS</h2>
+  <ul>
+    <li><b>Keep tasks small and similar in size: 1 or 2 weeks.</b> Every task counts the same in earned value, so a 6-week task distorts the numbers.
+      Split long work into steps that each end in something you can show.</li>
+    <li><b>One owner per task.</b> "Team" is not an owner. Someone has to be responsible for each task.</li>
+    <li><b>Name the deliverable</b> as a thing you can hand over: "Schematic, reviewed", "Test plan v1", "Bill of materials".</li>
+    <li><b>Spread the work.</b> Check <b>Tasks by student</b>. Nobody should own far more than the average.</li>
+    <li><b>Use predecessors for real dependencies only</b>, such as simulation before layout or parts ordered before the build.</li>
+    <li><b>Put long waits in as lead-time items</b>, like board fabrication or part delivery, so the schedule is honest about them.</li>
+    <li><b>Don't forget project management:</b> weekly reports (4.1), this file (4.2), and customer meetings (4.3) are tasks too.</li>
+    <li><b>Add milestones</b> for PDR, CDR and the final demo, and plan backwards from them.</li>
+    <li><b>Clear the rule-check warnings</b> before you baseline.</li>
+  </ul>
+</section>
+
+<section id="faq">
+  <h2>11. Questions and fixes</h2>
+  <dl>
+    <dt>Every number says "not yet defined".</dt><dd>You are at week 0, or the schedule is not baselined yet. Baseline it on <b>2 Schedule</b>,
+      then move to week 1.</dd>
+    <dt>One measure says "not yet defined" and the others don't.</dt><dd>It would divide by zero: SPI when nothing is planned yet, FR when nothing
+      is planned to finish yet. It fills in as the plan moves on. TSPI says <i>plan complete</i> when every task was planned to be done.</dd>
+    <dt>I can't add a row under a task.</dt><dd>Tasks are the lowest level. Click <span class="ui">Make it a summary element</span> first, then add tasks under it.</dd>
+    <dt>I can't see the tasks I just added.</dt><dd>Set <b>Show to level</b> to 4 or <b>All</b>, or open the branch with ▶.</dd>
+    <dt>A task shows "Late start" or "Late finish".</dt><dd>Its baseline start (or finish) week has passed, and it has not started (or finished).
+      Mark its status, or talk about why it is late.</dd>
+    <dt>My work is gone after I changed computer or cleared the browser.</dt><dd>Open your last saved project file with <span class="ui">Open…</span>. This is why you Save every week.</dd>
+    <dt>Does it need the internet?</dt><dd>No. Once the page is open it works offline, and you can save the tool's HTML file to your laptop. Nothing you type is sent anywhere.</dd>
+    <dt>Keyboard</dt><dd><kbd>Tab</kbd> moves between controls. In the WBS tree, <kbd>↑</kbd> <kbd>↓</kbd> move between rows, <kbd>→</kbd> opens a
+      branch, <kbd>←</kbd> closes it or goes to the parent. When a tab name has focus, <kbd>←</kbd> <kbd>→</kbd> move between the tabs.</dd>
+  </dl>
+</section>

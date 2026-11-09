@@ -104,6 +104,15 @@ function wire(){
   $('bPrint').addEventListener('click', () => window.print());
   $('bHelp').addEventListener('click', () => { $('help').showModal(); $('helpClose').focus(); });
   $('helpClose').addEventListener('click', () => $('help').close());
+  const helpPart = guide => { $('guideBody').hidden = !guide; $('helpBody').hidden = guide; $('hGuide').setAttribute('aria-pressed', guide); $('hRef').setAttribute('aria-pressed', !guide); };
+  $('hGuide').addEventListener('click', () => helpPart(true));
+  $('hRef').addEventListener('click', () => helpPart(false));
+  // contents links inside the guide scroll the guide, without changing the page address
+  $('guideBody').addEventListener('click', ev => {
+    const a = ev.target.closest('a[href^="#"]'); if(!a) return;
+    const t = document.getElementById(a.getAttribute('href').slice(1)); if(!t) return;
+    ev.preventDefault(); t.scrollIntoView({ block: 'start' }); t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true });
+  });
   const tabs = [...document.querySelectorAll('#tabs [role=tab]')];
   tabs.forEach((b, i) => {
     b.addEventListener('click', () => setTab(b.dataset.tab));
