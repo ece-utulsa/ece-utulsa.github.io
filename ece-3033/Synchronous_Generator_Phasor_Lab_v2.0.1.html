@@ -3,7 +3,7 @@
   Synchronous Generator Phasor Lab
   Version: v2.0.1
   Released: 2026-11-11
-  Changelog: Fix pass on v2.0.0 (Code Quality and Cybersecurity gates): bounded drawing on very small windows, constants block / TOC / closing delimiters, one coalesced render per action, drive switch no longer changes the operating point, R_A neglected consistently for the salient-pole model, analytic pull-out (motor peak beyond 90 degrees), accessibility and contrast fixes, narrow-screen header.
+  Changelog: Fix pass on v2.0.0 (Code Quality, Cybersecurity and Test gates): torque-angle solve covers the whole rising branch (set P honoured with R_A above 0), leading stand-alone loads no longer clamped, red badge beyond the stability limit, signed delta, field-limit and inverse-saliency warnings, three-phase and motor-convention labels; bounded drawing on very small windows, constants block / TOC / closing delimiters, one coalesced render per action, drive switch no longer changes the operating point, R_A neglected consistently for the salient-pole model, analytic pull-out (motor peak beyond 90 degrees), accessibility and contrast fixes, narrow-screen header.
   Owner: Douglas Jussaume, University of Tulsa ECE
 -->
 <html lang="en" data-theme="dark">
@@ -367,6 +367,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
             </div>
         </div>
         <div class="pill" id="excitePill">—</div>
+        <div class="hint" id="convNote" style="display:none">Motor convention: I<sub>A</sub> flows into the machine. <strong>P in</strong> is the three-phase electrical power drawn at the terminals. <strong>Q</strong> is the three-phase reactive power supplied to the system (negative = absorbed).</div>
     </div>
 
     <div class="card"><h3>Compare</h3>
@@ -382,7 +383,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
         <div class="row"><div class="row-head"><label for="vSlider" id="vName">Rated V<sub>φ</sub></label><output id="vOut" for="vSlider"></output></div><input type="range" id="vSlider"></div>
         <div class="row" id="xsRow"><div class="row-head"><label for="xsSlider">Synchronous reactance X<sub>S</sub></label><output id="xsOut" for="xsSlider"></output></div><input type="range" id="xsSlider"></div>
         <div class="row" id="xdRow"><div class="row-head"><label for="xdSlider">Direct-axis X<sub>d</sub></label><output id="xdOut" for="xdSlider"></output></div><input type="range" id="xdSlider"></div>
-        <div class="row" id="xqRow"><div class="row-head"><label for="xqSlider">Quadrature-axis X<sub>q</sub></label><output id="xqOut" for="xqSlider"></output></div><input type="range" id="xqSlider"></div>
+        <div class="row" id="xqRow"><div class="row-head"><label for="xqSlider">Quadrature-axis X<sub>q</sub></label><output id="xqOut" for="xqSlider"></output></div><input type="range" id="xqSlider"><div class="hint" id="xqNote" role="status" style="display:none;color:var(--warn)">⚠ X<sub>q</sub> is above X<sub>d</sub> (inverse saliency). This is unusual for a wound-rotor machine; values are still computed.</div></div>
         <div class="row"><div class="row-head"><label for="raSlider">Armature resistance R<sub>A</sub></label><output id="raOut" for="raSlider"></output></div><input type="range" id="raSlider"><div class="hint" id="raNote" style="display:none"></div></div>
         <div class="row"><div class="row-head"><label for="imaxSlider">Rated current I<sub>A,max</sub></label><output id="imaxOut" for="imaxSlider"></output></div><input type="range" id="imaxSlider"></div>
         <div class="hint" id="ratingHint"></div>
@@ -509,6 +510,8 @@ const UI_DEFAULTS = Object.freeze({ loci: true, cons: true, side: 'vcurve', guid
 
 const SOLVER = Object.freeze({
     BISECT_STEPS: 50,          // bisection iterations for δ
+    EDGE_STEPS: 30,            // bisection iterations to locate the pull-out end of a V-curve
+    ANGLE_TOL: 1e-9,           // slack (rad) when testing δ against the pull-out angle
     SC_MARGIN: 0.985,          // a stand-alone load beyond the solvable range is held at this fraction of the limit
     COLLAPSE_V: 0.01,          // V_φ below this fraction of E_A is flagged as collapsed
     V_FLOOR: 1e-6,             // smallest V_φ returned (V)
@@ -594,6 +597,8 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));                   //
 
 const M = Object.assign({}, DEFAULTS);                                       // machine + operating state
 const UI = Object.assign({ ghost: null, view: null, exp: -1 }, UI_DEFAULTS); // view state (never affects physics)
+const modeNow = () => (M.system === 'alone' ? 'gen' : M.mode);              // mode in force: a stand-alone machine is a generator; the bus choice is remembered
+const modelNow = () => (M.system === 'alone' ? 'round' : M.model);          // rotor model in force: stand-alone is round rotor
 /* ═══ END 2. STATE ═══ */
 
 /* ═══ 3. PHYSICS ═══ */
@@ -648,13 +653,13 @@ function solveBusLoad(m, gen) {
         const Eq = gen ? cadd(Vc, Zq) : csub(Vc, Zq);
         const q = carg(Eq), Id = cmul(Ia, cpolar(1, -(q - Math.PI * HALF))).re;
         const Emag = cabs(Eq) + (gen ? 1 : -1) * (m.Xd - m.Xq) * Id;
-        const s = pack(Vc, cpolar(Emag, q), Ia, gen, 0, { Xd: m.Xd, Xq: m.Xq });
-        s.pmaxPh = salientPeak(V, Emag, m.Xd, m.Xq).pmax;
+        const s = pack(Vc, cpolar(Emag, q), Ia, gen, 0, { Xd: m.Xd, Xq: m.Xq }), pk = salientPeak(V, Emag, m.Xd, m.Xq);
+        s.pmaxPh = pk.pmax; s.unstable = s.delta > pk.dPull + SOLVER.ANGLE_TOL || s.delta < -SOLVER.ANGLE_TOL;
         return s;
     }
     const drop = cmul(Ia, cx(ra, m.Xs));
-    const s = pack(Vc, gen ? cadd(Vc, drop) : csub(Vc, drop), Ia, gen, ra, null);
-    s.pmaxPh = roundPeak(V, s.Eabs, cx(ra, m.Xs), gen).pmax;
+    const s = pack(Vc, gen ? cadd(Vc, drop) : csub(Vc, drop), Ia, gen, ra, null), pk = roundPeak(V, s.Eabs, cx(ra, m.Xs), gen);
+    s.pmaxPh = pk.pmax; s.unstable = s.delta > pk.dPull + SOLVER.ANGLE_TOL;   // past the peak of P(δ): statically unstable
     return s;
 }
 
@@ -665,8 +670,8 @@ function roundPeak(V, E, Z, gen) {
     const zm = cabs(Z), zeta = carg(Z);
     const Pof = d => gen ? (V * E / zm) * Math.cos(d - zeta) - (V * V / zm) * Math.cos(zeta)
                          : (V * V / zm) * Math.cos(zeta) - (V * E / zm) * Math.cos(d + zeta);
-    const dPull = gen ? zeta : Math.PI - zeta;
-    return { Pof, dPull, pmax: Pof(dPull) };
+    const dPull = gen ? zeta : Math.PI - zeta, dMin = dPull - Math.PI;     // P rises monotonically from dMin to dPull
+    return { Pof, dPull, dMin, pmax: Pof(dPull), pmin: Pof(dMin) };
 }
 
 /* Salient pole (R_A neglected): P = a sin δ + b sin 2δ with a = EV/X_d, b = (V²/2)(1/X_q − 1/X_d);
@@ -676,16 +681,19 @@ function salientPeak(V, E, Xd, Xq) {
     const Pof = d => a * Math.sin(d) + b * Math.sin(d + d);
     const dPull = Math.abs(b) < SOLVER.V_FLOOR ? Math.PI * HALF
         : Math.acos(clamp((-a + Math.sqrt(a * a + SOLVER.SALIENT_PEAK_K * b * b)) / (SOLVER.SALIENT_PEAK_D * b), -1, 1));
-    return { Pof, dPull, pmax: Pof(dPull) };
+    return { Pof, dPull, dMin: 0, pmax: Pof(dPull), pmin: 0 };
 }
 
-/* Find δ on the rising part of P(δ) that delivers Pph; flags pull-out when Pph exceeds the peak. */
+/* Find δ on the rising branch of P(δ), from dMin to the pull-out angle, that delivers Pph. With R_A > 0 the
+   root can lie below δ = 0 (an over-excited generator at low P), so the bracket starts at dMin, not at 0.
+   Flags pull-out when Pph exceeds the peak, and `floor` when Pph is below the least power this field allows. */
 function findDelta(peak, Pph, cond) {
-    if (cond) return { delta: 0, exceeds: false };
-    if (Pph > peak.pmax) return { delta: peak.dPull, exceeds: true };
-    let lo = 0, hi = peak.dPull;
+    if (cond) return { delta: 0, exceeds: false, floor: false };
+    if (Pph > peak.pmax) return { delta: peak.dPull, exceeds: true, floor: false };
+    if (Pph < peak.pmin) return { delta: peak.dMin, exceeds: false, floor: true };
+    let lo = peak.dMin, hi = peak.dPull;
     for (let it = 0; it < SOLVER.BISECT_STEPS; it++) { const mid = (lo + hi) * HALF; if (peak.Pof(mid) < Pph) lo = mid; else hi = mid; }
-    return { delta: (lo + hi) * HALF, exceeds: false };
+    return { delta: (lo + hi) * HALF, exceeds: false, floor: false };
 }
 
 /* Infinite bus, round rotor, P and |E_A| given. */
@@ -695,7 +703,7 @@ function solveRound(m, E, Pph, gen, cond) {
     const Ec = cpolar(E, gen ? r.delta : -r.delta);
     const Ia = gen ? cdiv(csub(Ec, Vc), Z) : cdiv(csub(Vc, Ec), Z);
     const s = pack(Vc, Ec, Ia, gen, Z.re, null);
-    s.exceeds = r.exceeds; s.pmaxPh = peak.pmax;
+    s.exceeds = r.exceeds; s.floor = r.floor; s.pmaxPh = peak.pmax;
     return s;
 }
 
@@ -721,14 +729,16 @@ function pack(Vc, Ec, Ia, gen, ra, sal) {
         Vc, Ec, Ia, V, Iabs, Eabs: cabs(Ec), theta, pf: Math.cos(theta),
         lagging: Math.sin(theta) > SOLVER.ANGLE_EPS && Iabs > SOLVER.I_EPS,
         leading: Math.sin(theta) < -SOLVER.ANGLE_EPS && Iabs > SOLVER.I_EPS,
-        delta: Math.abs(carg(Ec)), P3: sgn * PHASES * V * Ia.re, Q3: sgn * PHASES * V * (-Ia.im),
-        gen, ra, sal, joint: gen ? cadd(Vc, Rdrop) : csub(Vc, Rdrop), exceeds: false, limited: false, pmaxPh: null
+        dAng: carg(Ec),                                    // angle of E_A, signed (+ = E_A leads V_φ)
+        delta: gen ? carg(Ec) : -carg(Ec),                 // load angle, + in normal operation of that machine
+        P3: sgn * PHASES * V * Ia.re, Q3: sgn * PHASES * V * (-Ia.im),
+        gen, ra, sal, joint: gen ? cadd(Vc, Rdrop) : csub(Vc, Rdrop), exceeds: false, floor: false, unstable: false, limited: false, pmaxPh: null
     };
 }
 
 /* Rated field: |E_A| needed at rated current, rated pf lagging, rated voltage (sets the field limit). */
 function ratedE(m) {
-    const X = m.model === 'salient' ? m.Xd : m.Xs;
+    const X = (m.system !== 'alone' && m.model === 'salient') ? m.Xd : m.Xs;
     return cabs(cadd(cx(m.V, 0), cmul(cpolar(m.Imax, -Math.acos(RATED_PF)), cx(0, X))));
 }
 
@@ -755,7 +765,7 @@ const fV = v => Math.abs(v) >= KV_BREAK ? (v / KILO).toFixed(DEC.KV) + ' kV' : v
 const fA = a => a >= KILO ? (a / KILO).toFixed(DEC.KA) + ' kA' : a.toFixed(DEC.A) + ' A';                    // amps
 const fP = (w, u) => { const k = w / W_PER_KW; return Math.abs(k) >= KILO ? (k / KILO).toFixed(DEC.MW) + ' M' + u : k.toFixed(DEC.KW) + ' k' + u; };   // power (u = 'W' or 'VAR')
 const fPf = s => s.Iabs < SOLVER.I_EPS ? EMPTY : Math.abs(s.pf).toFixed(DEC.PF) + (s.lagging ? ' lag' : s.leading ? ' lead' : '');   // power factor with lag / lead
-const fAng = d => (Math.abs(d) < ANG_ZERO ? 0 : d).toFixed(DEC.ANG) + '°';                                    // angle in degrees
+const fAng = d => (Math.abs(d) < ANG_ZERO ? 0 : d).toFixed(DEC.ANG).replace('-', '−') + '°';                                    // angle in degrees
 
 /* Text for the power-factor control: "0.80 lagging". */
 function pfText(thDeg) {
@@ -958,7 +968,7 @@ function drawLoci(ctx, s, g, labels) {
         ctx.beginPath();
         if (motorLike) ctx.arc(ox, oy, s.Eabs * g.sc, -PH.LOCUS_PAST_AXIS, PH.LOCUS_SPAN); else ctx.arc(ox, oy, s.Eabs * g.sc, -PH.LOCUS_SPAN, PH.LOCUS_PAST_AXIS);
         ctx.stroke(); ctx.restore();
-        const lp = PV(cpolar(s.Eabs, (motorLike ? -1 : 1) * Math.min(PH.LOCUS_LBL_MAX, s.delta + PH.LOCUS_LBL_LEAD)));
+        const lp = PV(cpolar(s.Eabs, (motorLike ? -1 : 1) * Math.min(PH.LOCUS_LBL_MAX, Math.abs(s.delta) + PH.LOCUS_LBL_LEAD)));
         if (lp.y > PH.LOCUS_LBL_TOP && lp.y < h - PH.LOCUS_LBL_BOTTOM && lp.x < w - PH.LOCUS_LBL_RIGHT)
             labels.push({ str: '|E_A| constant (I_f fixed)', cands: [{ x: lp.x + PH.LOCUS_LBL_DX, y: lp.y + PH.LOCUS_LBL_DY }],
                           o: { size: PH.LOCUS_LBL_SIZE, color: alpha(C.e, PH.LOCUS_LBL_ALPHA), weight: WEIGHT.SEMI }, required: false });
@@ -970,7 +980,7 @@ function drawLoci(ctx, s, g, labels) {
         axisTick(ctx, nl.x, oy, C.e);
         if (Math.abs(nl.x - rt.x) > PH.TICK_LBL_MIN_GAP)
             labels.push({ str: 'no-load V_φ', cands: [{ x: nl.x, y: oy + PH.TICK_LBL_DY }], o: Object.assign({ color: C.e }, o), required: true });
-    } else if (M.mode !== 'cond' && !s.sal) {
+    } else if (modeNow() !== 'cond' && !s.sal) {
         // constant-P loci: the E_A tip moves along a line ⟂ to (R_A + jX_S); the I_A tip along a vertical line
         const L = PH.CONSTP_LEN * M.V, dir = cx(-M.Xs, s.ra), n = cabs(dir), u = cx(dir.re / n, dir.im / n);
         dashed(ctx, PV(cx(s.Ec.re - u.re * L, s.Ec.im - u.im * L)), PV(cx(s.Ec.re + u.re * L, s.Ec.im + u.im * L)), alpha(C.warn, PH.CONSTP_ALPHA), PH.CONSTP_W, PH.CONSTP_DASH);
@@ -1089,7 +1099,7 @@ function drawPhasor(s) {
 
     // ── angle arcs ──
     const aE = carg(s.Ec), aI = hasI ? carg(s.Ia) : 0, sameSide = aE * aI > 0, arcLabels = [];
-    drawAngleArc(ctx, g, Math.min(PH.DELTA_R * s.V * sc, PH.DELTA_R_MAX), aE, aI, sameSide, C.acc, 'δ ' + fAng(s.delta * DEG), arcLabels);
+    drawAngleArc(ctx, g, Math.min(PH.DELTA_R * s.V * sc, PH.DELTA_R_MAX), aE, aI, sameSide, C.acc, 'δ ' + fAng(s.dAng * DEG), arcLabels);
     if (hasI) drawAngleArc(ctx, g, Math.min(PH.THETA_R * s.V * sc, PH.THETA_R_I * s.Iabs * kI * sc, PH.THETA_R_MAX), aI, aE, sameSide, C.mut, 'θ ' + fAng(Math.abs(s.theta) * DEG), arcLabels);
     // ── end angle arcs ──
 
@@ -1193,7 +1203,15 @@ function drawTerminal(s) {
 /* One V-curve: |I_A| against field current at constant P (kW). Points beyond pull-out are null. */
 function vSweep(P) {
     const pts = [], f0 = LIM.IF.min, f1 = LIM.IF.max;
-    for (let k = 0; k <= PLOT.VC_N; k++) { const f = f0 + (f1 - f0) * k / PLOT.VC_N, r = solveWith({ drive: 'exc', ifpu: f, P }); pts.push(r.exceeds ? null : { f, ia: r.Iabs }); }
+    const at = f => { const r = solveWith({ drive: 'exc', ifpu: f, P }); return r.exceeds ? null : { f, ia: r.Iabs }; };
+    for (let k = 0; k <= PLOT.VC_N; k++) pts.push(at(f0 + (f1 - f0) * k / PLOT.VC_N));
+    // the curve really ends at pull-out, between two samples: locate that field and add the end point
+    const k = pts.findIndex((p, i) => p && i > 0 && !pts[i - 1]);
+    if (k > 0) {
+        let lo = f0 + (f1 - f0) * (k - 1) / PLOT.VC_N, hi = pts[k].f;
+        for (let it = 0; it < SOLVER.EDGE_STEPS; it++) { const mid = (lo + hi) * HALF; if (at(mid)) hi = mid; else lo = mid; }
+        pts.splice(k, 0, at(hi));
+    }
     return pts;
 }
 /* The three reference V-curves depend only on the machine, so they are cached until it changes. */
@@ -1208,7 +1226,7 @@ function vFamily() {
 /* V-curve (infinite bus): |I_A| vs I_f at constant P. */
 function drawVCurve(s) {
     const sz = sizeCanvas(sdC); if (!sz) return; const { w, h } = sz, ctx = sdX;
-    const f0 = LIM.IF.min, f1 = LIM.IF.max, cond = M.mode === 'cond', gen = M.mode === 'gen';
+    const f0 = LIM.IF.min, f1 = LIM.IF.max, cond = modeNow() === 'cond', gen = modeNow() === 'gen';
     const main = vSweep(cond ? 0 : Math.abs(s.P3) / W_PER_KW), top = Math.max(PLOT.VC_I_SPAN * M.Imax, s.Iabs * PLOT.VC_I_HEADROOM);
     const b = plotFrame(ctx, w, h, { xmin: f0, xmax: f1, ymin: 0, ymax: top, xlabel: 'field current I_f  (pu)', ylabel: '|I_A|  (A)' });
     if (!b) return;
@@ -1237,9 +1255,9 @@ function drawVCurve(s) {
 /* Capability curve (infinite bus): P horizontal, Q vertical (Chapman's orientation). */
 function drawPQ(s) {
     const sz = sizeCanvas(sdC); if (!sz) return; const { w, h } = sz, ctx = sdX;
-    const X = M.model === 'salient' ? M.Xd : M.Xs, V = M.V, S = ratedVA(M) / W_PER_KW;
+    const X = modelNow() === 'salient' ? M.Xd : M.Xs, V = M.V, S = ratedVA(M) / W_PER_KW;
     const Qc = -PHASES * V * V / X / W_PER_KW, Rf = PHASES * V * ratedE(M) / X / W_PER_KW;
-    const gen = M.mode === 'gen', p = s.P3 / W_PER_KW, q = s.Q3 / W_PER_KW;
+    const gen = modeNow() === 'gen', p = s.P3 / W_PER_KW, q = s.Q3 / W_PER_KW;
     const span = Math.max(PLOT.PQ_SPAN * S, Math.abs(p) * PLOT.PQ_HEADROOM, Math.abs(q) * PLOT.PQ_HEADROOM);
     const bw = w - PLOT.PQ_PAD_W, bh = h - PLOT.PQ_PAD_H;
     if (!(bw > PLOT.MIN_SIZE && bh > PLOT.MIN_SIZE)) { ctx.clearRect(0, 0, w, h); return; }
@@ -1277,9 +1295,9 @@ function ro(label, value, color) {
 /* The readout grid. */
 function readoutsHTML(s, alone) {
     let h = ro('V<sub>φ</sub>', fV(s.V), 'var(--ph-v)') + ro('V<sub>T</sub> (line, Y)', fV(s.V * Math.sqrt(PHASES)), 'var(--ph-v)')
-          + ro('|E<sub>A</sub>|', fV(s.Eabs), 'var(--ph-e)') + ro('δ', (s.gen ? '' : '−') + fAng(s.delta * DEG), 'var(--acc)')
+          + ro('|E<sub>A</sub>|', fV(s.Eabs), 'var(--ph-e)') + ro('δ', fAng(s.dAng * DEG), 'var(--acc)')
           + ro('|I<sub>A</sub>|', fA(s.Iabs), 'var(--ph-i)') + ro('pf', fPf(s))
-          + ro(s.gen ? 'P' : 'P (input)', fP(Math.abs(s.P3), 'W')) + ro('Q', fP(s.Q3, 'VAR'));
+          + ro(s.gen ? 'P (3φ)' : 'P in (electrical)', fP(Math.abs(s.P3), 'W')) + ro(s.gen ? 'Q (3φ)' : 'Q (supplied)', fP(s.Q3, 'VAR'));
     if (alone) {
         const inBand = s.V >= SOLVER.V_BAND_LO * M.V && s.V <= SOLVER.V_BAND_HI * M.V;
         h += ro('V<sub>φ</sub> / rated', (PCT * s.V / M.V).toFixed(DEC.PCT) + ' %', inBand ? 'var(--ok)' : 'var(--warn)');
@@ -1299,10 +1317,12 @@ function updatePill(s, alone) {
         else if (s.lagging) { txt = 'Lagging load · V<sub>φ</sub> ' + (s.V < s.Vnl ? 'below' : 'above') + ' its no-load value'; col = 'var(--ph-r)'; }
         else if (s.leading) { txt = 'Leading load · V<sub>φ</sub> ' + (s.V > s.Vnl ? 'above' : 'below') + ' its no-load value'; col = 'var(--ph-i)'; }
         else txt = 'Unity-pf load · V<sub>φ</sub> slightly below no-load';
-    } else if (s.Q3 > qEps) { txt = 'OVER-EXCITED · supplies Q' + (s.gen ? ' (lagging)' : ' (leading)'); col = 'var(--ph-r)'; }
+    } else if (s.Iabs < SOLVER.I_EPS) txt = 'NO LOAD · I<sub>A</sub> = 0';
+    else if (s.Q3 > qEps) { txt = 'OVER-EXCITED · supplies Q' + (s.gen ? ' (lagging)' : ' (leading)'); col = 'var(--ph-r)'; }
     else if (s.Q3 < -qEps) { txt = 'UNDER-EXCITED · absorbs Q' + (s.gen ? ' (leading)' : ' (lagging)'); col = 'var(--ph-i)'; }
     else txt = 'NORMAL EXCITATION · unity pf';
     if (s.Iabs > M.Imax * SOLVER.RATED_TOL) txt += '<br><span style="color:var(--bad)">⚠ armature current above rated</span>';
+    if (!alone && s.Eabs > ratedE(M) * SOLVER.RATED_TOL) txt += '<br><span style="color:var(--bad)">⚠ field current above rated field limit</span>';
     pill.innerHTML = txt; chipColor(pill, col);
 }
 /* Status badge in the diagram header. */
@@ -1310,9 +1330,11 @@ function updateStatus(s, alone) {
     const st = el('phStatus'); let txt, col = 'var(--mut)';
     if (alone && s.limited) { txt = '⚠ load beyond what this field can supply — V_φ collapses'; col = 'var(--bad)'; }
     else if (s.exceeds) { txt = '⚠ PULL-OUT — P exceeds P_max'; col = 'var(--bad)'; }
+    else if (s.unstable) { txt = '⚠ δ = ' + fAng(s.dAng * DEG) + ' — beyond the stability limit'; col = 'var(--bad)'; }
+    else if (s.floor) { txt = 'set P is below the least input this field allows'; col = 'var(--warn)'; }
     else if (!alone && s.delta * DEG > SOLVER.DELTA_WARN_DEG) { txt = 'δ = ' + (s.delta * DEG).toFixed(DEC.NONE) + '° — near the stability limit'; col = 'var(--warn)'; }
     else {
-        const m = M.mode === 'cond' ? 'CONDENSER' : s.gen ? 'GENERATOR' : 'MOTOR';
+        const m = modeNow() === 'cond' ? 'CONDENSER' : s.gen ? 'GENERATOR' : 'MOTOR';
         txt = m + ' · ' + (alone ? 'alone' : 'infinite bus') + ' · ' + (s.Iabs < SOLVER.I_EPS ? 'no load' : s.lagging ? 'lagging' : s.leading ? 'leading' : 'unity');
     }
     st.textContent = txt; chipColor(st, col);
@@ -1364,9 +1386,8 @@ function syncDrive(alone, cond) {
 
 /* Push the state into every control and label. Does not draw. */
 function syncUI() {
-    const alone = M.system === 'alone';
-    if (alone) { M.mode = 'gen'; M.model = 'round'; }       // normalise first, then derive the flags
-    const cond = M.mode === 'cond', sal = M.model === 'salient';
+    const alone = M.system === 'alone';                     // M.mode and M.model keep the bus choice while alone
+    const mode = modeNow(), cond = mode === 'cond', sal = modelNow() === 'salient';
     if (cond) M.drive = 'exc';
     const load = !alone && M.drive === 'load';
     setActive('#systemBtns', 'system', M.system); setActive('#driveBtns', 'drive', M.drive);
@@ -1385,7 +1406,10 @@ function syncUI() {
     el('raSlider').disabled = raOff; show('raNote', raOff);
     el('raNote').textContent = sal ? 'R_A is neglected in the salient-pole model.' : 'R_A is neglected for the condenser.';
     el('vName').innerHTML = alone ? 'Rated V<sub>φ</sub>' : 'Bus V<sub>φ</sub>';
-    el('pName').textContent = M.mode === 'motor' ? 'Electrical input power P' : 'Real power P';
+    el('pName').textContent = mode === 'motor' ? 'P in (electrical)' : 'Real power P';
+    show('convNote', !alone && mode !== 'gen');
+    const inverse = sal && M.Xq > M.Xd;
+    show('xqNote', inverse);
     show('lgR', effRa(M) > 0); show('lgG', !!UI.ghost);
     el('lgX').innerHTML = '<i style="background:var(--ph-x)"></i>' + (sal ? 'jX<sub>d</sub>I<sub>d</sub> + jX<sub>q</sub>I<sub>q</sub>' : 'jX<sub>S</sub>I<sub>A</sub>');
     el('pinBtn').classList.toggle('on', !!UI.ghost);
@@ -1401,7 +1425,9 @@ function syncUI() {
     el('vOut').textContent = M.V + ' V'; el('xsOut').textContent = M.Xs.toFixed(DEC.OHM) + ' Ω';
     el('xdOut').textContent = M.Xd.toFixed(DEC.OHM) + ' Ω'; el('xqOut').textContent = M.Xq.toFixed(DEC.OHM) + ' Ω';
     el('raOut').textContent = M.Ra.toFixed(DEC.OHM) + ' Ω'; el('imaxOut').textContent = M.Imax + ' A';
-    el('ratingHint').innerHTML = 'Rating: ' + (ratedVA(M) / W_PER_KW).toFixed(DEC.KW) + ' kVA, ' + (M.V * Math.sqrt(PHASES)).toFixed(DEC.NONE) + ' V line (Y). X<sub>S</sub> = ' + (M.Xs * M.Imax / M.V).toFixed(DEC.PU) + ' pu.';
+    el('ratingHint').innerHTML = 'Rating: ' + (ratedVA(M) / W_PER_KW).toFixed(DEC.KW) + ' kVA, ' + (M.V * Math.sqrt(PHASES)).toFixed(DEC.NONE) + ' V line (Y). '
+        + (sal ? 'X<sub>d</sub> = ' + (M.Xd * M.Imax / M.V).toFixed(DEC.PU) + ' pu, X<sub>q</sub> = ' + (M.Xq * M.Imax / M.V).toFixed(DEC.PU) + ' pu.'
+               : 'X<sub>S</sub> = ' + (M.Xs * M.Imax / M.V).toFixed(DEC.PU) + ' pu.');
     show('sideBtns', !alone);
     setActive('#sideBtns', 'side', UI.side);
     el('sideTitle').textContent = alone ? 'Terminal characteristic' : UI.side === 'pq' ? 'Capability curve' : 'V-curve';
@@ -1482,7 +1508,7 @@ const EXPS = [
             'Note the field current you needed. Now drop the load to 0 A <em>without</em> touching the field.',
             'Bring V<sub>φ</sub> back to 277 V again with the field.'],
     predict: 'Predict: what happens to V<sub>φ</sub> when the load is suddenly removed while the field is still raised?',
-    reveal: 'About 1.29 pu of field is needed: a larger |E<sub>A</sub>| circle lets the same jX<sub>S</sub>I<sub>A</sub> drop end on a longer V<sub>φ</sub>. Removing the load makes V<sub>φ</sub> jump to E<sub>A</sub> ≈ 357 V — a 29 % overvoltage — until the field is brought back to 1.00 pu. Adjusting I<sub>f</sub> continuously is how terminal voltage is regulated through load changes.' },
+    reveal: 'About 1.29 pu of field is needed: a larger |E<sub>A</sub>| circle lets the same jX<sub>S</sub>I<sub>A</sub> drop end on a longer V<sub>φ</sub>. Removing the load makes V<sub>φ</sub> jump to E<sub>A</sub>, about 356 V — a 29 % overvoltage — until the field is brought back to 1.00 pu. Adjusting I<sub>f</sub> continuously is how terminal voltage is regulated through load changes.' },
   { title: 'What the machine itself contributes',
     goal: 'See how X<sub>S</sub> and R<sub>A</sub> shape the diagram.',
     set: { system: 'alone', ifpu: 1.0, Iload: 75, theta: PF08_DEG }, pin: true, open: true,
