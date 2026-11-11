@@ -132,7 +132,8 @@ input[type=range]:disabled { opacity: 0.45; cursor: not-allowed; }
 .phasor-panel { flex: 1; }
 .cv-wrap { flex: 1; min-height: 0; position: relative; }
 .cv-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.right { width: 348px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+/* The readout / side-plot column keeps 348 px up to a 1440 px window, then widens with it so the plot is not a tall sliver on large monitors. */
+.right { width: clamp(348px, calc(348px + (100vw - 1440px) * 0.55), 680px); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; flex-shrink: 0; }
 .ro { background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .ro .l { font-size: 0.72rem; color: var(--mut); font-weight: 600; white-space: nowrap; }
