@@ -265,17 +265,19 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <h2>2 · Drawing the diagram</h2>
 <ol>
     <li><strong>V<sub>φ</sub></strong> is the reference, drawn at 0°.</li>
-    <li><strong>I<sub>A</sub></strong> is drawn at the power-factor angle: <em>lagging</em> load → I<sub>A</sub> below V<sub>φ</sub> by θ; <em>leading</em> load → above.</li>
+    <li><strong>I<sub>A</sub></strong> is drawn at the power-factor angle θ, measured from V<sub>φ</sub>: a <em>lagging</em> load puts I<sub>A</sub> below V<sub>φ</sub> (θ negative); a <em>leading</em> load puts it above (θ positive).</li>
     <li><strong>jX<sub>S</sub>I<sub>A</sub></strong> starts at the tip of V<sub>φ</sub> and is <em>perpendicular</em> to I<sub>A</sub> (90° ahead of it). If R<sub>A</sub> is included, R<sub>A</sub>I<sub>A</sub> is added first, <em>parallel</em> to I<sub>A</sub>.</li>
-    <li><strong>E<sub>A</sub></strong> closes the triangle from the origin. The angle from V<sub>φ</sub> up to E<sub>A</sub> is the torque (power) angle <strong>δ</strong>.</li>
+    <li><strong>E<sub>A</sub></strong> closes the triangle from the origin. The angle of E<sub>A</sub> measured from V<sub>φ</sub> is the torque (power) angle <strong>δ</strong>.</li>
 </ol>
+<div class="note"><strong>Angle convention.</strong> V<sub>φ</sub> is the 0° reference. <strong>θ</strong> is the phase angle of I<sub>A</sub> measured from V<sub>φ</sub> (the power-factor angle), and <strong>δ</strong> is the angle of E<sub>A</sub> measured from V<sub>φ</sub>. Both are signed: a lagging current has a negative θ, and a generator has a positive δ.</div>
 <p>In the lab the voltage phasors share one volts scale; I<sub>A</sub> is drawn to its own amps scale so that only its <em>direction</em> and relative length matter.</p>
 
 <h2>3 · Reading power off the diagram</h2>
 <p>Drop a perpendicular from the tip of E<sub>A</sub> onto the V<sub>φ</sub> axis. Because jX<sub>S</sub>I<sub>A</sub> is perpendicular to I<sub>A</sub>, the angle inside that small triangle is θ, so (with R<sub>A</sub> = 0):</p>
-<div class="eq-box"><div class="eq">E<sub>A</sub> sin δ = X<sub>S</sub>I<sub>A</sub> cos θ &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp; E<sub>A</sub> cos δ − V<sub>φ</sub> = X<sub>S</sub>I<sub>A</sub> sin θ</div>
-<div class="eq-note">Vertical side ∝ real current I<sub>A</sub>cos θ. Horizontal side ∝ reactive current I<sub>A</sub>sin θ. Turn on <em>Construction lines</em> in the lab to see both.</div></div>
-<div class="eq-box"><div class="eq">P = 3V<sub>φ</sub>I<sub>A</sub> cos θ = 3V<sub>φ</sub>E<sub>A</sub> sin δ / X<sub>S</sub> &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp; Q = 3V<sub>φ</sub>I<sub>A</sub> sin θ = 3V<sub>φ</sub>(E<sub>A</sub> cos δ − V<sub>φ</sub>) / X<sub>S</sub></div></div>
+<div class="eq-box"><div class="eq">E<sub>A</sub> sin δ = X<sub>S</sub>I<sub>A</sub> cos θ &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp; E<sub>A</sub> cos δ − V<sub>φ</sub> = −X<sub>S</sub>I<sub>A</sub> sin θ</div>
+<div class="eq-note">Vertical side ∝ real current I<sub>A</sub>cos θ. Horizontal side ∝ reactive current −I<sub>A</sub>sin θ, which is positive for a lagging current. Turn on <em>Construction lines</em> in the lab to see both.</div></div>
+<div class="eq-box"><div class="eq">P = 3V<sub>φ</sub>I<sub>A</sub> cos θ = 3V<sub>φ</sub>E<sub>A</sub> sin δ / X<sub>S</sub> &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp; Q = −3V<sub>φ</sub>I<sub>A</sub> sin θ = 3V<sub>φ</sub>(E<sub>A</sub> cos δ − V<sub>φ</sub>) / X<sub>S</sub></div>
+<div class="eq-note">With θ negative for a lagging current, Q is positive: a lagging generator supplies reactive power.</div></div>
 <div class="note"><strong>Careful with “∝ P”.</strong> The height E<sub>A</sub> sin δ is proportional to P only while V<sub>φ</sub> stays constant (infinite bus). When a generator runs alone, V<sub>φ</sub> changes with load, so the height tracks the real <em>current</em> I<sub>A</sub>cos θ — the power is that current times a V<sub>φ</sub> that is itself moving.</div>
 
 <h2>4 · Two operating situations</h2>
@@ -504,7 +506,7 @@ const RATED_PF = 0.8;                                      // rated power factor
 const PF08_DEG = +(Math.acos(RATED_PF) * DEG).toFixed(TWO); // 36.87°: the 0.8-pf quick buttons and experiments
 const DEFAULTS = Object.freeze({
     system: 'alone', mode: 'gen', model: 'round', drive: 'exc',
-    P: 30, ifpu: 1.0, Iload: 40, theta: PF08_DEG,          // theta in degrees, + = lagging
+    P: 30, ifpu: 1.0, Iload: 40, theta: PF08_DEG,          // power-factor control: degrees by which I_A lags (the displayed θ is the angle of I_A, opposite sign)
     V: 277, Xs: 1.5, Xd: 1.5, Xq: 0.9, Ra: 0, Imax: 75
 });
 const UI_DEFAULTS = Object.freeze({ loci: true, cons: true, side: 'vcurve', guideOpen: true });
@@ -723,7 +725,7 @@ function solveSalient(m, E, Pph, gen, cond) {
 /* Derived quantities. P3 and Q3 are the power the machine SUPPLIES (motor: P3 < 0). */
 function pack(Vc, Ec, Ia, gen, ra, sal) {
     const V = Vc.re, Iabs = cabs(Ia);
-    const theta = Iabs > SOLVER.I_EPS ? -carg(Ia) : 0;     // + = I_A lags V_φ
+    const theta = Iabs > SOLVER.I_EPS ? -carg(Ia) : 0;     // lag angle, + = I_A lags V_φ (displayed θ = −theta)
     const sgn = gen ? 1 : -1;
     const Rdrop = cmul(cx(ra, 0), Ia);
     return {
@@ -1011,7 +1013,7 @@ function drawConstruction(ctx, s, g, labels) {
         labels.push({ str: alone ? '∝ real current' : '∝ P', cands: [{ x: tx, y: my + dy }], o: { size: PH.CONS_SIZE, color: C.warn, weight: WEIGHT.HEAVY }, required: true });
     }
     if (wid > PH.CONS_MIN_W && exact)
-        labels.push({ str: 'X_S I_A sin θ ' + (alone ? '' : '∝ Q'), cands: [{ x: (vEnd.x + foot.x) * HALF, y: oy + (motorLike ? -PH.CONS_Q_DY : PH.CONS_Q_DY) }],
+        labels.push({ str: '−X_S I_A sin θ ' + (alone ? '' : '∝ Q'), cands: [{ x: (vEnd.x + foot.x) * HALF, y: oy + (motorLike ? -PH.CONS_Q_DY : PH.CONS_Q_DY) }],
                       o: { size: PH.CONS_Q_SIZE, color: C.body, align: 'center', weight: WEIGHT.SEMI }, required: true });
     if (exact && Math.abs(s.theta) > PH.CONS_MIN_THETA) {
         // extend I_A and back-extend jX_S I_A to where they meet at 90°
@@ -1101,7 +1103,7 @@ function drawPhasor(s) {
     // ── angle arcs ──
     const aE = carg(s.Ec), aI = hasI ? carg(s.Ia) : 0, sameSide = aE * aI > 0, arcLabels = [];
     drawAngleArc(ctx, g, Math.min(PH.DELTA_R * s.V * sc, PH.DELTA_R_MAX), aE, aI, sameSide, C.acc, 'δ ' + fAng(s.dAng * DEG), arcLabels);
-    if (hasI) drawAngleArc(ctx, g, Math.min(PH.THETA_R * s.V * sc, PH.THETA_R_I * s.Iabs * kI * sc, PH.THETA_R_MAX), aI, aE, sameSide, C.mut, 'θ ' + fAng(Math.abs(s.theta) * DEG), arcLabels);
+    if (hasI) drawAngleArc(ctx, g, Math.min(PH.THETA_R * s.V * sc, PH.THETA_R_I * s.Iabs * kI * sc, PH.THETA_R_MAX), aI, aE, sameSide, C.mut, 'θ ' + fAng(aI * DEG), arcLabels);   // θ = angle of I_A from V_φ (negative when lagging)
     // ── end angle arcs ──
 
     // ── phasors ──
@@ -1473,7 +1475,7 @@ const EXPS = [
   { title: 'Build the phasor diagram',
     goal: 'See how V<sub>φ</sub>, I<sub>A</sub>, jX<sub>S</sub>I<sub>A</sub> and E<sub>A</sub> fit together, and where the power-factor angle hides inside the triangle.',
     set: { system: 'alone', ifpu: 1.2, Iload: 50, theta: PF08_DEG }, pin: false,
-    steps: ['Find each phasor: V<sub>φ</sub> at 0°, I<sub>A</sub> lagging it by θ, jX<sub>S</sub>I<sub>A</sub> starting at the tip of V<sub>φ</sub>, and E<sub>A</sub> closing the triangle.',
+    steps: ['Find each phasor: V<sub>φ</sub> at 0°, I<sub>A</sub> at its angle θ (negative here, because it lags), jX<sub>S</sub>I<sub>A</sub> starting at the tip of V<sub>φ</sub>, and E<sub>A</sub> closing the triangle.',
             'Drag <strong>Power factor</strong> slowly from 0.8 lagging through unity to 0.8 leading. Watch the angle between I<sub>A</sub> and jX<sub>S</sub>I<sub>A</sub>.',
             'Return to 0.8 lagging. Using the readouts, calculate X<sub>S</sub>·I<sub>A</sub>·cos θ and compare it with E<sub>A</sub>·sin δ.'],
     predict: 'Before step 2: as I<sub>A</sub> rotates, what must jX<sub>S</sub>I<sub>A</sub> do?',
