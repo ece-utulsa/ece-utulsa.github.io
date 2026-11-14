@@ -3,7 +3,7 @@
   Synchronous Generator Phasor Lab
   Version: v2.1.1
   Released: 2026-11-14
-  Changelog: v2.1.1 — label collisions fixed: the I_A name moves off the V_phi phasor when the two are collinear (unity power factor); the terminal-characteristic labels (curve names, rated V_phi, rated I_A) are placed clear of every curve, the operating point and each other; the V-curve family labels are placed beside their own curves instead of overprinting at the right edge. The Lead / Lag toggle is ordered like the quick buttons and explains itself at unity power factor, where it has nothing to change. No change to the solvers or limits.
+  Changelog: v2.1.1 — label collisions fixed: the I_A name moves off the V_phi phasor when the two are collinear (unity power factor); the terminal-characteristic labels (curve names, rated V_phi, rated I_A) are placed clear of every curve, the operating point and each other; the V-curve family labels are placed beside their own curves instead of overprinting at the right edge. The Lead / Lag toggle is ordered like the quick buttons and is dimmed at unity power factor, where it has nothing to change. No change to the solvers or limits.
   v2.1.0 — homework values: wider limits (V_phi to 10 kV, I_A to 1000 A, X_S to 10 ohm, R_A to 1 ohm, P to 5000 kW), a typed entry box beside every slider (exact, not snapped to the slider step), power-factor entry with Lag / Lead, line-voltage entry (V_phi = V_T / sqrt 3), and a "Set field for rated V_phi" button for the stand-alone generator (given V_phi, I_A and pf, find E_A, delta and regulation). Load-current and power sliders span a multiple of the rating; MW shown to three decimals. Defaults and solvers unchanged.
   v2.0.1 — Fix pass on v2.0.0 (Code Quality, Cybersecurity and Test gates): torque-angle solve covers the whole rising branch (set P honoured with R_A above 0), leading stand-alone loads no longer clamped, red badge beyond the stability limit, signed delta, field-limit and inverse-saliency warnings, three-phase and motor-convention labels; bounded drawing on very small windows, constants block / TOC / closing delimiters, one coalesced render per action, drive switch no longer changes the operating point, R_A neglected consistently for the salient-pole model, analytic pull-out (motor peak beyond 90 degrees), accessibility and contrast fixes, narrow-screen header.
   Owner: Douglas Jussaume, University of Tulsa ECE
@@ -99,6 +99,7 @@ input[type=range]:disabled { opacity: 0.45; cursor: not-allowed; }
 .sl.entry label { flex: 1; }
 .sl.entry .seg { flex: 1; }
 .sl.entry .seg button { padding: 5px 4px; }
+.sl.entry .seg.na button { opacity: 0.45; }
 .num { width: 80px; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; font-weight: 700; color: var(--txt); background: var(--inset);
     border: 1px solid var(--line2); border-radius: 5px; padding: 4px 3px 4px 5px; text-align: right; color-scheme: dark; }
 :root[data-theme="light"] .num { color-scheme: light; }
@@ -380,7 +381,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
         <div class="row" id="thRow"><div class="row-head"><label for="thSlider">Power factor</label><output id="thOut" for="thSlider"></output></div><input type="range" id="thSlider">
             <div class="sl entry"><label for="pfNum" style="flex:0 0 auto">pf</label><input type="number" class="num" id="pfNum" inputmode="decimal" style="width:68px">
                 <div class="seg" id="pfSense"><button data-sense="lead">Lead</button><button data-sense="lag">Lag</button></div></div>
-            <div class="hint" id="pfSenseNote" role="status" style="display:none">At unity power factor the current neither leads nor lags, so <strong>Lead / Lag</strong> changes nothing yet: it applies to the next pf you type. For a quick change use <strong>0.8 lead</strong> or <strong>0.8 lag</strong> below.</div>
             <div class="seg" id="pfQuick" style="margin-top:4px">
                 <button data-pf="lead">0.8 lead</button>
                 <button data-pf="unity">Unity</button>
@@ -1503,7 +1503,8 @@ function syncUI() {
     el('setFieldNote').textContent = needOff ? 'Rated V_φ at this load needs I_f = ' + need.toFixed(DEC.IFPU) + ' pu, outside ' + LIM.IF.min.toFixed(DEC.IFPU) + '–' + LIM.IF.max.toFixed(DEC.IFPU) + ' pu.' : '';
     if (M.theta !== 0) pfLag = M.theta > 0;                 // at unity the last Lag / Lead choice stands
     setActive('#pfSense', 'sense', pfLag ? 'lag' : 'lead');
-    show('pfSenseNote', M.theta === 0);
+    el('pfSense').classList.toggle('na', M.theta === 0);   // dimmed at unity: there is no lead or lag to choose, and nothing moves in the sidebar
+    el('pfSense').title = M.theta === 0 ? 'At unity power factor the current neither leads nor lags. This choice applies to the next pf you type; for a quick change use 0.8 lead or 0.8 lag.' : 'Whether the typed power factor is leading or lagging';
     el('raNum').disabled = raOff;
     el('ilSlider').max = Math.min(LIM.IL.max, SLIDER_SPAN.IL * M.Imax);
     el('pSlider').max = Math.min(LIM.P.max, Math.ceil(SLIDER_SPAN.P * ratedVA(M) / W_PER_KW / SLIDER_SPAN.P_ROUND) * SLIDER_SPAN.P_ROUND);
