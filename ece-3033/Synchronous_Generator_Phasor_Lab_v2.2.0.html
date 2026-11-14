@@ -3,7 +3,7 @@
   Synchronous Generator Phasor Lab
   Version: v2.2.0
   Released: 2026-11-14
-  Changelog: v2.2.0 — sidebar reorganised around how a problem is stated: the Machine parameters card comes first and holds the connection (Y or delta), the rated voltage and current, X_S and R_A; a switch chooses whether voltage and current are entered as line or phase values, and the other is shown beside each; a Full load button sets the load to the rating; "Set field for rated V_phi" becomes a Hold rated V_phi switch, so the field follows the machine, load and power factor and the answer cannot go stale; readouts add the line current and the apparent power. X_S can be entered down to 0.05 ohm. Label collisions fixed: the I_A name moves off the V_phi phasor at unity power factor, and the terminal-characteristic and V-curve labels are placed clear of the curves, the operating point and each other. The Lead / Lag toggle is ordered like the quick buttons and dimmed at unity; the field-out-of-range and drive-switch warnings are tooltips on their greyed-out buttons, so nothing in the sidebar appears or moves. Default machine (Y, 277 V per phase, 75 A) and solvers unchanged.
+  Changelog: v2.2.0 — simplified set-up, organised the way a problem is stated. Machine parameters comes first: connection (Y or delta), a line / phase switch for the voltage and current boxes, rated voltage, full-load current, X_S and R_A. The current is entered once: the load is a percentage of full load. For a generator operating alone a Solve for choice picks the question: E_A (V_phi given, the default, the homework question) or V_phi (field given, used by the guided experiments). The right-hand list is split into Given and Results, so entries can be seen to register. Readouts add line current, apparent power and field current; X_S can be entered down to 0.05 ohm. Label collisions fixed on the phasor diagram, terminal characteristic and V-curve; the Lead / Lag toggle is dimmed at unity; the drive-switch warning is a tooltip, so nothing in the sidebar appears or moves. Default machine (Y, 277 V per phase, 75 A) and solvers unchanged.
   v2.1.0 — homework values: wider limits (V_phi to 10 kV, I_A to 1000 A, X_S to 10 ohm, R_A to 1 ohm, P to 5000 kW), a typed entry box beside every slider (exact, not snapped to the slider step), power-factor entry with Lag / Lead, line-voltage entry (V_phi = V_T / sqrt 3), and a "Set field for rated V_phi" button for the stand-alone generator (given V_phi, I_A and pf, find E_A, delta and regulation). Load-current and power sliders span a multiple of the rating; MW shown to three decimals. Defaults and solvers unchanged.
   v2.0.1 — Fix pass on v2.0.0 (Code Quality, Cybersecurity and Test gates): torque-angle solve covers the whole rising branch (set P honoured with R_A above 0), leading stand-alone loads no longer clamped, red badge beyond the stability limit, signed delta, field-limit and inverse-saliency warnings, three-phase and motor-convention labels; bounded drawing on very small windows, constants block / TOC / closing delimiters, one coalesced render per action, drive switch no longer changes the operating point, R_A neglected consistently for the salient-pole model, analytic pull-out (motor peak beyond 90 degrees), accessibility and contrast fixes, narrow-screen header.
   Owner: Douglas Jussaume, University of Tulsa ECE
@@ -154,10 +154,14 @@ input[type=range]:disabled { opacity: 0.45; cursor: not-allowed; }
 .cv-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* The readout / side-plot column keeps 348 px up to a 1440 px window, then widens with it so the plot is not a tall sliver on large monitors. */
 .right { width: clamp(348px, calc(348px + (100vw - 1440px) * 0.55), 680px); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-.readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; flex-shrink: 0; }
-.ro { background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.readouts { flex-shrink: 0; }
+.ro-g { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.ro-g .ro:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.ro-h { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: var(--acc); margin: 0 2px 3px; }
+.ro-g + .ro-h { margin-top: 7px; }
+.ro { background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; padding: 3px 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .ro .l { font-size: 0.72rem; color: var(--mut); font-weight: 600; white-space: nowrap; }
-.ro .v { font-family: 'JetBrains Mono', monospace; font-size: 0.86rem; font-weight: 800; white-space: nowrap; }
+.ro .v { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 800; white-space: nowrap; }
 .side-panel { flex: 1; min-height: 170px; }
 .side-panel .seg { margin-left: auto; }
 .side-panel .seg button { padding: 4px 8px; font-size: 0.68rem; flex: 0 0 auto; }
@@ -379,7 +383,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
         </div>
         <div class="row"><div class="row-head"><label for="vSlider" id="vName">Rated V<sub>φ</sub></label><output id="vOut" for="vSlider"></output></div><div class="sl"><input type="range" id="vSlider"><input type="number" class="num" id="vNum" inputmode="decimal" aria-label="Rated voltage, volts"></div>
             <div class="hint derived" id="vDerived"></div></div>
-        <div class="row"><div class="row-head"><label for="imaxSlider" id="imaxName">Rated current I<sub>A,max</sub></label><output id="imaxOut" for="imaxSlider"></output></div><div class="sl"><input type="range" id="imaxSlider"><input type="number" class="num" id="imaxNum" inputmode="decimal" aria-label="Rated current, amps"></div><div class="hint derived" id="imaxDerived"></div></div>
+        <div class="row"><div class="row-head"><label for="imaxSlider" id="imaxName">Rated current I<sub>A,max</sub></label><output id="imaxOut" for="imaxSlider"></output></div><div class="sl"><input type="range" id="imaxSlider"><input type="number" class="num" id="imaxNum" inputmode="decimal" aria-label="Full-load current, amps"></div><div class="hint derived" id="imaxDerived"></div></div>
         <div class="row" id="xsRow"><div class="row-head"><label for="xsSlider">Synchronous reactance X<sub>S</sub></label><output id="xsOut" for="xsSlider"></output></div><div class="sl"><input type="range" id="xsSlider"><input type="number" class="num" id="xsNum" inputmode="decimal" aria-label="Synchronous reactance, ohms"></div></div>
         <div class="row" id="xdRow"><div class="row-head"><label for="xdSlider">Direct-axis X<sub>d</sub></label><output id="xdOut" for="xdSlider"></output></div><input type="range" id="xdSlider"></div>
         <div class="row" id="xqRow"><div class="row-head"><label for="xqSlider">Quadrature-axis X<sub>q</sub></label><output id="xqOut" for="xqSlider"></output></div><input type="range" id="xqSlider"><div class="hint" id="xqNote" role="status" style="display:none;color:var(--warn)">⚠ X<sub>q</sub> is above X<sub>d</sub> (inverse saliency). This is unusual for a wound-rotor machine; values are still computed.</div></div>
@@ -412,10 +416,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
             <button data-drive="exc">Set P &amp; I<sub>f</sub></button>
             <button data-drive="load">Set P &amp; pf</button>
         </div>
+        <div id="solveRow"><div class="seg" id="solveBtns" title="Which quantity is given and which the lab finds, for a generator operating alone">
+                <button data-solve="E">Solve for E<sub>A</sub></button>
+                <button data-solve="V">Solve for V<sub>φ</sub></button>
+            </div>
+            <div class="hint" id="solveHint" style="margin:5px 0 10px"></div></div>
         <div class="row" id="pRow"><div class="row-head"><label for="pSlider" id="pName">Real power P</label><output id="pOut" for="pSlider"></output></div><div class="sl"><input type="range" id="pSlider"><input type="number" class="num" id="pNum" inputmode="decimal" aria-label="Real power, kilowatts"></div></div>
-        <div class="row" id="ilRow"><div class="row-head"><label for="ilSlider" id="ilName">Load current |I<sub>A</sub>|</label><output id="ilOut" for="ilSlider"></output></div><div class="sl"><input type="range" id="ilSlider"><input type="number" class="num" id="ilNum" inputmode="decimal" aria-label="Load current, amps"></div>
-            <div class="hint derived" id="ilDerived" style="display:none"></div>
-            <button class="btn slim" id="fullLoadBtn" title="Set the load current to the rated current">Full load (= rated current)</button></div>
+        <div class="row" id="ilRow"><div class="row-head"><label for="ilSlider" id="ilName">Load <small>% of full load</small></label><output id="ilOut" for="ilSlider"></output></div><div class="sl"><input type="range" id="ilSlider"><input type="number" class="num" id="ilNum" inputmode="decimal" aria-label="Load, percent of full-load current"></div>
+</div>
         <div class="row" id="ifRow"><div class="row-head"><label for="ifSlider">Field current I<sub>f</sub></label><output id="ifOut" for="ifSlider"></output></div><div class="sl"><input type="range" id="ifSlider"><input type="number" class="num" id="ifNum" inputmode="decimal" aria-label="Field current, per unit"></div></div>
         <div class="row" id="thRow"><div class="row-head"><label for="thSlider">Power factor</label><output id="thOut" for="thSlider"></output></div><input type="range" id="thSlider">
             <div class="sl entry"><label for="pfNum" style="flex:0 0 auto">pf</label><input type="number" class="num" id="pfNum" inputmode="decimal" style="width:68px">
@@ -426,7 +434,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
                 <button data-pf="lag">0.8 lag</button>
             </div>
         </div>
-        <div id="setFieldRow"><button class="btn" id="setFieldBtn" aria-pressed="false">Hold rated V<sub>φ</sub> (field follows)</button></div>
         <div class="pill" id="excitePill">—</div>
         <div class="hint" id="convNote" style="display:none">Motor convention: I<sub>A</sub> flows into the machine. <strong>P in</strong> is the three-phase electrical power drawn at the terminals. <strong>Q</strong> is the three-phase reactive power supplied to the system (negative = absorbed).</div>
     </div>
@@ -541,15 +548,16 @@ const LIM = Object.freeze({
 /* The typed-entry boxes accept the whole LIM range, exactly (no step). Two sliders cover only a multiple of the
    rating, so that they stay usable on a small machine: load current to 2 × rated, power to 4.8 × rated kVA. */
 const SLIDER_SPAN = Object.freeze({ IL: 2, P: 4.8, P_ROUND: 10 });
+const LOAD_PCT = () => PCT / M.Imax;                       // load box and slider: percent of full load per amp of load current
 const SQRT3 = Math.sqrt(3);                                // line voltage = √3 × phase voltage (Y)
 const RATED_PF = 0.8;                                      // rated power factor (lagging)
 const PF08_DEG = +(Math.acos(RATED_PF) * DEG).toFixed(TWO); // 36.87°: the 0.8-pf quick buttons and experiments
 const DEFAULTS = Object.freeze({
     system: 'alone', mode: 'gen', model: 'round', drive: 'exc',
-    P: 30, ifpu: 1.0, Iload: 40, theta: PF08_DEG,          // power-factor control: degrees by which I_A lags (the displayed θ is the angle of I_A, opposite sign)
+    P: 30, ifpu: 1.0, Iload: 75, theta: PF08_DEG,          // power-factor control: degrees by which I_A lags (the displayed θ is the angle of I_A, opposite sign)
     V: 277, Xs: 1.5, Xd: 1.5, Xq: 0.9, Ra: 0, Imax: 75,   // V, Imax (and Iload) are per-phase values, whatever the connection
     conn: 'Y',                                             // stator connection: 'Y' or 'D' (delta)
-    hold: false                                            // stand-alone only: the field follows the load so that V_φ stays at its rated value
+    hold: true                                             // stand-alone "Solve for": true = V_φ is given (held at its rated value) and E_A is found; false = the field is given and V_φ is found
 });
 const ENTRY_DEFAULT = 'phase';                             // voltage and current boxes take phase values (the experiments are written in them)
 const UI_DEFAULTS = Object.freeze({ loci: true, cons: true, side: 'vcurve', guideOpen: true });
@@ -1022,7 +1030,7 @@ function drawGrid(ctx, w, h, ox, oy, sc) {
 /* Loci: the |E_A| circle, the stand-alone voltage ticks, the constant-P lines. Labels are queued for later. */
 function drawLoci(ctx, s, g, labels) {
     const { w, h, ox, oy, PV, eEnd, iEnd, motorLike, alone } = g;
-    if ((alone || M.drive === 'exc') && !s.sal) {
+    if ((alone ? !M.hold : M.drive === 'exc') && !s.sal) {
         ctx.save(); ctx.strokeStyle = alpha(C.e, PH.LOCUS_ALPHA); ctx.lineWidth = PH.LOCUS_W; ctx.setLineDash(PH.LOCUS_DASH);
         ctx.beginPath();
         if (motorLike) ctx.arc(ox, oy, s.Eabs * g.sc, -PH.LOCUS_PAST_AXIS, PH.LOCUS_SPAN); else ctx.arc(ox, oy, s.Eabs * g.sc, -PH.LOCUS_SPAN, PH.LOCUS_PAST_AXIS);
@@ -1400,20 +1408,30 @@ function ro(label, value, color) {
 }
 /* The readout grid. */
 function readoutsHTML(s, alone) {
-    let h = ro('V<sub>φ</sub>', fV(s.V), 'var(--ph-v)') + ro('V<sub>T</sub> (line, ' + (M.conn === 'Y' ? 'Y' : 'Δ') + ')', fV(s.V * kV()), 'var(--ph-v)')
-          + ro('|E<sub>A</sub>|', fV(s.Eabs), 'var(--ph-e)') + ro('δ', fAng(s.dAng * DEG), 'var(--acc)')
-          + ro('|I<sub>A</sub>| (phase)', fA(s.Iabs), 'var(--ph-i)') + ro('I<sub>L</sub> (line)', fA(s.Iabs * kI()), 'var(--ph-i)')
-          + ro('pf', fPf(s)) + ro('S (3φ)', fP(PHASES * s.V * s.Iabs, 'VA'))
-          + ro(s.gen ? 'P (3φ)' : 'P in (electrical)', fP(Math.abs(s.P3), 'W')) + ro(s.gen ? 'Q (3φ)' : 'Q (supplied)', fP(s.Q3, 'VAR'));
+    const Y = M.conn === 'Y', exc = modeNow() === 'cond' || M.drive === 'exc', ra = effRa(M), ohm = v => fNum(v, DEC.ENTRY);
+    const tV = ro('V<sub>φ</sub>', fV(s.V), 'var(--ph-v)'), tVT = ro('V<sub>T</sub> (line, ' + (Y ? 'Y' : 'Δ') + ')', fV(s.V * kV()), 'var(--ph-v)');
+    const tI = Y ? [ro('|I<sub>A</sub>| = I<sub>L</sub>', fA(s.Iabs), 'var(--ph-i)')]
+                 : [ro('|I<sub>A</sub>| (phase)', fA(s.Iabs), 'var(--ph-i)'), ro('I<sub>L</sub> (line)', fA(s.Iabs * kI()), 'var(--ph-i)')];
+    const tPf = ro('pf', fPf(s)), tIf = ro('Field I<sub>f</sub>', (s.Eabs / M.V).toFixed(DEC.IFPU) + ' pu', 'var(--ph-e)');
+    const tZ = s.sal ? ro('X<sub>d</sub>, X<sub>q</sub>', ohm(M.Xd) + ', ' + ohm(M.Xq) + ' Ω', 'var(--ph-x)')
+                     : ro(ra > 0 ? 'R<sub>A</sub> + jX<sub>S</sub>' : 'X<sub>S</sub>', (ra > 0 ? ohm(ra) + ' + j' : '') + ohm(M.Xs) + ' Ω', 'var(--ph-x)');
+    const tE = ro('|E<sub>A</sub>|', fV(s.Eabs), 'var(--ph-e)'), tD = ro('δ', fAng(s.dAng * DEG), 'var(--acc)');
+    const tP = ro(s.gen ? 'P (3φ)' : 'P in (electrical)', fP(Math.abs(s.P3), 'W')), tQ = ro(s.gen ? 'Q (3φ)' : 'Q (supplied)', fP(s.Q3, 'VAR'));
+    const tS = ro('S (3φ)', fP(PHASES * s.V * s.Iabs, 'VA'));
+    let given, found;
     if (alone) {
         const inBand = s.V >= SOLVER.V_BAND_LO * M.V && s.V <= SOLVER.V_BAND_HI * M.V;
-        h += ro('V<sub>φ</sub> / rated', (PCT * s.V / M.V).toFixed(DEC.PCT) + ' %', inBand ? 'var(--ok)' : 'var(--warn)');
-        h += ro('Regulation', (s.VR >= 0 ? '+' : '') + (s.VR * PCT).toFixed(DEC.PCT) + ' %');
+        const tLoad = ro('Load', fNum(M.Iload * LOAD_PCT(), DEC.PCT) + ' %'), tVR = ro('Regulation', (s.VR >= 0 ? '+' : '') + (s.VR * PCT).toFixed(DEC.PCT) + ' %');
+        const tPct = ro('V<sub>φ</sub> / rated', (PCT * s.V / M.V).toFixed(DEC.PCT) + ' %', inBand ? 'var(--ok)' : 'var(--warn)');
+        // Solve for E_A: the terminal voltage is given. Solve for V_φ: the field is given.
+        given = M.hold ? [tV, tVT].concat(tI, [tPf, tZ, tLoad]) : [tIf].concat(tI, [tPf, tZ, tLoad]);
+        found = M.hold ? [tE, tD, tIf, tVR, tP, tQ, tS] : [tV, tVT, tPct, tVR, tE, tD, tP, tQ, tS];
     } else {
-        h += ro('E<sub>A</sub> cos δ', fV(s.Eabs * Math.cos(s.delta)), 'var(--ph-e)');
-        h += ro('P<sub>max</sub>', s.pmaxPh != null ? fP(PHASES * s.pmaxPh, 'W') : EMPTY);
+        given = [tV, tVT].concat(modeNow() === 'cond' ? [] : [tP], [exc ? tIf : tPf, tZ]);
+        found = [tE, tD].concat(tI, [exc ? tPf : tIf, tQ, tS, ro('E<sub>A</sub> cos δ', fV(s.Eabs * Math.cos(s.delta)), 'var(--ph-e)'),
+                                     ro('P<sub>max</sub>', s.pmaxPh != null ? fP(PHASES * s.pmaxPh, 'W') : EMPTY)]);
     }
-    return h;
+    return '<div class="ro-h">Given</div><div class="ro-g">' + given.join('') + '</div><div class="ro-h">Results</div><div class="ro-g">' + found.join('') + '</div>';
 }
 /* Excitation / load pill under the controls. */
 function updatePill(s, alone) {
@@ -1501,12 +1519,16 @@ function syncUI() {
     setActive('#systemBtns', 'system', M.system); setActive('#driveBtns', 'drive', M.drive);
     setActive('#modeBtns', 'mode', M.mode); setActive('#modelBtns', 'model', M.model);
     el('systemHint').innerHTML = alone
-        ? 'One generator feeding one load. <strong>V<sub>φ</sub> floats</strong> — it is whatever is left of E<sub>A</sub> after the jX<sub>S</sub>I<sub>A</sub> drop.'
+        ? 'One generator feeding one load. Its terminal voltage depends on the field, the load current and the power factor.'
         : 'Paralleled with a large power system. <strong>V<sub>φ</sub> and frequency are fixed</strong>; the governor sets P and the field sets Q.';
-    el('ctrlTitle').textContent = alone ? 'Field and load' : 'Governor and field';
+    el('ctrlTitle').textContent = alone ? 'Operating point' : 'Governor and field';
     show('driveBtns', !alone && !cond);
     show('pRow', !alone && !cond); show('ilRow', alone);
-    show('ifRow', alone || !load); show('thRow', alone || load);
+    show('ifRow', alone ? !M.hold : !load); show('thRow', alone || load);
+    show('solveRow', alone); setActive('#solveBtns', 'solve', M.hold ? 'E' : 'V');
+    el('solveHint').innerHTML = M.hold
+        ? '<strong>Given:</strong> rated V<sub>φ</sub>, the load and its power factor. <strong>Found:</strong> E<sub>A</sub>, δ, the field current and the regulation.'
+        : '<strong>Given:</strong> the field current, the load and its power factor. <strong>Found:</strong> V<sub>φ</sub> — whatever is left of E<sub>A</sub> after the jX<sub>S</sub>I<sub>A</sub> drop.';
     show('xsRow', !sal); show('xdRow', sal); show('xqRow', sal);
     syncDrive(alone, cond);
     document.querySelectorAll('#modeBtns button, #modelBtns button').forEach(b => { b.disabled = alone; });
@@ -1516,13 +1538,9 @@ function syncUI() {
     const line = entryMode === 'line', sv = eV(), si = eI();
     setActive('#connBtns', 'conn', M.conn); setActive('#entryBtns', 'entry', entryMode);
     el('vName').innerHTML = (alone ? 'Rated ' : 'Bus ') + (line ? 'V<sub>T</sub> <small>line</small>' : 'V<sub>φ</sub> <small>phase</small>');
-    el('imaxName').innerHTML = line ? 'Rated line current I<sub>L</sub>' : 'Rated current I<sub>A,max</sub>';
-    el('ilName').innerHTML = line ? 'Load current I<sub>L</sub>' : 'Load current |I<sub>A</sub>|';
+    el('imaxName').innerHTML = line ? 'Full-load line current I<sub>L</sub>' : 'Full-load current I<sub>A</sub>';
     el('vDerived').innerHTML = line ? 'phase V<sub>φ</sub> = ' + fV(M.V) : 'line V<sub>T</sub> = ' + fV(M.V * kV());
     el('imaxDerived').innerHTML = line ? 'phase I<sub>A</sub> = ' + fA(M.Imax) : 'line I<sub>L</sub> = ' + fA(M.Imax * kI());
-    show('ilDerived', M.conn !== 'Y');                      // for Y the line and phase currents are the same number
-    el('ilDerived').innerHTML = line ? 'phase I<sub>A</sub> = ' + fA(M.Iload) : 'line I<sub>L</sub> = ' + fA(M.Iload * kI());
-    el('fullLoadBtn').classList.toggle('on', Math.abs(M.Iload - M.Imax) < SOLVER.I_EPS);
     el('pName').textContent = mode === 'motor' ? 'P in (electrical)' : 'Real power P';
     show('convNote', !alone && mode !== 'gen');
     const inverse = sal && M.Xq > M.Xd;
@@ -1531,20 +1549,6 @@ function syncUI() {
     el('lgX').innerHTML = '<i style="background:var(--ph-x)"></i>' + (sal ? 'jX<sub>d</sub>I<sub>d</sub> + jX<sub>q</sub>I<sub>q</sub>' : 'jX<sub>S</sub>I<sub>A</sub>');
     el('pinBtn').classList.toggle('on', !!UI.ghost);
     el('lociChk').checked = UI.loci; el('consChk').checked = UI.cons;
-    show('setFieldRow', alone);
-    // the button is greyed out when the field it would need is outside the limits; the reason is its tooltip
-    // Hold switch (stand-alone): on = the field is kept at whatever gives rated V_φ, so the answer cannot go stale.
-    // It cannot be switched on while the field it would need is outside the limits; the reason is its tooltip.
-    const need = fieldForRated(M), needOff = alone && !(need >= LIM.IF.min && need <= LIM.IF.max), holding = alone && M.hold;
-    const fieldTip = holding ? 'The field current is being set automatically so that V_φ stays at its rated value as the machine, load and power factor change. Click to release it; the field then stays where it is.'
-        : needOff ? 'Not available at this load: rated V_φ would need I_f = ' + need.toFixed(DEC.IFPU) + ' pu, outside ' + LIM.IF.min.toFixed(DEC.IFPU) + '–' + LIM.IF.max.toFixed(DEC.IFPU) + ' pu.'
-        : 'Keeps V_φ at its rated value: the field current follows the machine, the load and the power factor. Then read E_A, δ and the regulation.';
-    const hb = el('setFieldBtn');
-    hb.disabled = needOff && !holding; hb.classList.toggle('on', holding); hb.setAttribute('aria-pressed', holding);
-    hb.innerHTML = holding ? 'Holding rated V<sub>φ</sub> · field follows' : 'Hold rated V<sub>φ</sub> (field follows)';
-    hb.title = fieldTip; el('setFieldRow').title = fieldTip;
-    el('ifSlider').disabled = holding; el('ifNum').disabled = holding;
-    el('ifRow').title = holding ? 'Set automatically while rated V_φ is being held' : '';
     if (M.theta !== 0) pfLag = M.theta > 0;                 // at unity the last Lag / Lead choice stands
     setActive('#pfSense', 'sense', pfLag ? 'lag' : 'lead');
     el('pfSense').classList.toggle('na', M.theta === 0);   // dimmed at unity: there is no lead or lag to choose, and nothing moves in the sidebar
@@ -1552,14 +1556,14 @@ function syncUI() {
     el('raNum').disabled = raOff;
     const span = (id, lo, hi) => { const r = el(id); r.min = lo; r.max = hi; };   // voltage and current sliders work in the units being entered
     span('vSlider', LIM.V.min * sv, LIM.V.max * sv); span('imaxSlider', LIM.IMAX.min * si, LIM.IMAX.max * si);
-    span('ilSlider', LIM.IL.min * si, Math.min(LIM.IL.max, SLIDER_SPAN.IL * M.Imax) * si);
+    span('ilSlider', 0, PCT * SLIDER_SPAN.IL);              // load: 0 to 200 % of full load
     el('pSlider').max = Math.min(LIM.P.max, Math.ceil(SLIDER_SPAN.P * ratedVA(M) / W_PER_KW / SLIDER_SPAN.P_ROUND) * SLIDER_SPAN.P_ROUND);
     syncEntries(false);
     const set = (id, v) => { el(id).value = v; };          // a slider shows the nearest step; M keeps the exact value
-    set('pSlider', M.P); set('ilSlider', M.Iload * si); set('ifSlider', M.ifpu); set('thSlider', Math.round(M.theta));
+    set('pSlider', M.P); set('ilSlider', M.Iload * LOAD_PCT()); set('ifSlider', M.ifpu); set('thSlider', Math.round(M.theta));
     set('vSlider', M.V * sv); set('xsSlider', M.Xs); set('xdSlider', M.Xd); set('xqSlider', M.Xq); set('raSlider', M.Ra); set('imaxSlider', M.Imax * si);
     el('pOut').textContent = fNum(M.P, DEC.KW) + ' kW';
-    el('ilOut').textContent = fNum(M.Iload * si, DEC.A) + ' A · ' + Math.round(PCT * M.Iload / M.Imax) + '% rated';
+    el('ilOut').textContent = fNum(M.Iload * LOAD_PCT(), DEC.PCT) + ' % · ' + fA(M.Iload * si) + (M.conn === 'Y' ? '' : line ? ' line' : ' phase');
     el('ifOut').textContent = M.ifpu.toFixed(DEC.IFPU) + ' pu';
     el('thOut').textContent = pfText(M.theta);
     document.querySelectorAll('#pfQuick button').forEach(b => b.classList.toggle('active', Math.abs(quickAngle(b) - M.theta) < QUICK_SNAP_DEG));
@@ -1579,14 +1583,16 @@ let pfLag = true;                          // Lag / Lead choice of the pf entry 
 const ONE = () => 1;
 const ENTRIES = [
     ['pNum', LIM.P, () => M.P, v => { M.P = v; }, DEC.ENTRY, ONE],
-    ['ilNum', LIM.IL, () => M.Iload, v => { M.Iload = v; }, DEC.ENTRY, eI],
+    ['ilNum', LIM.IL, () => M.Iload, v => { M.Iload = v; }, DEC.PCT, LOAD_PCT],                 // shown as percent of full load
     ['ifNum', LIM.IF, () => M.ifpu, v => { M.ifpu = v; }, DEC.ENTRY, ONE],
     ['vNum', LIM.V, () => M.V, v => { M.V = v; }, DEC.ENTRY, eV],
     ['xsNum', LIM.XS, () => M.Xs, v => { M.Xs = v; }, DEC.ENTRY, ONE],
     ['raNum', LIM.RA, () => M.Ra, v => { M.Ra = v; }, DEC.ENTRY, ONE],
-    ['imaxNum', LIM.IMAX, () => M.Imax, v => { M.Imax = v; }, DEC.ENTRY, eI],
+    ['imaxNum', LIM.IMAX, () => M.Imax, setFullLoad, DEC.ENTRY, eI],
     ['pfNum', { min: SOLVER.PF_FLOOR, max: 1 }, () => Math.cos(M.theta / DEG), v => { M.theta = (pfLag ? 1 : -1) * Math.acos(v) * DEG || 0; }, DEC.ENTRY_PF, ONE]
 ];
+/* Change the full-load current. The load keeps its percentage, so the current is entered once. */
+function setFullLoad(v) { const f = M.Iload / M.Imax; M.Imax = v; M.Iload = clamp(f * v, LIM.IL.min, LIM.IL.max); }
 /* Write the state into the entry boxes. The box being typed in is left alone unless force is set. */
 function syncEntries(force) {
     for (const [id, lim, get, , dec, scale] of ENTRIES) {
@@ -1645,17 +1651,17 @@ const EXPS = [
     reveal: 'jX<sub>S</sub>I<sub>A</sub> is always 90° ahead of I<sub>A</sub>, so it rotates with it — the dashed construction lines always meet at a right angle. The two products are equal (60 V here): the height of the E<sub>A</sub> tip above the V<sub>φ</sub> axis is X<sub>S</sub>I<sub>A</sub>cos θ, so it measures the real part of the current.' },
   { title: 'Add a lagging load — Case 1',
     goal: 'Field current constant, power factor constant at 0.8 lagging, load current increasing.',
-    set: { system: 'alone', ifpu: 1.0, Iload: 5, theta: PF08_DEG }, pin: true,
-    steps: ['The dashed diagram is the light-load starting point. Drag <strong>Load current</strong> from 5 A up to 75 A (rated).',
+    set: { system: 'alone', ifpu: 1.0, Iload: 7.5, theta: PF08_DEG }, pin: true,
+    steps: ['The dashed diagram is the light-load starting point. Drag <strong>Load</strong> from 10 % up to 100 % (75 A, full load).',
             'Watch the tip of E<sub>A</sub>: it can only move along the dotted circle, because I<sub>f</sub> has not changed.',
-            'Record V<sub>φ</sub> at 25 A, 50 A and 75 A. The red curve on the right is the same story as a graph.'],
+            'Record V<sub>φ</sub> at 33 %, 67 % and 100 % load (25 A, 50 A and 75 A). The red curve on the right is the same story as a graph.'],
     predict: 'Predict: will V<sub>φ</sub> rise, fall or stay the same — and by roughly how much at rated current?',
     reveal: 'jX<sub>S</sub>I<sub>A</sub> grows in a fixed direction, δ increases, and V<sub>φ</sub> falls sharply: about 253 V, 225 V and 195 V (from 277 V at no load). A lagging load pulls the terminal voltage down hard — at rated current this machine has lost about 30 % of its voltage.' },
   { title: 'Unity and leading loads',
     goal: 'Repeat Case 1 with a resistive load and with a capacitive load.',
-    set: { system: 'alone', ifpu: 1.0, Iload: 5, theta: 0 }, pin: true,
-    steps: ['At <strong>unity</strong> power factor, drag Load current from 5 A to 75 A and note V<sub>φ</sub> at 75 A.',
-            'Press <strong>0.8 lead</strong>, return the load to 5 A, then drag it up to 75 A again.',
+    set: { system: 'alone', ifpu: 1.0, Iload: 7.5, theta: 0 }, pin: true,
+    steps: ['At <strong>unity</strong> power factor, drag <strong>Load</strong> from 10 % to 100 % and note V<sub>φ</sub> at full load (75 A).',
+            'Press <strong>0.8 lead</strong>, return the load to 10 %, then drag it up to 100 % again.',
             'Compare the three curves in the Terminal characteristic plot.'],
     predict: 'Predict: which way does V<sub>φ</sub> move for a leading load? Why should the direction of jX<sub>S</sub>I<sub>A</sub> matter?',
     reveal: 'Unity: jX<sub>S</sub>I<sub>A</sub> is vertical, so V<sub>φ</sub> only drops a little (≈ 253 V at 75 A). Leading: jX<sub>S</sub>I<sub>A</sub> tilts back toward the origin, so V<sub>φ</sub> must grow to keep E<sub>A</sub> on its circle (≈ 330 V at 75 A). A leading load raises the terminal voltage.' },
@@ -1671,7 +1677,7 @@ const EXPS = [
     goal: 'Use the field current to hold the terminal voltage at its rated 277 V while the load changes.',
     set: { system: 'alone', ifpu: 1.0, Iload: 75, theta: PF08_DEG }, pin: true,
     steps: ['V<sub>φ</sub> has sagged to about 195 V. Raise <strong>Field current</strong> until the V<sub>φ</sub> / rated readout returns to 100 %.',
-            'Note the field current you needed. Now drop the load to 0 A <em>without</em> touching the field.',
+            'Note the field current you needed. Now drop the load to 0 % <em>without</em> touching the field.',
             'Bring V<sub>φ</sub> back to 277 V again with the field.'],
     predict: 'Predict: what happens to V<sub>φ</sub> when the load is suddenly removed while the field is still raised?',
     reveal: 'About 1.29 pu of field is needed: a larger |E<sub>A</sub>| circle lets the same jX<sub>S</sub>I<sub>A</sub> drop end on a longer V<sub>φ</sub>. Removing the load makes V<sub>φ</sub> jump to E<sub>A</sub>, about 356 V — a 29 % overvoltage — until the field is brought back to 1.00 pu. Adjusting I<sub>f</sub> continuously is how terminal voltage is regulated through load changes.' },
@@ -1760,7 +1766,7 @@ function resetView() { Object.assign(UI, UI_DEFAULTS); UI.view = null; UI.ghost 
 /* Load experiment i into the lab: starting state, pinned reference, guide. One render. */
 function openExp(i) {
     const e = EXP_LIST[i]; if (!e) return;
-    Object.assign(M, DEFAULTS, e.set);
+    Object.assign(M, DEFAULTS, { hold: false }, e.set);   // the stand-alone experiments are about V_φ at a fixed field
     resetView(); UI.exp = i;
     if (e.side) UI.side = e.side;
     el('paramCard').open = !!e.open;
@@ -1844,15 +1850,15 @@ function init() {
     bindSeg('#pfQuick', 'pf', (v, b) => { M.theta = quickAngle(b); });
     bindSeg('#sideBtns', 'side', v => { UI.side = v; });
     bindSeg('#connBtns', 'conn', setConnection);
+    bindSeg('#solveBtns', 'solve', v => { M.hold = v === 'E'; UI.view = null; });
     bindSeg('#entryBtns', 'entry', v => { entryMode = v; });
     bindSeg('#pfSense', 'sense', v => { pfLag = v === 'lag'; M.theta = (pfLag ? 1 : -1) * Math.abs(M.theta) || 0; });
 
-    bindSlider('pSlider', 'P', LIM.P); bindSlider('ilSlider', 'Iload', LIM.IL, eI); bindSlider('ifSlider', 'ifpu', LIM.IF); bindSlider('thSlider', 'theta', LIM.TH);
+    bindSlider('pSlider', 'P', LIM.P); bindSlider('ilSlider', 'Iload', LIM.IL, LOAD_PCT); bindSlider('ifSlider', 'ifpu', LIM.IF); bindSlider('thSlider', 'theta', LIM.TH);
     bindSlider('vSlider', 'V', LIM.V, eV); bindSlider('xsSlider', 'Xs', LIM.XS); bindSlider('xdSlider', 'Xd', LIM.XD); bindSlider('xqSlider', 'Xq', LIM.XQ);
     bindSlider('raSlider', 'Ra', LIM.RA); bindSlider('imaxSlider', 'Imax', LIM.IMAX, eI);
     bindEntries();
-    el('fullLoadBtn').onclick = () => { M.Iload = clamp(M.Imax, LIM.IL.min, LIM.IL.max); refresh(); };
-    el('setFieldBtn').onclick = () => { M.hold = !M.hold; refresh(); };
+    el('imaxSlider').oninput = function () { setFullLoad(clamp(+this.value / eI(), LIM.IMAX.min, LIM.IMAX.max)); refresh(); };
 
     el('pinBtn').onclick = () => { UI.ghost = snapshot(solve(M)); refresh(); };
     el('unpinBtn').onclick = () => { UI.ghost = null; refresh(); };
