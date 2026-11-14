@@ -3,7 +3,7 @@
   Synchronous Generator Phasor Lab
   Version: v2.2.0
   Released: 2026-11-14
-  Changelog: v2.2.0 — sidebar reorganised around how a problem is stated: the Machine parameters card comes first and holds the connection (Y or delta), the rated voltage and current, X_S and R_A; a switch chooses whether voltage and current are entered as line or phase values, and the other is shown beside each; a Full load button sets the load to the rating; readouts add the line current and the apparent power. X_S can be entered down to 0.05 ohm. Label collisions fixed: the I_A name moves off the V_phi phasor at unity power factor, and the terminal-characteristic and V-curve labels are placed clear of the curves, the operating point and each other. The Lead / Lag toggle is ordered like the quick buttons and dimmed at unity; the field-out-of-range and drive-switch warnings are tooltips on their greyed-out buttons, so nothing in the sidebar appears or moves. Default machine (Y, 277 V per phase, 75 A) and solvers unchanged.
+  Changelog: v2.2.0 — sidebar reorganised around how a problem is stated: the Machine parameters card comes first and holds the connection (Y or delta), the rated voltage and current, X_S and R_A; a switch chooses whether voltage and current are entered as line or phase values, and the other is shown beside each; a Full load button sets the load to the rating; "Set field for rated V_phi" becomes a Hold rated V_phi switch, so the field follows the machine, load and power factor and the answer cannot go stale; readouts add the line current and the apparent power. X_S can be entered down to 0.05 ohm. Label collisions fixed: the I_A name moves off the V_phi phasor at unity power factor, and the terminal-characteristic and V-curve labels are placed clear of the curves, the operating point and each other. The Lead / Lag toggle is ordered like the quick buttons and dimmed at unity; the field-out-of-range and drive-switch warnings are tooltips on their greyed-out buttons, so nothing in the sidebar appears or moves. Default machine (Y, 277 V per phase, 75 A) and solvers unchanged.
   v2.1.0 — homework values: wider limits (V_phi to 10 kV, I_A to 1000 A, X_S to 10 ohm, R_A to 1 ohm, P to 5000 kW), a typed entry box beside every slider (exact, not snapped to the slider step), power-factor entry with Lag / Lead, line-voltage entry (V_phi = V_T / sqrt 3), and a "Set field for rated V_phi" button for the stand-alone generator (given V_phi, I_A and pf, find E_A, delta and regulation). Load-current and power sliders span a multiple of the rating; MW shown to three decimals. Defaults and solvers unchanged.
   v2.0.1 — Fix pass on v2.0.0 (Code Quality, Cybersecurity and Test gates): torque-angle solve covers the whole rising branch (set P honoured with R_A above 0), leading stand-alone loads no longer clamped, red badge beyond the stability limit, signed delta, field-limit and inverse-saliency warnings, three-phase and motor-convention labels; bounded drawing on very small windows, constants block / TOC / closing delimiters, one coalesced render per action, drive switch no longer changes the operating point, R_A neglected consistently for the salient-pole model, analytic pull-out (motor peak beyond 90 degrees), accessibility and contrast fixes, narrow-screen header.
   Owner: Douglas Jussaume, University of Tulsa ECE
@@ -426,7 +426,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
                 <button data-pf="lag">0.8 lag</button>
             </div>
         </div>
-        <div id="setFieldRow"><button class="btn" id="setFieldBtn">Set field for rated V<sub>φ</sub></button></div>
+        <div id="setFieldRow"><button class="btn" id="setFieldBtn" aria-pressed="false">Hold rated V<sub>φ</sub> (field follows)</button></div>
         <div class="pill" id="excitePill">—</div>
         <div class="hint" id="convNote" style="display:none">Motor convention: I<sub>A</sub> flows into the machine. <strong>P in</strong> is the three-phase electrical power drawn at the terminals. <strong>Q</strong> is the three-phase reactive power supplied to the system (negative = absorbed).</div>
     </div>
@@ -548,7 +548,8 @@ const DEFAULTS = Object.freeze({
     system: 'alone', mode: 'gen', model: 'round', drive: 'exc',
     P: 30, ifpu: 1.0, Iload: 40, theta: PF08_DEG,          // power-factor control: degrees by which I_A lags (the displayed θ is the angle of I_A, opposite sign)
     V: 277, Xs: 1.5, Xd: 1.5, Xq: 0.9, Ra: 0, Imax: 75,   // V, Imax (and Iload) are per-phase values, whatever the connection
-    conn: 'Y'                                              // stator connection: 'Y' or 'D' (delta)
+    conn: 'Y',                                             // stator connection: 'Y' or 'D' (delta)
+    hold: false                                            // stand-alone only: the field follows the load so that V_φ stays at its rated value
 });
 const ENTRY_DEFAULT = 'phase';                             // voltage and current boxes take phase values (the experiments are written in them)
 const UI_DEFAULTS = Object.freeze({ loci: true, cons: true, side: 'vcurve', guideOpen: true });
@@ -1435,6 +1436,7 @@ function updatePill(s, alone) {
 function updateStatus(s, alone) {
     const st = el('phStatus'); let txt, col = 'var(--mut)';
     if (alone && s.limited) { txt = '⚠ load beyond what this field can supply — V_φ collapses'; col = 'var(--bad)'; }
+    else if (alone && M.hold && !(fieldForRated(M) <= LIM.IF.max && fieldForRated(M) >= LIM.IF.min)) { txt = '⚠ field at its limit — rated V_φ needs I_f = ' + fieldForRated(M).toFixed(DEC.IFPU) + ' pu'; col = 'var(--warn)'; }
     else if (s.exceeds) { txt = '⚠ PULL-OUT — P exceeds P_max'; col = 'var(--bad)'; }
     else if (s.unstable) { txt = '⚠ δ = ' + fAng(s.dAng * DEG) + ' — beyond the stability limit'; col = 'var(--bad)'; }
     else if (s.floor) { txt = 'set P is below the least input this field allows'; col = 'var(--warn)'; }
@@ -1531,10 +1533,18 @@ function syncUI() {
     el('lociChk').checked = UI.loci; el('consChk').checked = UI.cons;
     show('setFieldRow', alone);
     // the button is greyed out when the field it would need is outside the limits; the reason is its tooltip
-    const need = fieldForRated(M), needOff = alone && !(need >= LIM.IF.min && need <= LIM.IF.max);
-    const fieldTip = needOff ? 'Not available at this load: rated V_φ would need I_f = ' + need.toFixed(DEC.IFPU) + ' pu, outside ' + LIM.IF.min.toFixed(DEC.IFPU) + '–' + LIM.IF.max.toFixed(DEC.IFPU) + ' pu.'
-        : 'With V_φ, |I_A| and the power factor entered, sets the field so the terminal voltage is the rated V_φ. Then read E_A, δ and the regulation.';
-    el('setFieldBtn').disabled = needOff; el('setFieldBtn').title = fieldTip; el('setFieldRow').title = fieldTip;
+    // Hold switch (stand-alone): on = the field is kept at whatever gives rated V_φ, so the answer cannot go stale.
+    // It cannot be switched on while the field it would need is outside the limits; the reason is its tooltip.
+    const need = fieldForRated(M), needOff = alone && !(need >= LIM.IF.min && need <= LIM.IF.max), holding = alone && M.hold;
+    const fieldTip = holding ? 'The field current is being set automatically so that V_φ stays at its rated value as the machine, load and power factor change. Click to release it; the field then stays where it is.'
+        : needOff ? 'Not available at this load: rated V_φ would need I_f = ' + need.toFixed(DEC.IFPU) + ' pu, outside ' + LIM.IF.min.toFixed(DEC.IFPU) + '–' + LIM.IF.max.toFixed(DEC.IFPU) + ' pu.'
+        : 'Keeps V_φ at its rated value: the field current follows the machine, the load and the power factor. Then read E_A, δ and the regulation.';
+    const hb = el('setFieldBtn');
+    hb.disabled = needOff && !holding; hb.classList.toggle('on', holding); hb.setAttribute('aria-pressed', holding);
+    hb.innerHTML = holding ? 'Holding rated V<sub>φ</sub> · field follows' : 'Hold rated V<sub>φ</sub> (field follows)';
+    hb.title = fieldTip; el('setFieldRow').title = fieldTip;
+    el('ifSlider').disabled = holding; el('ifNum').disabled = holding;
+    el('ifRow').title = holding ? 'Set automatically while rated V_φ is being held' : '';
     if (M.theta !== 0) pfLag = M.theta > 0;                 // at unity the last Lag / Lead choice stands
     setActive('#pfSense', 'sense', pfLag ? 'lag' : 'lead');
     el('pfSense').classList.toggle('na', M.theta === 0);   // dimmed at unity: there is no lead or lag to choose, and nothing moves in the sidebar
@@ -1605,7 +1615,10 @@ function scheduleRender(frames) {
 }
 /* State changed: update controls and text readouts now (so the layout settles before the frame), solve once,
    and repaint the canvases on the next frame. */
-function refresh(frames) { syncUI(); SOL = solve(M); updateReadouts(SOL); scheduleRender(frames); }
+function refresh(frames) {
+    if (M.system === 'alone' && M.hold) M.ifpu = clamp(fieldForRated(M), LIM.IF.min, LIM.IF.max);   // hold switch: the field follows
+    syncUI(); SOL = solve(M); updateReadouts(SOL); scheduleRender(frames);
+}
 /* Has this canvas changed size since it was last drawn? */
 function resized(c) { const r = c.getBoundingClientRect(); return Math.round(r.width) !== c.drawnW || Math.round(r.height) !== c.drawnH; }
 
@@ -1839,7 +1852,7 @@ function init() {
     bindSlider('raSlider', 'Ra', LIM.RA); bindSlider('imaxSlider', 'Imax', LIM.IMAX, eI);
     bindEntries();
     el('fullLoadBtn').onclick = () => { M.Iload = clamp(M.Imax, LIM.IL.min, LIM.IL.max); refresh(); };
-    el('setFieldBtn').onclick = () => { M.ifpu = clamp(fieldForRated(M), LIM.IF.min, LIM.IF.max); refresh(); };
+    el('setFieldBtn').onclick = () => { M.hold = !M.hold; refresh(); };
 
     el('pinBtn').onclick = () => { UI.ghost = snapshot(solve(M)); refresh(); };
     el('unpinBtn').onclick = () => { UI.ghost = null; refresh(); };
