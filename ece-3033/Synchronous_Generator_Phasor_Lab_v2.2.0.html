@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   Synchronous Generator Phasor Lab
-  Version: v2.1.1
+  Version: v2.2.0
   Released: 2026-11-14
-  Changelog: v2.1.1 — label collisions fixed: the I_A name moves off the V_phi phasor when the two are collinear (unity power factor); the terminal-characteristic labels (curve names, rated V_phi, rated I_A) are placed clear of every curve, the operating point and each other; the V-curve family labels are placed beside their own curves instead of overprinting at the right edge. The Lead / Lag toggle is ordered like the quick buttons and is dimmed at unity power factor, where it has nothing to change. The field-out-of-range and drive-switch warnings are tooltips on their greyed-out buttons, so nothing in the sidebar appears or moves. No change to the solvers or limits.
+  Changelog: v2.2.0 — sidebar reorganised around how a problem is stated: the Machine parameters card comes first and holds the connection (Y or delta), the rated voltage and current, X_S and R_A; a switch chooses whether voltage and current are entered as line or phase values, and the other is shown beside each; a Full load button sets the load to the rating; readouts add the line current and the apparent power. X_S can be entered down to 0.05 ohm. Label collisions fixed: the I_A name moves off the V_phi phasor at unity power factor, and the terminal-characteristic and V-curve labels are placed clear of the curves, the operating point and each other. The Lead / Lag toggle is ordered like the quick buttons and dimmed at unity; the field-out-of-range and drive-switch warnings are tooltips on their greyed-out buttons, so nothing in the sidebar appears or moves. Default machine (Y, 277 V per phase, 75 A) and solvers unchanged.
   v2.1.0 — homework values: wider limits (V_phi to 10 kV, I_A to 1000 A, X_S to 10 ohm, R_A to 1 ohm, P to 5000 kW), a typed entry box beside every slider (exact, not snapped to the slider step), power-factor entry with Lag / Lead, line-voltage entry (V_phi = V_T / sqrt 3), and a "Set field for rated V_phi" button for the stand-alone generator (given V_phi, I_A and pf, find E_A, delta and regulation). Load-current and power sliders span a multiple of the rating; MW shown to three decimals. Defaults and solvers unchanged.
   v2.0.1 — Fix pass on v2.0.0 (Code Quality, Cybersecurity and Test gates): torque-angle solve covers the whole rising branch (set P honoured with R_A above 0), leading stand-alone loads no longer clamped, red badge beyond the stability limit, signed delta, field-limit and inverse-saliency warnings, three-phase and motor-convention labels; bounded drawing on very small windows, constants block / TOC / closing delimiters, one coalesced render per action, drive switch no longer changes the operating point, R_A neglected consistently for the salient-pole model, analytic pull-out (motor peak beyond 90 degrees), accessibility and contrast fixes, narrow-screen header.
   Owner: Douglas Jussaume, University of Tulsa ECE
@@ -113,6 +113,9 @@ input[type=range]:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn { width: 100%; font-size: 0.74rem; font-weight: 700; padding: 8px 6px; border: 1px solid var(--line2); border-radius: 6px; cursor: pointer; background: var(--inset); color: var(--body); }
 .btn:hover { border-color: var(--acc); color: var(--acc); }
 .btn.on { border-color: var(--acc); color: var(--acc); background: var(--acc-soft); }
+.btn.slim { margin-top: 5px; padding: 5px 6px; }
+.hint.derived { margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
+.row-head label small { color: var(--mut); font-size: 0.86em; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--line2); color: var(--body); }
 .chk { display: flex; align-items: center; gap: 7px; font-size: 0.76rem; color: var(--body); margin-top: 7px; cursor: pointer; }
 .chk input { accent-color: var(--acc); width: 15px; height: 15px; }
@@ -231,7 +234,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <body>
 
 <div class="topnav">
-    <div class="brand"><i></i>Synchronous Generator Phasor Lab <small>ECE-3033 · v2.1.1</small></div>
+    <div class="brand"><i></i>Synchronous Generator Phasor Lab <small>ECE-3033 · v2.2.0</small></div>
     <div class="nav-right">
         <div class="tabs" id="pageTabs">
             <button class="active" data-page="theoryPage">Theory</button>
@@ -278,6 +281,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <div class="eq-box"><div class="eq">E<sub>A</sub> = V<sub>φ</sub> + R<sub>A</sub>I<sub>A</sub> + jX<sub>S</sub>I<sub>A</sub></div>
 <div class="eq-note">The lecture neglects R<sub>A</sub> (it is much smaller than X<sub>S</sub>), giving V<sub>φ</sub> = E<sub>A</sub> − jX<sub>S</sub>I<sub>A</sub>. The lab starts with R<sub>A</sub> = 0 for the same reason — you can switch it on under <em>Machine parameters</em>.</div></div>
 <p><strong>|E<sub>A</sub>| = KΦω.</strong> At constant speed, the magnitude of E<sub>A</sub> is set only by the field current: more I<sub>f</sub> → more flux → larger |E<sub>A</sub>|. The lab uses a linear magnetization curve in which I<sub>f</sub> = 1.00 pu gives |E<sub>A</sub>| equal to rated V<sub>φ</sub>. (A real machine saturates, so E<sub>A</sub> grows more slowly than I<sub>f</sub> at high excitation.)</p>
+
+<div class="note"><strong>Y or Δ.</strong> Everything on the phasor diagram is a <em>per-phase</em> quantity. For a Y-connected machine V<sub>φ</sub> = V<sub>T</sub>/√3 and I<sub>A</sub> = I<sub>L</sub>; for a Δ-connected machine V<sub>φ</sub> = V<sub>T</sub> and I<sub>A</sub> = I<sub>L</sub>/√3. X<sub>S</sub> and R<sub>A</sub> are per-phase values in both cases. In the lab, choose the connection, and whether you enter line or phase values, under <em>Machine parameters</em>.</div>
 
 <h2>2 · Drawing the diagram</h2>
 <ol>
@@ -362,6 +367,38 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <div class="page" id="labPage">
 <div class="lab">
 <div class="sidebar">
+    <details class="card" id="paramCard" open><summary>Machine parameters</summary>
+        <div class="seg" id="connBtns" style="margin-bottom:5px" title="How the three stator windings are connected to the terminals">
+            <button data-conn="Y">Y-connected</button>
+            <button data-conn="D">Δ-connected</button>
+        </div>
+        <div class="hint" style="margin:0 0 4px">Voltage and current are entered as</div>
+        <div class="seg" id="entryBtns" style="margin-bottom:10px" title="Whether the voltage and current boxes take line (terminal) values or per-phase values. The other is shown beside each.">
+            <button data-entry="line">Line values</button>
+            <button data-entry="phase">Phase values</button>
+        </div>
+        <div class="row"><div class="row-head"><label for="vSlider" id="vName">Rated V<sub>φ</sub></label><output id="vOut" for="vSlider"></output></div><div class="sl"><input type="range" id="vSlider"><input type="number" class="num" id="vNum" inputmode="decimal" aria-label="Rated voltage, volts"></div>
+            <div class="hint derived" id="vDerived"></div></div>
+        <div class="row"><div class="row-head"><label for="imaxSlider" id="imaxName">Rated current I<sub>A,max</sub></label><output id="imaxOut" for="imaxSlider"></output></div><div class="sl"><input type="range" id="imaxSlider"><input type="number" class="num" id="imaxNum" inputmode="decimal" aria-label="Rated current, amps"></div><div class="hint derived" id="imaxDerived"></div></div>
+        <div class="row" id="xsRow"><div class="row-head"><label for="xsSlider">Synchronous reactance X<sub>S</sub></label><output id="xsOut" for="xsSlider"></output></div><div class="sl"><input type="range" id="xsSlider"><input type="number" class="num" id="xsNum" inputmode="decimal" aria-label="Synchronous reactance, ohms"></div></div>
+        <div class="row" id="xdRow"><div class="row-head"><label for="xdSlider">Direct-axis X<sub>d</sub></label><output id="xdOut" for="xdSlider"></output></div><input type="range" id="xdSlider"></div>
+        <div class="row" id="xqRow"><div class="row-head"><label for="xqSlider">Quadrature-axis X<sub>q</sub></label><output id="xqOut" for="xqSlider"></output></div><input type="range" id="xqSlider"><div class="hint" id="xqNote" role="status" style="display:none;color:var(--warn)">⚠ X<sub>q</sub> is above X<sub>d</sub> (inverse saliency). This is unusual for a wound-rotor machine; values are still computed.</div></div>
+        <div class="row"><div class="row-head"><label for="raSlider">Armature resistance R<sub>A</sub></label><output id="raOut" for="raSlider"></output></div><div class="sl"><input type="range" id="raSlider"><input type="number" class="num" id="raNum" inputmode="decimal" aria-label="Armature resistance, ohms"></div><div class="hint" id="raNote" style="display:none"></div></div>
+        <div class="hint" id="ratingHint"></div>
+        <details style="margin-top:10px"><summary style="cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--mut)">Beyond this course</summary>
+            <div class="hint" style="margin-bottom:6px">Motor, condenser and salient-pole views need the infinite bus.</div>
+            <div class="seg" id="modeBtns" style="margin-bottom:5px">
+                <button data-mode="gen">Generator</button>
+                <button data-mode="motor">Motor</button>
+                <button data-mode="cond">Condenser</button>
+            </div>
+            <div class="seg" id="modelBtns">
+                <button data-model="round">Round rotor</button>
+                <button data-model="salient">Salient pole</button>
+            </div>
+        </details>
+    </details>
+
     <div class="card"><h3>Generator is connected…</h3>
         <div class="seg" id="systemBtns">
             <button data-system="alone">Alone</button>
@@ -376,7 +413,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
             <button data-drive="load">Set P &amp; pf</button>
         </div>
         <div class="row" id="pRow"><div class="row-head"><label for="pSlider" id="pName">Real power P</label><output id="pOut" for="pSlider"></output></div><div class="sl"><input type="range" id="pSlider"><input type="number" class="num" id="pNum" inputmode="decimal" aria-label="Real power, kilowatts"></div></div>
-        <div class="row" id="ilRow"><div class="row-head"><label for="ilSlider">Load current |I<sub>A</sub>|</label><output id="ilOut" for="ilSlider"></output></div><div class="sl"><input type="range" id="ilSlider"><input type="number" class="num" id="ilNum" inputmode="decimal" aria-label="Load current, amps"></div></div>
+        <div class="row" id="ilRow"><div class="row-head"><label for="ilSlider" id="ilName">Load current |I<sub>A</sub>|</label><output id="ilOut" for="ilSlider"></output></div><div class="sl"><input type="range" id="ilSlider"><input type="number" class="num" id="ilNum" inputmode="decimal" aria-label="Load current, amps"></div>
+            <div class="hint derived" id="ilDerived" style="display:none"></div>
+            <button class="btn slim" id="fullLoadBtn" title="Set the load current to the rated current">Full load (= rated current)</button></div>
         <div class="row" id="ifRow"><div class="row-head"><label for="ifSlider">Field current I<sub>f</sub></label><output id="ifOut" for="ifSlider"></output></div><div class="sl"><input type="range" id="ifSlider"><input type="number" class="num" id="ifNum" inputmode="decimal" aria-label="Field current, per unit"></div></div>
         <div class="row" id="thRow"><div class="row-head"><label for="thSlider">Power factor</label><output id="thOut" for="thSlider"></output></div><input type="range" id="thSlider">
             <div class="sl entry"><label for="pfNum" style="flex:0 0 auto">pf</label><input type="number" class="num" id="pfNum" inputmode="decimal" style="width:68px">
@@ -400,29 +439,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
         <label class="chk"><input type="checkbox" id="lociChk" checked> Show loci (paths the tips follow)</label>
         <label class="chk"><input type="checkbox" id="consChk" checked> Construction lines (P and Q sides)</label>
     </div>
-
-    <details class="card" id="paramCard"><summary>Machine parameters</summary>
-        <div class="row"><div class="row-head"><label for="vSlider" id="vName">Rated V<sub>φ</sub></label><output id="vOut" for="vSlider"></output></div><div class="sl"><input type="range" id="vSlider"><input type="number" class="num" id="vNum" inputmode="decimal" aria-label="Phase voltage, volts"></div>
-            <div class="sl entry"><label for="vtNum">V<sub>T</sub> (line, Y) =</label><input type="number" class="num" id="vtNum" inputmode="decimal"><span class="unit">V</span></div></div>
-        <div class="row" id="xsRow"><div class="row-head"><label for="xsSlider">Synchronous reactance X<sub>S</sub></label><output id="xsOut" for="xsSlider"></output></div><div class="sl"><input type="range" id="xsSlider"><input type="number" class="num" id="xsNum" inputmode="decimal" aria-label="Synchronous reactance, ohms"></div></div>
-        <div class="row" id="xdRow"><div class="row-head"><label for="xdSlider">Direct-axis X<sub>d</sub></label><output id="xdOut" for="xdSlider"></output></div><input type="range" id="xdSlider"></div>
-        <div class="row" id="xqRow"><div class="row-head"><label for="xqSlider">Quadrature-axis X<sub>q</sub></label><output id="xqOut" for="xqSlider"></output></div><input type="range" id="xqSlider"><div class="hint" id="xqNote" role="status" style="display:none;color:var(--warn)">⚠ X<sub>q</sub> is above X<sub>d</sub> (inverse saliency). This is unusual for a wound-rotor machine; values are still computed.</div></div>
-        <div class="row"><div class="row-head"><label for="raSlider">Armature resistance R<sub>A</sub></label><output id="raOut" for="raSlider"></output></div><div class="sl"><input type="range" id="raSlider"><input type="number" class="num" id="raNum" inputmode="decimal" aria-label="Armature resistance, ohms"></div><div class="hint" id="raNote" style="display:none"></div></div>
-        <div class="row"><div class="row-head"><label for="imaxSlider">Rated current I<sub>A,max</sub></label><output id="imaxOut" for="imaxSlider"></output></div><div class="sl"><input type="range" id="imaxSlider"><input type="number" class="num" id="imaxNum" inputmode="decimal" aria-label="Rated current, amps"></div></div>
-        <div class="hint" id="ratingHint"></div>
-        <details style="margin-top:10px"><summary style="cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--mut)">Beyond this course</summary>
-            <div class="hint" style="margin-bottom:6px">Motor, condenser and salient-pole views need the infinite bus.</div>
-            <div class="seg" id="modeBtns" style="margin-bottom:5px">
-                <button data-mode="gen">Generator</button>
-                <button data-mode="motor">Motor</button>
-                <button data-mode="cond">Condenser</button>
-            </div>
-            <div class="seg" id="modelBtns">
-                <button data-model="round">Round rotor</button>
-                <button data-model="salient">Salient pole</button>
-            </div>
-        </details>
-    </details>
 
     <button class="btn" id="resetBtn">↺ Restore defaults</button>
 </div>
@@ -476,7 +492,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 
 <script>
 /* ============================================================
-   SYNCHRONOUS GENERATOR PHASOR LAB v2.1.1 — University of Tulsa ECE-3033
+   SYNCHRONOUS GENERATOR PHASOR LAB v2.2.0 — University of Tulsa ECE-3033
    Sign conventions (per phase, V_φ on the real axis):
      Generator:  E_A = V_φ + I_A (R_A + jX_S)     E_A leads V_φ by δ
      Motor:      E_A = V_φ − I_A (R_A + jX_S)     E_A lags  V_φ by δ
@@ -516,7 +532,7 @@ const LIM = Object.freeze({
     IF:   { min: 0.3,  max: 2.2,  step: 0.01 },    // pu
     TH:   { min: -75,  max: 75,   step: 1 },       // degrees, + = lagging
     V:    { min: 100,  max: 10000, step: 1 },      // V
-    XS:   { min: 0.2,  max: 10,   step: 0.05 },    // Ω
+    XS:   { min: 0.05, max: 10,   step: 0.05 },    // Ω per phase (a low-voltage Δ machine can be near 0.1 Ω)
     XD:   { min: 0.2,  max: 4,    step: 0.05 },
     XQ:   { min: 0.1,  max: 4,    step: 0.05 },
     RA:   { min: 0,    max: 1,    step: 0.01 },
@@ -531,8 +547,10 @@ const PF08_DEG = +(Math.acos(RATED_PF) * DEG).toFixed(TWO); // 36.87°: the 0.8-
 const DEFAULTS = Object.freeze({
     system: 'alone', mode: 'gen', model: 'round', drive: 'exc',
     P: 30, ifpu: 1.0, Iload: 40, theta: PF08_DEG,          // power-factor control: degrees by which I_A lags (the displayed θ is the angle of I_A, opposite sign)
-    V: 277, Xs: 1.5, Xd: 1.5, Xq: 0.9, Ra: 0, Imax: 75
+    V: 277, Xs: 1.5, Xd: 1.5, Xq: 0.9, Ra: 0, Imax: 75,   // V, Imax (and Iload) are per-phase values, whatever the connection
+    conn: 'Y'                                              // stator connection: 'Y' or 'D' (delta)
 });
+const ENTRY_DEFAULT = 'phase';                             // voltage and current boxes take phase values (the experiments are written in them)
 const UI_DEFAULTS = Object.freeze({ loci: true, cons: true, side: 'vcurve', guideOpen: true });
 
 const SOLVER = Object.freeze({
@@ -588,7 +606,7 @@ const PH = Object.freeze({
     CONS_MIN_THETA: 0.05, CONS_EXT_ALPHA: 0.6, CONS_EXT_W: 1.2, CONS_EXT_DASH: [4, 5], CONS_SQUARE: 9,
     GHOST_DASH: [7, 5], GHOST_W: 2, GHOST_DROP_W: 1.6,
     ARC_W: 1.8, ARC_LBL_GAP: 8, ARC_LBL_SIZE: 12.5, ARC_MIN: 0.02,
-    ARC_FRAC_MID: 0.5, ARC_FRAC_OUTER: 0.78, ARC_FRAC_INNER: 0.4, ARC_FRAC_ALT: [0.25, 0.9, 1.15],
+    ARC_FRAC_MID: 0.5, ARC_FRAC_OUTER: 0.78, ARC_FRAC_INNER: 0.4, ARC_FRAC_ALT: [0.25, 0.9, 1.15, 1.8, 2.6, 3.6],
     DELTA_R: 0.42, DELTA_R_MAX: 150, THETA_R: 0.24, THETA_R_I: 0.8, THETA_R_MAX: 90,
     DROP_W: 3, I_W: 3.5, V_W: 4, ORIGIN_R: 4,
     LBL_SIZE: 16, LBL_V_DY: 15, LBL_E_OFF: 17, LBL_E_DX: -8, LBL_I_OFF: 14, LBL_I_DY: 6, LBL_I_SIDE: 19, LBL_STEP: 14,
@@ -624,6 +642,11 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));                   //
 
 const M = Object.assign({}, DEFAULTS);                                       // machine + operating state
 const UI = Object.assign({ ghost: null, view: null, exp: -1 }, UI_DEFAULTS); // view state (never affects physics)
+let entryMode = ENTRY_DEFAULT;                                              // 'line' or 'phase': what the voltage and current boxes take (display only)
+const kV = () => (M.conn === 'Y' ? SQRT3 : 1);                              // line voltage  = kV × phase voltage
+const kI = () => (M.conn === 'Y' ? 1 : SQRT3);                              // line current  = kI × phase current
+const eV = () => (entryMode === 'line' ? kV() : 1);                         // voltage box   = eV × phase voltage
+const eI = () => (entryMode === 'line' ? kI() : 1);                         // current boxes = eI × phase current
 const modeNow = () => (M.system === 'alone' ? 'gen' : M.mode);              // mode in force: a stand-alone machine is a generator; the bus choice is remembered
 const modelNow = () => (M.system === 'alone' ? 'round' : M.model);          // rotor model in force: stand-alone is round rotor
 /* ═══ END 2. STATE ═══ */
@@ -1376,9 +1399,10 @@ function ro(label, value, color) {
 }
 /* The readout grid. */
 function readoutsHTML(s, alone) {
-    let h = ro('V<sub>φ</sub>', fV(s.V), 'var(--ph-v)') + ro('V<sub>T</sub> (line, Y)', fV(s.V * Math.sqrt(PHASES)), 'var(--ph-v)')
+    let h = ro('V<sub>φ</sub>', fV(s.V), 'var(--ph-v)') + ro('V<sub>T</sub> (line, ' + (M.conn === 'Y' ? 'Y' : 'Δ') + ')', fV(s.V * kV()), 'var(--ph-v)')
           + ro('|E<sub>A</sub>|', fV(s.Eabs), 'var(--ph-e)') + ro('δ', fAng(s.dAng * DEG), 'var(--acc)')
-          + ro('|I<sub>A</sub>|', fA(s.Iabs), 'var(--ph-i)') + ro('pf', fPf(s))
+          + ro('|I<sub>A</sub>| (phase)', fA(s.Iabs), 'var(--ph-i)') + ro('I<sub>L</sub> (line)', fA(s.Iabs * kI()), 'var(--ph-i)')
+          + ro('pf', fPf(s)) + ro('S (3φ)', fP(PHASES * s.V * s.Iabs, 'VA'))
           + ro(s.gen ? 'P (3φ)' : 'P in (electrical)', fP(Math.abs(s.P3), 'W')) + ro(s.gen ? 'Q (3φ)' : 'Q (supplied)', fP(s.Q3, 'VAR'));
     if (alone) {
         const inBand = s.V >= SOLVER.V_BAND_LO * M.V && s.V <= SOLVER.V_BAND_HI * M.V;
@@ -1430,7 +1454,7 @@ function updateEquation(s) {
     eq += '<span class="sep">numbers:</span>';
     eq += '<span class="tk c-e">' + ph(s.Eabs, carg(s.Ec)) + ' V</span><span class="op">=</span><span class="tk c-v">' + ph(s.V, 0) + ' V</span>';
     if (!s.sal) {
-        const zd = s.ra > 0 ? '(' + s.ra.toFixed(DEC.OHM) + ' + j' + M.Xs.toFixed(DEC.OHM) + ')' : 'j' + M.Xs.toFixed(DEC.OHM);
+        const zd = s.ra > 0 ? '(' + fNum(s.ra, DEC.ENTRY) + ' + j' + M.Xs.toFixed(DEC.OHM) + ')' : 'j' + M.Xs.toFixed(DEC.OHM);
         eq += '<span class="op">' + sg + '</span><span class="tk c-x">' + zd + ' Ω</span><span class="op">×</span><span class="tk c-i">' + s.Iabs.toFixed(DEC.A) + '∠' + fAng(carg(s.Ia) * DEG) + ' A</span>';
     }
     el('eqStrip').innerHTML = eq;
@@ -1487,7 +1511,16 @@ function syncUI() {
     const raOff = !alone && (sal || cond);
     el('raSlider').disabled = raOff; show('raNote', raOff);
     el('raNote').textContent = sal ? 'R_A is neglected in the salient-pole model.' : 'R_A is neglected for the condenser.';
-    el('vName').innerHTML = alone ? 'Rated V<sub>φ</sub>' : 'Bus V<sub>φ</sub>';
+    const line = entryMode === 'line', sv = eV(), si = eI();
+    setActive('#connBtns', 'conn', M.conn); setActive('#entryBtns', 'entry', entryMode);
+    el('vName').innerHTML = (alone ? 'Rated ' : 'Bus ') + (line ? 'V<sub>T</sub> <small>line</small>' : 'V<sub>φ</sub> <small>phase</small>');
+    el('imaxName').innerHTML = line ? 'Rated line current I<sub>L</sub>' : 'Rated current I<sub>A,max</sub>';
+    el('ilName').innerHTML = line ? 'Load current I<sub>L</sub>' : 'Load current |I<sub>A</sub>|';
+    el('vDerived').innerHTML = line ? 'phase V<sub>φ</sub> = ' + fV(M.V) : 'line V<sub>T</sub> = ' + fV(M.V * kV());
+    el('imaxDerived').innerHTML = line ? 'phase I<sub>A</sub> = ' + fA(M.Imax) : 'line I<sub>L</sub> = ' + fA(M.Imax * kI());
+    show('ilDerived', M.conn !== 'Y');                      // for Y the line and phase currents are the same number
+    el('ilDerived').innerHTML = line ? 'phase I<sub>A</sub> = ' + fA(M.Iload) : 'line I<sub>L</sub> = ' + fA(M.Iload * kI());
+    el('fullLoadBtn').classList.toggle('on', Math.abs(M.Iload - M.Imax) < SOLVER.I_EPS);
     el('pName').textContent = mode === 'motor' ? 'P in (electrical)' : 'Real power P';
     show('convNote', !alone && mode !== 'gen');
     const inverse = sal && M.Xq > M.Xd;
@@ -1507,43 +1540,49 @@ function syncUI() {
     el('pfSense').classList.toggle('na', M.theta === 0);   // dimmed at unity: there is no lead or lag to choose, and nothing moves in the sidebar
     el('pfSense').title = M.theta === 0 ? 'At unity power factor the current neither leads nor lags. This choice applies to the next pf you type; for a quick change use 0.8 lead or 0.8 lag.' : 'Whether the typed power factor is leading or lagging';
     el('raNum').disabled = raOff;
-    el('ilSlider').max = Math.min(LIM.IL.max, SLIDER_SPAN.IL * M.Imax);
+    const span = (id, lo, hi) => { const r = el(id); r.min = lo; r.max = hi; };   // voltage and current sliders work in the units being entered
+    span('vSlider', LIM.V.min * sv, LIM.V.max * sv); span('imaxSlider', LIM.IMAX.min * si, LIM.IMAX.max * si);
+    span('ilSlider', LIM.IL.min * si, Math.min(LIM.IL.max, SLIDER_SPAN.IL * M.Imax) * si);
     el('pSlider').max = Math.min(LIM.P.max, Math.ceil(SLIDER_SPAN.P * ratedVA(M) / W_PER_KW / SLIDER_SPAN.P_ROUND) * SLIDER_SPAN.P_ROUND);
     syncEntries(false);
     const set = (id, v) => { el(id).value = v; };          // a slider shows the nearest step; M keeps the exact value
-    set('pSlider', M.P); set('ilSlider', M.Iload); set('ifSlider', M.ifpu); set('thSlider', Math.round(M.theta));
-    set('vSlider', M.V); set('xsSlider', M.Xs); set('xdSlider', M.Xd); set('xqSlider', M.Xq); set('raSlider', M.Ra); set('imaxSlider', M.Imax);
+    set('pSlider', M.P); set('ilSlider', M.Iload * si); set('ifSlider', M.ifpu); set('thSlider', Math.round(M.theta));
+    set('vSlider', M.V * sv); set('xsSlider', M.Xs); set('xdSlider', M.Xd); set('xqSlider', M.Xq); set('raSlider', M.Ra); set('imaxSlider', M.Imax * si);
     el('pOut').textContent = fNum(M.P, DEC.KW) + ' kW';
-    el('ilOut').textContent = fNum(M.Iload, DEC.A) + ' A · ' + Math.round(PCT * M.Iload / M.Imax) + '% rated';
+    el('ilOut').textContent = fNum(M.Iload * si, DEC.A) + ' A · ' + Math.round(PCT * M.Iload / M.Imax) + '% rated';
     el('ifOut').textContent = M.ifpu.toFixed(DEC.IFPU) + ' pu';
     el('thOut').textContent = pfText(M.theta);
     document.querySelectorAll('#pfQuick button').forEach(b => b.classList.toggle('active', Math.abs(quickAngle(b) - M.theta) < QUICK_SNAP_DEG));
-    el('vOut').textContent = fNum(M.V, DEC.V) + ' V'; el('xsOut').textContent = M.Xs.toFixed(DEC.OHM) + ' Ω';
+    el('vOut').textContent = fNum(M.V * sv, DEC.V) + ' V'; el('xsOut').textContent = M.Xs.toFixed(DEC.OHM) + ' Ω/ph';
     el('xdOut').textContent = M.Xd.toFixed(DEC.OHM) + ' Ω'; el('xqOut').textContent = M.Xq.toFixed(DEC.OHM) + ' Ω';
-    el('raOut').textContent = M.Ra.toFixed(DEC.OHM) + ' Ω'; el('imaxOut').textContent = fNum(M.Imax, DEC.A) + ' A';
-    el('ratingHint').innerHTML = 'Rating: ' + (ratedVA(M) / W_PER_KW).toFixed(DEC.KW) + ' kVA, ' + (M.V * Math.sqrt(PHASES)).toFixed(DEC.NONE) + ' V line (Y). '
+    el('raOut').textContent = fNum(M.Ra, DEC.ENTRY) + ' Ω/ph'; el('imaxOut').textContent = fNum(M.Imax * si, DEC.A) + ' A';
+    el('ratingHint').innerHTML = 'Rating: ' + (ratedVA(M) / W_PER_KW).toFixed(DEC.KW) + ' kVA, ' + (M.V * kV()).toFixed(DEC.NONE) + ' V line, ' + fNum(M.Imax * kI(), DEC.A) + ' A line (' + (M.conn === 'Y' ? 'Y' : 'Δ') + '-connected). '
         + (sal ? 'X<sub>d</sub> = ' + (M.Xd * M.Imax / M.V).toFixed(DEC.PU) + ' pu, X<sub>q</sub> = ' + (M.Xq * M.Imax / M.V).toFixed(DEC.PU) + ' pu.'
                : 'X<sub>S</sub> = ' + (M.Xs * M.Imax / M.V).toFixed(DEC.PU) + ' pu.');
     show('sideBtns', !alone);
     setActive('#sideBtns', 'side', UI.side);
     el('sideTitle').textContent = alone ? 'Terminal characteristic' : UI.side === 'pq' ? 'Capability curve' : 'V-curve';
 }
-/* Typed-entry boxes: [id, limits, value now, setter, decimals shown]. Each sets its state field exactly (clamped). */
+/* Typed-entry boxes: [id, limits, value now, setter, decimals shown, scale]. The limits and the state are in the
+   solver's units (per phase); scale() is what the box shows per unit of state (line or phase entry). */
 let pfLag = true;                          // Lag / Lead choice of the pf entry (kept while the pf is exactly unity)
+const ONE = () => 1;
 const ENTRIES = [
-    ['pNum', LIM.P, () => M.P, v => { M.P = v; }, DEC.ENTRY],
-    ['ilNum', LIM.IL, () => M.Iload, v => { M.Iload = v; }, DEC.ENTRY],
-    ['ifNum', LIM.IF, () => M.ifpu, v => { M.ifpu = v; }, DEC.ENTRY],
-    ['vNum', LIM.V, () => M.V, v => { M.V = v; }, DEC.ENTRY],
-    ['vtNum', { min: LIM.V.min * SQRT3, max: LIM.V.max * SQRT3 }, () => M.V * SQRT3, v => { M.V = clamp(v / SQRT3, LIM.V.min, LIM.V.max); }, DEC.ENTRY],
-    ['xsNum', LIM.XS, () => M.Xs, v => { M.Xs = v; }, DEC.ENTRY],
-    ['raNum', LIM.RA, () => M.Ra, v => { M.Ra = v; }, DEC.ENTRY],
-    ['imaxNum', LIM.IMAX, () => M.Imax, v => { M.Imax = v; }, DEC.ENTRY],
-    ['pfNum', { min: SOLVER.PF_FLOOR, max: 1 }, () => Math.cos(M.theta / DEG), v => { M.theta = (pfLag ? 1 : -1) * Math.acos(v) * DEG || 0; }, DEC.ENTRY_PF]
+    ['pNum', LIM.P, () => M.P, v => { M.P = v; }, DEC.ENTRY, ONE],
+    ['ilNum', LIM.IL, () => M.Iload, v => { M.Iload = v; }, DEC.ENTRY, eI],
+    ['ifNum', LIM.IF, () => M.ifpu, v => { M.ifpu = v; }, DEC.ENTRY, ONE],
+    ['vNum', LIM.V, () => M.V, v => { M.V = v; }, DEC.ENTRY, eV],
+    ['xsNum', LIM.XS, () => M.Xs, v => { M.Xs = v; }, DEC.ENTRY, ONE],
+    ['raNum', LIM.RA, () => M.Ra, v => { M.Ra = v; }, DEC.ENTRY, ONE],
+    ['imaxNum', LIM.IMAX, () => M.Imax, v => { M.Imax = v; }, DEC.ENTRY, eI],
+    ['pfNum', { min: SOLVER.PF_FLOOR, max: 1 }, () => Math.cos(M.theta / DEG), v => { M.theta = (pfLag ? 1 : -1) * Math.acos(v) * DEG || 0; }, DEC.ENTRY_PF, ONE]
 ];
 /* Write the state into the entry boxes. The box being typed in is left alone unless force is set. */
 function syncEntries(force) {
-    for (const [id, , get, , dec] of ENTRIES) { const n = el(id); if (force || document.activeElement !== n) n.value = fNum(get(), dec); }
+    for (const [id, lim, get, , dec, scale] of ENTRIES) {
+        const n = el(id), k = scale(); n.min = lim.min * k; n.max = lim.max * k;
+        if (force || document.activeElement !== n) n.value = fNum(get() * k, dec);
+    }
 }
 
 /* Angle (degrees) of a quick power-factor button: lead / unity / lag. */
@@ -1731,16 +1770,16 @@ function updateGuide() {
 
 /* ═══ 11. EVENTS ═══ */
 /* Give a range input its limits from LIM and bind it to a state field. */
-function bindSlider(id, key, lim) {
+function bindSlider(id, key, lim, scale) {
     const s = el(id); s.min = lim.min; s.max = lim.max; s.step = lim.step;
-    s.oninput = function () { M[key] = +this.value; refresh(); };
+    s.oninput = function () { M[key] = scale ? clamp(+this.value / scale(), lim.min, lim.max) : +this.value; refresh(); };
 }
 /* Bind the typed-entry boxes: every valid keystroke sets the state (clamped to the limits) and refreshes;
    leaving the box or pressing Enter rewrites it with the value actually in force. */
 function bindEntries() {
-    for (const [id, lim, , put] of ENTRIES) {
-        const n = el(id); n.min = lim.min; n.max = lim.max; n.step = 'any';
-        n.oninput = function () { const v = parseFloat(this.value); if (Number.isFinite(v)) { put(clamp(v, lim.min, lim.max)); refresh(); } };
+    for (const [id, lim, , put, , scale] of ENTRIES) {
+        const n = el(id); n.step = 'any';
+        n.oninput = function () { const v = parseFloat(this.value); if (Number.isFinite(v)) { put(clamp(v / scale(), lim.min, lim.max)); refresh(); } };
         n.onchange = () => syncEntries(true);
     }
 }
@@ -1755,10 +1794,23 @@ function switchDrive(v) {
     if (!ho.ok || ho.to !== v) return;
     Object.assign(M, ho.carry); M.drive = v;
 }
+/* Change the stator connection. Whatever is being entered stays as typed: with line entry the terminal voltage and
+   line currents are kept and the per-phase values follow; with phase entry the per-phase values are kept. */
+function setConnection(v) {
+    if (v === M.conn) return;
+    const vt = M.V * kV(), iRated = M.Imax * kI(), iLoad = M.Iload * kI();
+    M.conn = v;
+    if (entryMode === 'line') {
+        M.V = clamp(vt / kV(), LIM.V.min, LIM.V.max);
+        M.Imax = clamp(iRated / kI(), LIM.IMAX.min, LIM.IMAX.max);
+        M.Iload = clamp(iLoad / kI(), LIM.IL.min, LIM.IL.max);
+    }
+    UI.ghost = null; UI.view = null;
+}
 /* Restore the machine, the operating point and every view toggle. */
 function resetAll() {
-    Object.assign(M, DEFAULTS); resetView(); UI.exp = -1; pfLag = true;
-    el('paramCard').open = false;
+    Object.assign(M, DEFAULTS); resetView(); UI.exp = -1; pfLag = true; entryMode = ENTRY_DEFAULT;
+    el('paramCard').open = true;
     updateGuide(); refresh();
 }
 /* One-time set-up. */
@@ -1778,12 +1830,15 @@ function init() {
     bindSeg('#modelBtns', 'model', v => { M.model = v; UI.ghost = null; });
     bindSeg('#pfQuick', 'pf', (v, b) => { M.theta = quickAngle(b); });
     bindSeg('#sideBtns', 'side', v => { UI.side = v; });
+    bindSeg('#connBtns', 'conn', setConnection);
+    bindSeg('#entryBtns', 'entry', v => { entryMode = v; });
     bindSeg('#pfSense', 'sense', v => { pfLag = v === 'lag'; M.theta = (pfLag ? 1 : -1) * Math.abs(M.theta) || 0; });
 
-    bindSlider('pSlider', 'P', LIM.P); bindSlider('ilSlider', 'Iload', LIM.IL); bindSlider('ifSlider', 'ifpu', LIM.IF); bindSlider('thSlider', 'theta', LIM.TH);
-    bindSlider('vSlider', 'V', LIM.V); bindSlider('xsSlider', 'Xs', LIM.XS); bindSlider('xdSlider', 'Xd', LIM.XD); bindSlider('xqSlider', 'Xq', LIM.XQ);
-    bindSlider('raSlider', 'Ra', LIM.RA); bindSlider('imaxSlider', 'Imax', LIM.IMAX);
+    bindSlider('pSlider', 'P', LIM.P); bindSlider('ilSlider', 'Iload', LIM.IL, eI); bindSlider('ifSlider', 'ifpu', LIM.IF); bindSlider('thSlider', 'theta', LIM.TH);
+    bindSlider('vSlider', 'V', LIM.V, eV); bindSlider('xsSlider', 'Xs', LIM.XS); bindSlider('xdSlider', 'Xd', LIM.XD); bindSlider('xqSlider', 'Xq', LIM.XQ);
+    bindSlider('raSlider', 'Ra', LIM.RA); bindSlider('imaxSlider', 'Imax', LIM.IMAX, eI);
     bindEntries();
+    el('fullLoadBtn').onclick = () => { M.Iload = clamp(M.Imax, LIM.IL.min, LIM.IL.max); refresh(); };
     el('setFieldBtn').onclick = () => { M.ifpu = clamp(fieldForRated(M), LIM.IF.min, LIM.IF.max); refresh(); };
 
     el('pinBtn').onclick = () => { UI.ghost = snapshot(solve(M)); refresh(); };
