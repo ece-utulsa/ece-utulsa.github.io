@@ -47,7 +47,7 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
   <p class="lede">Step-by-step instructions and tips for Senior Design teams: build your Work Breakdown Structure, schedule it,
     baseline it, and track earned value every week in about ten minutes. The terms and equations are the same as in the
     Senior Design 1 lectures on the WBS and earned value.</p>
-  <a class="btn" href="WBS_Schedule_EV_Tool_v1.0.3.html">Open the tool</a>
+  <a class="btn" href="WBS_Schedule_EV_Tool_v1.0.4.html">Open the tool</a>
   <a class="btn sec" href="#weekly">Jump to the weekly routine</a>
 </div></header>
 <main>
@@ -233,8 +233,9 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
     <i>Starting late, finishing well</i> (top left), <i>Starting, not finishing</i> (bottom right) and <i>Behind on both</i> (bottom left).
     The dot moves week by week; the big dot is this week.</p>
   <h3>Zoom on the charts</h3>
-  <p>The Task status and Earned value charts have a <b>Zoom</b> control. <b>Plan span</b> (the default) runs from week 1 to the plan finish,
-    and on the Earned value chart to the forecast finish too, plus one week, so the bars and lines fill the chart. <b>One semester</b>
+  <p>The Task status, Earned value and SPI charts share a <b>Zoom</b> control. <b>Plan span</b> (the default) runs from week 1 to the
+    plan finish plus one week, so the bars and lines fill the chart. The Earned value chart starts at week 0, where PV and EV are both 0,
+    and runs on to the forecast finish plus one week when that is later. The SPI chart runs to the current week plus 4. <b>One semester</b>
     shows the semester you are in, and <b>Whole project</b> shows all the weeks. The table under the Task status chart lists week 1 to
     the current week plus 4; tick <b>Show all weeks</b> for the rest.</p>
   <figure><img src="guide-img/earned-value.jpg" alt="The Earned value tab: cumulative PV and EV in tasks, the SV bracket at week 6 and a dotted forecast to week 19.3" width="1440" height="860" loading="lazy">
@@ -242,7 +243,7 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
   <h3>Example: the lecture's week-6 team</h3>
   <p>40 tasks, planned finish week 15. By week 6, 10 tasks were planned to start and 8 to finish; 8 have started and 6 have finished.
     PV = ½(10 + 8) = 9 and EV = ½(8 + 6) = 7, so SV = −2 and SPI = 0.78. SR = 0.80 and FR = 0.75 are both below 1: <span class="sig replan">Re-plan</span>.
-    At this pace the project takes 15 / 0.78 = 19.3 weeks. To finish on time the team needs TSPI = 33 / 31 = 1.06 from now on.</p>
+    At this pace the project takes 15 × 9/7 = 19.3 weeks. To finish on time the team needs TSPI = 33 / 31 = 1.06 from now on.</p>
   <h3>What to do about it</h3>
   <ul>
     <li><b>Start ratio low:</b> tasks are not getting started. Check owners and predecessors, and look at the late-start list.</li>
@@ -324,8 +325,8 @@ footer{ text-align:center; color:var(--mut); font-size:14px; padding:0 16px 30px
       branch, <kbd>←</kbd> closes it or goes to the parent. When a tab name has focus, <kbd>←</kbd> <kbd>→</kbd> move between the tabs.</dd>
   </dl>
 </section>
-<p style="text-align:center"><a class="btn" href="WBS_Schedule_EV_Tool_v1.0.3.html">Open the tool</a></p>
+<p style="text-align:center"><a class="btn" href="WBS_Schedule_EV_Tool_v1.0.4.html">Open the tool</a></p>
 </main>
-<footer>Senior Design WBS, Schedule and Earned Value Tool v1.0.3 · How-to guide · University of Tulsa, Electrical and Computer Engineering</footer>
+<footer>Senior Design WBS, Schedule and Earned Value Tool v1.0.4 · How-to guide · University of Tulsa, Electrical and Computer Engineering</footer>
 </body>
 </html>

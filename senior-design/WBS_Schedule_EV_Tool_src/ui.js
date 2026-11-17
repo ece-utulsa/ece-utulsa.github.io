@@ -4,6 +4,8 @@
    ════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const LS_PROJECT = 'sd-wbs-ev:project', LS_VIEW = 'sd-wbs-ev:view';
+const CHART_FONT = "system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";   // same list as "svg text" in the CSS
+const FALLBACK_CHAR_EM = 0.55;       // average character width, in em, used only if the browser cannot measure text
 const $ = id => document.getElementById(id);
 
 /** Element builder. attrs: on* → listeners, other keys → attributes; children: nodes or text. */
@@ -266,10 +268,10 @@ function csvStatus(){
 }
 function csvEv(){
   const rows = [['Week', 'Sp', 'Fp', 'Sa', 'Fa', 'BAC', 'T', 'PV', 'EV', 'SV', 'SV%', 'SPI', 'SR', 'FR', '% complete', 'Forecast duration (weeks)', 'Tasks to go', 'TSPI', 'Signal']];
-  const ser = series(P, IX, SX);
+  const ser = series(P, IX, SX), bac = wbsTasks(P, IX).length;   // BAC: tasks in the WBS now, baselined or not (ruling R1)
   const n = v => v === null ? UNDEF : +v.toFixed(4);
   for(const m of ser.slice(0, P.currentWeek + 1)){
-    rows.push([m.w, m.Sp, m.Fp, m.Sa, m.Fa, m.BAC, m.T, n(m.PV), n(m.EV), n(m.SV), n(m.SVpct), n(m.SPI), n(m.SR), n(m.FR), n(m.pct), n(m.Tf), n(m.togo),
+    rows.push([m.w, m.Sp, m.Fp, m.Sa, m.Fa, bac, m.T, n(m.PV), n(m.EV), n(m.SV), n(m.SVpct), n(m.SPI), n(m.SR), n(m.FR), n(m.pct), n(m.Tf), n(m.togo),
       m.TSPI === null ? fmtTSPI(m) : n(m.TSPI), signalText(m)]);
   }
   download(`${slug(P.name)}_earned_value_to_week${P.currentWeek}.csv`, toCSV(rows), 'text/csv');
@@ -295,6 +297,39 @@ function zoomSelect(){
   return h('label', null, 'Zoom', h('select', { 'data-key': 'czoom-' + V.tab, onchange: ev => { V.czoom = ev.target.value; saveView(); render(); } },
     [['plan', 'Plan span'], ['sem', 'One semester'], ['all', 'Whole project']].map(([v, t]) => h('option', { value: v, selected: V.czoom === v }, t))));
 }
+/** Draw a chart at the width its box has on screen, so its text is shown at the size it is drawn and never scaled down
+    (change briefing v1.0.4, D1 and E5). box must already be in the page; draw(width in px) returns the SVG. A box
+    narrower than minW gets a minW chart and scrolls sideways. */
+function fitChart(box, draw, minW){
+  const cs = getComputedStyle(box), w = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  box.append(draw(Math.max(minW, Math.floor(w) || 0)));
+}
+
+/** Width in px of a text drawn in the chart font (the font of "svg text" in the page's CSS) at the given size and weight. */
+let textCtx;
+function textWidth(t, px, weight){
+  if(textCtx === undefined){ const c = document.createElement('canvas'); textCtx = c.getContext ? c.getContext('2d') : null; }
+  if(!textCtx) return t.length * px * FALLBACK_CHAR_EM;
+  textCtx.font = `${weight || 400} ${px}px ${CHART_FONT}`;
+  return textCtx.measureText(t).width;
+}
+
+/** Wrap a text to at most maxLines lines of maxW px, breaking at spaces. A text still too long ends in "…". */
+function wrapText(t, maxW, px, weight, maxLines){
+  const fits = x => textWidth(x, px, weight) <= maxW, lines = [];
+  let line = '';
+  for(const word of t.split(' ')){
+    const next = line ? line + ' ' + word : word;
+    if(!line || fits(next)) line = next; else { lines.push(line); line = word; }
+  }
+  lines.push(line);
+  const out = lines.slice(0, maxLines);
+  if(lines.length > maxLines) out[maxLines - 1] = lines.slice(maxLines - 1).join(' ');
+  let last = out[out.length - 1];
+  if(!fits(last)){ while(last.length > 1 && !fits(last + '…')) last = last.slice(0, -1); out[out.length - 1] = last + '…'; }
+  return out;
+}
+
 /** Text with a white halo, so lines passing behind it never make it unreadable. */
 function halo(attrs, text){ return s('text', Object.assign({ 'paint-order': 'stroke', stroke: '#fff', 'stroke-width': 5, 'stroke-linejoin': 'round' }, attrs), text); }
 

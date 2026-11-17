@@ -1,8 +1,8 @@
 # Senior Design WBS, Schedule and Earned Value Tool — sources
 
-`../WBS_Schedule_EV_Tool_v1.0.3.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
-It is one offline HTML file (about 125 kB): plain JavaScript, no libraries, no fonts, no network requests (a Content-Security-Policy
-in the page blocks them).
+`../WBS_Schedule_EV_Tool_v1.0.4.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
+It is one offline HTML file (about 180 kB): plain JavaScript, no libraries, no fonts, no network requests (a Content-Security-Policy
+in the page blocks them; the one inline script is allowed by its SHA-256 hash, which `build.py` recomputes on every build).
 
 | File | What it holds |
 |---|---|
@@ -20,26 +20,28 @@ in the page blocks them).
 | `guide_page.html` | Page shell of `../WBS_Schedule_EV_Tool_Guide.html` (screenshots in `../guide-img/`) |
 | `main.js` | Help panel (MathML equations), top bar, tabs, render cycle, start-up |
 | `build.py` | Concatenates the scripts in one strict-mode function and fills the release fields |
-| `tests/build-check.js` | Builder's smoke check of the calculation core in Node |
+| `tests/build-check.js` | Builder's check of the calculation core in Node: T1, T2, T4, T5, the lecture example, old files, and a random sweep of the earned value identities |
 | `tests/fixtures/` | Project files made by v1.0.0 and v1.0.2, with the numbers those versions computed (old files must give the same numbers) |
 | `release-shots/` | Screenshots of each release for review |
 | `tests/browser-smoke.js` | Builder's smoke test in Chromium: every tab renders, no console error, no network request |
+| `tests/dev-check.js` | Builder's checks in Chromium of the v1.0.4 change briefing (D1–D3, E1–E12, V1) and main-briefing T1, T3, T6, T8–T10, at 1440 and 1920 wide |
 
 `model.js`, `ev.js` and `example.js` have no DOM, so Test can load them directly (see `tests/build-check.js` for how).
-The two `tests/` scripts are the builder's own smoke checks. **They are not the acceptance suite**: per the briefing (§8),
+The `tests/` scripts are the builder's own developer checks. **They are not the acceptance suite**: per the briefing (§8),
 Test writes that from the briefing, independently of this build.
 
 ## Build and test
 
 ```sh
-python3 build.py      # writes ../WBS_Schedule_EV_Tool_v1.0.3.html and ../WBS_Schedule_EV_Tool_Guide.html
+python3 build.py      # writes ../WBS_Schedule_EV_Tool_v1.0.4.html and ../WBS_Schedule_EV_Tool_Guide.html; prints the CSP script hash
 node tests/build-check.js
 NODE_PATH=$(npm root -g) node tests/browser-smoke.js   # needs Playwright
+NODE_PATH=$(npm root -g) node tests/dev-check.js
 NODE_PATH=$(npm root -g) node screenshots.js           # every release: regenerate ../guide-img/
 ```
 
-The release fields (version, date, changelog) are at the top of `build.py`. Older builds stay in `senior-design/` so old links keep working;
-the course page (`../index.html`) links the newest.
+The release fields (version, date, changelog) are at the top of `build.py`. The course page (`../index.html`) links the newest build.
+The published version stays live until the next one publishes; superseded builds are removed at publish (repo `CLAUDE.md` §3).
 
 ## Decisions to know (questions settled with Douglas, and choices where the briefing is silent)
 
@@ -68,9 +70,29 @@ v1.0.3 changes (change briefing of Nov 9; no calculation changed):
 - **This week** (C7): headline cards (signal, SPI, SR and FR, forecast finish) with readings in words from `readings()` in
   `ev.js`; Counts and Value and variance rows; formulas in tooltips on hover or keyboard focus.
 - **Quadrant** (C8): signal words plus the lecture's descriptions. The top-right description reads "Starting and finishing on plan"
-  (the briefing gives only "On plan", which is already the signal word).
+  (the briefing gives only "On plan", which is already the signal word). Superseded by ruling R2 of Nov 17: "On plan" only.
 - **Accepted exceptions** (C9): per-task `longOk` and `longWhy`; an accepted task over 2 weeks leaves the warnings and is listed under
   Accepted exceptions. Added fields default to off, so the schema stays 1 and older files open unchanged.
+
+Rulings of Nov 17 (change briefing v1.0.4):
+- **R1, BAC before the first baseline:** BAC is the number of tasks in the current WBS, always. `wbsTasks()` in `ev.js` is that list;
+  `evTasks()` is the same list once a baseline exists and empty before. Before the first baseline, This week shows BAC, Sa and Fa
+  from the WBS, and Sp, Fp and every measure read "not yet defined" beside the "No baseline yet" note. The CSV's BAC column follows R1.
+  `measures()` is unchanged.
+- **R2, quadrant top right:** "On plan" only; the other three corners keep their descriptions.
+- **R4, chart text size** is measured in rendered pixels at 1440 and 1920 wide.
+
+v1.0.4 changes (change briefing of Nov 17; no calculation changed):
+- **Charts at their displayed width** (D1, E5): `fitChart()` in `ui.js` draws the Earned value chart, the SPI and quadrant charts and
+  the Status report chart at the width of their boxes, so text is shown at the size it is drawn (13 px, key labels 15 px). They are
+  redrawn when the window width changes. On paper they may shrink to the page.
+- **WBS diagram** (E2): names wrap to two lines (`wrapText()` measures the text); a box with a wrapped name is one line taller.
+- **This week** (E4, E7): TSPI card captioned "To-complete SPI" (the tooltip keeps the full name); the small cards stretch to fill
+  their row; the signal chip beside the reading is gone, leaving the one in the top bar.
+- **Small fixes:** grey "—" for a milestone with no owner (E1); Forecast finish card with the plan week on a second line (E3);
+  "Started → Finished" (E6); bracket symbol in the legend (E8); the Gantt "open" label 9 px clear of the bar end with a halo (E9);
+  guide arithmetic and zoom text (E10, E11); the example opens with 4.1.2 accepted as longer than 2 weeks (E12).
+- **CSP:** `script-src` is the hash of the inline script instead of `'unsafe-inline'`.
 
 Choices made in the build (check these in review):
 - **Week 0 is the planning week** (agreed with Douglas): new projects open at week 0, the top bar says "Week 0: planning",

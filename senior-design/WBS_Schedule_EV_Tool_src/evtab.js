@@ -4,7 +4,17 @@
    Tab 6: the one-page printable status report.
    ════════════════════════════════════════════════════════════════════════════════════════════ */
 
+/* ── CONSTANTS ── chart sizes in px. Every chart is drawn at the width its box has on screen (fitChart), so its text is
+   shown at the size it is drawn: at least 13 px, key labels 15 px (change briefing v1.0.4, D1; measured in rendered px). */
+const EV_CHART_MIN_W = 640;          // narrowest earned value chart; a narrower box scrolls sideways
+const SMALL_CHART_MIN_W = 420;       // narrowest SPI or quadrant chart
+const SMALL_CHART_ASPECT = 0.5;      // height of the SPI and quadrant charts as a fraction of their width...
+const SMALL_CHART_MIN_H = 320, SMALL_CHART_MAX_H = 440;   // ...kept within these limits
+
 function evFilter(){ return { area: V.evarea }; }
+
+/** Height of the SPI and quadrant charts for a width: the two cards sit side by side, so they share one height. */
+function smallChartH(w){ return Math.round(Math.min(SMALL_CHART_MAX_H, Math.max(SMALL_CHART_MIN_H, w * SMALL_CHART_ASPECT))); }
 
 function renderEv(root){
   const ser = series(P, IX, SX, evFilter()), cur = P.currentWeek, m = ser[cur];
@@ -12,33 +22,44 @@ function renderEv(root){
     h('label', null, 'Measures for', h('select', { 'data-key': 'ev-area', onchange: ev => { V.evarea = Number(ev.target.value); render(); } },
       areaOptions(V.evarea).map((o, i) => { if(i === 0) o.textContent = 'Whole project'; return o; }))),
     zoomSelect(), h('span', null, 'Signal at week ' + cur + ': ', signalChip(m)));
+  const evBox = h('div', { class: 'chartbox fit' }), spiBox = h('div', { class: 'fit' }), quadBox = h('div', { class: 'fit' });
   append(root, [activeBaseline(P) ? null : noBaselineNote(), tb,
-    h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Cumulative earned value (tasks)'), evChart(ser, cur, 1380), evLegend()),
+    h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Cumulative earned value (tasks)'), evBox, evLegend()),
     h('div', { class: 'ev-charts' },
-      h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'SPI by week'), spiChart(ser, cur)),
-      h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Start versus finish'), quadChart(ser, cur))),
+      h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'SPI by week'), spiBox),
+      h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Start versus finish'), quadBox)),
     h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, `Late tasks at week ${cur}`), lateList(cur)),
     h('div', { class: 'card' }, h('h3', { style: 'margin-top:0' }, 'Every measure by week'), measuresTable(ser, cur))]);
+  // the boxes are in the page now: draw each chart at the width of its box
+  fitChart(evBox, w => evChart(ser, cur, w), EV_CHART_MIN_W);
+  fitChart(spiBox, w => spiChart(ser, cur, w), SMALL_CHART_MIN_W);
+  fitChart(quadBox, w => quadChart(ser, cur, w), SMALL_CHART_MIN_W);
 }
 
 function evLegend(){
   return h('div', { class: 'legend', style: 'margin-top:6px' },
     h('span', null, lineKey('#55636b', 'dashed'), 'PV — planned value'), h('span', null, lineKey('#10668a', 'solid'), 'EV — earned value'),
-    h('span', null, 'SV — bracket at the current week'), h('span', null, lineKey('#10668a', 'dotted'), 'Forecast at the current SPI'));
+    h('span', null, bracketKey(), 'SV — bracket at the current week'), h('span', null, lineKey('#10668a', 'dotted'), 'Forecast at the current SPI'));
+}
+/** Legend symbol of the SV bracket: the same shape and colour as the bracket on the chart. */
+function bracketKey(){
+  return s('svg', { width: 12, height: 18, viewBox: '0 0 12 18', 'aria-hidden': 'true', style: 'vertical-align:middle;margin-right:5px' },
+    s('path', { d: 'M2 2H8V16H2', fill: 'none', stroke: '#1b2328', 'stroke-width': 2 }));
 }
 function lineKey(col, style){
   return h('span', { 'aria-hidden': 'true', style: `display:inline-block;width:26px;border-top:3px ${style} ${col};vertical-align:middle;margin-right:5px` });
 }
 
 /** PV across the baseline, EV to the current week, the SV bracket, the forecast at the current SPI, plan finish T and
-    forecast Tf (change briefing C4, C5: text ≥ 13 px, key annotations 15 px bold, labels clear of lines and of each other). */
+    forecast Tf (change briefing C4, C5: text ≥ 13 px, key annotations 15 px bold, labels clear of lines and of each other).
+    width is the px width the chart is shown at (see fitChart); returns the SVG. */
 function evChart(ser, cur, width, zoom){
   const m = ser[cur], BAC = m.BAC || 0, T = m.T || 0;
   const [a, b] = chartRange('ev', m, zoom), x0 = a - 1, x1 = b;
-  const L = 56, R = 28, Tm = 62, B = 50, W = width || 1100, H = 420, pw = W - L - R, ph = H - Tm - B;
+  const L = 56, R = 28, Tm = 62, B = 50, W = width, H = 420, pw = W - L - R, ph = H - Tm - B;
   const tk = ticks(Math.max(1, BAC), 5), top = tk[tk.length - 1];
   const X = w => L + (w - x0) / (x1 - x0) * pw, Y = v => Tm + ph - v / top * ph;
-  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', style: 'max-width:100%;height:auto',
+  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img',
     'aria-label': `Cumulative earned value chart, weeks ${x0} to ${x1}. At week ${cur}: PV ${fmtCount(m.PV)}, EV ${fmtCount(m.EV)}, SV ${fmtCount(m.SV)}. The values are in the measures table.` });
   svg.append(s('defs', null, s('clipPath', { id: 'evclip' + W }, s('rect', { x: L, y: Tm - 2, width: pw, height: ph + 4 }))));
   for(const v of tk) svg.append(s('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: '#e3e8eb' }), s('text', { x: L - 8, y: Y(v) + 5, 'font-size': 13, 'text-anchor': 'end', fill: '#4f5b62' }, v));
@@ -47,7 +68,7 @@ function evChart(ser, cur, width, zoom){
   svg.append(s('line', { x1: L, x2: W - R, y1: Y(0), y2: Y(0), stroke: '#4f5b62' }), s('line', { x1: L, x2: L, y1: Tm, y2: Y(0), stroke: '#4f5b62' }),
     s('text', { x: L + pw / 2, y: H - 8, 'font-size': 14, 'text-anchor': 'middle', fill: '#4f5b62' }, 'Week'),
     s('text', { x: 16, y: Tm + ph / 2, 'font-size': 14, 'text-anchor': 'middle', fill: '#4f5b62', transform: `rotate(-90 16 ${Tm + ph / 2})` }, 'Tasks'));
-  if(!BAC){ svg.append(s('text', { x: L + pw / 2, y: Tm + ph / 2, 'font-size': 15, 'text-anchor': 'middle', fill: '#4f5b62' }, 'No baselined tasks yet: baseline the schedule.')); return h('div', { class: 'chartbox' }, svg); }
+  if(!BAC){ svg.append(s('text', { x: L + pw / 2, y: Tm + ph / 2, 'font-size': 15, 'text-anchor': 'middle', fill: '#4f5b62' }, 'No baselined tasks yet: baseline the schedule.')); return svg; }
   const plot = s('g', { 'clip-path': `url(#evclip${W})` });
   svg.append(plot);
   plot.append(s('line', { x1: L, x2: W - R, y1: Y(BAC), y2: Y(BAC), stroke: '#9aa5ab', 'stroke-dasharray': '2 3' }));
@@ -90,16 +111,17 @@ function evChart(ser, cur, width, zoom){
     svg.append(halo({ x: x0, y: Tm - 14 - row * 20, 'font-size': 15, 'font-weight': 700, 'text-anchor': 'start', fill: l.col }, l.text));
   });
   svg.append(halo({ x: L + 8, y: Y(BAC) + 20, 'font-size': 15, 'font-weight': 700, fill: '#3d484e' }, `BAC = ${BAC} tasks`));
-  return h('div', { class: 'chartbox' }, svg);
+  return svg;
 }
 
-function spiChart(ser, cur, zoom){
-  const [a, b] = chartRange('spi', ser[cur], zoom);
+/** SPI by week, weeks 1 to the current week plus 4 at the Plan span zoom. width: the px width it is shown at. */
+function spiChart(ser, cur, width){
+  const [a, b] = chartRange('spi', ser[cur]);
   const pts = ser.slice(1, cur + 1).filter(r => r.SPI !== null && r.w >= a && r.w <= b);
-  const W = 540, H = 300, L = 52, R = 16, T = 16, B = 46, pw = W - L - R, ph = H - T - B;
+  const W = width, H = smallChartH(W), L = 52, R = 16, T = 16, B = 46, pw = W - L - R, ph = H - T - B;
   const top = Math.max(1.5, ...pts.map(r => r.SPI)) * 1.05;
   const X = w => L + (w - a) / Math.max(1, b - a) * pw, Y = v => T + ph - v / top * ph;
-  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'SPI by week. The values are in the measures table.', style: 'max-width:100%;height:auto' });
+  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'SPI by week. The values are in the measures table.' });
   for(const v of [0, 0.5, 1, 1.5, 2].filter(v => v <= top)) svg.append(s('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: v === 1 ? '#4f5b62' : '#e3e8eb', 'stroke-dasharray': v === 1 ? '5 3' : null }),
     s('text', { x: L - 8, y: Y(v) + 5, 'font-size': 13, 'text-anchor': 'end', fill: '#4f5b62' }, v.toFixed(1)));
   const step = ticks(b - a, 8)[1] || 1;
@@ -116,21 +138,22 @@ function spiChart(ser, cur, zoom){
 }
 
 /** Start ratio across, finish ratio up, split at 1; the team's dot week by week. Quadrants carry the signal word and the
-    lecture's description (change briefing C8). */
-function quadChart(ser, cur){
+    lecture's description (change briefing C8); the top right reads "On plan" only, as on the lecture slide (ruling R2 of
+    Nov 17). width: the px width it is shown at. */
+function quadChart(ser, cur, width){
   const pts = ser.slice(1, cur + 1).filter(r => r.SR !== null && r.FR !== null);
-  const W = 540, H = 340, L = 52, R = 16, T = 16, B = 46, pw = W - L - R, ph = H - T - B;
+  const W = width, H = smallChartH(W), L = 52, R = 16, T = 16, B = 46, pw = W - L - R, ph = H - T - B;
   const mx = Math.max(2, ...pts.map(r => r.SR)) * 1.02, my = Math.max(2, ...pts.map(r => r.FR)) * 1.02;
   const X = v => L + v / mx * pw, Y = v => T + ph - v / my * ph;
-  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', style: 'max-width:100%;height:auto',
+  const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img',
     'aria-label': 'Start versus finish quadrant: start ratio across, finish ratio up. Top left: Watch, starting late, finishing well. Top right: On plan. Bottom left: Re-plan, behind on both. Bottom right: Watch, starting, not finishing. The values are in the measures table.' });
   svg.append(s('rect', { x: L, y: T, width: X(1) - L, height: Y(1) - T, fill: '#fff6e5' }), s('rect', { x: X(1), y: Y(1), width: W - R - X(1), height: Y(0) - Y(1), fill: '#fff6e5' }),
     s('rect', { x: X(1), y: T, width: W - R - X(1), height: Y(1) - T, fill: '#e8f4ed' }), s('rect', { x: L, y: Y(1), width: X(1) - L, height: Y(0) - Y(1), fill: '#fdeceb' }),
     s('line', { x1: X(1), x2: X(1), y1: T, y2: Y(0), stroke: '#4f5b62' }), s('line', { x1: L, x2: W - R, y1: Y(1), y2: Y(1), stroke: '#4f5b62' }));
   const quad = (x, y, anchor, word, desc, col) => [halo({ x, y, 'font-size': 15, 'font-weight': 700, 'text-anchor': anchor, fill: col }, word),
-    halo({ x, y: y + 17, 'font-size': 13, 'text-anchor': anchor, fill: '#3d484e' }, desc)];
+    desc ? halo({ x, y: y + 17, 'font-size': 13, 'text-anchor': anchor, fill: '#3d484e' }, desc) : null];
   append(svg, [quad(L + 8, T + 20, 'start', 'Watch', 'Starting late, finishing well', '#8a5700'),
-    quad(W - R - 8, T + 20, 'end', 'On plan', 'Starting and finishing on plan', '#18744a'),
+    quad(W - R - 8, T + 20, 'end', 'On plan', null, '#18744a'),
     quad(L + 8, Y(0) - 26, 'start', 'Re-plan', 'Behind on both', '#b42318'),
     quad(W - R - 8, Y(0) - 26, 'end', 'Watch', 'Starting, not finishing', '#8a5700')]);
   svg.append(s('text', { x: L + pw / 2, y: H - 6, 'font-size': 14, 'text-anchor': 'middle', fill: '#4f5b62' }, 'Start ratio SR = Sa / Sp'),
@@ -176,7 +199,8 @@ function renderReport(root){
   const moved = IX.order.filter(isPkg).filter(e => (SX.get(e.id) || []).some(z => z.week === cur))
     .map(e => ({ e, t: trackAt(SX.get(e.id), cur), was: trackAt(SX.get(e.id), cur - 1).state }));
   const head = [['PV', fmtCount(m.PV)], ['EV', fmtCount(m.EV)], ['SV', fmtCount(m.SV)], ['SPI', fmtIndex(m.SPI)], ['SR', fmtIndex(m.SR)], ['FR', fmtIndex(m.FR)],
-    ['Percent complete', fmtPct(m.pct)], ['Forecast finish', m.Tf === null ? UNDEF : `week ${m.Tf.toFixed(1)} (plan: week ${m.T})`], ['TSPI', fmtTSPI(m)]];
+    ['Percent complete', fmtPct(m.pct)], ['Forecast finish', m.Tf === null ? UNDEF : `week ${m.Tf.toFixed(1)}`, m.Tf === null ? null : `plan: week ${m.T}`], ['TSPI', fmtTSPI(m)]];
+  const evBox = h('div', { class: 'chartbox fit' });
   const ta = h('textarea', { class: 'screenonly', rows: 5, 'data-key': 'actions', 'aria-label': 'Actions', maxlength: LIMITS.long,
     onchange: ev => change(() => { P.actions = ev.target.value; }) }, P.actions);
   append(root, [h('div', { class: 'toolbar' }, h('button', { type: 'button', class: 'primary', 'data-key': 'r-print', onclick: () => window.print() }, 'Print or save as PDF'),
@@ -186,12 +210,14 @@ function renderReport(root){
         `Status report · week ${cur} of ${P.weeks} · ${new Date().toISOString().slice(0, 10)}${activeBaseline(P) ? ` · baseline ${activeBaseline(P).n}` : ' · no baseline'}`)),
         signalChip(m)),
       h('h3', null, 'Headline numbers (tasks)'),
-      h('div', { class: 'kpis' }, head.map(([k, v]) => h('div', { class: 'kpi' }, h('div', { class: 'k' }, k), h('div', { class: 'v' + (v === UNDEF || v === 'plan complete' ? ' u' : '') }, v)))),
+      h('div', { class: 'kpis' }, head.map(([k, v, sub]) => h('div', { class: 'kpi' }, h('div', { class: 'k' }, k), h('div', { class: 'v' + (v === UNDEF || v === 'plan complete' ? ' u' : '') }, v),
+        sub ? h('div', { class: 'r' }, sub) : null))),
       h('p', { class: 'reading' }, statusLine(m)),
-      h('h3', null, 'Cumulative earned value'), evChart(ser, cur, 840, 'plan'),
+      h('h3', null, 'Cumulative earned value'), evBox,
       h('h3', null, 'Late tasks'), lateList(cur, {}),
       h('h3', null, `Tasks started or finished in week ${cur}`),
-      moved.length ? h('ul', { class: 'plain' }, moved.map(x => h('li', null, `${IX.num.get(x.e.id)} ${x.e.name} (${x.e.pkg.owner || 'no owner'}): ${STATE_LABEL[x.was].toLowerCase()} → `, stateText(x.t.state))))
+      moved.length ? h('ul', { class: 'plain' }, moved.map(x => h('li', null, `${IX.num.get(x.e.id)} ${x.e.name} (${x.e.pkg.owner || (x.e.pkg.type === 'milestone' ? '—' : 'no owner')}): ${STATE_LABEL[x.was]} → `, stateText(x.t.state))))
         : h('p', { class: 'mut' }, 'None.'),
       h('h3', null, 'Actions'), ta, h('div', { class: 'printonly', style: 'white-space:pre-wrap;border:1px solid #c6cfd4;padding:8px;min-height:4em' }, P.actions || ' '))]);
+  fitChart(evBox, w => evChart(ser, cur, w, 'plan'), EV_CHART_MIN_W);   // the box is in the page now: draw at its width
 }

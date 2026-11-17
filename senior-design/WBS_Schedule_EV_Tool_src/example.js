@@ -6,6 +6,7 @@
    ════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const EXAMPLE_NAME = 'Lecture example: week-6 team';
+const EXAMPLE_ACCEPTED = { key: 'rep2', why: 'Ongoing all term: one status report every week' };
 
 /* [sub-area, name, type, start, finish, owner, deliverable, predecessor keys, key, status at week 6]
    status: 'f' finished (started at its start week, finished at its finish week), 's' started at week 5, '' not started. */
@@ -45,7 +46,7 @@ const EXAMPLE_ROWS = [
   ['3.3', 'PCB assembly', 'task', 12, 12, 'Dev', 'Assembled boards', ['fab'], 'pcba', ''],
   ['3.3', 'Enclosure fabrication', 'task', 10, 11, 'Ana', 'Machined enclosure', ['cad'], 'encl', ''],
   ['3.3', 'Final assembly and wiring', 'task', 13, 14, 'Ben', 'Assembled prototype', ['pcba', 'encl'], '', ''],
-  ['4.1', 'Status reports, weeks 7–15', 'task', 7, 15, 'Cara', 'Nine weekly status reports', ['rep1'], '', ''],
+  ['4.1', 'Status reports, weeks 7–15', 'task', 7, 15, 'Cara', 'Nine weekly status reports', ['rep1'], 'rep2', ''],
   ['4.1', 'Midterm presentation', 'task', 8, 8, 'Dev', 'Midterm presentation slides', [], '', ''],
   ['4.1', 'Final presentation and poster', 'task', 14, 15, 'Ana', 'Final presentation and poster', [], '', ''],
   ['4.2', 'Schedule review and update', 'task', 9, 9, 'Ben', 'Updated schedule and earned value', [], '', ''],
@@ -75,6 +76,9 @@ function lectureExample(){
     made.push([e, r]);
   }
   for(const [e, r] of made) e.pkg.preds = r[7].map(k => byKey[k]);
+  // 4.1.2 runs all term: accepted as longer than 2 weeks, to show Accepted exceptions (change briefing v1.0.4, E12)
+  const rep2 = made.find(([, r]) => r[8] === EXAMPLE_ACCEPTED.key)[0];
+  Object.assign(rep2.pkg, { longOk: true, longWhy: EXAMPLE_ACCEPTED.why });
   addBaseline(p, 'Initial baseline, agreed at PDR', '2026-09-04');
   for(const [e, r] of made){
     if(r[9] === 'f'){ setStatus(p, e.id, r[3], 'started'); setStatus(p, e.id, r[4], 'finished'); }

@@ -3,6 +3,8 @@
    Baseline bars are outlined; actual bars are solid; summary bars span their packages in the area colour.
    ════════════════════════════════════════════════════════════════════════════════════════════ */
 
+const OPEN_LABEL_GAP = 9;            // px between the end of an open actual bar and its "open" label
+
 function zoomRange(){
   const N = P.weeks, half = Math.ceil(N / 2), c = Math.max(1, P.currentWeek);
   if(V.zoom === 'sd1') return [1, half];
@@ -85,7 +87,9 @@ function ganttChart(rows){
         if(t.start !== null){
           const end = t.finish !== null ? t.finish : Math.max(t.start, cur);
           body.append(s('rect', { x: X(t.start) + 1, y: y + 15, width: (end - t.start + 1) * cw - 2, height: 9, rx: 2, fill: col, opacity: k.type === 'lead' ? 0.6 : 1 }));
-          if(t.finish === null) body.append(s('text', { x: X(end + 1) + 3, y: y + 23, 'font-size': 13, fill: '#4f5b62' }, 'open'));
+          // "open" sits OPEN_LABEL_GAP px right of the bar end (the today line when the task runs to today), with a
+          // white halo, so it touches neither the today line nor a week line (change briefing v1.0.4, E9)
+          if(t.finish === null) body.append(halo({ x: X(end + 1) + OPEN_LABEL_GAP, y: y + 23, 'font-size': 13, fill: '#4f5b62' }, 'open'));
         }
       }
     } else {

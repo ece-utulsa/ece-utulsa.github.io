@@ -3,19 +3,29 @@
 
 The delivered page is ONE plain HTML file: template.html with
   @@SCRIPT@@     the application scripts, concatenated inside one strict-mode function (no globals)
-  @@VERSION@@ @@RELEASED@@ @@CHANGELOG@@  the release fields below.
+  @@VERSION@@ @@RELEASED@@ @@CHANGELOG@@  the release fields below
+  @@SCRIPTHASH@@ the SHA-256 of the inline script, for the Content-Security-Policy (recomputed on every build).
 
 Usage:  python3 build.py            writes ../WBS_Schedule_EV_Tool_v<VERSION>.html
         python3 build.py OUT.html   writes OUT.html
 """
+import base64
+import hashlib
 import os
 import re
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.0.3'
-RELEASED = '2026-11-09'
-CHANGELOG = ('\n    v1.0.3 - change briefing of Nov 9 (ease of use and visuals; no calculation changed): BAC labelled Tasks in the WBS; '
+VERSION = '1.0.4'
+RELEASED = '2026-11-17'
+CHANGELOG = ('\n    v1.0.4 - change briefing of Nov 17 (v1.0.3 test fixes; no calculation changed): charts drawn at their displayed '
+             'width so chart text is 13 px and key labels 15 px on screen (D1); quadrant top right reads On plan only (D2); the BAC '
+             'card is the number of tasks in the WBS before the first baseline too (D3); milestone without an owner shows a grey '
+             'dash; WBS diagram wraps long names to two lines; Forecast finish card with the plan week on a second line; TSPI card '
+             'captioned To-complete SPI and small cards fill the row; SPI and quadrant charts fill their cards; Started -> Finished '
+             'capitalised alike; one signal chip on This week; SV bracket symbol in the legend; open label clear of the today '
+             'line; guide arithmetic and zoom text; lecture example opens with 4.1.2 accepted as longer than 2 weeks; CSP script hash. '
+             '\n    v1.0.3 - change briefing of Nov 9 (ease of use and visuals; no calculation changed): BAC labelled Tasks in the WBS; '
              'Open the lecture example (week-6 team, 40 tasks) with an Example badge and title; chart text for a projector (13 px, '
              'key labels 15 px bold, no overlaps); Plan span / One semester / Whole project zoom on Task status, Earned value and SPI; '
              'Task status table to the current week plus 4 with Show all weeks; This week headline cards with readings in words and '
@@ -75,10 +85,19 @@ def guide_page():
     return page
 
 
+def script_hash(page, body):
+    """CSP source for the page's one inline script: 'sha256-<base64>' of the exact text between <script> and </script>."""
+    m = re.findall(r'<script>(.*?)</script>', page.replace('@@SCRIPT@@', body), flags=re.S)
+    if len(m) != 1:
+        raise SystemExit('the template must hold exactly one inline <script>')
+    return 'sha256-' + base64.b64encode(hashlib.sha256(m[0].encode('utf-8')).digest()).decode('ascii')
+
+
 def build():
     """Fill the template and return the page."""
     page = read('template.html')
-    for key, val in (('@@GUIDE@@', guide(True)), ('@@SCRIPT@@', script()), ('@@VERSION@@', 'v' + VERSION), ('@@RELEASED@@', RELEASED),
+    body = script()
+    for key, val in (('@@GUIDE@@', guide(True)), ('@@SCRIPTHASH@@', script_hash(page, body)), ('@@SCRIPT@@', body), ('@@VERSION@@', 'v' + VERSION), ('@@RELEASED@@', RELEASED),
                      ('@@CHANGELOG@@', CHANGELOG)):
         page = page.replace(key, val)
     if '@@' in page:
@@ -91,6 +110,7 @@ if __name__ == '__main__':
     with open(out, 'w', encoding='utf-8', newline='\n') as f:
         f.write(build())
     print('wrote', os.path.normpath(out), os.path.getsize(out), 'bytes')
+    print('CSP script-src', script_hash(read('template.html'), script()))
     if len(sys.argv) == 1:
         gout = os.path.join(HERE, '..', 'WBS_Schedule_EV_Tool_Guide.html')
         with open(gout, 'w', encoding='utf-8', newline='\n') as f:
