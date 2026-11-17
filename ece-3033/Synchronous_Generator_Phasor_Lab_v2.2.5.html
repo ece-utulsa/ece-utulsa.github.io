@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <!--
   Synchronous Generator Phasor Lab
-  Version: v2.2.1
-  Released: 2026-11-15
-  Changelog: v2.2.1 — fix pass on the v2.2.0 gates. Solve for E_A now computes E_A = V_phi + (R_A + jX_S) I_A directly from the given V_phi (it used to re-derive V_phi from the field and could return a different operating point for a strongly leading load: DEFECT-SG-201 / CQ-SG-301); a torque angle beyond 90 degrees is flagged in red; the field needed is shown as found, with a warning when it lies outside 0.30-2.20 pu, instead of being clamped (SG-202), and the field-current input is no longer overwritten (SG-204). Load is limited to 0-200 % of full-load current whatever the rating (SG-206). The typed boxes are text boxes that accept a decimal comma, mark an entry that is not a number and say when a value was limited (SG-207, SG-208); the Lead / Lag choice is disabled at unity (SG-203). The power-factor slider and box share one range (to 87 degrees); line-entry sliders run on whole numbers and reach the exact limits; a Y / delta switch in line entry keeps the load percentage. Status texts print the signed delta; the drive-switch tooltip names the actual reason and the switch no longer locks at an end stop; the horizontal construction label reads +X_S I_A sin theta for a motor or condenser, the Q supplied. Label placement tries more positions for the angle and tick labels. Internal: purpose-named constants, aria-pressed on the segmented buttons, dead CSS removed, state field hold renamed solveFor.
+  Version: v2.2.5
+  Released: 2026-11-17
+  Changelog: v2.2.5 — PPR-SG-010, ruling J4 option A, 2026-11-17 (Claude Code). Motor and Condenser views (round rotor and salient pole): the drawn drop phasors are −jX_S I_A and −R_A I_A, and are now labelled so on the diagram and in the legend ("−jX_S I_A", "−R_A I_A"; salient pole "−jX_d I_d − jX_q I_q"), matching the KVL strip term by term and Experiment 12 step 1. The drawing itself, the Generator view and the physics are unchanged. No other change.
+  v2.2.4 — fix pass on the v2.2.3 gates (Claude Code). Capability plot: each half-plane name ("lagging pf" / "leading pf") is placed on the P side where the machine shown operates (P ≥ 0 generator, P ≤ 0 motor, either side for the condenser) (PPR-SG-007). Theory: the unity-load and regulation statements, and "a generator has a positive δ", are scoped to X_S ≫ R_A, as in every real machine; the lab lets R_A approach X_S, where they can reverse (PPR-SG-011). Excitation pill: a reversed field is named as such, never as a field above its limit (PPR-SG-012). Phasor labels: the origin dot is a label obstacle, and in the dark view the glow of the three phasors is too (VIS-SG-002). Pin reference, Fit, the theme button and the guide's Restart / Hide / close carry their meaning in visible text (a note under Pin reference; "Fit diagram", "Restart experiment", "Leave guide"), with no tooltip-only instruction (VIS-SG-008). The status chip and the R_A note print I_f, P_max, R_A and V_φ with subscripts, built as text nodes (VIS-SG-012). Panel titles, the mini buttons and the nav badge are 0.72rem (11.52 px), so every page label is at least 11.5 px as the v2.2.3 entry says (CQ-SG-602). The v2.2.3 entry below now lists every shipped change (CQ-SG-601).
+  v2.2.3 — fix pass on the v2.2.2 gates. Round-rotor stability test changed from δ > δ_pull + tol to sin(δ − δ_pull) > tol, so a lightly loaded motor with R_A > 0 whose δ has passed 180° is flagged unstable (red status chip, capability dot) where v2.2.2 did not flag it. A reversed field is also named in the drive-switch reason, and its E_A phasor is labelled "E_A (reversed)". Salient pole, Set P & pf: a point whose two-reaction solution needs a field at or below zero is named as a reversed field, outside the model; its field is shown with its sign, delta is the angle of the q-axis, no stability claim is made and no dot is put on the V-curve (PPR-SG-001). Capability plot: the dot is not reported inside the limits beyond the stability limit; for the round-rotor model the stability limit is drawn when it is in view and bounds the shaded region, and Theory section 6 names it (PPR-SG-002). The "proportional to P / real current" label is shown only with R_A = 0, and the texts that rely on it say so (PPR-SG-003). Unity-load and regulation wording no longer state a size (PPR-SG-004, -005). No per-unit reactances in the rating line (PPR-SG-006). Capability half-plane labels name Q supplied / absorbed and the lead or lag of the machine shown (PPR-SG-007). The salient-pole capability view says its limits are round-rotor circles (PPR-SG-009). A typed number too large to hold ("1e999") is reported as too large (SG-213). Right-hand column scrolls instead of painting over the equation strip when the window is short (VIS-SG-001). Labels on both canvases keep clear of every drawn line: loci, construction lines, the pinned reference, angle arcs, limit curves and guide lines are label obstacles; side-plot notes sit in a margin above the frame; the left margin grows with the tick labels (VIS-SG-002, -003, SG-214). |E_A| locus drawn darker (VIS-SG-004); theta arc dashed (VIS-SG-005); canvas text at least 11.5 px with 8 px subscripts and page labels at least 11.5 px (VIS-SG-006); Compare check boxes 26 px high (VIS-SG-007); drive-switch reason, Lead / Lag note, allowed ranges and button-group explanations are printed beside their controls (VIS-SG-008); pressed Pin reference text contrast in the dark view (VIS-SG-009); Theory figure 1 no longer clips I_A (VIS-SG-010); the status chip has its own row and the combined field text is shorter (VIS-SG-011). Version in the title and a version meta tag (CQ-SG-502); unreachable floor branch of the load-to-field hand-over removed (CQ-SG-503); placeInFrame comment corrected (CQ-SG-504).
+  v2.2.2 — fix pass on the v2.2.1 gates. Typed boxes: text that is not wholly a number ("12abc", "12 A", "1,2,3", "0x10", "1e", "1/2") no longer leaves a prefix of itself applied; the value in force when the box was entered is kept, the box is marked and the row says "not a number - kept <value>"; an emptied box keeps that value too (DEFECT-SG-209). The number pattern now has one way to match any text and text longer than 24 characters is refused before it is tested (SEC-SG-301). Solve for E_A names a field outside 0.30-2.20 pu in the status chip in every state, also when delta beyond 90 degrees is flagged (the delta wording is unchanged) (DEFECT-SG-210 / CQ-SG-401). The drive-switch tooltip on a state where the set P is below the least input the field allows now says so, in either direction, instead of "cannot reproduce this point exactly" (DEFECT-SG-211 / CQ-SG-103). A required label whose listed positions are all taken now tries rings of positions around them (6 px apart, up to 48 px) before it would overprint, so "rated V_phi", "unity", "25 kW" and "jX_S I_A" sit clear of the curves, phasors and the operating dot at the experiment start states (DEFECT-SG-212 / CQ-SG-021). The Pin reference button carries aria-pressed and the page tab in use aria-current (CQ-SG-402). The v2.2.1 entry below now lists every v2.2.1 change (CQ-SG-403).
+  v2.2.1 — fix pass on the v2.2.0 gates. Solve for E_A now computes E_A = V_phi + (R_A + jX_S) I_A directly from the given V_phi (it used to re-derive V_phi from the field and could return a different operating point for a strongly leading load: DEFECT-SG-201 / CQ-SG-301); a torque angle beyond 90 degrees is flagged in red; the field needed is shown as found, with a warning when it lies outside 0.30-2.20 pu, instead of being clamped (SG-202), and the field-current input is no longer overwritten (SG-204). Load is limited to 0-200 % of full-load current whatever the rating (SG-206). The typed boxes are text boxes that accept a decimal comma, mark an entry that is not a number and say when a value was limited (SG-207, SG-208); the Lead / Lag choice is disabled at unity (SG-203). The power-factor slider and box share one range (to 87 degrees); line-entry sliders run on whole numbers and reach the exact limits; a Y / delta switch in line entry keeps the load percentage. Status texts print the signed delta; the drive-switch tooltip names the actual reason and the switch no longer locks at an end stop; the horizontal construction label reads +X_S I_A sin theta for a motor or condenser, the Q supplied. Label placement tries more positions for the angle and tick labels. Internal: purpose-named constants, aria-pressed on the segmented buttons, dead CSS removed, state field hold renamed solveFor. Also in v2.2.1: the Theory page says the angle inside the construction triangle is |theta| (section 3) and states that for a motor or condenser the lab reports the Q supplied, Q = +3 V_phi I_A sin theta with I_A flowing in (section 7); the terminal characteristic is drawn for the field in force (the field found, in Solve for E_A) and, when delta is beyond 90 degrees, a dashed lower-voltage branch of the same field is drawn; every typed box carries an "Allowed: min to max" tooltip; with the load limited to 200 % of full-load current, the largest per-phase load current is now 2,000 A (200 % of the 1,000 A maximum rating; it was 1,000 A).
   v2.2.0 — simplified set-up, organised the way a problem is stated. Machine parameters comes first: connection (Y or delta), a line / phase switch for the voltage and current boxes, rated voltage, full-load current, X_S and R_A. The current is entered once: the load is a percentage of full load. For a generator operating alone a Solve for choice picks the question: E_A (V_phi given, the default, the homework question) or V_phi (field given, used by the guided experiments). The right-hand list is split into Given and Results, so entries can be seen to register. Readouts add line current, apparent power and field current; X_S can be entered down to 0.05 ohm. Label collisions reduced on the phasor diagram, terminal characteristic and V-curve; the Lead / Lag toggle is dimmed at unity; the drive-switch warning is a tooltip, so nothing in the sidebar appears or moves. The experiment steps give the load in percent. Default machine (Y, 277 V per phase, 75 A) unchanged; the default operating point changed: load 40 A -> 75 A (100 %), and with Solve for E_A the default the stand-alone field starts at 1.285 pu (was 1.00 pu). Solvers unchanged apart from the added rated-V_phi field calculation.
   v2.1.0 — homework values: wider limits (V_phi to 10 kV, I_A to 1000 A, X_S to 10 ohm, R_A to 1 ohm, P to 5000 kW), a typed entry box beside every slider (exact, not snapped to the slider step), power-factor entry with Lag / Lead, line-voltage entry (V_phi = V_T / sqrt 3), and a "Set field for rated V_phi" button for the stand-alone generator (given V_phi, I_A and pf, find E_A, delta and regulation). Load-current and power sliders span a multiple of the rating; MW shown to three decimals. Defaults and solvers unchanged.
   v2.0.1 — Fix pass on v2.0.0 (Code Quality, Cybersecurity and Test gates): torque-angle solve covers the whole rising branch (set P honoured with R_A above 0), leading stand-alone loads no longer clamped, red badge beyond the stability limit, signed delta, field-limit and inverse-saliency warnings, three-phase and motor-convention labels; bounded drawing on very small windows, constants block / TOC / closing delimiters, one coalesced render per action, drive switch no longer changes the operating point, R_A neglected consistently for the salient-pole model, analytic pull-out (motor peak beyond 90 degrees), accessibility and contrast fixes, narrow-screen header. Later commits of the same version (86fb468, 6dce200, 7eb2ea9): Test fixes, a side-plot column that widens on large screens (CSS only), theta shown signed everywhere (angle of I_A from V_phi, lagging negative), the reactive side of the triangle relabelled, an angle-convention note on the Theory page, an X_d / X_q hint, and a NO LOAD state for the excitation pill.
@@ -13,7 +17,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Synchronous Generator Phasor Lab</title>
+<meta name="version" content="v2.2.5">
+<title>Synchronous Generator Phasor Lab v2.2.5</title>
 <script>
 /* Theme is applied before first paint: saved choice, else the system preference. */
 (function () {
@@ -64,7 +69,7 @@ sub { font-size: 0.72em; }
     min-height: 50px; padding: 6px 14px; background: var(--bg2); border-bottom: 1px solid var(--line2); z-index: 20; flex-wrap: wrap; }
 .brand { font-size: 0.84rem; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; display: flex; align-items: center; gap: 9px; white-space: nowrap; }
 .brand i { width: 9px; height: 9px; border-radius: 50%; background: var(--acc); }
-.brand small { font-weight: 600; color: var(--mut2); letter-spacing: 0.2px; text-transform: none; }
+.brand small { font-size: 0.72rem; font-weight: 600; color: var(--mut2); letter-spacing: 0.2px; text-transform: none; }
 .nav-right { display: flex; align-items: center; gap: 8px; }
 .tabs { display: flex; gap: 3px; }
 .tabs button { font-size: 0.8rem; font-weight: 700; padding: 8px 15px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--mut); cursor: pointer; }
@@ -114,11 +119,12 @@ input[type=range]:disabled { opacity: 0.45; cursor: not-allowed; }
 .seg button:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn { width: 100%; font-size: 0.74rem; font-weight: 700; padding: 8px 6px; border: 1px solid var(--line2); border-radius: 6px; cursor: pointer; background: var(--inset); color: var(--body); }
 .btn:hover { border-color: var(--acc); color: var(--acc); }
-.btn.on { border-color: var(--acc); color: var(--acc); background: var(--acc-soft); }
-.hint.derived { margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
-.row-head label small { color: var(--mut); font-size: 0.86em; }
+.btn.on { border-color: var(--acc); color: var(--txt); background: var(--acc-soft); box-shadow: inset 0 0 0 1px var(--acc); }
+.hint.derived, .hint.range { margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; }
+.hint.why { color: var(--warn); }
+.row-head label small { color: var(--mut); font-size: 0.72rem; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--line2); color: var(--body); }
-.chk { display: flex; align-items: center; gap: 7px; font-size: 0.76rem; color: var(--body); margin-top: 7px; cursor: pointer; }
+.chk { display: flex; align-items: center; gap: 7px; min-height: 26px; font-size: 0.76rem; color: var(--body); margin-top: 4px; cursor: pointer; }
 .chk input { accent-color: var(--acc); width: 15px; height: 15px; }
 .pill { margin-top: 8px; text-align: center; font-size: 0.72rem; font-weight: 700; padding: 6px 7px; border-radius: 6px; border: 1px solid var(--line2); background: var(--inset); color: var(--mut); line-height: 1.35; }
 
@@ -128,7 +134,7 @@ input[type=range]:disabled { opacity: 0.45; cursor: not-allowed; }
 .guide { flex-shrink: 0; background: var(--bg2); border: 1px solid var(--acc); border-radius: 10px; padding: 8px 12px; display: none; }
 .guide.show { display: block; }
 .guide-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.guide-head .g-num { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 700; color: var(--acc); text-transform: uppercase; letter-spacing: 1px; }
+.guide-head .g-num { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; color: var(--acc); text-transform: uppercase; letter-spacing: 1px; }
 .guide-head .g-title { font-size: 0.92rem; font-weight: 800; flex: 1; min-width: 160px; }
 .guide-head button { font-size: 0.72rem; font-weight: 700; padding: 5px 10px; border: 1px solid var(--line2); border-radius: 6px; background: var(--inset); color: var(--body); cursor: pointer; }
 .guide-head button:hover { border-color: var(--acc); color: var(--acc); }
@@ -143,31 +149,35 @@ input[type=range]:disabled { opacity: 0.45; cursor: not-allowed; }
 .stage { flex: 1; display: flex; gap: 8px; min-height: 0; }
 .panel { background: var(--canvas); border: 1px solid var(--line2); border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .panel-head { flex-shrink: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--bg2); }
-.panel-head .ph-title { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: var(--acc); }
+.panel-head .ph-title { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: var(--acc); }
 .legend { display: flex; gap: 11px; flex-wrap: wrap; font-size: 0.76rem; font-weight: 700; color: var(--body); }
 .legend span { white-space: nowrap; }
 .legend i { width: 15px; height: 4px; border-radius: 2px; display: inline-block; vertical-align: middle; margin-right: 5px; }
-.status { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 6px; border: 1px solid var(--line2); color: var(--mut); }
-.mini-btn { font-size: 0.7rem; font-weight: 700; padding: 4px 9px; border: 1px solid var(--line2); border-radius: 6px; background: var(--inset); color: var(--body); cursor: pointer; }
+/* The status chip has a row of its own, so the diagram keeps its height whatever the chip says. */
+.status-row { flex: 1 0 100%; display: flex; min-height: 25px; }
+.status { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 6px; border: 1px solid var(--line2); color: var(--mut); }
+.mini-btn { font-size: 0.72rem; font-weight: 700; padding: 4px 9px; border: 1px solid var(--line2); border-radius: 6px; background: var(--inset); color: var(--body); cursor: pointer; }
 .mini-btn:hover { border-color: var(--acc); color: var(--acc); }
+.panel-head .mini-btn { margin-left: auto; }
 .phasor-panel { flex: 1; }
 .cv-wrap { flex: 1; min-height: 0; position: relative; }
 .cv-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* The readout / side-plot column keeps 348 px up to a 1440 px window, then widens with it so the plot is not a tall sliver on large monitors. */
 /* Side column: --side-min wide up to a --side-grow-from window, then it takes --side-grow of every extra pixel, up to --side-max. */
 .right { --side-min: 348px; --side-max: 680px; --side-grow-from: 1440px; --side-grow: 0.55;
-    width: clamp(var(--side-min), calc(var(--side-min) + (100vw - var(--side-grow-from)) * var(--side-grow)), var(--side-max)); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+    width: clamp(var(--side-min), calc(var(--side-min) + (100vw - var(--side-grow-from)) * var(--side-grow)), var(--side-max)); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }   /* short window: the column scrolls, nothing is painted outside it */
 .readouts { flex-shrink: 0; }
-.ro-g { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.ro-g { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 4px; }
 .ro-g .ro:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.ro-h { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: var(--acc); margin: 0 2px 3px; }
-.ro-g + .ro-h { margin-top: 7px; }
-.ro { background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; padding: 3px 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.ro-h { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: var(--acc); margin: 0 2px 3px; }
+.ro-g + .ro-h { margin-top: 5px; }
+.ro { background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .ro .l { font-size: 0.72rem; color: var(--mut); font-weight: 600; white-space: nowrap; }
 .ro .v { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 800; white-space: nowrap; }
-.side-panel { flex: 1; min-height: 170px; }
+.side-panel { flex: 1 0 auto; min-height: 172px; }
+.side-note { flex-shrink: 0; padding: 4px 10px; font-size: 0.72rem; line-height: 1.4; color: var(--body); background: var(--bg2); border-bottom: 1px solid var(--line); }
 .side-panel .seg { margin-left: auto; }
-.side-panel .seg button { padding: 4px 8px; font-size: 0.68rem; flex: 0 0 auto; }
+.side-panel .seg button { padding: 4px 8px; font-size: 0.72rem; flex: 0 0 auto; }
 
 .eq-strip { flex-shrink: 0; display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; background: var(--bg2); border: 1px solid var(--line2); border-radius: 10px; padding: 8px 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700; }
 .eq-strip .tk { padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line2); white-space: nowrap; }
@@ -207,7 +217,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 .exp-card { background: var(--bg2); border: 1px solid var(--line2); border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
 .exp-top { display: flex; align-items: flex-start; gap: 12px; }
 .exp-top > div { flex: 1; min-width: 0; }
-.exp-num { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 700; color: var(--acc); text-transform: uppercase; letter-spacing: 1.3px; }
+.exp-num { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; color: var(--acc); text-transform: uppercase; letter-spacing: 1.3px; }
 .exp-title { font-size: 1rem; font-weight: 800; margin: 2px 0 4px; }
 .exp-goal { font-size: 0.87rem; color: var(--body); line-height: 1.55; }
 .exp-open { flex-shrink: 0; padding: 8px 13px; font-size: 0.78rem; font-weight: 700; color: var(--acc-ink); background: var(--acc); border: none; border-radius: 7px; cursor: pointer; white-space: nowrap; }
@@ -226,7 +236,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
     .sidebar { width: auto; border-right: none; border-bottom: 1px solid var(--line); overflow: visible; }
     .stage { flex-direction: column; flex: none; }
     .phasor-panel { flex: none; height: 62vh; min-height: 340px; }
-    .right { width: auto; }
+    .right { width: auto; overflow-y: visible; }
     .side-panel { flex: none; height: 300px; }
     .textpage { overflow: visible; }
     .guide-body { max-height: none; }
@@ -241,14 +251,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <body>
 
 <div class="topnav">
-    <div class="brand"><i></i>Synchronous Generator Phasor Lab <small>ECE-3033 · v2.2.1</small></div>
+    <div class="brand"><i></i>Synchronous Generator Phasor Lab <small>ECE-3033 · v2.2.5</small></div>
     <div class="nav-right">
         <div class="tabs" id="pageTabs">
-            <button class="active" data-page="theoryPage">Theory</button>
+            <button class="active" data-page="theoryPage" aria-current="page">Theory</button>
             <button data-page="experimentsPage">Experiments</button>
             <button data-page="labPage">Phasor Lab</button>
         </div>
-        <button class="theme-btn" id="themeBtn" title="Switch between light and dark view"></button>
+        <button class="theme-btn" id="themeBtn"></button>
     </div>
 </div>
 
@@ -261,7 +271,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <h2>1 · The per-phase equivalent circuit</h2>
 <p>Each phase of a round-rotor synchronous generator is modeled as an internal generated voltage <strong>E<sub>A</sub></strong> in series with the synchronous reactance <strong>X<sub>S</sub></strong> and the armature resistance <strong>R<sub>A</sub></strong>. What appears at the terminals is the phase voltage <strong>V<sub>φ</sub></strong>.</p>
 <figure class="fig">
-<svg viewBox="0 0 520 170" width="520" role="img" aria-label="Per-phase equivalent circuit: E_A source, jX_S, R_A, terminal voltage V_phi">
+<svg viewBox="0 -8 520 178" width="520" role="img" aria-label="Per-phase equivalent circuit: E_A source, jX_S, R_A, terminal voltage V_phi">
   <g fill="none" stroke="currentColor" stroke-width="2" style="color:var(--body)">
     <circle cx="70" cy="85" r="26" style="stroke:var(--ph-e)"/>
     <path d="M70 59 V30 H150"/><path d="M70 111 V140 H430"/>
@@ -273,12 +283,12 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
     <path d="M370 22 H400 M392 16 l8 6 l-8 6" style="stroke:var(--ph-i)"/>
   </g>
   <g font-family="Archivo, sans-serif" font-weight="700" font-size="15">
-    <text x="57" y="90" style="fill:var(--ph-e)">E<tspan font-size="10" dy="4">A</tspan></text>
+    <text x="57" y="90" style="fill:var(--ph-e)">E<tspan font-size="11" dy="4">A</tspan></text>
     <text x="50" y="52" font-size="13" style="fill:var(--mut)">+</text>
-    <text x="172" y="58" style="fill:var(--ph-x)">jX<tspan font-size="10" dy="4">S</tspan></text>
-    <text x="295" y="60" style="fill:var(--ph-r)">R<tspan font-size="10" dy="4">A</tspan></text>
-    <text x="378" y="12" style="fill:var(--ph-i)">I<tspan font-size="10" dy="4">A</tspan></text>
-    <text x="446" y="90" style="fill:var(--ph-v)">V<tspan font-size="10" dy="4">φ</tspan></text>
+    <text x="172" y="58" style="fill:var(--ph-x)">jX<tspan font-size="11" dy="4">S</tspan></text>
+    <text x="295" y="60" style="fill:var(--ph-r)">R<tspan font-size="11" dy="4">A</tspan></text>
+    <text x="378" y="12" style="fill:var(--ph-i)">I<tspan font-size="11" dy="4">A</tspan></text>
+    <text x="446" y="90" style="fill:var(--ph-v)">V<tspan font-size="11" dy="4">φ</tspan></text>
     <text x="446" y="36" font-size="13" style="fill:var(--mut)">+</text>
     <text x="446" y="146" font-size="13" style="fill:var(--mut)">−</text>
   </g>
@@ -298,7 +308,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
     <li><strong>jX<sub>S</sub>I<sub>A</sub></strong> starts at the tip of V<sub>φ</sub> and is <em>perpendicular</em> to I<sub>A</sub> (90° ahead of it). If R<sub>A</sub> is included, R<sub>A</sub>I<sub>A</sub> is added first, <em>parallel</em> to I<sub>A</sub>.</li>
     <li><strong>E<sub>A</sub></strong> closes the triangle from the origin. The angle of E<sub>A</sub> measured from V<sub>φ</sub> is the torque (power) angle <strong>δ</strong>.</li>
 </ol>
-<div class="note"><strong>Angle convention.</strong> V<sub>φ</sub> is the 0° reference. <strong>θ</strong> is the phase angle of I<sub>A</sub> measured from V<sub>φ</sub> (the power-factor angle), and <strong>δ</strong> is the angle of E<sub>A</sub> measured from V<sub>φ</sub>. Both are signed: a lagging current has a negative θ, and a generator has a positive δ.</div>
+<div class="note"><strong>Angle convention.</strong> V<sub>φ</sub> is the 0° reference. <strong>θ</strong> is the phase angle of I<sub>A</sub> measured from V<sub>φ</sub> (the power-factor angle), and <strong>δ</strong> is the angle of E<sub>A</sub> measured from V<sub>φ</sub>. Both are signed: a lagging current has a negative θ, and a generator has a positive δ (when X<sub>S</sub> ≫ R<sub>A</sub>, as in every real machine; with R<sub>A</sub> comparable to X<sub>S</sub> a generator can show a small negative δ).</div>
 <p>In the lab the voltage phasors share one volts scale; I<sub>A</sub> is drawn to its own amps scale so that only its <em>direction</em> and relative length matter.</p>
 
 <h2>3 · Reading power off the diagram</h2>
@@ -323,11 +333,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <p>|E<sub>A</sub>| cannot change, so the tip of E<sub>A</sub> stays on a circle. |I<sub>A</sub>| grows at a fixed angle, so jX<sub>S</sub>I<sub>A</sub> grows in a fixed direction. The only way to keep the triangle closed is for V<sub>φ</sub> to change:</p>
 <ul>
     <li><strong>Lagging load</strong> — V<sub>φ</sub> falls significantly.</li>
-    <li><strong>Unity load</strong> — V<sub>φ</sub> falls slightly.</li>
+    <li><strong>Unity load</strong> — V<sub>φ</sub> falls, but less than for a lagging load of the same current (when X<sub>S</sub> ≫ R<sub>A</sub>, as in every real machine).</li>
     <li><strong>Leading load</strong> — V<sub>φ</sub> rises (for a sufficiently leading power factor).</li>
 </ul>
 <div class="eq-box"><div class="eq">VR = (V<sub>nl</sub> − V<sub>fl</sub>) / V<sub>fl</sub> × 100 %</div>
-<div class="eq-note">Voltage regulation: large and positive for lagging loads, small and positive at unity, negative for leading loads. At no load I<sub>A</sub> = 0, so V<sub>nl</sub> = E<sub>A</sub>.</div></div>
+<div class="eq-note">Voltage regulation: positive for lagging loads, positive but smaller at unity for the same current (when X<sub>S</sub> ≫ R<sub>A</sub>, as in every real machine; the lab lets R<sub>A</sub> approach X<sub>S</sub>, where this ordering can reverse), and negative only for a sufficiently leading load. At no load I<sub>A</sub> = 0, so V<sub>nl</sub> = E<sub>A</sub>.</div></div>
 <p>To bring V<sub>φ</sub> back, raise the field current: larger |E<sub>A</sub>| → larger V<sub>φ</sub>. This is exactly what an automatic voltage regulator does.</p>
 
 <h3>Case 2 — Infinite bus: real power increases, I<sub>f</sub> constant</h3>
@@ -336,7 +346,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <div class="eq-note">The static stability limit. Real generators run at 15°–30°, far below it.</div></div>
 
 <h3>Case 3 — Infinite bus: I<sub>f</sub> changes, real power constant</h3>
-<p>P is fixed by the governor, so E<sub>A</sub> sin δ and I<sub>A</sub> cos θ must both stay constant: the tip of E<sub>A</sub> slides along a <em>horizontal</em> line and the tip of I<sub>A</sub> slides along a <em>vertical</em> line. Raising I<sub>f</sub> lengthens E<sub>A</sub>, makes I<sub>A</sub> more lagging and increases the reactive power supplied. Lowering I<sub>f</sub> does the opposite and eventually makes the generator absorb reactive power.</p>
+<p>P is fixed by the governor, so I<sub>A</sub> cos θ must stay constant and, with R<sub>A</sub> = 0, so must E<sub>A</sub> sin δ: the tip of I<sub>A</sub> slides along a <em>vertical</em> line and the tip of E<sub>A</sub> along a <em>horizontal</em> one. (With R<sub>A</sub> included the E<sub>A</sub> line tilts; the lab draws it as it is.) Raising I<sub>f</sub> lengthens E<sub>A</sub>, makes I<sub>A</sub> more lagging and increases the reactive power supplied. Lowering I<sub>f</sub> does the opposite and eventually makes the generator absorb reactive power.</p>
 
 <h2>5 · Excitation and reactive power</h2>
 <div class="tbl-wrap"><table class="tbl">
@@ -349,7 +359,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 
 <h2>6 · V-curve and capability curve</h2>
 <p>Plotting |I<sub>A</sub>| against I<sub>f</sub> at constant P gives a <strong>V-curve</strong>. The minimum is the unity-power-factor point. For a <em>generator</em>, the right-hand branch (more field) is lagging — supplying Q — and the left-hand branch is leading — absorbing Q. (A synchronous motor is described the other way round, because its current is defined flowing in.)</p>
-<p>The <strong>capability curve</strong> shows the allowed region on the P–Q plane: inside the armature-current limit (a circle of radius 3V<sub>φ</sub>I<sub>A,max</sub> about the origin) and inside the field-current limit (a circle of radius 3V<sub>φ</sub>E<sub>A,max</sub>/X<sub>S</sub> centered at Q = −3V<sub>φ</sub>²/X<sub>S</sub>). In the lab, E<sub>A,max</sub> is the value needed at rated current and 0.8 pf lagging, so the two limits meet at the rated point.</p>
+<p>The <strong>capability curve</strong> shows the allowed region on the P–Q plane: inside the armature-current limit (a circle of radius 3V<sub>φ</sub>I<sub>A,max</sub> about the origin) and inside the field-current limit (a circle of radius 3V<sub>φ</sub>E<sub>A,max</sub>/X<sub>S</sub> centered at Q = −3V<sub>φ</sub>²/X<sub>S</sub>). In the lab, E<sub>A,max</sub> is the value needed at rated current and 0.8 pf lagging, so the two limits meet at the rated point. On an infinite bus the region also ends at the steady-state stability limit of Case 2 (δ at the pull-out angle). With R<sub>A</sub> = 0 that limit is the line Q = −3V<sub>φ</sub>²/X<sub>S</sub>; the lab draws it whenever it lies inside the plot, which takes a large X<sub>S</sub>.</p>
 
 <h2>7 · Not covered this semester</h2>
 <p>The lab can also show a synchronous <strong>motor</strong> (current flows in, E<sub>A</sub> lags V<sub>φ</sub>), a <strong>synchronous condenser</strong> (a motor with no shaft load used purely for reactive power; for both, the lab reports the Q <em>supplied</em> to the system, Q = +3V<sub>φ</sub>I<sub>A</sub> sin θ with I<sub>A</sub> defined flowing in, so the horizontal side of the triangle is +X<sub>S</sub>I<sub>A</sub> sin θ) and a <strong>salient-pole</strong> rotor (X<sub>d</sub> ≠ X<sub>q</sub>). They are tucked under <em>Machine parameters → Beyond this course</em> for the curious.</p>
@@ -375,22 +385,23 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <div class="lab">
 <div class="sidebar">
     <details class="card" id="paramCard" open><summary>Machine parameters</summary>
-        <div class="seg" id="connBtns" style="margin-bottom:5px" title="How the three stator windings are connected to the terminals">
+        <div class="hint" style="margin:0 0 4px">The three stator windings are connected</div>
+        <div class="seg" id="connBtns" style="margin-bottom:5px">
             <button data-conn="Y">Y-connected</button>
             <button data-conn="D">Δ-connected</button>
         </div>
-        <div class="hint" style="margin:0 0 4px">Voltage and current are entered as</div>
-        <div class="seg" id="entryBtns" style="margin-bottom:10px" title="Whether the voltage and current boxes take line (terminal) values or per-phase values. The other is shown beside each.">
+        <div class="hint" style="margin:0 0 4px">Voltage and current are entered as line (terminal) or per-phase values; the other is shown under each box</div>
+        <div class="seg" id="entryBtns" style="margin-bottom:10px">
             <button data-entry="line">Line values</button>
             <button data-entry="phase">Phase values</button>
         </div>
         <div class="row"><div class="row-head"><label for="vSlider" id="vName">Rated V<sub>φ</sub></label><output id="vOut" for="vSlider"></output></div><div class="sl"><input type="range" id="vSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="vNum" inputmode="decimal" aria-label="Rated voltage, volts"></div>
-            <div class="hint derived" id="vDerived"></div></div>
-        <div class="row"><div class="row-head"><label for="imaxSlider" id="imaxName">Rated current I<sub>A,max</sub></label><output id="imaxOut" for="imaxSlider"></output></div><div class="sl"><input type="range" id="imaxSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="imaxNum" inputmode="decimal" aria-label="Full-load current, amps"></div><div class="hint derived" id="imaxDerived"></div></div>
-        <div class="row" id="xsRow"><div class="row-head"><label for="xsSlider">Synchronous reactance X<sub>S</sub></label><output id="xsOut" for="xsSlider"></output></div><div class="sl"><input type="range" id="xsSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="xsNum" inputmode="decimal" aria-label="Synchronous reactance, ohms"></div></div>
+            <div class="hint derived" id="vDerived"></div><div class="hint range" id="vRange"></div></div>
+        <div class="row"><div class="row-head"><label for="imaxSlider" id="imaxName">Rated current I<sub>A,max</sub></label><output id="imaxOut" for="imaxSlider"></output></div><div class="sl"><input type="range" id="imaxSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="imaxNum" inputmode="decimal" aria-label="Full-load current, amps"></div><div class="hint derived" id="imaxDerived"></div><div class="hint range" id="imaxRange"></div></div>
+        <div class="row" id="xsRow"><div class="row-head"><label for="xsSlider">Synchronous reactance X<sub>S</sub></label><output id="xsOut" for="xsSlider"></output></div><div class="sl"><input type="range" id="xsSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="xsNum" inputmode="decimal" aria-label="Synchronous reactance, ohms"></div><div class="hint range" id="xsRange"></div></div>
         <div class="row" id="xdRow"><div class="row-head"><label for="xdSlider">Direct-axis X<sub>d</sub></label><output id="xdOut" for="xdSlider"></output></div><input type="range" id="xdSlider"></div>
         <div class="row" id="xqRow"><div class="row-head"><label for="xqSlider">Quadrature-axis X<sub>q</sub></label><output id="xqOut" for="xqSlider"></output></div><input type="range" id="xqSlider"><div class="hint" id="xqNote" role="status" style="display:none;color:var(--warn)">⚠ X<sub>q</sub> is above X<sub>d</sub> (inverse saliency). This is unusual for a wound-rotor machine; values are still computed.</div></div>
-        <div class="row"><div class="row-head"><label for="raSlider">Armature resistance R<sub>A</sub></label><output id="raOut" for="raSlider"></output></div><div class="sl"><input type="range" id="raSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="raNum" inputmode="decimal" aria-label="Armature resistance, ohms"></div><div class="hint" id="raNote" style="display:none"></div></div>
+        <div class="row"><div class="row-head"><label for="raSlider">Armature resistance R<sub>A</sub></label><output id="raOut" for="raSlider"></output></div><div class="sl"><input type="range" id="raSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="raNum" inputmode="decimal" aria-label="Armature resistance, ohms"></div><div class="hint range" id="raRange"></div><div class="hint" id="raNote" style="display:none"></div></div>
         <div class="hint" id="ratingHint"></div>
         <details style="margin-top:10px"><summary style="cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--mut)">Beyond this course</summary>
             <div class="hint" style="margin-bottom:6px">Motor, condenser and salient-pole views need the infinite bus.</div>
@@ -419,18 +430,21 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
             <button data-drive="exc">Set P &amp; I<sub>f</sub></button>
             <button data-drive="load">Set P &amp; pf</button>
         </div>
-        <div id="solveRow"><div class="seg" id="solveBtns" title="Which quantity is given and which the lab finds, for a generator operating alone">
+        <div class="hint why" id="driveNote" role="status" style="display:none;margin:-4px 0 10px"></div>
+        <div id="solveRow"><div class="seg" id="solveBtns">
                 <button data-solve="E">Solve for E<sub>A</sub></button>
                 <button data-solve="V">Solve for V<sub>φ</sub></button>
             </div>
             <div class="hint" id="solveHint" style="margin:5px 0 10px"></div></div>
-        <div class="row" id="pRow"><div class="row-head"><label for="pSlider" id="pName">Real power P</label><output id="pOut" for="pSlider"></output></div><div class="sl"><input type="range" id="pSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="pNum" inputmode="decimal" aria-label="Real power, kilowatts"></div></div>
-        <div class="row" id="ilRow"><div class="row-head"><label for="ilSlider">Load <small>% of full load</small></label><output id="ilOut" for="ilSlider"></output></div><div class="sl"><input type="range" id="ilSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="ilNum" inputmode="decimal" aria-label="Load, percent of full-load current"></div>
+        <div class="row" id="pRow"><div class="row-head"><label for="pSlider" id="pName">Real power P</label><output id="pOut" for="pSlider"></output></div><div class="sl"><input type="range" id="pSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="pNum" inputmode="decimal" aria-label="Real power, kilowatts"></div><div class="hint range" id="pRange"></div></div>
+        <div class="row" id="ilRow"><div class="row-head"><label for="ilSlider">Load <small>% of full load</small></label><output id="ilOut" for="ilSlider"></output></div><div class="sl"><input type="range" id="ilSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="ilNum" inputmode="decimal" aria-label="Load, percent of full-load current"></div><div class="hint range" id="ilRange"></div>
 </div>
-        <div class="row" id="ifRow"><div class="row-head"><label for="ifSlider">Field current I<sub>f</sub></label><output id="ifOut" for="ifSlider"></output></div><div class="sl"><input type="range" id="ifSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="ifNum" inputmode="decimal" aria-label="Field current, per unit"></div></div>
+        <div class="row" id="ifRow"><div class="row-head"><label for="ifSlider">Field current I<sub>f</sub></label><output id="ifOut" for="ifSlider"></output></div><div class="sl"><input type="range" id="ifSlider"><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="ifNum" inputmode="decimal" aria-label="Field current, per unit"></div><div class="hint range" id="ifRange"></div></div>
         <div class="row" id="thRow"><div class="row-head"><label for="thSlider">Power factor</label><output id="thOut" for="thSlider"></output></div><input type="range" id="thSlider">
             <div class="sl entry"><label for="pfNum" style="flex:0 0 auto">pf</label><input type="text" class="num" maxlength="24" autocomplete="off" spellcheck="false" id="pfNum" inputmode="decimal" style="width:68px">
                 <div class="seg" id="pfSense"><button data-sense="lead">Lead</button><button data-sense="lag">Lag</button></div></div>
+            <div class="hint range" id="pfRange"></div>
+            <div class="hint" id="pfNote" role="status" style="margin-top:3px"></div>
             <div class="seg" id="pfQuick" style="margin-top:4px">
                 <button data-pf="lead">0.8 lead</button>
                 <button data-pf="unity">Unity</button>
@@ -443,9 +457,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 
     <div class="card"><h3>Compare</h3>
         <div class="seg">
-            <button class="btn" id="pinBtn" title="Freeze the current diagram as a dashed reference">Pin reference</button>
+            <button class="btn" id="pinBtn" aria-pressed="false">Pin reference</button>
             <button class="btn" id="unpinBtn">Clear</button>
         </div>
+        <div class="hint" style="margin:0 0 4px">Pin reference freezes the present diagram as a dashed copy to compare against; Clear removes it.</div>
         <label class="chk"><input type="checkbox" id="lociChk" checked> Show loci (paths the tips follow)</label>
         <label class="chk"><input type="checkbox" id="consChk" checked> Construction lines (P and Q sides)</label>
     </div>
@@ -457,10 +472,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
     <div class="guide" id="guide">
         <div class="guide-head">
             <span class="g-num" id="gNum"></span><span class="g-title" id="gTitle"></span>
-            <button id="gRestart" title="Reload this experiment's starting conditions">↺ Restart</button>
+            <button id="gRestart">↺ Restart experiment</button>
             <button id="gPrev">← Prev</button><button id="gNext">Next →</button>
-            <button id="gHide" title="Collapse or expand the steps">Hide steps</button>
-            <button id="gClose" title="Leave guided mode">✕</button>
+            <button id="gHide">Hide steps</button>
+            <button id="gClose">✕ Leave guide</button>
         </div>
         <div class="guide-body" id="gBody"></div>
     </div>
@@ -476,8 +491,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
                     <span id="lgR"><i style="background:var(--ph-r)"></i>R<sub>A</sub>I<sub>A</sub></span>
                     <span id="lgG"><i style="background:var(--ghost)"></i>pinned reference</span>
                 </div>
-                <div class="status" id="phStatus">—</div>
-                <button class="mini-btn" id="fitBtn" title="Rescale the diagram to fit">⤢ Fit</button>
+                <button class="mini-btn" id="fitBtn">⤢ Fit diagram</button>
+                <div class="status-row"><div class="status" id="phStatus">—</div></div>
             </div>
             <div class="cv-wrap"><canvas id="phasorCanvas" role="img" aria-label="Phasor diagram"></canvas></div>
         </div>
@@ -491,6 +506,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
                         <button data-side="pq">Capability</button>
                     </div>
                 </div>
+                <div class="side-note" id="sideNote" role="status" style="display:none"></div>
                 <div class="cv-wrap"><canvas id="sideCanvas" role="img" aria-label="Side plot"></canvas></div>
             </div>
         </div>
@@ -502,7 +518,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 
 <script>
 /* ============================================================
-   SYNCHRONOUS GENERATOR PHASOR LAB v2.2.1 — University of Tulsa ECE-3033
+   SYNCHRONOUS GENERATOR PHASOR LAB v2.2.5 — University of Tulsa ECE-3033
    Sign conventions (per phase, V_φ on the real axis):
      Generator:  E_A = V_φ + I_A (R_A + jX_S)     E_A leads V_φ by δ
      Motor:      E_A = V_φ − I_A (R_A + jX_S)     E_A lags  V_φ by δ
@@ -541,6 +557,7 @@ const KILO = 1000;                         // V→kV, A→kA, kW→MW display br
 const KV_BREAK = 10000;                    // show kV from here up
 const PCT = 100;
 const EMPTY = '—';
+const MINUS = '−';                         // U+2212, the sign written before each drawn drop term in the Motor and Condenser views (v2.2.5, PPR-SG-010)
 
 /* Slider limits: the range inputs take min / max / step from here (see init) and the logic clamps to the same values. */
 const LIM = Object.freeze({
@@ -593,16 +610,19 @@ const SOLVER = Object.freeze({
     V_BAND_LO: 0.95, V_BAND_HI: 1.05,    // terminal-voltage band shown as in-range
     DELTA_WARN_DEG: 70         // "near the stability limit" from here
 });
-const DEC = Object.freeze({ V: 1, KV: 2, A: 1, KA: 2, KW: 1, MW: 3, ENTRY: 3, ENTRY_PF: 4, PF: 3, PF_CTRL: 2, ANG: 1, IFPU: 2, OHM: 2, PCT: 1, PU: 2, NONE: 0, TICK: 6 });
+const DEC = Object.freeze({ V: 1, KV: 2, A: 1, KA: 2, KW: 1, MW: 3, ENTRY: 3, ENTRY_PF: 4, PF: 3, PF_CTRL: 2, ANG: 1, IFPU: 2, OHM: 2, PCT: 1, NONE: 0, TICK: 6 });
 const ANG_ZERO = 0.05;                     // angles smaller than this print as 0.0° (no "−0.0")
 const UNITY_SNAP_DEG = 0.5;                // pf slider within this of 0° reads "unity"
 const QUICK_SNAP_DEG = 0.6;                // quick-pf button lights within this of its angle
 
 const WEIGHT = Object.freeze({ MED: 500, SEMI: 600, BOLD: 700, HEAVY: 800 });
 const TEXT = Object.freeze({
-    SIZE: 14, SUB_SCALE: 0.7, SUB_DROP: 0.3, HALO: 4,
-    BOX_H: 1.2, BOX_PAD: 2                 // label box height (× size) and clearance (px) for collision tests
+    SIZE: 14, SUB_SCALE: 0.72, SUB_DROP: 0.3, HALO: 4,   // SUB_SCALE keeps the subscript of the smallest label (11.5 px) at 8 px or more
+    BOX_H: 1.2, BOX_PAD: 3                 // label box height (× size) and clearance (px) for collision tests; the clearance covers half the widest stroke
 });
+/* Wider search for a required label whose own candidates are all taken: rings around each candidate, nearest first. */
+const LBL_SEARCH = Object.freeze({ STEP: 6, RINGS: 8, DIRS: 12 });   // ring spacing (px), number of rings, positions per ring
+const OBST_ARC_STEP = 0.05;                // an arc is a label obstacle as chords this long (rad)
 const ARROW = Object.freeze({ HEAD_MIN: 10, HEAD_PER_W: 3, HEAD_MAX_FRAC: 0.6, HEAD_HALF_ANGLE: 0.36, SHAFT_BACK: 0.7, MIN_LEN: 3, GLOW: 9 });
 const FULL_CIRCLE = 2 * Math.PI;
 
@@ -617,36 +637,39 @@ const PH = Object.freeze({
     GRID_MIN_STEP: 4,                       // never draw a grid finer than this
     GRID_MAX_LINES: 400,                    // hard cap on grid lines per direction
     AXIS_DASH: [5, 5],
-    LOCUS_ALPHA: 0.55, LOCUS_W: 1.4, LOCUS_DASH: [3, 5], LOCUS_SPAN: 1.75, LOCUS_PAST_AXIS: 0.12,
-    LOCUS_LBL_MAX: 1.45, LOCUS_LBL_LEAD: 0.42, LOCUS_LBL_DX: 8, LOCUS_LBL_DY: -4, LOCUS_LBL_SIZE: 11, LOCUS_LBL_ALPHA: 0.95,
+    LOCUS_ALPHA: 0.8, LOCUS_W: 1.4, LOCUS_DASH: [3, 5], LOCUS_SPAN: 1.75, LOCUS_PAST_AXIS: 0.12,
+    LOCUS_LBL_MAX: 1.45, LOCUS_LBL_LEAD: 0.42, LOCUS_LBL_OUT: [8, 16, 26], LOCUS_LBL_SIZE: 11.5, LOCUS_LBL_ALPHA: 0.95,   // LOCUS_LBL_OUT: label distances from the circle (px)
     LOCUS_LBL_TOP: 14, LOCUS_LBL_BOTTOM: 10, LOCUS_LBL_RIGHT: 150,
-    TICK_HALF: 7, TICK_W: 1.5, TICK_LBL_DY: 34, TICK_LBL_ALT_DY: [0, 14, 28], TICK_LBL_ALT_DX: [0, 44, -44], TICK_LBL_SIZE: 10.5, TICK_LBL_MIN_GAP: 62,
+    TICK_HALF: 7, TICK_W: 1.5, TICK_LBL_DY: 34, TICK_LBL_ALT_DY: [0, 14, 28], TICK_LBL_ALT_DX: [0, 44, -44], TICK_LBL_SIZE: 11.5, TICK_LBL_MIN_GAP: 62,
     CONSTP_LEN: 4, CONSTP_ALPHA: 0.8, CONSTP_W: 1.3, CONSTP_DASH: [8, 5], CONSTP_I_ALPHA: 0.55, CONSTP_I_W: 1.2,
-    CONSTP_LBL_BACK: 150, CONSTP_LBL_STEP: 150, CONSTP_LBL_FWD: 30, CONSTP_LBL_LEFT: 8, CONSTP_LBL_RIGHT: 230, CONSTP_LBL_DY: 11, CONSTP_LBL_SIZE: 11,
+    CONSTP_LBL_BACK: 150, CONSTP_LBL_STEP: 150, CONSTP_LBL_FWD: 30, CONSTP_LBL_LEFT: 8, CONSTP_LBL_RIGHT: 230, CONSTP_LBL_DY: 14, CONSTP_LBL_SIZE: 11.5,
     CONS_W: 1.4, CONS_DASH: [5, 4], CONS_MIN_H: 30, CONS_MIN_W: 34, CONS_BRACKET_DX: 12, CONS_BRACKET_ARM: 5,
-    CONS_TXT_DX: 7, CONS_LINE_DY: 16, CONS_LINE_DY_SHORT: 8, CONS_SIZE: 11.5, CONS_Q_DY: 15, CONS_Q_SIZE: 11,
+    CONS_TXT_DX: 7, CONS_TXT_COLS: [0, 48, 96], CONS_LINE_DY: 16, CONS_SIZE: 11.5, CONS_Q_DY: 15, CONS_Q_SIZE: 11.5,
     CONS_MIN_THETA: 0.05, CONS_EXT_ALPHA: 0.6, CONS_EXT_W: 1.2, CONS_EXT_DASH: [4, 5], CONS_SQUARE: 9,
     GHOST_DASH: [7, 5], GHOST_W: 2, GHOST_DROP_W: 1.6,
-    ARC_W: 1.8, ARC_LBL_GAP: 8, ARC_LBL_SIZE: 12.5, ARC_MIN: 0.02,
+    ARC_W: 1.8, THETA_DASH: [5, 3], ARC_LBL_GAP: 10,   // the θ arc is dashed, the δ arc solid: told apart without colour
+    ARC_LBL_SIZE: 12.5, ARC_MIN: 0.02,
     ARC_FRAC_MID: 0.5, ARC_FRAC_OUTER: 0.78, ARC_FRAC_INNER: 0.4, ARC_FRAC_ALT: [0.25, 0.9, 1.15, 1.8, 2.6, 3.6], ARC_LBL_OUT: [0, 16, 32], ARC_LBL_SWING: [0.3, 0.55, -0.3, 0.8],
     DELTA_R: 0.42, DELTA_R_MAX: 150, THETA_R: 0.24, THETA_R_I: 0.8, THETA_R_MAX: 90,
     DROP_W: 3, I_W: 3.5, V_W: 4, ORIGIN_R: 4,
+    ORIGIN_PAD: 1, GLOW_PAD: 6,   // v2.2.4 (VIS-SG-002), px: clearance kept round the origin dot, and either side of a glowing phasor in the dark view
     LBL_SIZE: 16, LBL_V_DY: 15, LBL_E_OFF: 17, LBL_E_DX: -8, LBL_I_OFF: 14, LBL_I_DY: 6, LBL_I_SIDE: 19, LBL_STEP: 14, LBL_V_STEP: 28,
     LBL_X_DX: 11, LBL_X_DY: 2, LBL_X_SIZE: 13, LBL_X_MIN: 26, LBL_R_OFF: 14, LBL_R_SIZE: 12, LBL_R_MIN: 16
 });
 
 /* Side-plot layout. */
 const PLOT = Object.freeze({
-    X0: 46, X1_PAD: 14, Y0: 14, Y1_PAD: 36, MIN_SIZE: 8,
-    TICKS: 5, MAX_TICKS: 60, TICK_SIZE: 10, TICK_DX: 5, TICK_DY: 10, AXIS_SIZE: 11, AXIS_X_DY: 10, AXIS_Y_DX: 11,
+    X0: 46, X1_PAD: 18, Y0: 14, Y0_NOTES: 30, Y1_PAD: 40, MIN_SIZE: 8,   // X0: least left margin; Y0_NOTES: top margin that holds a row of notes above the frame
+    TICKS: 5, MAX_TICKS: 60, TICK_SIZE: 11.5, TICK_DX: 8, TICK_DY: 13, TICK_GAP: 4, TICK_MIN_X: 48, TICK_MIN_Y: 26,   // TICK_MIN_*: least px per tick step
+    AXIS_SIZE: 11.5, AXIS_X_DY: 10, AXIS_Y_DX: 11,
     NICE: [[1.5, 1], [3.5, 2], [7.5, 5]], NICE_TOP: 10, DECADE: 10,
-    REF_DASH: [4, 4], REF_W: 1.3, MAIN_W: 2.6, NOTE_SIZE: 10, NOTE_DX: 5, NOTE_DY: 9, NOTE_DY_UP: 8, NOTE_DX_TIGHT: 4,
+    REF_DASH: [4, 4], REF_W: 1.3, MAIN_W: 2.6, NOTE_SIZE: 11.5, NOTE_DX: 7, NOTE_OFF: 13, NOTE_ROW: 15, TOP_NOTE_DY: 13, LEGEND_GAP: 12,   // NOTE_OFF: a note's centre line from the line it names; NOTE_ROW: next row of candidates
     DOT_R: 5.5, DOT_GLOW: 10, DOT_RING: 1.5,
     TC_I_SPAN: 1.6, TC_I_HEADROOM: 1.1, TC_V_SPAN: 1.6, TC_E_SPAN: 1.45, TC_N: 60, CURVE_LBL_AT: [0.87, 0.77, 0.67, 0.57, 0.95, 0.47, 0.37, 0.27, 0.17, 0.07], CURVE_LBL_GAP: 4, LBL_EDGE: 1, TC_RATED_X: [0, 0.3, 0.6, 0.15, 0.45, 0.75], TC_RATED_Y: [0, 0.5, 0.25, 0.75, 1],
-    VC_N: 95, VC_I_SPAN: 1.5, VC_I_HEADROOM: 1.15, VC_FAMILY: [0, 0.4, 0.8], VC_FAM_W: 1.2, VC_FAM_SIZE: 9.5,
+    VC_N: 95, VC_I_SPAN: 1.5, VC_I_HEADROOM: 1.15, VC_FAMILY: [0, 0.4, 0.8], VC_FAM_W: 1.2, VC_FAM_SIZE: 11.5, VC_UNITY_ROWS: [0, 1, 2, 3],
     VC_UNITY_ALPHA: 0.7, VC_UNITY_DASH: [3, 4],
-    TC_LOW_DASH: [6, 4], PQ_SPAN: 1.35, PQ_HEADROOM: 1.12, PQ_NEG_P: 0.12, PQ_PAD_W: 60, PQ_PAD_H: 50, PQ_FILL: 0.13,
-    PQ_AXIS_W: 1.2, PQ_LIMIT_W: 2, PQ_FIELD_DASH: [7, 4], PQ_RAY_DASH: [3, 4], PQ_LBL_SIZE: 10.5, PQ_LBL_X: 6, PQ_LBL_Y1: 10, PQ_LBL_Y2: 24
+    TC_LOW_DASH: [6, 4], PQ_SPAN: 1.35, PQ_HEADROOM: 1.12, PQ_NEG_P: 0.12, PQ_FILL: 0.13,
+    PQ_AXIS_W: 1.2, PQ_LIMIT_W: 2, PQ_FIELD_DASH: [7, 4], PQ_STAB_DASH: [2, 3], PQ_RAY_DASH: [3, 4], PQ_HALF_ROWS: [0, 1, 2], PQ_HALF_X: [0, 1, 0.5]   // half-plane label candidates: rows from the frame edge, positions from the right
 });
 /* ═══ END 1. CONSTANTS ═══ */
 
@@ -745,12 +768,19 @@ function solveBusLoad(m, gen) {
         const q = carg(Eq), Id = cmul(Ia, cpolar(1, -(q - RIGHT_ANGLE))).re;
         const Emag = cabs(Eq) + (gen ? 1 : -1) * (m.Xd - m.Xq) * Id;
         const s = pack(Vc, cpolar(Emag, q), Ia, gen, 0, { Xd: m.Xd, Xq: m.Xq }), pk = salientPeak(V, Emag, m.Xd, m.Xq);
-        s.pmaxPh = pk.pmax; s.unstable = s.delta > pk.dPull + SOLVER.ANGLE_TOL || s.delta < -SOLVER.ANGLE_TOL;
+        // δ is the angle of the q-axis, where E_A lies while the field is positive. A point that needs E_f ≤ 0 needs a
+        // reversed field current: outside the model (I_f ≥ 0). It is flagged as that, with its signed field, and no
+        // pull-out power or stability claim is made for it.
+        s.Ef = Emag; s.fieldRev = !(Emag > 0); s.dAng = q; s.delta = gen ? q : -q;
+        s.pmaxPh = s.fieldRev ? null : pk.pmax;
+        s.unstable = !s.fieldRev && (s.delta > pk.dPull + SOLVER.ANGLE_TOL || s.delta < -SOLVER.ANGLE_TOL);
         return s;
     }
     const drop = cmul(Ia, cx(ra, m.Xs));
     const s = pack(Vc, gen ? cadd(Vc, drop) : csub(Vc, drop), Ia, gen, ra, null), pk = roundPeak(V, s.Eabs, cx(ra, m.Xs), gen);
-    s.pmaxPh = pk.pmax; s.unstable = s.delta > pk.dPull + SOLVER.ANGLE_TOL;   // past the peak of P(δ): statically unstable
+    // Past the peak of P(δ): statically unstable. The rising (stable) half of the circle runs from dPull − 180° to dPull,
+    // so the test is on sin(δ − dPull): it also holds for a δ that has passed 180° (a lightly loaded motor with R_A > 0).
+    s.pmaxPh = pk.pmax; s.unstable = Math.sin(s.delta - pk.dPull) > SOLVER.ANGLE_TOL;
     return s;
 }
 
@@ -824,6 +854,7 @@ function pack(Vc, Ec, Ia, gen, ra, sal) {
         dAng: carg(Ec),                                    // angle of E_A, signed (+ = E_A leads V_φ)
         delta: gen ? carg(Ec) : -carg(Ec),                 // load angle, + in normal operation of that machine
         P3: sgn * PHASES * V * Ia.re, Q3: sgn * PHASES * V * (-Ia.im),
+        Ef: cabs(Ec), fieldRev: false,                     // field voltage along the q-axis (V): |E_A|, or negative when the salient-pole P-and-pf solve needs a reversed field
         gen, ra, sal, joint: gen ? cadd(Vc, Rdrop) : csub(Vc, Rdrop), exceeds: false, floor: false, unstable: false, limited: false, fieldOut: 0, pmaxPh: null
     };
 }
@@ -836,8 +867,9 @@ function ratedE(m) {
 
 /* Can the present operating point be handed to the OTHER drive without changing it?
    Returns { ok, to, carry, why, need }: carry holds the value the other drive's variable must take; when the
-   hand-over is refused, why names the actual reason ('pullout', 'angle', 'field' or 'mismatch') and need the value
-   that was out of range. The hand-over is offered only when the other drive reproduces the same E_A phasor.
+   hand-over is refused, why names the actual reason ('pullout', 'floor', 'angle', 'field' or 'mismatch') and need the value
+   that was out of range. 'floor' arises only from the field drive: a point solved from P and pf is never below the
+   least input of its own field. The hand-over is offered only when the other drive reproduces the same E_A phasor.
    A value within DRIVE_TOL of a slider end stop counts as on it, so a point handed over at an end stop can be handed back. */
 function driveHandover(m) {
     const s = solve(m), tol = SOLVER.DRIVE_TOL * m.V;
@@ -845,12 +877,13 @@ function driveHandover(m) {
     if (m.drive === 'exc') {
         const lag = s.theta * DEG;                          // lag angle in degrees, the unit of M.theta
         if (s.exceeds) return { ok: false, to: 'load', why: 'pullout' };
+        if (s.floor) return { ok: false, to: 'load', why: 'floor' };
         if (!within(lag, LIM.TH)) return { ok: false, to: 'load', why: 'angle', need: lag };
         const carry = { theta: clamp(lag, LIM.TH.min, LIM.TH.max) }, c = solve(Object.assign({}, m, { drive: 'load' }, carry));
         const ok = cabs(csub(c.Ec, s.Ec)) <= tol;
         return { ok, to: 'load', carry, why: ok ? '' : 'mismatch' };
     }
-    const f = s.Eabs / m.V;
+    const f = s.Ef / m.V;                                   // signed: negative for a reversed field
     if (!within(f, LIM.IF)) return { ok: false, to: 'exc', why: 'field', need: f };
     const carry = { ifpu: clamp(f, LIM.IF.min, LIM.IF.max) }, c = solve(Object.assign({}, m, { drive: 'exc' }, carry));
     const ok = !c.exceeds && cabs(csub(c.Ec, s.Ec)) <= tol;
@@ -865,6 +898,12 @@ const fP = (w, u) => { const k = w / W_PER_KW; return Math.abs(k) >= KILO ? (k /
 const fPf = s => s.Iabs < SOLVER.I_EPS ? EMPTY : Math.abs(s.pf).toFixed(DEC.PF) + (s.lagging ? ' lag' : s.leading ? ' lead' : '');   // power factor with lag / lead
 const fAng = d => (Math.abs(d) < ANG_ZERO ? 0 : d).toFixed(DEC.ANG).replace('-', '−') + '°';                                    // angle in degrees
 
+/* Field current of solution s in pu, signed (negative = reversed field), with enough decimals to show a small negative value as negative. */
+function fField(s) {
+    const v = s.Ef / M.V; let d = DEC.IFPU;
+    while (v < 0 && d < DEC.TICK && +v.toFixed(d) === 0) d++;
+    return v.toFixed(d).replace('-', '−');
+}
 const fNum = (v, d) => String(+v.toFixed(d));                                                                                   // entry-box / slider-label number, no trailing zeros
 
 /* Text for the power-factor control: "0.80 lagging". */
@@ -964,20 +1003,42 @@ function segHitsBox(a, b, bx) {
     }
     return true;
 }
-/* Is the box inside the canvas and clear of every phasor and every label already placed? */
+/* Add a straight stroke to the label obstacles. pad (px, optional): the stroke's reach either side of its centre line
+   (v2.2.4, VIS-SG-002: a glowing phasor's glow is part of the stroke for a label). */
+function obstSeg(a, b, pad) { OBST.push({ seg: [a, b], pad: pad || 0 }); }
+/* Add a circular stroke (centre, radius in px, canvas angles a0 → a1) to the label obstacles, as short chords. */
+function obstArc(x, y, r, a0, a1) {
+    const n = Math.max(1, Math.ceil(Math.abs(a1 - a0) / OBST_ARC_STEP)), at = k => { const a = a0 + (a1 - a0) * k / n; return { x: x + r * Math.cos(a), y: y + r * Math.sin(a) }; };
+    for (let k = 0; k < n; k++) obstSeg(at(k), at(k + 1));
+}
+/* Is the box inside the canvas and clear of every drawn line and every label already placed? */
 function boxFree(bx) {
     if (bx.x0 < 0 || bx.y0 < 0 || bx.x1 > AREA.w || bx.y1 > AREA.h) return false;
     for (const ob of OBST) {
-        if (ob.seg) { if (segHitsBox(ob.seg[0], ob.seg[1], bx)) return false; }
+        if (ob.seg) { const p = ob.pad || 0; if (segHitsBox(ob.seg[0], ob.seg[1], p ? { x0: bx.x0 - p, x1: bx.x1 + p, y0: bx.y0 - p, y1: bx.y1 + p } : bx)) return false; }
         else if (bx.x0 < ob.x1 && bx.x1 > ob.x0 && bx.y0 < ob.y1 && bx.y1 > ob.y0) return false;
     }
     return true;
 }
-/* Draw a label at the first candidate position that collides with nothing. A required label falls back to its
-   first candidate; an optional one is skipped. cands: [{ x, y, align }]. */
-function placeLabel(ctx, str, cands, o, required) {
+/* First clear position on rings around the candidates (ring by ring, nearest first), or null. fits(c), when
+   given, must also accept the position (a side plot keeps its labels inside the frame). Each candidate's box is
+   measured once and moved with it. */
+function ringFree(ctx, str, cands, o, fits) {
+    const boxes = cands.map(c => textBox(ctx, str, c.x, c.y, Object.assign({}, o, c)));
+    for (let r = 1; r <= LBL_SEARCH.RINGS; r++) for (let i = 0; i < cands.length; i++) for (let d = 0; d < LBL_SEARCH.DIRS; d++) {
+        const a = FULL_CIRCLE * d / LBL_SEARCH.DIRS, dx = r * LBL_SEARCH.STEP * Math.cos(a), dy = r * LBL_SEARCH.STEP * Math.sin(a), c = cands[i], bx = boxes[i];
+        const q = { x: c.x + dx, y: c.y + dy, align: c.align };
+        if ((!fits || fits(q)) && boxFree({ x0: bx.x0 + dx, x1: bx.x1 + dx, y0: bx.y0 + dy, y1: bx.y1 + dy })) return q;
+    }
+    return null;
+}
+/* Draw a label at the first candidate position that collides with nothing, else at the first clear position on
+   the rings around its candidates. With none of those clear either, a required label falls back to its first
+   candidate and an optional one is skipped. cands: [{ x, y, align }]. */
+function placeLabel(ctx, str, cands, o, required, fits) {
     let pick = null;
     for (const c of cands) { const bx = textBox(ctx, str, c.x, c.y, Object.assign({}, o, c)); if (boxFree(bx)) { pick = c; break; } }
+    if (!pick) pick = ringFree(ctx, str, cands, o, fits);
     if (!pick) { if (!required) return false; pick = cands[0]; }
     const oo = Object.assign({}, o, { align: pick.align || o.align });
     OBST.push(textBox(ctx, str, pick.x, pick.y, oo));
@@ -1060,33 +1121,41 @@ function drawGrid(ctx, w, h, ox, oy, sc) {
     dashed(ctx, { x: ox, y: 0 }, { x: ox, y: h }, C.axis, 1, PH.AXIS_DASH);
 }
 
-/* Loci: the |E_A| circle, the stand-alone voltage ticks, the constant-P lines. Labels are queued for later. */
+/* Loci: the |E_A| circle, the stand-alone voltage ticks, the constant-P lines. Labels are queued for later; every
+   line drawn here is a label obstacle. */
 function drawLoci(ctx, s, g, labels) {
     const { w, h, ox, oy, PV, eEnd, iEnd, motorLike, alone } = g;
     if ((alone ? M.solveFor === 'V' : M.drive === 'exc') && !s.sal) {
+        const r = s.Eabs * g.sc, a0 = motorLike ? -PH.LOCUS_PAST_AXIS : -PH.LOCUS_SPAN, a1 = motorLike ? PH.LOCUS_SPAN : PH.LOCUS_PAST_AXIS;
         ctx.save(); ctx.strokeStyle = alpha(C.e, PH.LOCUS_ALPHA); ctx.lineWidth = PH.LOCUS_W; ctx.setLineDash(PH.LOCUS_DASH);
-        ctx.beginPath();
-        if (motorLike) ctx.arc(ox, oy, s.Eabs * g.sc, -PH.LOCUS_PAST_AXIS, PH.LOCUS_SPAN); else ctx.arc(ox, oy, s.Eabs * g.sc, -PH.LOCUS_SPAN, PH.LOCUS_PAST_AXIS);
-        ctx.stroke(); ctx.restore();
-        const lp = PV(cpolar(s.Eabs, (motorLike ? -1 : 1) * Math.min(PH.LOCUS_LBL_MAX, Math.abs(s.delta) + PH.LOCUS_LBL_LEAD)));
-        if (lp.y > PH.LOCUS_LBL_TOP && lp.y < h - PH.LOCUS_LBL_BOTTOM && lp.x < w - PH.LOCUS_LBL_RIGHT)
-            labels.push({ str: '|E_A| constant (I_f fixed)', cands: [{ x: lp.x + PH.LOCUS_LBL_DX, y: lp.y + PH.LOCUS_LBL_DY }],
-                          o: { size: PH.LOCUS_LBL_SIZE, color: alpha(C.e, PH.LOCUS_LBL_ALPHA), weight: WEIGHT.SEMI }, required: false });
+        ctx.beginPath(); ctx.arc(ox, oy, r, a0, a1); ctx.stroke(); ctx.restore();
+        obstArc(ox, oy, r, a0, a1);
+        const k = motorLike ? -1 : 1, ang = k * Math.min(PH.LOCUS_LBL_MAX, Math.abs(s.delta) + PH.LOCUS_LBL_LEAD), lp = PV(cpolar(s.Eabs, ang));
+        if (lp.y > PH.LOCUS_LBL_TOP && lp.y < h - PH.LOCUS_LBL_BOTTOM && lp.x < w - PH.LOCUS_LBL_RIGHT) {
+            const o = { size: PH.LOCUS_LBL_SIZE, color: alpha(C.e, PH.LOCUS_LBL_ALPHA), weight: WEIGHT.SEMI };
+            const hh = o.size * TEXT.BOX_H * MID + TEXT.BOX_PAD, nx = Math.cos(ang), ny = -Math.sin(ang);      // half box height; outward normal on screen
+            // outside the circle first (the corner of the box nearest the circle lies on the normal), then inside it
+            labels.push({ str: '|E_A| constant (I_f fixed)', o, required: false,
+                          cands: PH.LOCUS_LBL_OUT.map(d => ({ x: lp.x + nx * d, y: lp.y + ny * d - k * hh }))
+                              .concat(PH.LOCUS_LBL_OUT.map(d => ({ x: lp.x - nx * d, y: lp.y - ny * d + k * hh, align: 'right' }))) });
+        }
     }
     if (alone) {
         const nl = PV(cx(s.Eabs, 0)), rt = PV(cx(M.V, 0)), o = { size: PH.TICK_LBL_SIZE, align: 'center', weight: WEIGHT.SEMI };
-        axisTick(ctx, rt.x, oy, C.mut);
+        const tick = (x, color) => { axisTick(ctx, x, oy, color); obstSeg({ x, y: oy - PH.TICK_HALF }, { x, y: oy + PH.TICK_HALF }); };
+        tick(rt.x, C.mut);
         // below the tick first, then lower and to either side, for when a phasor or an angle label is in the way
         const tickCands = x => PH.TICK_LBL_ALT_DX.flatMap(dx => PH.TICK_LBL_ALT_DY.map(dy => ({ x: x + dx, y: oy + PH.TICK_LBL_DY + dy })));
         labels.push({ str: 'rated V_φ', cands: tickCands(rt.x), o: Object.assign({ color: C.mut }, o), required: true });
-        axisTick(ctx, nl.x, oy, C.e);
-        if (Math.abs(nl.x - rt.x) > PH.TICK_LBL_MIN_GAP)
+        tick(nl.x, C.e);
+        if (Math.abs(nl.x - rt.x) > PH.TICK_LBL_MIN_GAP && nl.x < w)   // the tick is named only when it is on the canvas
             labels.push({ str: 'no-load V_φ', cands: tickCands(nl.x), o: Object.assign({ color: C.e }, o), required: true });
     } else if (modeNow() !== 'cond' && !s.sal) {
         // constant-P loci: the E_A tip moves along a line ⟂ to (R_A + jX_S); the I_A tip along a vertical line
         const L = PH.CONSTP_LEN * M.V, dir = cx(-M.Xs, s.ra), n = cabs(dir), u = cx(dir.re / n, dir.im / n);
-        dashed(ctx, PV(cx(s.Ec.re - u.re * L, s.Ec.im - u.im * L)), PV(cx(s.Ec.re + u.re * L, s.Ec.im + u.im * L)), alpha(C.warn, PH.CONSTP_ALPHA), PH.CONSTP_W, PH.CONSTP_DASH);
-        dashed(ctx, { x: iEnd.x, y: 0 }, { x: iEnd.x, y: h }, alpha(C.warn, PH.CONSTP_I_ALPHA), PH.CONSTP_I_W, PH.CONSTP_DASH);
+        const e0 = PV(cx(s.Ec.re - u.re * L, s.Ec.im - u.im * L)), e1 = PV(cx(s.Ec.re + u.re * L, s.Ec.im + u.im * L)), i0 = { x: iEnd.x, y: 0 }, i1 = { x: iEnd.x, y: h };
+        dashed(ctx, e0, e1, alpha(C.warn, PH.CONSTP_ALPHA), PH.CONSTP_W, PH.CONSTP_DASH); obstSeg(e0, e1);
+        dashed(ctx, i0, i1, alpha(C.warn, PH.CONSTP_I_ALPHA), PH.CONSTP_I_W, PH.CONSTP_DASH); obstSeg(i0, i1);
         const dy = motorLike ? PH.CONSTP_LBL_DY : -PH.CONSTP_LBL_DY, x0 = clamp(eEnd.x - PH.CONSTP_LBL_BACK, ox + PH.CONSTP_LBL_LEFT, Math.max(ox + PH.CONSTP_LBL_LEFT, w - PH.CONSTP_LBL_RIGHT));
         labels.push({ str: 'constant P', o: { size: PH.CONSTP_LBL_SIZE, color: C.warn, weight: WEIGHT.SEMI }, required: false,
                       cands: [{ x: x0, y: eEnd.y + dy }, { x: x0 - PH.CONSTP_LBL_STEP, y: eEnd.y + dy }, { x: eEnd.x + PH.CONSTP_LBL_FWD, y: eEnd.y + dy },
@@ -1094,22 +1163,30 @@ function drawLoci(ctx, s, g, labels) {
     }
 }
 
-/* Construction lines: the P and Q sides of the triangle and the right angle between I_A and jX_S·I_A. */
+/* Construction lines: the P and Q sides of the triangle and the right angle between I_A and jX_S·I_A. Every line
+   drawn here is a label obstacle. */
 function drawConstruction(ctx, s, g, labels) {
     const { oy, PV, vEnd, eEnd, iEnd, motorLike, alone } = g;
     const foot = PV(cx(s.Ec.re, 0)), exact = s.ra === 0;
-    dashed(ctx, eEnd, foot, C.mut, PH.CONS_W, PH.CONS_DASH);
-    dashed(ctx, vEnd, foot, C.mut, PH.CONS_W, PH.CONS_DASH);
+    dashed(ctx, eEnd, foot, C.mut, PH.CONS_W, PH.CONS_DASH); obstSeg(eEnd, foot);
+    dashed(ctx, vEnd, foot, C.mut, PH.CONS_W, PH.CONS_DASH); obstSeg(vEnd, foot);
     const hgt = Math.abs(eEnd.y - foot.y), wid = Math.abs(foot.x - vEnd.x);
     if (hgt > PH.CONS_MIN_H) {
         const bx = Math.max(eEnd.x, vEnd.x) + PH.CONS_BRACKET_DX, top = Math.min(eEnd.y, foot.y), bot = Math.max(eEnd.y, foot.y);
+        const br = [{ x: bx - PH.CONS_BRACKET_ARM, y: top }, { x: bx, y: top }, { x: bx, y: bot }, { x: bx - PH.CONS_BRACKET_ARM, y: bot }];
         ctx.strokeStyle = C.mut; ctx.lineWidth = PH.CONS_W; ctx.beginPath();
-        ctx.moveTo(bx - PH.CONS_BRACKET_ARM, top); ctx.lineTo(bx, top); ctx.lineTo(bx, bot); ctx.lineTo(bx - PH.CONS_BRACKET_ARM, bot); ctx.stroke();
-        const my = (top + bot) * MID, tx = bx + PH.CONS_TXT_DX, dy = exact ? PH.CONS_LINE_DY : PH.CONS_LINE_DY_SHORT;
+        ctx.moveTo(br[0].x, br[0].y); for (let k = 1; k < br.length; k++) { ctx.lineTo(br[k].x, br[k].y); obstSeg(br[k - 1], br[k]); }
+        ctx.stroke();
+        const my = (top + bot) * MID, tx = bx + PH.CONS_TXT_DX, dy = PH.CONS_LINE_DY, lx = Math.min(eEnd.x, vEnd.x) - PH.CONS_BRACKET_DX;
         const o = { size: PH.CONS_SIZE, color: C.body, weight: WEIGHT.SEMI };
-        labels.push({ str: 'E_A sin δ', cands: [{ x: tx, y: my - dy }], o, required: true });
-        if (exact) labels.push({ str: '= X_S I_A cos θ', cands: [{ x: tx, y: my }], o, required: true });
-        labels.push({ str: alone ? '∝ real current' : '∝ P', cands: [{ x: tx, y: my + dy }], o: { size: PH.CONS_SIZE, color: C.warn, weight: WEIGHT.HEAVY }, required: true });
+        const col = y => PH.CONS_TXT_COLS.map(dx => ({ x: tx + dx, y })).concat([{ x: lx, y, align: 'right' }]);   // beside the bracket, then further right, then left of the triangle
+        // E_A sin δ = X_S I_A cos θ, proportional to P (bus) or to the real current (alone), holds only with R_A = 0.
+        // With R_A > 0 the height is X_S I_A cos θ + R_A I_A sin θ, so the height is named and nothing more is claimed.
+        labels.push({ str: 'E_A sin δ', cands: col(exact ? my - dy : my), o, required: true });
+        if (exact) {
+            labels.push({ str: '= X_S I_A cos θ', cands: col(my), o, required: true });
+            labels.push({ str: alone ? '∝ real current' : '∝ P', cands: col(my + dy), o: { size: PH.CONS_SIZE, color: C.warn, weight: WEIGHT.HEAVY }, required: true });
+        }
     }
     if (wid > PH.CONS_MIN_W && exact)
         // the horizontal side is ∝ the Q SUPPLIED (the readout's Q): −X_S I_A sin θ for a generator, +X_S I_A sin θ for a motor or condenser
@@ -1118,21 +1195,24 @@ function drawConstruction(ctx, s, g, labels) {
     if (exact && Math.abs(s.theta) > PH.CONS_MIN_THETA) {
         // extend I_A and back-extend jX_S I_A to where they meet at 90°
         const u = cx(s.Ia.re / s.Iabs, s.Ia.im / s.Iabs), t = s.V * u.re, ft = PV(cx(u.re * t, u.im * t));
-        dashed(ctx, iEnd, ft, alpha(C.i, PH.CONS_EXT_ALPHA), PH.CONS_EXT_W, PH.CONS_EXT_DASH);
-        dashed(ctx, vEnd, ft, alpha(C.x, PH.CONS_EXT_ALPHA), PH.CONS_EXT_W, PH.CONS_EXT_DASH);
+        dashed(ctx, iEnd, ft, alpha(C.i, PH.CONS_EXT_ALPHA), PH.CONS_EXT_W, PH.CONS_EXT_DASH); obstSeg(iEnd, ft);
+        dashed(ctx, vEnd, ft, alpha(C.x, PH.CONS_EXT_ALPHA), PH.CONS_EXT_W, PH.CONS_EXT_DASH); obstSeg(vEnd, ft);
         const q = PH.CONS_SQUARE, a1 = Math.atan2(iEnd.y - ft.y, iEnd.x - ft.x), a2 = Math.atan2(vEnd.y - ft.y, vEnd.x - ft.x);
+        const sq = [{ x: ft.x + q * Math.cos(a1), y: ft.y + q * Math.sin(a1) }, { x: ft.x + q * (Math.cos(a1) + Math.cos(a2)), y: ft.y + q * (Math.sin(a1) + Math.sin(a2)) }, { x: ft.x + q * Math.cos(a2), y: ft.y + q * Math.sin(a2) }];
         ctx.strokeStyle = C.mut; ctx.lineWidth = PH.CONS_EXT_W; ctx.beginPath();
-        ctx.moveTo(ft.x + q * Math.cos(a1), ft.y + q * Math.sin(a1));
-        ctx.lineTo(ft.x + q * (Math.cos(a1) + Math.cos(a2)), ft.y + q * (Math.sin(a1) + Math.sin(a2)));
-        ctx.lineTo(ft.x + q * Math.cos(a2), ft.y + q * Math.sin(a2)); ctx.stroke();
+        ctx.moveTo(sq[0].x, sq[0].y); ctx.lineTo(sq[1].x, sq[1].y); ctx.lineTo(sq[2].x, sq[2].y); ctx.stroke();
+        obstSeg(sq[0], sq[1]); obstSeg(sq[1], sq[2]);
     }
 }
 
-/* Angle arc from the V_φ axis to angEnd, with its label queued at a clear spot along the arc. */
-function drawAngleArc(ctx, g, r, angEnd, other, sameSide, color, str, labels) {
+/* Angle arc from the V_φ axis to angEnd (dashed when dash is given), with its label queued at a clear spot along
+   the arc. The arc is a label obstacle. */
+function drawAngleArc(ctx, g, r, angEnd, other, sameSide, color, str, labels, dash) {
     if (Math.abs(angEnd) < PH.ARC_MIN) return;
-    ctx.strokeStyle = color; ctx.lineWidth = PH.ARC_W; ctx.beginPath();
-    ctx.arc(g.ox, g.oy, r, Math.min(0, -angEnd), Math.max(0, -angEnd)); ctx.stroke();
+    const a0 = Math.min(0, -angEnd), a1 = Math.max(0, -angEnd);
+    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = PH.ARC_W; if (dash) ctx.setLineDash(dash);
+    ctx.beginPath(); ctx.arc(g.ox, g.oy, r, a0, a1); ctx.stroke(); ctx.restore();
+    obstArc(g.ox, g.oy, r, a0, a1);
     // when δ and θ open on the same side, start the two labels apart
     const first = sameSide ? (Math.abs(angEnd) > Math.abs(other) ? PH.ARC_FRAC_OUTER : PH.ARC_FRAC_INNER) : PH.ARC_FRAC_MID;
     const at = (f, out) => ({ x: g.ox + Math.cos(angEnd * f) * (r + PH.ARC_LBL_GAP + out), y: g.oy - Math.sin(angEnd * f) * (r + PH.ARC_LBL_GAP + out) });
@@ -1152,7 +1232,7 @@ function queuePhasorLabels(s, g, labels) {
                      cands: [{ x: vx, y: oy - side * PH.LBL_V_DY }, { x: vx + PH.LBL_V_STEP, y: oy - side * PH.LBL_V_DY }, { x: vx - PH.LBL_V_STEP, y: oy - side * PH.LBL_V_DY }, { x: vx, y: oy + side * PH.LBL_V_DY }] });
     const a = carg(s.Ec), k = motorLike ? -1 : 1, mx = (ox + eEnd.x) * MID, my = (oy + eEnd.y) * MID;
     const eAt = off => ({ x: mx - Math.sin(a) * off * k + PH.LBL_E_DX, y: my - Math.cos(a) * off * k });
-    labels.unshift({ str: 'E_A', o: Object.assign({ color: C.e, align: 'center' }, L), required: true, cands: [eAt(PH.LBL_E_OFF), eAt(PH.LBL_E_OFF + PH.LBL_STEP)] });
+    labels.unshift({ str: s.fieldRev ? 'E_A (reversed)' : 'E_A', o: Object.assign({ color: C.e, align: 'center' }, L), required: true, cands: [eAt(PH.LBL_E_OFF), eAt(PH.LBL_E_OFF + PH.LBL_STEP)] });
     if (s.Iabs <= SOLVER.I_EPS) return;
     const ia = Math.atan2(iEnd.y - oy, iEnd.x - ox), idy = s.lagging ? PH.LBL_I_DY : -PH.LBL_I_DY;
     const iAt = off => ({ x: iEnd.x + off * Math.cos(ia), y: iEnd.y + off * Math.sin(ia) + idy });
@@ -1160,13 +1240,16 @@ function queuePhasorLabels(s, g, labels) {
     const iSide = k => ({ x: iEnd.x - k * PH.LBL_I_SIDE * Math.sin(ia), y: iEnd.y - k * PH.LBL_I_SIDE * Math.cos(ia), align: 'center' });
     labels.unshift({ str: 'I_A', o: Object.assign({ color: C.i }, L), required: true, cands: [iAt(PH.LBL_I_OFF), iAt(PH.LBL_I_OFF + PH.LBL_STEP), iSide(side), iSide(-side)] });
     const dmx = (jEnd.x + eEnd.x) * MID, dmy = (jEnd.y + eEnd.y) * MID;
+    // v2.2.5 (PPR-SG-010): motor and condenser KVL is E_A = V_φ − R_A I_A − jX_S I_A, so the drops drawn from the V_φ tip
+    // are −R_A I_A and −jX_S I_A and carry that sign in their names, term by term as in the KVL strip
+    const dsg = motorLike ? MINUS : '';
     if (Math.hypot(eEnd.x - jEnd.x, eEnd.y - jEnd.y) > PH.LBL_X_MIN)
-        labels.push({ str: s.sal ? 'jX_d I_d + jX_q I_q' : 'jX_S I_A', o: { size: PH.LBL_X_SIZE, italic: true, weight: WEIGHT.HEAVY, color: C.x }, required: true,
+        labels.push({ str: s.sal ? dsg + 'jX_d I_d ' + (dsg || '+') + ' jX_q I_q' : dsg + 'jX_S I_A', o: { size: PH.LBL_X_SIZE, italic: true, weight: WEIGHT.HEAVY, color: C.x }, required: true,
                       cands: [{ x: dmx - PH.LBL_X_DX, y: dmy + PH.LBL_X_DY, align: 'right' }, { x: dmx - PH.LBL_X_DX - PH.LBL_STEP, y: dmy + PH.LBL_X_DY, align: 'right' },
                               { x: dmx + PH.LBL_X_DX, y: dmy + PH.LBL_X_DY, align: 'left' },
                               { x: dmx, y: dmy + side * PH.LBL_STEP, align: 'center' }, { x: dmx, y: dmy - side * PH.LBL_STEP, align: 'center' }] });
     if (s.ra > 0 && Math.hypot(jEnd.x - vEnd.x, jEnd.y - vEnd.y) > PH.LBL_R_MIN)
-        labels.push({ str: 'R_A I_A', o: { size: PH.LBL_R_SIZE, italic: true, weight: WEIGHT.HEAVY, color: C.r, align: 'center' }, required: true,
+        labels.push({ str: dsg + 'R_A I_A', o: { size: PH.LBL_R_SIZE, italic: true, weight: WEIGHT.HEAVY, color: C.r, align: 'center' }, required: true,
                       cands: [{ x: (vEnd.x + jEnd.x) * MID, y: (vEnd.y + jEnd.y) * MID - side * PH.LBL_R_OFF }, { x: (vEnd.x + jEnd.x) * MID, y: (vEnd.y + jEnd.y) * MID + side * PH.LBL_R_OFF }] });
 }
 
@@ -1184,7 +1267,8 @@ function drawPhasor(s) {
     const PI = c => ({ x: ox + c.re * ampScale * sc, y: oy - c.im * ampScale * sc });  // amps → screen
     const O = { x: ox, y: oy }, vEnd = PV(s.Vc), eEnd = PV(s.Ec), jEnd = PV(s.joint), iEnd = PI(s.Ia);
     const g = { w, h, ox, oy, sc, PV, vEnd, eEnd, jEnd, iEnd, motorLike, alone: M.system === 'alone' };
-    const labels = [];                                      // queued so every label can avoid every phasor
+    const labels = [];                                      // queued so every label can avoid every phasor and every line
+    AREA = { w, h }; OBST = [];                             // every line drawn below is added to OBST; the labels are placed last
 
     // ── grid + axes ──
     drawGrid(ctx, w, h, ox, oy, sc);
@@ -1198,17 +1282,18 @@ function drawPhasor(s) {
     // ── pinned reference ──
     if (UI.ghost) {
         const gh = UI.ghost, d = PH.GHOST_DASH;
-        arrow(ctx, PV(gh.joint), PV(gh.Ec), C.ghost, PH.GHOST_DROP_W, { dash: d });
-        arrow(ctx, O, PV(gh.Vc), C.ghost, PH.GHOST_W, { dash: d });
-        arrow(ctx, O, PV(gh.Ec), C.ghost, PH.GHOST_W, { dash: d });
-        arrow(ctx, O, PI(gh.Ia), C.ghost, PH.GHOST_W, { dash: d });
+        const gV = PV(gh.Vc), gE = PV(gh.Ec), gJ = PV(gh.joint), gI = PI(gh.Ia);
+        arrow(ctx, gJ, gE, C.ghost, PH.GHOST_DROP_W, { dash: d }); obstSeg(gJ, gE);
+        arrow(ctx, O, gV, C.ghost, PH.GHOST_W, { dash: d }); obstSeg(O, gV);
+        arrow(ctx, O, gE, C.ghost, PH.GHOST_W, { dash: d }); obstSeg(O, gE);
+        arrow(ctx, O, gI, C.ghost, PH.GHOST_W, { dash: d }); obstSeg(O, gI);
     }
     // ── end pinned reference ──
 
     // ── angle arcs ──
-    const aE = carg(s.Ec), aI = hasI ? carg(s.Ia) : 0, sameSide = aE * aI > 0, arcLabels = [];
+    const aE = s.dAng, aI = hasI ? carg(s.Ia) : 0, sameSide = aE * aI > 0, arcLabels = [];   // δ arc: to E_A (to the q-axis when the field is reversed)
     drawAngleArc(ctx, g, Math.min(PH.DELTA_R * s.V * sc, PH.DELTA_R_MAX), aE, aI, sameSide, C.acc, 'δ ' + fAng(s.dAng * DEG), arcLabels);
-    if (hasI) drawAngleArc(ctx, g, Math.min(PH.THETA_R * s.V * sc, PH.THETA_R_I * s.Iabs * ampScale * sc, PH.THETA_R_MAX), aI, aE, sameSide, C.mut, 'θ ' + fAng(aI * DEG), arcLabels);   // θ = angle of I_A from V_φ (negative when lagging)
+    if (hasI) drawAngleArc(ctx, g, Math.min(PH.THETA_R * s.V * sc, PH.THETA_R_I * s.Iabs * ampScale * sc, PH.THETA_R_MAX), aI, aE, sameSide, C.mut, 'θ ' + fAng(aI * DEG), arcLabels, PH.THETA_DASH);   // θ = angle of I_A from V_φ (negative when lagging)
     // ── end angle arcs ──
 
     // ── phasors ──
@@ -1220,16 +1305,19 @@ function drawPhasor(s) {
     ctx.fillStyle = C.txt; ctx.beginPath(); ctx.arc(ox, oy, PH.ORIGIN_R, 0, FULL_CIRCLE); ctx.fill();
     // ── end phasors ──
 
-    // ── labels: phasor names first, then angles, then annotations; each avoids phasors and earlier labels ──
-    AREA = { w, h };
-    OBST = [{ seg: [O, vEnd] }, { seg: [O, eEnd] }];
-    if (hasI) { OBST.push({ seg: [O, iEnd] }, { seg: [jEnd, eEnd] }); if (s.ra > 0) OBST.push({ seg: [vEnd, jEnd] }); }
+    // ── labels: phasor names first, then angles, then annotations; each avoids every line and earlier labels ──
+    // v2.2.4 (VIS-SG-002): in the dark view the three glowing phasors keep labels out of their glow (GLOW_PAD), and the
+    // origin dot is an obstacle too, so no subscript sits on it
+    const gp = C.glow ? PH.GLOW_PAD : 0;
+    obstSeg(O, vEnd, gp); obstSeg(O, eEnd, gp);
+    if (hasI) { obstSeg(O, iEnd, gp); obstSeg(jEnd, eEnd); if (s.ra > 0) obstSeg(vEnd, jEnd); }
+    OBST.push({ x0: ox - PH.ORIGIN_R - PH.ORIGIN_PAD, x1: ox + PH.ORIGIN_R + PH.ORIGIN_PAD, y0: oy - PH.ORIGIN_R - PH.ORIGIN_PAD, y1: oy + PH.ORIGIN_R + PH.ORIGIN_PAD });
     const names = []; queuePhasorLabels(s, g, names);
     for (const l of names.concat(arcLabels, labels)) placeLabel(ctx, l.str, l.cands, l.o, l.required);
     // ── end labels ──
 
     phC.setAttribute('aria-label', 'Phasor diagram. V phi ' + fV(s.V) + ' at 0 degrees. E A ' + fV(s.Eabs) + ' at ' + fAng(carg(s.Ec) * DEG)
-        + '. I A ' + fA(s.Iabs) + ' at ' + fAng(carg(s.Ia) * DEG) + '.');
+        + '. I A ' + fA(s.Iabs) + ' at ' + fAng(carg(s.Ia) * DEG) + '.' + (s.fieldRev ? ' Reversed field: this point is outside the model.' : ''));
 }
 /* ═══ END 6. PHASOR DIAGRAM ═══ */
 
@@ -1243,23 +1331,42 @@ function niceStep(span, n) {
     for (const [limit, mult] of PLOT.NICE) if (f < limit) return mult * p;
     return PLOT.NICE_TOP * p;
 }
-/* Draw the frame, ticks and axis titles of a side plot. Returns the frame with X / Y mappers, or null if too small. */
+/* Tick values of one axis px long: round steps from lo to hi, about one per minPx and no more than PLOT.TICKS steps. */
+function tickValues(lo, hi, px, minPx) {
+    const st = niceStep(hi - lo, clamp(Math.floor(px / minPx), 1, PLOT.TICKS)), out = [];
+    if (st > 0) for (let v = Math.ceil(lo / st) * st, n = 0; v <= hi && n < PLOT.MAX_TICKS; v += st, n++) out.push(v);
+    return out;
+}
+/* Text of a tick value. */
+function tickText(v) { return +v.toFixed(DEC.TICK) + ''; }
+/* Style of the tick labels. */
+function tickStyle() { return { size: PLOT.TICK_SIZE, color: C.mut, weight: WEIGHT.MED, mono: true, halo: false }; }
+/* Left margin of a side plot whose frame is hpx high (px): room for the rotated axis title, a gap and the widest
+   y tick label, so that a long tick label ("20000") does not reach the title. */
+function plotLeft(ctx, a, hpx) {
+    const o = tickStyle(), wide = Math.max(0, ...tickValues(a.ymin, a.ymax, hpx, PLOT.TICK_MIN_Y).map(v => textRuns(ctx, tickText(v), o).w));
+    return Math.max(PLOT.X0, PLOT.AXIS_Y_DX + PLOT.AXIS_SIZE * TEXT.BOX_H * MID + PLOT.TICK_GAP + wide + PLOT.TICK_DX);
+}
+/* Draw the frame, ticks and axis titles of a side plot. a.top is the top margin (default PLOT.Y0) and a.x0 the left
+   margin (default: plotLeft). Returns the frame with X / Y mappers, or null if too small. */
 function plotFrame(ctx, w, h, a) {
     ctx.clearRect(0, 0, w, h);
-    const b = { x0: PLOT.X0, x1: w - PLOT.X1_PAD, y0: PLOT.Y0, y1: h - PLOT.Y1_PAD };
-    if (!(b.x1 - b.x0 > PLOT.MIN_SIZE && b.y1 - b.y0 > PLOT.MIN_SIZE && a.xmax > a.xmin && a.ymax > a.ymin)) return null;
+    if (!(a.xmax > a.xmin && a.ymax > a.ymin)) return null;
+    const y0 = a.top || PLOT.Y0, y1 = h - PLOT.Y1_PAD;
+    if (!(y1 - y0 > PLOT.MIN_SIZE)) return null;
+    const b = { x0: a.x0 || plotLeft(ctx, a, y1 - y0), x1: w - PLOT.X1_PAD, y0, y1 };
+    if (!(b.x1 - b.x0 > PLOT.MIN_SIZE)) return null;
     b.X = v => b.x0 + (v - a.xmin) / (a.xmax - a.xmin) * (b.x1 - b.x0);
     b.Y = v => b.y1 - (v - a.ymin) / (a.ymax - a.ymin) * (b.y1 - b.y0);
     ctx.lineWidth = 1;
-    const xs = niceStep(a.xmax - a.xmin, PLOT.TICKS), ys = niceStep(a.ymax - a.ymin, PLOT.TICKS);
-    const tickO = { size: PLOT.TICK_SIZE, color: C.mut, weight: WEIGHT.MED, mono: true, halo: false };
-    if (xs > 0) for (let v = Math.ceil(a.xmin / xs) * xs, n = 0; v <= a.xmax && n < PLOT.MAX_TICKS; v += xs, n++) {
+    const tickO = tickStyle();
+    for (const v of tickValues(a.xmin, a.xmax, b.x1 - b.x0, PLOT.TICK_MIN_X)) {
         const x = b.X(v); ctx.strokeStyle = C.grid; ctx.beginPath(); ctx.moveTo(x, b.y0); ctx.lineTo(x, b.y1); ctx.stroke();
-        stext(ctx, +v.toFixed(DEC.TICK) + '', x, b.y1 + PLOT.TICK_DY, Object.assign({ align: 'center' }, tickO));
+        stext(ctx, tickText(v), x, b.y1 + PLOT.TICK_DY, Object.assign({ align: 'center' }, tickO));
     }
-    if (ys > 0) for (let v = Math.ceil(a.ymin / ys) * ys, n = 0; v <= a.ymax && n < PLOT.MAX_TICKS; v += ys, n++) {
+    for (const v of tickValues(a.ymin, a.ymax, b.y1 - b.y0, PLOT.TICK_MIN_Y)) {
         const y = b.Y(v); ctx.strokeStyle = C.grid; ctx.beginPath(); ctx.moveTo(b.x0, y); ctx.lineTo(b.x1, y); ctx.stroke();
-        stext(ctx, +v.toFixed(DEC.TICK) + '', b.x0 - PLOT.TICK_DX, y, Object.assign({ align: 'right' }, tickO));
+        stext(ctx, tickText(v), b.x0 - PLOT.TICK_DX, y, Object.assign({ align: 'right' }, tickO));
     }
     ctx.strokeStyle = C.axis; ctx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
     const axisO = { size: PLOT.AXIS_SIZE, color: C.body, align: 'center', weight: WEIGHT.SEMI, halo: false };
@@ -1281,11 +1388,6 @@ function dot(ctx, x, y, color) {
     ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, PLOT.DOT_R, 0, FULL_CIRCLE); ctx.fill(); ctx.restore();
     ctx.strokeStyle = C.canvas; ctx.lineWidth = PLOT.DOT_RING; ctx.beginPath(); ctx.arc(x, y, PLOT.DOT_R, 0, FULL_CIRCLE); ctx.stroke();
 }
-/* Small annotation on a side plot. */
-function plotNote(ctx, str, x, y, color, align, weight) {
-    stext(ctx, str, x, y, { size: PLOT.NOTE_SIZE, color: color || C.mut, align: align || 'left', weight: weight || WEIGHT.SEMI });
-}
-
 /* Side-plot labels use the phasor diagram's placement test: OBST holds what a label must stay clear of. */
 /* Add every drawn segment of these curves to the obstacles. */
 function curveObstacles(curves) {
@@ -1302,12 +1404,18 @@ function curveLabelCands(ctx, pts, str, o) {
     }
     return cands;
 }
-/* Draw a plot label at the first candidate that lies inside frame b and is clear of the obstacles. With none
-   clear, a required label takes the first candidate inside the frame. Nothing is drawn outside the frame: with
-   no candidate inside it the label is left out and false is returned. */
-function placeInFrame(ctx, b, str, cands, o, required) {
-    const e = PLOT.LBL_EDGE, ok = cands.filter(c => { const bx = textBox(ctx, str, c.x, c.y, Object.assign({}, o, c)); return bx.x0 >= b.x0 + e && bx.x1 <= b.x1 - e && bx.y0 >= b.y0 + e && bx.y1 <= b.y1 - e; });
-    return ok.length ? placeLabel(ctx, str, ok, o, required) : false;
+/* Draw a plot label at the first candidate that lies inside frame b and is clear of the obstacles; with none
+   clear, at the first clear position on the rings around those candidates that is still inside the frame. If
+   there is none, the label is left out and false is returned: a side-plot name is never printed across a line
+   or outside the frame. also(c), when given, is a further test every position must pass. */
+function placeInFrame(ctx, b, str, cands, o, also) {
+    const e = PLOT.LBL_EDGE, inFrame = c => { const bx = textBox(ctx, str, c.x, c.y, Object.assign({}, o, c)); return bx.x0 >= b.x0 + e && bx.x1 <= b.x1 - e && bx.y0 >= b.y0 + e && bx.y1 <= b.y1 - e && (!also || also(c)); };
+    const ok = cands.filter(inFrame);
+    return ok.length ? placeLabel(ctx, str, ok, o, false, inFrame) : false;
+}
+/* Candidate positions for the name of a horizontal guide line at height y: above and below it, at several points along it. */
+function besideLineCands(b, y) {
+    return PLOT.TC_RATED_X.flatMap(f => [-PLOT.NOTE_OFF, PLOT.NOTE_OFF].map(dy => ({ x: b.x0 + PLOT.NOTE_DX + f * (b.x1 - b.x0), y: y + dy })));
 }
 
 /* Terminal characteristic (stand-alone): V_φ vs load current at fixed I_f, for three power factors + the present one. */
@@ -1332,21 +1440,19 @@ function drawTerminal(s) {
     if (low.length) curve(ctx, low, C.v, PLOT.MAIN_W, PLOT.TC_LOW_DASH);
     ctx.restore();
 
-    // ── labels: each is placed clear of every curve, the operating point and the labels before it ──
+    // ── labels: each is placed clear of every curve, both guide lines, the operating point and the labels before it ──
     const o = { size: PLOT.NOTE_SIZE, color: C.mut, weight: WEIGHT.SEMI };
     AREA = { w, h };
     OBST = [{ x0: at.x - PLOT.DOT_R, x1: at.x + PLOT.DOT_R, y0: at.y - PLOT.DOT_R, y1: at.y + PLOT.DOT_R }];
+    obstSeg({ x: b.x0, y: yV }, { x: b.x1, y: yV }); obstSeg({ x: xI, y: b.y0 }, { x: xI, y: b.y1 });
     curveObstacles(refs.map(r => r.pts).concat([main, low]));
-    const vCands = [], iCands = [];
-    for (const f of PLOT.TC_RATED_X) for (const dy of [-PLOT.NOTE_DY_UP, PLOT.NOTE_DY])
-        vCands.push({ x: b.x0 + PLOT.NOTE_DX + f * (b.x1 - b.x0), y: yV + dy });
+    const iCands = [];
     for (const f of PLOT.TC_RATED_Y) {
-        const y = b.y1 - PLOT.NOTE_DY - f * (b.y1 - b.y0 - BOTH_SIDES * PLOT.NOTE_DY);
-        iCands.push({ x: xI + PLOT.NOTE_DX_TIGHT, y }, { x: xI - PLOT.NOTE_DX_TIGHT, y, align: 'right' });
+        const y = b.y1 - PLOT.NOTE_OFF - f * (b.y1 - b.y0 - BOTH_SIDES * PLOT.NOTE_OFF);
+        iCands.push({ x: xI + PLOT.NOTE_DX, y }, { x: xI - PLOT.NOTE_DX, y, align: 'right' });
     }
-    placeInFrame(ctx, b, 'rated V_φ', vCands, o, true); placeInFrame(ctx, b, 'rated I_A', iCands, o, true);
-    OBST.push({ seg: [{ x: b.x0, y: yV }, { x: b.x1, y: yV }] }, { seg: [{ x: xI, y: b.y0 }, { x: xI, y: b.y1 }] });
-    for (const r of refs) placeInFrame(ctx, b, r.name, curveLabelCands(ctx, r.pts, r.name, o), o, true);
+    placeInFrame(ctx, b, 'rated V_φ', besideLineCands(b, yV), o); placeInFrame(ctx, b, 'rated I_A', iCands, o);
+    for (const r of refs) placeInFrame(ctx, b, r.name, curveLabelCands(ctx, r.pts, r.name, o), o);
     // ── end labels ──
     dot(ctx, at.x, at.y, C.v);
     sdC.setAttribute('aria-label', 'Terminal characteristic: phase voltage against load current. Operating point ' + fV(s.V) + ' at ' + fA(s.Iabs) + '.');
@@ -1380,69 +1486,111 @@ function drawVCurve(s) {
     const sz = sizeCanvas(sdC); if (!sz) return; const { w, h } = sz, ctx = sdX;
     const f0 = LIM.IF.min, f1 = LIM.IF.max, cond = modeNow() === 'cond', gen = modeNow() === 'gen';
     const main = vSweep(cond ? 0 : Math.abs(s.P3) / W_PER_KW), top = Math.max(PLOT.VC_I_SPAN * M.Imax, s.Iabs * PLOT.VC_I_HEADROOM);
-    const b = plotFrame(ctx, w, h, { xmin: f0, xmax: f1, ymin: 0, ymax: top, xlabel: 'field current I_f  (pu)', ylabel: '|I_A|  (A)' });
+    const b = plotFrame(ctx, w, h, { xmin: f0, xmax: f1, ymin: 0, ymax: top, xlabel: 'field current I_f  (pu)', ylabel: '|I_A|  (A)', top: PLOT.Y0_NOTES });
     if (!b) return;
     const map = pts => pts.map(p => p && { x: b.X(p.f), y: b.Y(p.ia) });
     clipToFrame(ctx, b);
-    dashed(ctx, { x: b.x0, y: b.Y(M.Imax) }, { x: b.x1, y: b.Y(M.Imax) }, C.mut, 1, PLOT.REF_DASH);
+    const yI = b.Y(M.Imax);
+    dashed(ctx, { x: b.x0, y: yI }, { x: b.x1, y: yI }, C.mut, 1, PLOT.REF_DASH);
     const fams = cond ? [] : vFamily().map(fam => ({ name: fam.kW + ' kW', pts: map(fam.pts) })), mainPts = map(main);
     for (const fam of fams) curve(ctx, fam.pts, C.mut2, PLOT.VC_FAM_W);
     curve(ctx, mainPts, C.i, PLOT.MAIN_W);
     let mi = null; for (const p of main) if (p && (!mi || p.ia < mi.ia)) mi = p;          // unity-pf point = minimum of the active curve
-    if (mi && !cond) dashed(ctx, { x: b.X(mi.f), y: b.y0 }, { x: b.X(mi.f), y: b.y1 }, alpha(C.ok, PLOT.VC_UNITY_ALPHA), 1, PLOT.VC_UNITY_DASH);
+    const xU = mi && !cond ? b.X(mi.f) : null;
+    if (xU != null) dashed(ctx, { x: xU, y: b.y0 }, { x: xU, y: b.y1 }, alpha(C.ok, PLOT.VC_UNITY_ALPHA), 1, PLOT.VC_UNITY_DASH);
     ctx.restore();
-    // ── labels: the fixed notes first, then each reference curve's power beside its own curve, clear of the rest ──
-    const yI = b.Y(M.Imax), at = s.exceeds ? null : { x: b.X(clamp(s.Eabs / M.V, f0, f1)), y: b.Y(Math.min(s.Iabs, top)) };
-    AREA = { w, h }; OBST = [{ seg: [{ x: b.x0, y: yI }, { x: b.x1, y: yI }] }];
+    // ── labels. The branch names sit above the frame, where nothing is drawn. Inside the frame each label is placed
+    //    clear of every curve, both guide lines, the operating point and the labels before it. A reversed field
+    //    (needed I_f below zero) is not a point of this plot: no dot is drawn, and the note under the title says so. ──
+    const at = s.exceeds || s.fieldRev ? null : { x: b.X(clamp(s.Eabs / M.V, f0, f1)), y: b.Y(Math.min(s.Iabs, top)) };
+    const no = { size: PLOT.NOTE_SIZE, color: C.body, weight: WEIGHT.SEMI }, yTop = b.y0 - PLOT.TOP_NOTE_DY;
+    stext(ctx, gen ? '← lead · absorbs Q' : '← lagging', b.x0, yTop, no);
+    stext(ctx, gen ? 'lag · supplies Q →' : 'leading →', b.x1, yTop, Object.assign({ align: 'right' }, no));
+    AREA = { w, h }; OBST = [];
+    obstSeg({ x: b.x0, y: yI }, { x: b.x1, y: yI });
+    if (xU != null) obstSeg({ x: xU, y: b.y0 }, { x: xU, y: b.y1 });
     if (at) OBST.push({ x0: at.x - PLOT.DOT_R, x1: at.x + PLOT.DOT_R, y0: at.y - PLOT.DOT_R, y1: at.y + PLOT.DOT_R });
     curveObstacles(fams.map(fam => fam.pts).concat([mainPts]));
-    const note = (str, x, y, color, align, weight) => {
-        const o = { size: PLOT.NOTE_SIZE, align: align || 'left' };
-        plotNote(ctx, str, x, y, color, align, weight); OBST.push(textBox(ctx, str, x, y, o));
-    };
-    if (mi && !cond) { note('unity pf', b.X(mi.f), b.y0 + PLOT.NOTE_DY, C.ok, 'center', WEIGHT.BOLD); OBST.push({ seg: [{ x: b.X(mi.f), y: b.y0 }, { x: b.X(mi.f), y: b.y1 }] }); }
-    note('rated I_A', b.x0 + PLOT.NOTE_DX, yI - PLOT.NOTE_DY_UP);
-    note(gen ? '← leading · absorbs Q' : '← lagging', b.x0 + PLOT.NOTE_DX, b.y1 - PLOT.NOTE_DY, C.body);
-    note(gen ? 'lagging · supplies Q →' : 'leading →', b.x1 - PLOT.NOTE_DX, b.y1 - PLOT.NOTE_DY, C.body, 'right');
+    const o = { size: PLOT.NOTE_SIZE, color: C.mut, weight: WEIGHT.SEMI };
+    if (xU != null) placeInFrame(ctx, b, 'unity pf', PLOT.VC_UNITY_ROWS.flatMap(k => { const y = b.y0 + PLOT.NOTE_OFF + k * PLOT.NOTE_ROW; return [{ x: xU + PLOT.NOTE_DX, y }, { x: xU - PLOT.NOTE_DX, y, align: 'right' }]; }),
+                                 { size: PLOT.NOTE_SIZE, color: C.ok, weight: WEIGHT.BOLD });
+    placeInFrame(ctx, b, 'rated I_A', besideLineCands(b, yI), o);
     const fo = { size: PLOT.VC_FAM_SIZE, color: C.mut, weight: WEIGHT.SEMI };
-    for (const fam of fams) placeInFrame(ctx, b, fam.name, curveLabelCands(ctx, fam.pts, fam.name, fo), fo, true);
+    for (const fam of fams) placeInFrame(ctx, b, fam.name, curveLabelCands(ctx, fam.pts, fam.name, fo), fo);
     // ── end labels ──
     if (at) dot(ctx, at.x, at.y, C.i);
-    sdC.setAttribute('aria-label', 'V-curve: armature current against field current at constant power. Operating point ' + fA(s.Iabs) + ' at ' + (s.Eabs / M.V).toFixed(DEC.IFPU) + ' per unit field.');
+    sdC.setAttribute('aria-label', 'V-curve: armature current against field current at constant power. ' + (s.fieldRev ? 'Reversed field: the operating point needs a field current below zero and is not on this plot.'
+        : 'Operating point ' + fA(s.Iabs) + ' at ' + (s.Eabs / M.V).toFixed(DEC.IFPU) + ' per unit field.'));
 }
 
 /* Capability curve (infinite bus): P horizontal, Q vertical (Chapman's orientation). */
 function drawPQ(s) {
     const sz = sizeCanvas(sdC); if (!sz) return; const { w, h } = sz, ctx = sdX;
-    const X = modelNow() === 'salient' ? M.Xd : M.Xs, V = M.V, S = ratedVA(M) / W_PER_KW;
+    const sal = modelNow() === 'salient', cond = modeNow() === 'cond', gen = modeNow() === 'gen';
+    const X = sal ? M.Xd : M.Xs, R = effRa(M), V = M.V, S = ratedVA(M) / W_PER_KW;
     const Qc = -PHASES * V * V / X / W_PER_KW, Rf = PHASES * V * ratedE(M) / X / W_PER_KW;
-    const gen = modeNow() === 'gen', p = s.P3 / W_PER_KW, q = s.Q3 / W_PER_KW;
+    // Steady-state stability limit of the round-rotor model. At the pull-out angle Q = −3V_φ² X_S / (R_A² + X_S²) whatever
+    // the field (−3V_φ²/X_S with R_A = 0): a horizontal line on this plane, with the stable points above it. It is not
+    // drawn for the salient-pole model (its limit is not a straight line) or for the condenser (no power angle).
+    const Qs = sal || cond ? null : -PHASES * V * V * X / (R * R + X * X) / W_PER_KW;
+    const p = s.P3 / W_PER_KW, q = s.Q3 / W_PER_KW;
     const span = Math.max(PLOT.PQ_SPAN * S, Math.abs(p) * PLOT.PQ_HEADROOM, Math.abs(q) * PLOT.PQ_HEADROOM);
-    const bw = w - PLOT.PQ_PAD_W, bh = h - PLOT.PQ_PAD_H;
-    if (!(bw > PLOT.MIN_SIZE && bh > PLOT.MIN_SIZE)) { ctx.clearRect(0, 0, w, h); return; }
-    // keep a 1:1 aspect so the limit circles are round
-    const pmin = gen ? -PLOT.PQ_NEG_P * span : -span, k = Math.max((span - pmin) / bw, BOTH_SIDES * span / bh), pmid = (pmin + span) * MID;
-    const b = plotFrame(ctx, w, h, { xmin: pmid - k * bw * MID, xmax: pmid + k * bw * MID, ymin: -k * bh * MID, ymax: k * bh * MID, xlabel: 'P  (kW)', ylabel: 'Q  (kVAR)   + supplied' });
-    if (!b) return;
-    const r = v => v / k, circle = (qc, rad) => { ctx.beginPath(); ctx.arc(b.X(0), b.Y(qc), r(rad), 0, FULL_CIRCLE); };
+    const pmin = gen ? -PLOT.PQ_NEG_P * span : -span, pmid = (pmin + span) * MID, top = PLOT.Y0_NOTES;
+    // axes for a given left margin, keeping a 1:1 aspect so the limit circles are round (k = kW per px)
+    const axes = x0 => {
+        const bw = w - x0 - PLOT.X1_PAD, bh = h - top - PLOT.Y1_PAD;
+        if (!(bw > PLOT.MIN_SIZE && bh > PLOT.MIN_SIZE)) return null;
+        const k = Math.max((span - pmin) / bw, BOTH_SIDES * span / bh);
+        return { k, x0, top, bh, xmin: pmid - k * bw * MID, xmax: pmid + k * bw * MID, ymin: -k * bh * MID, ymax: k * bh * MID, xlabel: 'P  (kW)', ylabel: 'Q  (kVAR)   + supplied' };
+    };
+    // the left margin depends on the tick labels and the tick labels on the scale: settle it in two passes
+    let a = axes(PLOT.X0); if (a) a = axes(plotLeft(ctx, a, a.bh)); if (a) a = axes(Math.max(a.x0, plotLeft(ctx, a, a.bh)));
+    const b = a && plotFrame(ctx, w, h, a);
+    if (!b) { ctx.clearRect(0, 0, w, h); return; }
+    const k = a.k, r = v => v / k, x0 = b.X(0), y0 = b.Y(0), circle = (qc, rad) => { ctx.beginPath(); ctx.arc(x0, b.Y(qc), r(rad), 0, FULL_CIRCLE); };
+    const yS = Qs == null ? null : b.Y(Qs), stabShown = yS != null && yS > b.y0 && yS < b.y1, at = { x: b.X(p), y: b.Y(q) };
     clipToFrame(ctx, b);
-    ctx.save();                                             // allowed region = inside both limits
+    ctx.save();                                             // allowed region = inside both limits and on the stable side of the stability limit
     circle(0, S); ctx.clip(); circle(Qc, Rf); ctx.clip();
-    if (gen) { ctx.beginPath(); ctx.rect(b.X(0), b.y0, b.x1, b.y1); ctx.clip(); }
+    if (gen) { ctx.beginPath(); ctx.rect(x0, b.y0, b.x1, b.y1); ctx.clip(); }
+    if (yS != null) { ctx.beginPath(); ctx.rect(b.x0, b.y0, b.x1 - b.x0, yS - b.y0); ctx.clip(); }
     ctx.fillStyle = alpha(C.ok, PLOT.PQ_FILL); ctx.fillRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0); ctx.restore();
     ctx.strokeStyle = C.axis; ctx.lineWidth = PLOT.PQ_AXIS_W; ctx.beginPath();
-    ctx.moveTo(b.x0, b.Y(0)); ctx.lineTo(b.x1, b.Y(0)); ctx.moveTo(b.X(0), b.y0); ctx.lineTo(b.X(0), b.y1); ctx.stroke();
+    ctx.moveTo(b.x0, y0); ctx.lineTo(b.x1, y0); ctx.moveTo(x0, b.y0); ctx.lineTo(x0, b.y1); ctx.stroke();
     ctx.lineWidth = PLOT.PQ_LIMIT_W; ctx.strokeStyle = C.i; circle(0, S); ctx.stroke();
     ctx.strokeStyle = C.r; ctx.setLineDash(PLOT.PQ_FIELD_DASH); circle(Qc, Rf); ctx.stroke(); ctx.setLineDash([]);
-    dashed(ctx, { x: b.X(0), y: b.Y(0) }, { x: b.X(p), y: b.Y(q) }, C.mut, PLOT.PQ_AXIS_W, PLOT.PQ_RAY_DASH);
+    if (stabShown) dashed(ctx, { x: b.x0, y: yS }, { x: b.x1, y: yS }, C.bad, PLOT.PQ_LIMIT_W, PLOT.PQ_STAB_DASH);
+    dashed(ctx, { x: x0, y: y0 }, at, C.mut, PLOT.PQ_AXIS_W, PLOT.PQ_RAY_DASH);
     ctx.restore();
-    stext(ctx, 'armature limit', b.x0 + PLOT.PQ_LBL_X, b.y0 + PLOT.PQ_LBL_Y1, { size: PLOT.PQ_LBL_SIZE, color: C.i, weight: WEIGHT.BOLD });
-    stext(ctx, 'field limit', b.x0 + PLOT.PQ_LBL_X, b.y0 + PLOT.PQ_LBL_Y2, { size: PLOT.PQ_LBL_SIZE, color: C.r, weight: WEIGHT.BOLD });
-    plotNote(ctx, 'lagging', b.x1 - PLOT.NOTE_DX, b.y0 + PLOT.PQ_LBL_Y1, C.mut, 'right');
-    plotNote(ctx, 'leading', b.x1 - PLOT.NOTE_DX, b.y1 - PLOT.NOTE_DY, C.mut, 'right');
-    const inside = Math.hypot(p, q) <= S * SOLVER.RATED_TOL && Math.hypot(p, q - Qc) <= Rf * SOLVER.RATED_TOL;
-    dot(ctx, b.X(p), b.Y(q), inside ? C.ok : C.bad);
-    sdC.setAttribute('aria-label', 'Capability curve on the P–Q plane. Operating point ' + fP(s.P3, 'W') + ', ' + fP(s.Q3, 'VAR') + ', ' + (inside ? 'inside' : 'outside') + ' the limits.');
+    // ── labels. The names of the limits sit above the frame, where nothing is drawn. The two half-plane names are
+    //    placed inside the frame, each in its own half, clear of the limits, the axes, the ray and the operating point. ──
+    let lx = b.x0;
+    const legend = (str, color) => { lx += stext(ctx, str, lx, b.y0 - PLOT.TOP_NOTE_DY, { size: PLOT.NOTE_SIZE, color, weight: WEIGHT.BOLD }) + PLOT.LEGEND_GAP; };
+    legend('armature limit', C.i); legend('field limit', C.r); if (stabShown) legend('stability limit', C.bad);
+    AREA = { w, h }; OBST = [{ x0: at.x - PLOT.DOT_R, x1: at.x + PLOT.DOT_R, y0: at.y - PLOT.DOT_R, y1: at.y + PLOT.DOT_R }];
+    obstArc(x0, y0, r(S), 0, FULL_CIRCLE); obstArc(x0, b.Y(Qc), r(Rf), 0, FULL_CIRCLE);
+    obstSeg({ x: b.x0, y: y0 }, { x: b.x1, y: y0 }); obstSeg({ x: x0, y: b.y0 }, { x: x0, y: b.y1 }); obstSeg({ x: x0, y: y0 }, at);
+    if (stabShown) obstSeg({ x: b.x0, y: yS }, { x: b.x1, y: yS });
+    // Q is the Q supplied in every mode (the axis title says so): a machine supplying Q is a generator with a lagging
+    // current or a motor / condenser with a leading one, so each half is named for the machine shown
+    const o = { size: PLOT.NOTE_SIZE, color: C.mut, weight: WEIGHT.SEMI };
+    // v2.2.4 (PPR-SG-007): each name also sits on the P side where the machine shown operates (P ≥ 0 generator, P ≤ 0 motor,
+    // either side for the condenser), so no quadrant carries the name of the opposite machine; candidates beside the Q axis
+    // are added on both sides of it
+    const half = up => PLOT.PQ_HALF_ROWS.flatMap(row => { const y = up ? b.y0 + PLOT.NOTE_OFF + row * PLOT.NOTE_ROW : b.y1 - PLOT.NOTE_OFF - row * PLOT.NOTE_ROW;
+        return PLOT.PQ_HALF_X.map(f => f === 0 ? { x: b.x1 - PLOT.NOTE_DX, y, align: 'right' } : f === 1 ? { x: b.x0 + PLOT.NOTE_DX, y } : { x: b.x1 - f * (b.x1 - b.x0), y, align: 'center' })
+            .concat([{ x: x0 + PLOT.NOTE_DX, y }, { x: x0 - PLOT.NOTE_DX, y, align: 'right' }]); });
+    const onSide = str => c => { if (cond) return true; const bx = textBox(ctx, str, c.x, c.y, Object.assign({}, o, c)); return gen ? bx.x0 >= x0 : bx.x1 <= x0; };
+    const upName = gen ? 'lagging pf' : 'leading pf', dnName = gen ? 'leading pf' : 'lagging pf';
+    placeInFrame(ctx, b, upName, half(true), o, c => c.y < y0 - PLOT.NOTE_OFF && onSide(upName)(c));
+    placeInFrame(ctx, b, dnName, half(false), o, c => c.y > y0 + PLOT.NOTE_OFF && onSide(dnName)(c));
+    // ── end labels ──
+    // "inside" means inside both drawn limits AND a state the model can hold: not beyond the stability limit, not a reversed field
+    const within = Math.hypot(p, q) <= S * SOLVER.RATED_TOL && Math.hypot(p, q - Qc) <= Rf * SOLVER.RATED_TOL;
+    const state = s.fieldRev ? 'a reversed field, outside the model' : s.unstable || s.exceeds ? 'beyond the stability limit' : within ? 'inside the limits' : 'outside the limits';
+    dot(ctx, at.x, at.y, state === 'inside the limits' ? C.ok : C.bad);
+    sdC.setAttribute('aria-label', 'Capability curve on the P–Q plane. Operating point ' + fP(s.P3, 'W') + ', ' + fP(s.Q3, 'VAR') + ', ' + state + '.'
+        + (sal ? ' Salient pole: the limits are round-rotor circles drawn with X d, an approximation.' : ''));
 }
 /* ═══ END 7. SIDE PLOTS ═══ */
 
@@ -1457,7 +1605,7 @@ function readoutsHTML(s, alone) {
     const tV = ro('V<sub>φ</sub>', fV(s.V), 'var(--ph-v)'), tVT = ro('V<sub>T</sub> (line, ' + (Y ? 'Y' : 'Δ') + ')', fV(s.V * kV()), 'var(--ph-v)');
     const tI = Y ? [ro('|I<sub>A</sub>| = I<sub>L</sub>', fA(s.Iabs), 'var(--ph-i)')]
                  : [ro('|I<sub>A</sub>| (phase)', fA(s.Iabs), 'var(--ph-i)'), ro('I<sub>L</sub> (line)', fA(s.Iabs * kI()), 'var(--ph-i)')];
-    const tPf = ro('pf', fPf(s)), tIf = ro('Field I<sub>f</sub>', (s.Eabs / M.V).toFixed(DEC.IFPU) + ' pu', 'var(--ph-e)');
+    const tPf = ro('pf', fPf(s)), tIf = ro('Field I<sub>f</sub>', fField(s) + ' pu', s.fieldRev ? 'var(--bad)' : 'var(--ph-e)');
     const tZ = s.sal ? ro('X<sub>d</sub>, X<sub>q</sub>', ohm(M.Xd) + ', ' + ohm(M.Xq) + ' Ω', 'var(--ph-x)')
                      : ro(ra > 0 ? 'R<sub>A</sub> + jX<sub>S</sub>' : 'X<sub>S</sub>', (ra > 0 ? ohm(ra) + ' + j' : '') + ohm(M.Xs) + ' Ω', 'var(--ph-x)');
     const tE = ro('|E<sub>A</sub>|', fV(s.Eabs), 'var(--ph-e)'), tD = ro('δ', fAng(s.dAng * DEG), 'var(--acc)');
@@ -1474,7 +1622,7 @@ function readoutsHTML(s, alone) {
         found = forE ? [tE, tD, tIf, tVR, tP, tQ, tS] : [tV, tVT, tPct, tVR, tE, tD, tP, tQ, tS];
     } else {
         given = [tV, tVT].concat(modeNow() === 'cond' ? [] : [tP], [exc ? tIf : tPf, tZ]);
-        found = [tE, tD].concat(tI, [exc ? tPf : tIf, tQ, tS, ro('E<sub>A</sub> cos δ', fV(s.Eabs * Math.cos(s.delta)), 'var(--ph-e)'),
+        found = [tE, tD].concat(tI, [exc ? tPf : tIf, tQ, tS, ro('E<sub>A</sub> cos δ', fV(s.Ef * Math.cos(s.delta)).replace('-', '−'), 'var(--ph-e)'),
                                      ro('P<sub>max</sub>', s.pmaxPh != null ? fP(PHASES * s.pmaxPh, 'W') : EMPTY)]);
     }
     return '<div class="ro-h">Given</div><div class="ro-g">' + given.join('') + '</div><div class="ro-h">Results</div><div class="ro-g">' + found.join('') + '</div>';
@@ -1487,32 +1635,46 @@ function updatePill(s, alone) {
         if (s.Iabs < SOLVER.I_EPS) txt = 'No load · V<sub>φ</sub> = E<sub>A</sub>';
         else if (s.lagging) { txt = 'Lagging load · V<sub>φ</sub> ' + (s.V < s.Vnl ? 'below' : 'above') + ' its no-load value'; col = 'var(--ph-r)'; }
         else if (s.leading) { txt = 'Leading load · V<sub>φ</sub> ' + (s.V > s.Vnl ? 'above' : 'below') + ' its no-load value'; col = 'var(--ph-i)'; }
-        else txt = 'Unity-pf load · V<sub>φ</sub> slightly below no-load';
+        else txt = 'Unity-pf load · V<sub>φ</sub> ' + (s.V < s.Vnl ? 'below' : 'above') + ' its no-load value';
     } else if (s.Iabs < SOLVER.I_EPS) txt = 'NO LOAD · I<sub>A</sub> = 0';
     else if (s.Q3 > qEps) { txt = 'OVER-EXCITED · supplies Q' + (s.gen ? ' (lagging)' : ' (leading)'); col = 'var(--ph-r)'; }
     else if (s.Q3 < -qEps) { txt = 'UNDER-EXCITED · absorbs Q' + (s.gen ? ' (leading)' : ' (lagging)'); col = 'var(--ph-i)'; }
     else txt = 'NORMAL EXCITATION · unity pf';
     if (s.Iabs > M.Imax * SOLVER.RATED_TOL) txt += '<br><span style="color:var(--bad)">⚠ armature current above rated</span>';
-    if (!alone && s.Eabs > ratedE(M) * SOLVER.RATED_TOL) txt += '<br><span style="color:var(--bad)">⚠ field current above rated field limit</span>';
+    // v2.2.4 (PPR-SG-012): a reversed field is never described as a field above its limit; the reversed-field wording replaces it
+    if (!alone && s.fieldRev) txt += '<br><span style="color:var(--bad)">⚠ reversed field: needs I<sub>f</sub> below zero, outside the model</span>';
+    else if (!alone && s.Eabs > ratedE(M) * SOLVER.RATED_TOL) txt += '<br><span style="color:var(--bad)">⚠ field current above rated field limit' + (s.sal ? ' (round-rotor estimate with X<sub>d</sub>)' : '') + '</span>';
     pill.innerHTML = txt; chipColor(pill, col);
+}
+/* v2.2.4 (VIS-SG-012): put text into a node with every symbol written X_y (I_f, P_max, R_A, V_φ) shown as X with a
+   subscript y, as in the readouts; built from text nodes and <sub> elements, never parsed as markup. */
+function setSubText(node, str) {
+    node.textContent = '';
+    String(str).split(/([A-Za-zφδθ]+_[A-Za-z0-9φ]+)/).forEach((part, i) => {
+        if (i % 2 === 0) { if (part) node.appendChild(document.createTextNode(part)); return; }
+        const k = part.indexOf('_'), sub = document.createElement('sub');
+        node.appendChild(document.createTextNode(part.slice(0, k))); sub.textContent = part.slice(k + 1); node.appendChild(sub);
+    });
 }
 /* Status badge in the diagram header. */
 function updateStatus(s, alone) {
     const st = el('phStatus'); let txt, col = 'var(--mut)';
+    const fNeed = (s.Eabs / M.V).toFixed(DEC.IFPU), fLim = (s.fieldOut > 0 ? LIM.IF.max : LIM.IF.min).toFixed(DEC.IFPU);
+    const fieldTxt = alone && s.fieldOut ? '⚠ needs I_f = ' + fNeed + ' pu — ' + (s.fieldOut > 0 ? 'above' : 'below') + ' the ' + fLim + ' pu field limit' : '';
     if (alone && s.limited) { txt = '⚠ load beyond what this field can supply — V_φ collapses'; col = 'var(--bad)'; }
+    else if (s.fieldRev) { txt = '⚠ REVERSED FIELD — needs I_f = ' + fField(s) + ' pu, below zero: outside the model'; col = 'var(--bad)'; }
     else if (s.exceeds) { txt = '⚠ PULL-OUT — P exceeds P_max'; col = 'var(--bad)'; }
     else if (s.unstable) { txt = '⚠ δ = ' + fAng(s.dAng * DEG) + (alone ? ' — beyond 90°, the steady-state stability limit' : ' — beyond the stability limit'); col = 'var(--bad)'; }
-    else if (alone && s.fieldOut) {                          // Solve for E_A: the field found is shown as it is, never clamped
-        const lim = s.fieldOut > 0 ? LIM.IF.max : LIM.IF.min;
-        txt = '⚠ needs I_f = ' + (s.Eabs / M.V).toFixed(DEC.IFPU) + ' pu — ' + (s.fieldOut > 0 ? 'above' : 'below') + ' the ' + lim.toFixed(DEC.IFPU) + ' pu field limit'; col = 'var(--warn)';
-    }
+    else if (fieldTxt) { txt = fieldTxt; col = 'var(--warn)'; }   // Solve for E_A: the field found is shown as it is, never clamped
     else if (s.floor) { txt = 'set P is below the least input this field allows'; col = 'var(--warn)'; }
     else if (!alone && s.delta * DEG > SOLVER.DELTA_WARN_DEG) { txt = 'δ = ' + fAng(s.dAng * DEG) + ' — near the stability limit'; col = 'var(--warn)'; }   // signed, as in the readout
     else {
         const m = modeNow() === 'cond' ? 'CONDENSER' : s.gen ? 'GENERATOR' : 'MOTOR';
         txt = m + ' · ' + (alone ? 'alone' : 'infinite bus') + ' · ' + (s.Iabs < SOLVER.I_EPS ? 'no load' : s.lagging ? 'lagging' : s.leading ? 'leading' : 'unity');
     }
-    st.textContent = txt; chipColor(st, col);
+    // a field outside its limits is named whatever else is flagged; in short form, so the chip stays on one line
+    if (fieldTxt && txt !== fieldTxt) txt += ' · I_f ' + fNeed + ' pu ' + (s.fieldOut > 0 ? '>' : '<') + ' ' + fLim + ' pu limit';
+    setSubText(st, txt); chipColor(st, col);
 }
 /* KVL strip: symbols, then the present numbers. */
 function updateEquation(s) {
@@ -1521,18 +1683,27 @@ function updateEquation(s) {
     if (s.ra > 0) eq += '<span class="op">' + sg + '</span><span class="tk c-r">R<sub>A</sub>I<sub>A</sub></span>';
     eq += '<span class="op">' + sg + '</span><span class="tk c-x">' + (s.sal ? 'jX<sub>d</sub>I<sub>d</sub> ' + sg + ' jX<sub>q</sub>I<sub>q</sub>' : 'jX<sub>S</sub>I<sub>A</sub>') + '</span>';
     eq += '<span class="sep">numbers:</span>';
-    eq += '<span class="tk c-e">' + ph(s.Eabs, carg(s.Ec)) + ' V</span><span class="op">=</span><span class="tk c-v">' + ph(s.V, 0) + ' V</span>';
+    // a reversed field is written as a negative E_A along the q-axis (the same phasor as its magnitude at the opposite angle)
+    eq += '<span class="tk c-e">' + (s.fieldRev ? ph(s.Ef, s.dAng).replace('-', '−') : ph(s.Eabs, carg(s.Ec))) + ' V</span><span class="op">=</span><span class="tk c-v">' + ph(s.V, 0) + ' V</span>';
     if (!s.sal) {
         const zd = s.ra > 0 ? '(' + fNum(s.ra, DEC.ENTRY) + ' + j' + M.Xs.toFixed(DEC.OHM) + ')' : 'j' + M.Xs.toFixed(DEC.OHM);
         eq += '<span class="op">' + sg + '</span><span class="tk c-x">' + zd + ' Ω</span><span class="op">×</span><span class="tk c-i">' + s.Iabs.toFixed(DEC.A) + '∠' + fAng(carg(s.Ia) * DEG) + ' A</span>';
     }
     el('eqStrip').innerHTML = eq;
 }
+/* Note under the side plot's title: what the plot on screen leaves out or approximates. Hidden when there is nothing to say. */
+function updateSideNote(s, alone) {
+    const n = el('sideNote'), vc = !alone && UI.side !== 'pq';
+    let txt = '';
+    if (!alone && !vc && s.sal) txt = 'Salient pole: both limits are round-rotor circles drawn with X_d, an approximation. The stability limit is not drawn.';
+    if (s.fieldRev) txt += (txt ? ' ' : '') + (vc ? 'Reversed field: this point needs I_f below zero, so it is not on the V-curve.' : 'Reversed field: this point is outside the model.');
+    setSubText(n, txt); n.style.color = s.fieldRev ? 'var(--bad)' : ''; show('sideNote', !!txt);
+}
 /* Refresh every text readout for solution s. */
 function updateReadouts(s) {
     const alone = M.system === 'alone';
     el('readouts').innerHTML = readoutsHTML(s, alone);
-    updatePill(s, alone); updateStatus(s, alone); updateEquation(s);
+    updatePill(s, alone); updateStatus(s, alone); updateEquation(s); updateSideNote(s, alone);
 }
 /* ═══ END 8. READOUTS ═══ */
 
@@ -1544,6 +1715,16 @@ let SOL = null;                            // solution for the present state (se
 function setActive(sel, attr, val) { document.querySelectorAll(sel + ' button').forEach(b => markActive(b, b.dataset[attr] === String(val))); }
 /* Show one segmented button as chosen or not, to the eye and to assistive technology. */
 function markActive(b, on) { b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); }
+/* Show one page tab as the current page or not, to the eye and to assistive technology. */
+function markTab(b, on) { b.classList.toggle('active', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }
+/* Write str into node with "X_y" shown as X with a subscript y (text nodes and <sub> elements only). */
+function setSubText(node, str) {
+    node.textContent = '';
+    for (const part of str.split(/(_[A-Za-z0-9φ]+)/)) {
+        if (part.length > 1 && part[0] === '_') { const sub = document.createElement('sub'); sub.textContent = part.slice(1); node.appendChild(sub); }
+        else if (part) node.appendChild(document.createTextNode(part));
+    }
+}
 /* Show or hide an element. */
 function show(id, on) { el(id).style.display = on ? '' : 'none'; }
 
@@ -1553,10 +1734,10 @@ function outOfRange(v, lim, dec) {
     return v.toFixed(d);
 }
 /* Enable / disable the two drive buttons according to whether the present point can be handed over.
-   The reason for a refusal is the one driveHandover() found. */
+   The reason for a refusal is the one driveHandover() found; it is printed under the buttons. */
 function syncDrive(alone, cond) {
     const btns = document.querySelectorAll('#driveBtns button');
-    let why = '';                                           // shown as a tooltip, so the sidebar does not move
+    let why = '';
     if (!alone && !cond) {
         const ho = driveHandover(M);
         btns.forEach(b => { b.disabled = b.dataset.drive !== M.drive && !ho.ok; });
@@ -1564,14 +1745,15 @@ function syncDrive(alone, cond) {
             const reason = {
                 pullout: ho.to === 'load' ? 'P is above P_max for this field (pull-out), so there is no operating point to hand over'
                                           : 'this point lies beyond the pull-out angle, where a set field cannot hold it',
+                floor: 'set P is below the least input this field allows, so there is no operating point to hand over',
                 angle: ho.why === 'angle' ? 'this point has a power-factor angle of ' + outOfRange(Math.abs(ho.need), { min: 0, max: LIM.TH.max }, DEC.ANG) + '°, outside the ±' + LIM.TH.max + '° that control covers' : '',
-                field: ho.why === 'field' ? 'this point needs I_f = ' + outOfRange(ho.need, LIM.IF, DEC.IFPU) + ' pu, outside ' + LIM.IF.min.toFixed(DEC.IFPU) + '–' + LIM.IF.max.toFixed(DEC.IFPU) + ' pu' : '',
+                field: ho.why === 'field' ? 'this point needs I_f = ' + outOfRange(ho.need, LIM.IF, DEC.IFPU).replace('-', '−') + ' pu' + (ho.need <= 0 ? ' (a reversed field)' : '') + ', outside ' + LIM.IF.min.toFixed(DEC.IFPU) + '–' + LIM.IF.max.toFixed(DEC.IFPU) + ' pu' : '',
                 mismatch: 'the other drive cannot reproduce this point exactly'
             }[ho.why];
-            why = (ho.to === 'load' ? '“Set P & pf”' : '“Set P & I_f”') + ' is not offered here: ' + reason + '. Switching would change the operating point.';
+            why = (ho.to === 'load' ? '“Set P & pf”' : '“Set P & I_f”') + ' is not offered here: ' + reason + '.';
         }
     } else btns.forEach(b => { b.disabled = false; });
-    el('driveBtns').title = why; btns.forEach(b => { b.title = b.disabled ? why : ''; });
+    setSubText(el('driveNote'), why); show('driveNote', !!why);
 }
 
 /* Push the state into every control and label. Does not draw. */
@@ -1592,13 +1774,13 @@ function syncUI() {
     show('solveRow', alone); setActive('#solveBtns', 'solve', M.solveFor);
     el('solveHint').innerHTML = M.solveFor === 'E'
         ? '<strong>Given:</strong> rated V<sub>φ</sub>, the load and its power factor. <strong>Found:</strong> E<sub>A</sub>, δ, the field current and the regulation.'
-        : '<strong>Given:</strong> the field current, the load and its power factor. <strong>Found:</strong> V<sub>φ</sub> — whatever is left of E<sub>A</sub> after the jX<sub>S</sub>I<sub>A</sub> drop.';
+        : '<strong>Given:</strong> the field current, the load and its power factor. <strong>Found:</strong> V<sub>φ</sub> — whatever is left of E<sub>A</sub> after the ' + (M.Ra > 0 ? 'R<sub>A</sub>I<sub>A</sub> and jX<sub>S</sub>I<sub>A</sub> drops.' : 'jX<sub>S</sub>I<sub>A</sub> drop.');
     show('xsRow', !sal); show('xdRow', sal); show('xqRow', sal);
     syncDrive(alone, cond);
     document.querySelectorAll('#modeBtns button, #modelBtns button').forEach(b => { b.disabled = alone; });
     const raOff = !alone && (sal || cond);
     el('raSlider').disabled = raOff; show('raNote', raOff);
-    el('raNote').textContent = sal ? 'R_A is neglected in the salient-pole model.' : 'R_A is neglected for the condenser.';
+    setSubText(el('raNote'), sal ? 'R_A is neglected in the salient-pole model.' : 'R_A is neglected for the condenser.');
     const line = entryMode === 'line', sv = eV(), si = eI();
     setActive('#connBtns', 'conn', M.conn); setActive('#entryBtns', 'entry', entryMode);
     el('vName').innerHTML = (alone ? 'Rated ' : 'Bus ') + (line ? 'V<sub>T</sub> <small>line</small>' : 'V<sub>φ</sub> <small>phase</small>');
@@ -1610,13 +1792,15 @@ function syncUI() {
     const inverse = sal && M.Xq > M.Xd;
     show('xqNote', inverse);
     show('lgR', effRa(M) > 0); show('lgG', !!UI.ghost);
-    el('lgX').innerHTML = '<i style="background:var(--ph-x)"></i>' + (sal ? 'jX<sub>d</sub>I<sub>d</sub> + jX<sub>q</sub>I<sub>q</sub>' : 'jX<sub>S</sub>I<sub>A</sub>');
-    el('pinBtn').classList.toggle('on', !!UI.ghost);
+    const dsg = mode === 'gen' ? '' : MINUS;                // v2.2.5 (PPR-SG-010): the legend names the drops as drawn, with the KVL strip's sign
+    el('lgX').innerHTML = '<i style="background:var(--ph-x)"></i>' + (sal ? dsg + 'jX<sub>d</sub>I<sub>d</sub> ' + (dsg || '+') + ' jX<sub>q</sub>I<sub>q</sub>' : dsg + 'jX<sub>S</sub>I<sub>A</sub>');
+    el('lgR').innerHTML = '<i style="background:var(--ph-r)"></i>' + dsg + 'R<sub>A</sub>I<sub>A</sub>';
+    el('pinBtn').classList.toggle('on', !!UI.ghost); el('pinBtn').setAttribute('aria-pressed', !!UI.ghost);
     el('lociChk').checked = UI.loci; el('consChk').checked = UI.cons;
     if (M.theta !== 0) pfLag = M.theta > 0;                 // at unity the last Lag / Lead choice stands
     setActive('#pfSense', 'sense', pfLag ? 'lag' : 'lead');
-    document.querySelectorAll('#pfSense button').forEach(b => { b.disabled = M.theta === 0; });   // disabled at unity: there is no lead or lag to choose, and nothing moves in the sidebar
-    el('pfSense').title = M.theta === 0 ? 'At unity power factor the current neither leads nor lags. Type a power factor below 1 (it takes the choice shown), or use 0.8 lead or 0.8 lag.' : 'Whether the typed power factor is leading or lagging';
+    document.querySelectorAll('#pfSense button').forEach(b => { b.disabled = M.theta === 0; });   // disabled at unity: there is no lead or lag to choose
+    el('pfNote').textContent = M.theta === 0 ? 'At unity the current neither leads nor lags. Type a pf below 1 (it takes the choice shown), or use 0.8 lead or 0.8 lag.' : 'Lead / Lag: the sense of the typed power factor.';
     el('raNum').disabled = raOff;
     // voltage and current sliders work in the units being entered, on whole numbers: the ends are rounded inward and
     // the end stops stand for the exact limits (see bindSlider)
@@ -1635,9 +1819,7 @@ function syncUI() {
     el('vOut').textContent = fNum(M.V * sv, DEC.V) + ' V'; el('xsOut').textContent = M.Xs.toFixed(DEC.OHM) + ' Ω/ph';
     el('xdOut').textContent = M.Xd.toFixed(DEC.OHM) + ' Ω'; el('xqOut').textContent = M.Xq.toFixed(DEC.OHM) + ' Ω';
     el('raOut').textContent = fNum(M.Ra, DEC.ENTRY) + ' Ω/ph'; el('imaxOut').textContent = fNum(M.Imax * si, DEC.A) + ' A';
-    el('ratingHint').innerHTML = 'Rating: ' + (ratedVA(M) / W_PER_KW).toFixed(DEC.KW) + ' kVA, ' + (M.V * kV()).toFixed(DEC.NONE) + ' V line, ' + fNum(M.Imax * kI(), DEC.A) + ' A line (' + (M.conn === 'Y' ? 'Y' : 'Δ') + '-connected). '
-        + (sal ? 'X<sub>d</sub> = ' + (M.Xd * M.Imax / M.V).toFixed(DEC.PU) + ' pu, X<sub>q</sub> = ' + (M.Xq * M.Imax / M.V).toFixed(DEC.PU) + ' pu.'
-               : 'X<sub>S</sub> = ' + (M.Xs * M.Imax / M.V).toFixed(DEC.PU) + ' pu.');
+    el('ratingHint').textContent = 'Rating: ' + (ratedVA(M) / W_PER_KW).toFixed(DEC.KW) + ' kVA, ' + (M.V * kV()).toFixed(DEC.NONE) + ' V line, ' + fNum(M.Imax * kI(), DEC.A) + ' A line (' + (M.conn === 'Y' ? 'Y' : 'Δ') + '-connected).';
     show('sideBtns', !alone);
     setActive('#sideBtns', 'side', UI.side);
     el('sideTitle').textContent = alone ? 'Terminal characteristic' : UI.side === 'pq' ? 'Capability curve' : 'V-curve';
@@ -1663,23 +1845,31 @@ const ENTRIES = [
 ];
 /* Change the full-load current. The load keeps its percentage, so the current is entered once. */
 function setFullLoad(v) { const frac = M.Iload / M.Imax; M.Imax = v; M.Iload = frac * v; }
-/* Record that a value was limited: shown in the row's value label until the next action (see refresh). */
+/* Record that a value was limited: shown in the row's value label until the next action (see refresh). A number
+   too large to hold (wanted = ±Infinity, "1e999") is named as that. */
 function setNote(out, wanted, used, dec, unit) {
-    NOTE = { out, txt: '⚠ ' + (wanted > used ? 'max ' : 'min ') + fNum(used, dec) + unit }; noteFresh = true;
+    const over = Number.isFinite(wanted) ? '' : wanted > 0 ? 'too large — ' : 'too large, negative — ';
+    NOTE = { out, txt: '⚠ ' + over + (wanted > used ? 'max ' : 'min ') + fNum(used, dec) + unit }; noteFresh = true;
 }
 /* Read a typed number. A decimal point or a decimal comma is accepted ("1,5" is 1.5), and so is exponent form.
-   Anything else (letters, two separators, digit grouping) is not a number: NaN is returned and the state is left alone. */
-const NUMBER_FORM = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
+   Anything else (letters, two separators, digit grouping) is not a number: NaN is returned and the state is left alone.
+   A number too large to hold ("1e999") is returned as ±Infinity: it is a number, and the caller limits it to the range.
+   The pattern has one way to match any text (no nested or overlapping repeats), so a test takes time linear in the
+   length, and text longer than the boxes' maxlength is refused before the test. */
+const NUMBER_FORM = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+const ENTRY_MAX_CHARS = 24;                 // same as the maxlength of every typed box
 function parseEntry(text) {
+    if (text.length > ENTRY_MAX_CHARS) return NaN;
     let t = text.trim();
     if (t.indexOf(',') >= 0 && t.indexOf(',') === t.lastIndexOf(',') && t.indexOf('.') < 0) t = t.replace(',', '.');
     return NUMBER_FORM.test(t) ? Number(t) : NaN;
 }
-/* Write the state into the entry boxes. The box being typed in is left alone unless force is set. */
+/* Write the state into the entry boxes, and each box's allowed range into the line under it (vNum → vRange).
+   The box being typed in is left alone unless force is set. */
 function syncEntries(force) {
     for (const [id, lim, get, , dec, scale, , unit] of ENTRIES) {
         const n = el(id), k = scale();
-        n.title = 'Allowed: ' + fNum(lim.min * k, dec) + ' to ' + fNum(lim.max * k, dec) + unit;
+        el(id.replace('Num', 'Range')).textContent = 'Allowed: ' + fNum(lim.min * k, dec) + ' to ' + fNum(lim.max * k, dec) + unit;
         if (force || document.activeElement !== n) { n.value = fNum(get() * k, dec); n.setAttribute('aria-invalid', false); }
     }
 }
@@ -1715,7 +1905,7 @@ function resized(c) { const r = c.getBoundingClientRect(); return Math.round(r.w
 /* Switch between Theory / Experiments / Phasor Lab. */
 function showPage(id) {
     document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === id));
-    document.querySelectorAll('#pageTabs button').forEach(b => b.classList.toggle('active', b.dataset.page === id));
+    document.querySelectorAll('#pageTabs button').forEach(b => markTab(b, b.dataset.page === id));
     window.scrollTo(0, 0);
     if (id === 'labPage') refresh(SETTLE_FRAMES);
 }
@@ -1786,7 +1976,7 @@ const EXPS = [
     goal: 'Real power constant, V<sub>φ</sub> constant, field current changing.',
     set: { system: 'bus', drive: 'exc', ifpu: 1.08, P: 40 }, pin: true, side: 'pq',
     steps: ['Drag <strong>Field current</strong> from 1.08 up to 1.6 pu.',
-            'Watch the tip of E<sub>A</sub> slide along the horizontal “constant P” line, and the tip of I<sub>A</sub> slide along the vertical one.',
+            'Watch the tip of E<sub>A</sub> slide along the dashed “constant P” line (horizontal while R<sub>A</sub> = 0), and the tip of I<sub>A</sub> slide along the vertical one.',
             'Now lower the field to 0.8 pu.'],
     predict: 'Predict: which readouts change when the field is raised — P, Q, |I<sub>A</sub>|, δ?',
     reveal: 'P does not change (the governor sets it), so E<sub>A</sub> sin δ and I<sub>A</sub> cos θ are both pinned. Raising I<sub>f</sub> lengthens E<sub>A</sub>, reduces δ, makes I<sub>A</sub> longer and more lagging, and increases the Q supplied. Lowering it past about 1.03 pu makes I<sub>A</sub> lead: the generator now absorbs Q. On an infinite bus the field current controls reactive power, not voltage.' },
@@ -1883,20 +2073,28 @@ function bindSlider(id, put, lim, scale) {
     };
 }
 /* Bind the typed-entry boxes: every keystroke that leaves a number sets the state (limited to the range) and
-   refreshes; a value that had to be limited is reported in the row's value label, and text that is not a number
-   marks the box and changes nothing. Leaving the box or pressing Enter rewrites it with the value in force. */
+   refreshes; a value that had to be limited is reported in the row's value label, and so is a number too large to
+   hold ("1e999": limited to the range and named as too large). The state in force when the box
+   was entered is kept: text that is not wholly a number ("12abc", "1/2", "0x10") puts it back, so no prefix of the
+   text is left applied, marks the box and says so in the row's value label; an emptied box puts it back silently.
+   Leaving the box or pressing Enter rewrites it with the value in force. */
 function bindEntries() {
-    for (const [id, lim, , put, dec, scale, out, unit] of ENTRIES) {
+    for (const [id, lim, get, put, dec, scale, out, unit] of ENTRIES) {
         const n = el(id);
+        n.onfocus = function () { this.kept = Object.assign({}, M); };
         n.oninput = function () {
-            const x = parseEntry(this.value), isNum = Number.isFinite(x);
-            this.setAttribute('aria-invalid', !isNum && this.value.trim() !== '');
-            if (!isNum) return;
+            const x = parseEntry(this.value), isNum = !Number.isNaN(x), blank = this.value.trim() === '';
+            this.setAttribute('aria-invalid', !isNum && !blank);
+            if (!isNum) {
+                if (this.kept) Object.assign(M, this.kept);
+                if (!blank) { NOTE = { out, txt: '⚠ not a number — kept ' + fNum(get() * scale(), dec) + unit }; noteFresh = true; }
+                refresh(); return;
+            }
             const k = scale(), v = clamp(x / k, lim.min, lim.max);
             if (Math.abs(v * k - x) > MID * Math.pow(DECADE, -dec)) setNote(out, x, v * k, dec, unit);   // limited by more than the box can show
             put(v); refresh();
         };
-        n.onchange = () => syncEntries(true);
+        n.onchange = () => { syncEntries(true); n.kept = Object.assign({}, M); };   // Enter: the value now in force is the one kept
     }
 }
 /* Wire a segmented button group: fn(value) then refresh. */
