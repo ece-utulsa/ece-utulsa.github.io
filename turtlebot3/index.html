@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-Y2aD3RWPhrRPFbqL0+x/EbYCiujC9gECwpLcnGyj1fE='; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>TurtleBot3 Lab</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <meta name="theme-color" content="#0B2545">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f4f6f9; color: #1a1a1a; line-height: 1.55; padding: 2rem 1rem 3rem;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; }
+    .back { display: inline-block; margin-bottom: 1rem; color: #1d4ed8; text-decoration: none; font-size: .95rem; }
+    .back:hover { text-decoration: underline; }
+    header.card { padding: 2rem 2.25rem; }
+    .card {
+      background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0, 0, 0, .08);
+      padding: 1.5rem 2.25rem; margin-bottom: 1.25rem;
+    }
+    h1 { font-size: 1.75rem; font-weight: 650; color: #111; margin-bottom: .35rem; }
+    h2 { font-size: 1.15rem; font-weight: 650; color: #111; margin-bottom: .75rem; }
+    h3 { font-size: 1rem; font-weight: 650; color: #111; margin: 1rem 0 .4rem; }
+    p { margin-bottom: .75rem; }
+    .lede { color: #334155; font-size: 1.05rem; }
+    .badges { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+    .badge { font-size: .8rem; font-weight: 600; padding: .2rem .6rem; border-radius: 999px; border: 1px solid; }
+    .b-ok { color: #14532d; background: #ecfdf3; border-color: #86efac; }
+    .b-wait { color: #713f12; background: #fffbeb; border-color: #fcd34d; }
+    .b-info { color: #1e3a8a; background: #eff6ff; border-color: #93c5fd; }
+    .note { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: .8rem 1rem; margin-bottom: .75rem; color: #713f12; }
+    ul, ol { padding-left: 1.3rem; margin-bottom: .75rem; }
+    li { margin-bottom: .35rem; }
+    code, pre { font-family: ui-monospace, Consolas, "Courier New", monospace; font-size: .9em; }
+    code { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 0 .3rem; }
+    pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: .8rem 1rem; overflow-x: auto; margin-bottom: .75rem; white-space: pre; }
+    pre code { background: none; border: 0; padding: 0; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: .75rem; font-size: .95rem; }
+    th, td { text-align: left; vertical-align: top; padding: .45rem .6rem; border-bottom: 1px solid #e2e8f0; }
+    th { color: #334155; font-weight: 650; }
+    a { color: #1d4ed8; }
+    .links { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .6rem; list-style: none; padding: 0; }
+    .links li { margin: 0; }
+    .links a {
+      display: block; height: 100%; padding: .8rem 1rem; background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 8px; text-decoration: none; color: #1e293b; font-weight: 500;
+    }
+    .links a:hover { background: #eff6ff; border-color: #93c5fd; }
+    .links span { display: block; font-size: .82rem; color: #475569; font-weight: 400; margin-top: .15rem; }
+    .flow { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: .8rem 1rem; margin-bottom: .75rem; }
+    .flow ol { margin: 0; }
+    footer { color: #475569; font-size: .85rem; text-align: center; margin-top: 1.5rem; }
+    @media (max-width: 560px) {
+      body { padding: 1rem .75rem 2rem; }
+      .card, header.card { padding: 1.25rem 1.1rem; }
+      h1 { font-size: 1.45rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">&larr; Course Index</a>
+
+  <header class="card">
+    <h1>TurtleBot3 Lab</h1>
+    <p class="lede">A browser control page for a TurtleBot3 robot, a safety layer that is the only thing
+      allowed to move the wheels, and swappable control systems that students write in Python —
+      developed and tested against a simulated robot until the real robot is available.</p>
+    <div class="badges">
+      <span class="badge b-ok">Simulated robot: working</span>
+      <span class="badge b-wait">Real robot: not yet connected</span>
+      <span class="badge b-wait">Code: in review (not merged)</span>
+      <span class="badge b-info">Status as of 17 Nov 2026</span>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>Where it runs</h2>
+    <div class="note">The control page does <strong>not</strong> open from this website. A web page served over
+      <code>https://</code> is not allowed to open the plain <code>ws://</code> connection the robot uses, so the page
+      is served from the laptop (simulated robot) or, later, from the robot's Raspberry Pi on the robot's Wi-Fi.
+      This page explains the project and links to it.</div>
+    <div class="flow">
+      <ol>
+        <li><strong>Web page</strong> — connection, LiDAR plot, arena map, speed chart, controller selector, goal, always-visible <strong>E-STOP</strong>.</li>
+        <li><strong>Controller host</strong> — runs one student controller at a time, each in its own process; a controller that hangs for more than 0.5 s is stopped and <code>idle</code> takes over.</li>
+        <li><strong>Safety layer</strong> — the only source of wheel commands: speed limit 0.10 m/s and 1.0 rad/s, 0.5 s watchdog, latched e-stop, stop if an obstacle is closer than 0.20 m ahead.</li>
+        <li><strong>Robot</strong> — the simulated TurtleBot3 on a laptop today; the real TurtleBot3 (ROS 2) later.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What it does today</h2>
+    <ul>
+      <li>Drive the robot by holding the on-screen arrows or arrow keys; it moves only while held.</li>
+      <li>Switch between installed controllers at any time; the robot stops briefly during the switch.</li>
+      <li>Built-in controllers: <code>teleop</code>, <code>obstacle_avoid</code>, <code>wall_follow</code> (PID, gains editable live), <code>goal_seek</code>, plus <code>idle</code> and a watchdog demonstration.</li>
+      <li>Students write a controller as one short Python function, <code>step(s)</code>, that returns a forward speed and a turn rate. <code>print()</code> output appears on the page.</li>
+      <li>Three simulated arenas (room, maze, open field) with goal pads; a Burger or Waffle Pi robot.</li>
+      <li>Timed runs scored automatically — goal reached, time, path length, collisions, closest approach, safety interventions — and ranked.</li>
+      <li>Repeatable experiments faster than real time from the command line, with CSV logs for analysis.</li>
+      <li>Live chart of speed requested, speed sent to the wheels and speed measured; one-click CSV recording.</li>
+    </ul>
+    <h3>Honest limits of the simulator</h3>
+    <p>The simulated robot is a simple 2-D model: acceleration limits, LiDAR with noise, wheel-encoder and IMU
+      odometry that drifts. It does not model motor current, floor slip, sensor dropouts, Wi-Fi delay or the camera.
+      Anything that depends on those must be checked on the real robot.</p>
+  </section>
+
+  <section class="card">
+    <h2>Run it on a laptop</h2>
+    <p>Needs Python 3.10 or newer, Git, and access to the private <code>ece-utulsa/turtlebot3-lab</code> repository.
+      In PowerShell:</p>
+<pre><code>git clone https://github.com/ece-utulsa/turtlebot3-lab.git
+cd turtlebot3-lab
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+powershell -ExecutionPolicy Bypass -File .\run_mock.ps1</code></pre>
+    <p>The control page opens at <code>http://localhost:8080/</code>. Press <strong>Ctrl+C</strong> in the PowerShell
+      window to stop everything. Options: <code>--model waffle_pi</code>, <code>--arena maze</code> or
+      <code>--arena open_field</code>. Until the code is merged, check out the
+      <code>feat/mock-robot-ui-safety</code> branch first.</p>
+    <p>Compare controllers without the page:</p>
+<pre><code>.\.venv\Scripts\python.exe -m tblab.runner -c goal_seek,obstacle_avoid,wall_follow --arena open_field</code></pre>
+  </section>
+
+  <section class="card">
+    <h2>Links</h2>
+    <p>These open on GitHub and need membership of the <code>ece-utulsa</code> organization.</p>
+    <ul class="links">
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab">Repository<span>ece-utulsa/turtlebot3-lab</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/pull/1">Work in review<span>Pull request #1 and its handoff</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/feat/mock-robot-ui-safety/README.md">README<span>Start, use, stop, recover, write a controller</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/feat/mock-robot-ui-safety/docs/mock_model.md">What the simulator models<span>And what it does not</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/feat/mock-robot-ui-safety/templates/my_controller.py">Controller template<span>Starting point for a new controller</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/feat/mock-robot-ui-safety/docs/robot_session_checklist.md">Robot-session checklist<span>What to bring and do when the robot arrives</span></a></li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Next</h2>
+    <table>
+      <tr><th>Step</th><th>Status</th></tr>
+      <tr><td>Hands-on check of the simulated robot by the instructor</td><td>To do</td></tr>
+      <tr><td>Embedded-systems review of the safety layer; cybersecurity review of the robot connection</td><td>To do</td></tr>
+      <tr><td>Confirm the robot model (Burger or Waffle Pi) and its ROS version</td><td>Waiting for the robot</td></tr>
+      <tr><td>Install on the robot; first motion on a stand, wheels off the floor</td><td>Waiting for the robot</td></tr>
+      <tr><td>AI controller (trained model running on the robot)</td><td>Later; the controller framework is ready for it</td></tr>
+    </table>
+  </section>
+
+  <footer>University of Tulsa · Electrical &amp; Computer Engineering · TurtleBot3 Lab</footer>
+</div>
+</body>
+</html>
