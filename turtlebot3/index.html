@@ -72,7 +72,8 @@
     <div class="badges">
       <span class="badge b-ok">Simulated robot: working</span>
       <span class="badge b-wait">Real robot: not yet connected</span>
-      <span class="badge b-wait">Code: in review (not merged)</span>
+      <span class="badge b-ok">Code: merged to main</span>
+      <span class="badge b-wait">Reviews: pending</span>
       <span class="badge b-info">Status as of 17 Nov 2026</span>
     </div>
   </header>
@@ -121,8 +122,7 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\run_mock.ps1</code></pre>
     <p>The control page opens at <code>http://localhost:8080/</code>. Press <strong>Ctrl+C</strong> in the PowerShell
       window to stop everything. Options: <code>--model waffle_pi</code>, <code>--arena maze</code> or
-      <code>--arena open_field</code>. Until the code is merged, check out the
-      <code>feat/mock-robot-ui-safety</code> branch first.</p>
+      <code>--arena open_field</code>.</p>
     <p>Compare controllers without the page:</p>
 <pre><code>.\.venv\Scripts\python.exe -m tblab.runner -c goal_seek,obstacle_avoid,wall_follow --arena open_field</code></pre>
   </section>
@@ -132,11 +132,11 @@ powershell -ExecutionPolicy Bypass -File .\run_mock.ps1</code></pre>
     <p>These open on GitHub and need membership of the <code>ece-utulsa</code> organization.</p>
     <ul class="links">
       <li><a href="https://github.com/ece-utulsa/turtlebot3-lab">Repository<span>ece-utulsa/turtlebot3-lab</span></a></li>
-      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/pull/1">Work in review<span>Pull request #1 and its handoff</span></a></li>
-      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/feat/mock-robot-ui-safety/README.md">README<span>Start, use, stop, recover, write a controller</span></a></li>
-      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/feat/mock-robot-ui-safety/docs/mock_model.md">What the simulator models<span>And what it does not</span></a></li>
-      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/feat/mock-robot-ui-safety/templates/my_controller.py">Controller template<span>Starting point for a new controller</span></a></li>
-      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/feat/mock-robot-ui-safety/docs/robot_session_checklist.md">Robot-session checklist<span>What to bring and do when the robot arrives</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/pull/1">Session handoff<span>Pull request #1 (merged): decisions, tests, open questions</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/main/README.md">README<span>Start, use, stop, recover, write a controller</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/main/docs/mock_model.md">What the simulator models<span>And what it does not</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/main/templates/my_controller.py">Controller template<span>Starting point for a new controller</span></a></li>
+      <li><a href="https://github.com/ece-utulsa/turtlebot3-lab/blob/main/docs/robot_session_checklist.md">Robot-session checklist<span>What to bring and do when the robot arrives</span></a></li>
     </ul>
   </section>
 
