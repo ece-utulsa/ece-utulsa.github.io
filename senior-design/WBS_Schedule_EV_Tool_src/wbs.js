@@ -22,7 +22,8 @@ function wbsTable(rows){
     let owner, weeks, tasks, status;
     if(isPkg(e)){
       const k = e.pkg, t = trackAt(SX.get(id), P.currentWeek), lf = lateFlags(P, e, SX, P.currentWeek);
-      owner = k.owner || h('span', { class: 'late' }, 'no owner');
+      // a milestone needs no owner (the owner rule is for tasks): grey dash, not a red warning
+      owner = k.owner || (k.type === 'milestone' ? h('span', { class: 'mut' }, '—') : h('span', { class: 'late' }, 'no owner'));
       weeks = k.type === 'milestone' ? 'wk ' + k.start : `${weekRange(k.start, k.finish)} (${k.finish - k.start + 1})`;
       tasks = k.type === 'task' ? '1' : h('span', { class: 'tag' }, TYPE_LABEL[k.type]);
       status = [stateText(t.state), lf.lateStart ? h('span', { class: 'late' }, ' · Late start') : null, lf.lateFinish ? h('span', { class: 'late' }, ' · Late finish') : null];
@@ -67,50 +68,63 @@ function treeKeys(ev){
 }
 
 /* ── DIAGRAM: the same rows as an org chart, like the lecture's WBS slide ── */
+const DIAG = { colW: 230, boxW: 210, gapY: 12, top: 16, padX: 8, font: 13, nameWeight: 600,
+  lineH: 16,          // px between the two lines of a wrapped name
+  boxH1: 44,          // box with a one-line name: name line + detail line
+  nameLines: 2 };     // a long name wraps to this many lines (change briefing v1.0.4, E2)
+
+/** Lines of a box's name: wrapped to the box width, at most DIAG.nameLines. */
+function diagName(e, w){
+  const nm = (IX.num.get(e.id) ? IX.num.get(e.id) + ' ' : '') + e.name;
+  return { nm, lines: wrapText(nm, w - 2 * DIAG.padX, DIAG.font, DIAG.nameWeight, DIAG.nameLines) };
+}
+
+/** The org chart: the project, its major areas in columns, and the rows under each area stacked below it. */
 function wbsDiagram(rows){
   const shown = new Set(rows.map(r => r.e.id));
   const areas = (IX.kids.get('root') || []).filter(a => shown.has(a.id));
-  const colW = 230, boxW = 210, boxH = 44, gapY = 12, top = 16;
+  const { colW, boxW, gapY, top } = DIAG, boxH = n => DIAG.boxH1 + (n - 1) * DIAG.lineH;
   const W = Math.max(boxW + 40, areas.length * colW + 20);
   const items = [];
-  const rootX = W / 2 - boxW / 2;
-  items.push({ e: IX.root, x: rootX, y: top });
-  let maxY = top + boxH;
-  const y2 = top + boxH + 40;
+  const rootName = diagName(IX.root, boxW), rootH = boxH(rootName.lines.length);
+  items.push({ e: IX.root, x: W / 2 - boxW / 2, y: top, w: boxW, h: rootH, name: rootName });
+  let maxY = top + rootH;
+  const y2 = top + rootH + 40;
+  const areaNames = areas.map(a => diagName(a, boxW)), areaH = boxH(Math.max(1, ...areaNames.map(n => n.lines.length)));
   areas.forEach((a, i) => {
     const x = 10 + i * colW + (colW - boxW) / 2;
-    items.push({ e: a, x, y: y2, parentXY: [W / 2, top + boxH], elbow: true });
-    let y = y2 + boxH + gapY;
+    items.push({ e: a, x, y: y2, w: boxW, h: areaH, name: areaNames[i], elbow: true });
+    let y = y2 + areaH + gapY, from = y2 + areaH / 2;       // from: where the connector to the next box starts
     for(const d of rows.filter(r => r.lev > 2 && IX.area.get(r.e.id) === i + 1)){
-      const ind = Math.min(3, d.lev - 3) * 14;
-      items.push({ e: d.e, x: x + 10 + ind, y, w: boxW - 10 - ind, spine: x + 4 + ind });
-      y += boxH + gapY;
+      const ind = Math.min(3, d.lev - 3) * 14, w = boxW - 10 - ind, name = diagName(d.e, w), hgt = boxH(name.lines.length);
+      items.push({ e: d.e, x: x + 10 + ind, y, w, h: hgt, name, spine: x + 4 + ind, from });
+      from = y + hgt / 2;
+      y += hgt + gapY;
     }
     maxY = Math.max(maxY, y);
   });
   const svg = s('svg', { width: W, height: maxY + 10, viewBox: `0 0 ${W} ${maxY + 10}`, role: 'img', 'aria-label': 'WBS diagram' });
   // connectors
   if(areas.length){
-    const midY = top + boxH + 20;
-    svg.append(s('line', { x1: W / 2, y1: top + boxH, x2: W / 2, y2: midY, stroke: '#7b878d' }));
+    const midY = top + rootH + 20;
+    svg.append(s('line', { x1: W / 2, y1: top + rootH, x2: W / 2, y2: midY, stroke: '#7b878d' }));
     const xs = items.filter(t => t.elbow).map(t => t.x + boxW / 2);
     svg.append(s('line', { x1: Math.min(...xs), y1: midY, x2: Math.max(...xs), y2: midY, stroke: '#7b878d' }));
     for(const x of xs) svg.append(s('line', { x1: x, y1: midY, x2: x, y2: y2, stroke: '#7b878d' }));
   }
   for(const t of items.filter(t => t.spine !== undefined))
-    svg.append(s('path', { d: `M${t.spine} ${t.y - gapY - boxH / 2}V${t.y + boxH / 2}H${t.x}`, fill: 'none', stroke: '#9aa5ab' }));
+    svg.append(s('path', { d: `M${t.spine} ${t.from}V${t.y + t.h / 2}H${t.x}`, fill: 'none', stroke: '#9aa5ab' }));
   for(const t of items){
-    const e = t.e, id = e.id, a = IX.area.get(id), col = a ? areaColor(a) : '#1b2328', w = t.w || boxW, ru = rollup(id);
-    const sel = V.sel === id, lev = IX.level.get(id);
-    const nm = (IX.num.get(id) ? IX.num.get(id) + ' ' : '') + e.name;
+    const e = t.e, id = e.id, a = IX.area.get(id), col = a ? areaColor(a) : '#1b2328', ru = rollup(id);
+    const sel = V.sel === id, lev = IX.level.get(id), n = t.name.lines.length;
     const sub = isPkg(e) ? (e.pkg.type === 'task' ? (e.pkg.owner || 'no owner') + ' · ' + weekRange(e.pkg.start, e.pkg.finish) : TYPE_LABEL[e.pkg.type] + ' · ' + weekRange(e.pkg.start, e.pkg.finish))
       : `${ru.fin} of ${ru.tasks} finished`;
-    const g = s('g', { tabindex: 0, role: 'button', 'aria-label': nm + ', ' + sub, 'data-key': 'box:' + id, style: 'cursor:pointer',
+    const g = s('g', { tabindex: 0, role: 'button', 'aria-label': t.name.nm + ', ' + sub, 'data-key': 'box:' + id, style: 'cursor:pointer',
       onclick: () => { V.sel = id; render(); }, onkeydown: ev => { if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); V.sel = id; render(); } } },
-      s('title', { text: nm }),
-      s('rect', { x: t.x, y: t.y, width: w, height: boxH, rx: 5, fill: lev <= 2 ? col : '#fff', stroke: col, 'stroke-width': sel ? 3.5 : 1.5 }),
-      s('text', { x: t.x + 8, y: t.y + 18, 'font-size': 13, 'font-weight': 600, fill: lev <= 2 ? '#fff' : '#1b2328' }, clip(nm, w)),
-      s('text', { x: t.x + 8, y: t.y + 35, 'font-size': 13, fill: lev <= 2 ? '#fff' : '#4f5b62' }, clip(sub, w)));
+      s('title', { text: t.name.nm }),
+      s('rect', { x: t.x, y: t.y, width: t.w, height: t.h, rx: 5, fill: lev <= 2 ? col : '#fff', stroke: col, 'stroke-width': sel ? 3.5 : 1.5 }),
+      t.name.lines.map((ln, j) => s('text', { x: t.x + DIAG.padX, y: t.y + 18 + j * DIAG.lineH, 'font-size': DIAG.font, 'font-weight': DIAG.nameWeight, fill: lev <= 2 ? '#fff' : '#1b2328' }, ln)),
+      s('text', { x: t.x + DIAG.padX, y: t.y + 35 + (n - 1) * DIAG.lineH, 'font-size': DIAG.font, fill: lev <= 2 ? '#fff' : '#4f5b62' }, clip(sub, t.w)));
     svg.append(g);
   }
   return h('div', { class: 'chartbox' }, svg);

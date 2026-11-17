@@ -125,6 +125,17 @@ function wire(){
     });
   });
   document.addEventListener('keydown', ev => { if((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's'){ ev.preventDefault(); saveFile(); } });
+  // the charts are drawn at the width of their boxes: redraw once per frame when the window width changes
+  let drawnW = window.innerWidth, resizeFrame = 0;
+  window.addEventListener('resize', () => {
+    if(resizeFrame || window.innerWidth === drawnW) return;
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = 0;
+      const a = document.activeElement;
+      if(a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && a.type === 'text'))) return;   // do not redraw over text being typed
+      drawnW = window.innerWidth; render();
+    });
+  });
   window.addEventListener('beforeunload', () => { try { localStorage.setItem(LS_PROJECT, serialize(P)); } catch { /* ignore */ } });
 }
 

@@ -45,16 +45,15 @@ function signal(SR, FR){
 /** Measures straight from inputs (for the lecture's practice problem, T2). */
 function measuresFromInputs(inp){ return measures({ BAC: inp.BAC, T: inp.T, Sp: inp.Sp, Fp: inp.Fp, Sa: inp.Sa, Fa: inp.Fa }, inp.w === undefined ? 1 : inp.w); }
 
-/** The tasks that count in earned value: every type-"task" package in the WBS now (the WBS is a living document).
-    Planned weeks come from the active baseline for tasks in it, and from the current plan for tasks added since.
-    Deleted tasks, and tasks changed to another type, drop out. Nothing counts until the schedule is first baselined.
-    filter = { area: 0 (all) or 1..n, owner: '' (all) or a name }. */
-function evTasks(p, ix, filter){
-  const b = activeBaseline(p); if(!b) return [];
-  const f = filter || {}, out = [];
+/** Every type-"task" package in the WBS now, with or without a baseline (the WBS is a living document).
+    Planned weeks come from the active baseline for tasks in it, and from the current plan for the others.
+    Deleted tasks, and tasks changed to another type, drop out. Its length is BAC (ruling R1 of Nov 17: BAC is the number
+    of tasks in the current WBS, always). filter = { area: 0 (all) or 1..n, owner: '' (all) or a name }. */
+function wbsTasks(p, ix, filter){
+  const b = activeBaseline(p), f = filter || {}, out = [];
   for(const e of ix.order){
     if(!isTask(e)) continue;
-    const id = e.id, x = b.plan[id], area = ix.area.get(id), owner = e.pkg.owner.trim();
+    const id = e.id, x = b && b.plan[id], area = ix.area.get(id), owner = e.pkg.owner.trim();
     if(f.area && area !== f.area) continue;
     if(f.owner && owner !== f.owner) continue;
     const base = !!(x && x.t === 'task');
@@ -62,6 +61,10 @@ function evTasks(p, ix, filter){
   }
   return out;
 }
+
+/** The tasks that count in earned value: wbsTasks() once the schedule is baselined. Nothing counts in PV, EV or the
+    measures until the schedule is first baselined. */
+function evTasks(p, ix, filter){ return activeBaseline(p) ? wbsTasks(p, ix, filter) : []; }
 
 /** The four counts at week w and BAC, T for a list from evTasks(). Sa and Fa come from the status at w. */
 function counts(tasks, sx, w){

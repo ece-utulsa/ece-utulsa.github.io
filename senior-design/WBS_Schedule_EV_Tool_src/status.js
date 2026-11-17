@@ -103,14 +103,17 @@ function renderWeek(root){
       })))) : h('p', { class: 'mut' }, 'No packages are active or open this week.'));
   const step2 = h('div', { class: 'card' }, h('h2', null, '2. Read the numbers'),
     activeBaseline(P) ? null : noBaselineNote(),
-    h('p', { class: 'reading' }, statusLine(m), ' ', signalChip(m)),
-    weekNumbers(m));
+    h('p', { class: 'reading' }, statusLine(m)),
+    weekNumbers(m, activeBaseline(P) ? null : counts(wbsTasks(P, IX), SX, w)));
   append(root, [step1, step2]);
 }
 
 /** This week's numbers (change briefing C7): a headline row of four large cards, each with a reading in words, then
-    smaller cards for the counts and for value and variance. Each formula is in a tooltip shown on hover or focus. */
-function weekNumbers(m){
+    smaller cards for the counts and for value and variance. Each formula is in a tooltip shown on hover or focus.
+    pre: before the first baseline, the counts of the tasks in the WBS now (else null). BAC, Sa and Fa then come from the
+    WBS, so no card contradicts the WBS tab; the planned counts and every measure wait for the baseline (ruling R1). */
+const CARD_CAPTION = { TSPI: 'To-complete SPI' };   // short captions for the small cards; the tooltip keeps the full name
+function weekNumbers(m, pre){
   const rd = readings(m), mr = Object.fromEntries(measureRows(m).map(r => [r[0], r]));
   const u = v => v === UNDEF || v === 'plan complete' || v === 'Signal not yet defined' || v === 'Planning (week 0)';
   let tipN = 0;
@@ -127,9 +130,11 @@ function weekNumbers(m){
     card(true, 'SPI', mr.SPI[2], rd.spi, 'Schedule performance index = EV / PV'),
     card(true, 'SR and FR', m.SR === null && m.FR === null ? UNDEF : `${fmtIndex(m.SR)} / ${fmtIndex(m.FR)}`, rd.ratios, 'Start ratio SR = Sa / Sp; finish ratio FR = Fa / Fp'),
     card(true, 'Forecast finish', m.Tf === null ? UNDEF : `Week ${m.Tf.toFixed(1)}`, (m.T ? `Plan: week ${m.T}. ` : '') + rd.forecast, 'Forecast duration Tf = T / SPI, where T is the planned finish week'));
-  const counts = [['Sp', 'Planned to start', m.Sp], ['Sa', 'Actually started', m.Sa], ['Fp', 'Planned to finish', m.Fp], ['Fa', 'Actually finished', m.Fa], ['BAC', 'Tasks in the WBS', m.BAC]]
-    .map(([k, d, v]) => card(false, k, String(v ?? 0), d, null));
-  const vals = ['PV', 'EV', 'SV', 'SV%', '% complete', 'To go', 'TSPI'].map(k => card(false, k, mr[k][2], mr[k][1], `${mr[k][1]} = ${mr[k][3]}`));
+  const act = pre || m, plan = v => pre ? UNDEF : String(v ?? 0);
+  const counts = [['Sp', 'Planned to start', plan(m.Sp)], ['Sa', 'Actually started', String(act.Sa ?? 0)], ['Fp', 'Planned to finish', plan(m.Fp)],
+    ['Fa', 'Actually finished', String(act.Fa ?? 0)], ['BAC', 'Tasks in the WBS', String(act.BAC ?? 0)]]
+    .map(([k, d, v]) => card(false, k, v, d, null));
+  const vals = ['PV', 'EV', 'SV', 'SV%', '% complete', 'To go', 'TSPI'].map(k => card(false, k, mr[k][2], CARD_CAPTION[k] || mr[k][1], `${mr[k][1]} = ${mr[k][3]}`));
   return h('div', null, head,
     h('h3', null, 'Counts'), h('div', { class: 'kpis small' }, counts),
     h('h3', null, 'Value and variance'), h('div', { class: 'kpis small' }, vals),

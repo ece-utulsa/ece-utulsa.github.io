@@ -13,7 +13,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="version" content="@@VERSION@@">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src '@@SCRIPTHASH@@'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <title>Senior Design WBS, Schedule and Earned Value @@VERSION@@</title>
 <style>
 :root{
@@ -98,6 +98,7 @@ ul.plain{ list-style:none; padding:0; margin:0 }
 /* ── charts ── */
 svg text{ font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif }
 .chartbox{ overflow-x:auto; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px }
+.fit{ overflow-x:auto } .fit svg{ display:block }   /* a chart drawn at the width of its box (fitChart) */
 .gantt-row:hover rect.hov{ fill:#eef5f8 }
 .reading{ font-size:16px; font-weight:600; margin:8px 0 }
 /* ── this week ── */
@@ -115,7 +116,7 @@ svg text{ font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,
 .kpis.headline{ grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:6px } @media (max-width:900px){ .kpis.headline{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
 .kpi.big{ padding:12px 14px; border-width:2px } .kpi.big .k{ font-size:14px; font-weight:600 } .kpi.big .v{ font-size:32px; line-height:1.15 } .kpi.big .v.u{ font-size:18px }
 .kpi.big .r{ font-size:15px; font-weight:600 }
-.kpis.small{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)) } .kpis.small .v{ font-size:20px } .kpis.small .r{ font-size:13px; color:var(--mut) }
+.kpis.small{ display:flex; flex-wrap:wrap } .kpis.small .kpi{ flex:1 1 130px } .kpis.small .v{ font-size:20px } .kpis.small .r{ font-size:13px; color:var(--mut) }
 .v[class*=sig-]{ font-variant-numeric:normal; letter-spacing:0 }
 .accept{ background:var(--panel2); border-radius:6px; padding:6px 10px; margin:6px 0 } .accept p{ margin:4px 0 0 }
 .warnlist.accepted button{ background:var(--okbg); border-color:#9cc9ad }
@@ -153,6 +154,7 @@ footer{ padding:8px 14px; font-size:13px; color:var(--mut); border-top:1px solid
   .printonly{ display:block } textarea.screenonly{ display:none }
   .tablewrap{ max-height:none; overflow:visible; border:none }
   .chartbox{ overflow:visible; border:none }
+  .fit svg{ max-width:100%; height:auto }   /* on paper a chart may shrink to the page width */
   table.grid th{ position:static }
   tr,.kpi{ break-inside:avoid }
   *{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
