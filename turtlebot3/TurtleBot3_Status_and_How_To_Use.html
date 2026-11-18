@@ -62,7 +62,7 @@ body:hover #bar{opacity:1}
 <div class="row" style="gap:16px;flex-wrap:wrap">
 <span class="chip c-ok">SIMULATOR: WORKING</span><span class="chip c-ok">105 / 105 TESTS PASS</span><span class="chip c-off">DOWNLOAD: DRY RUN ONLY</span><span class="chip c-no">REAL ROBOT: NOT YET</span>
 </div>
-<p class="small">18 November 2026 · control page v0.4.0 · repository ece-utulsa/turtlebot3-lab, main branch, commit 2e9ea84</p>
+<p class="small">18 November 2026 · control page v0.4.1 · repository ece-utulsa/turtlebot3-lab, main branch, commit 46f1cb2</p>
 </section></div>
 
 <!-- 2 Answers -->
@@ -153,7 +153,7 @@ body:hover #bar{opacity:1}
 <p class="mid">Button, <b>Space</b> or <b>Esc</b>. The bar turns red and the speed drops to 0.000. The robot stays stopped, even if a controller keeps asking to move, until you press <b>Clear e-stop</b>.</p>
 <p class="mid">After clearing, nothing moves until a fresh command arrives.</p>
 <p class="mid">Tested automatically and by hand in the simulator. On the robot it is the first thing tested, with the wheels off the floor.</p>
-<div class="card" style="background:#fff8e6;border-color:#e3c46d;padding:22px 26px;gap:8px"><p class="mid"><b>New, in review:</b> <b>Pause</b> (button next to E-STOP, or <b>P</b>) freezes the simulated world so you can study it; <b>Resume</b> carries on. Simulator only, and not a safety stop: a real robot cannot be paused.</p></div>
+<div class="card" style="background:#fff8e6;border-color:#e3c46d;padding:22px 26px;gap:8px"><p class="mid"><b>New:</b> <b>Pause</b> (button next to E-STOP, or <b>P</b>) freezes the simulated world so you can study it; <b>Resume</b> carries on. Simulator only, and not a safety stop: a real robot cannot be paused.</p></div>
 </div></div>
 </section></div>
 
@@ -288,7 +288,7 @@ def step(s):               <span class="c"># 10 times a second</span>
 <p class="kick">What is open</p>
 <h2>Waiting on reviews, and on you</h2>
 <div class="row" style="align-items:stretch">
-<div class="card" style="flex:1"><h3>Reviews (Director routes these)</h3><ul class="big"><li><b>Embedded Systems:</b> the safety layer and the robot-side ROS 2 programs</li><li><b>Cybersecurity:</b> rosbridge on the network and the deploy path</li><li><b>Your hands-on check</b> in the simulator</li><li><b>Your review</b> of the Pause button: turtlebot3-lab pull request #7</li></ul><span class="chip c-wait" style="align-self:flex-start">PENDING</span></div>
+<div class="card" style="flex:1"><h3>Reviews (Director routes these)</h3><ul class="big"><li><b>Embedded Systems:</b> the safety layer and the robot-side ROS 2 programs</li><li><b>Cybersecurity:</b> rosbridge on the network and the deploy path</li><li><b>Your hands-on check</b> in the simulator</li></ul><span class="chip c-wait" style="align-self:flex-start">PENDING</span></div>
 <div class="card" style="flex:1"><h3>Decisions for you</h3><ul class="big"><li>Is 0.5 s the right time limit for a controller step?</li><li>Should <code>demo_runaway</code> be installed on the robot, or stay laptop-only?</li><li>Is your kit a <b>Burger</b> or a <b>Waffle Pi</b>? Check the label.</li><li>When will the robot be available?</li></ul></div>
 </div>
 <p class="mid" style="color:var(--grey)">Not yet tested without the robot: the ROS 2 programs, real speeds and drift, start-up time on the Pi 4, and what happens if the safety program itself dies (the robot may keep its last command).</p>
@@ -318,14 +318,14 @@ const NOTES=[
 "Most of the confusion came from here. Online Claude runs on a cloud computer. It can write code, run tests, run the simulator and make screenshots, but it cannot see devices on your local Wi-Fi, so it cannot reach the robot. Laptop Claude runs on your PC and can reach the robot. Several of my earlier messages assumed the laptop when you were online. The proposal: stay online until robot day.",
 "Data flows left to right. The page sends your drive commands and choices. The controller host runs one controller, which only asks for a speed. The safety layer is the only program allowed to command the wheels, and it applies the limits. Sensor data flows back to everything. rosbridge carries ROS messages as text over a web socket, which is why a plain web page can talk to the robot.",
 "This is the real page running against the simulator today. The goal_seek controller is driving toward the green goal pad. The orange arrow and green lines are its reasoning: the gaps it considered and the one it chose. The red dots are what the LiDAR sees right now.",
-"E-STOP latches. Once pressed, the safety layer sends zero speed until someone clears it, whatever the controller asks. After clearing, the robot waits for a fresh command. This is the first thing we test on the real robot, with the wheels off the floor. New and in review: a Pause button, or the P key, freezes the simulated world so you can look at the map and the controller's reasoning, and Resume carries on from the same moment. Pause is simulator-only and is not a safety stop; on the robot, E-STOP is the way to stop.",
+"E-STOP latches. Once pressed, the safety layer sends zero speed until someone clears it, whatever the controller asks. After clearing, the robot waits for a fresh command. This is the first thing we test on the real robot, with the wheels off the floor. New: a Pause button, or the P key, freezes the simulated world so you can look at the map and the controller's reasoning, and Resume carries on from the same moment. Pause is simulator-only and is not a safety stop; on the robot, E-STOP is the way to stop.",
 "This answers the question about the tilted map. Odometry is the robot's own estimate of where it is. The simulated gyro has a small bias, so the heading estimate turns about 3.4 degrees a minute, and everything drawn from it rotates with it. The robot itself is fine: the controllers steer from LiDAR distances. Realign odometry, in the simulator only, puts the estimate back on the true position and clears the smeared map. On robot day we measure the real gyro drift.",
 "These are the only commands needed. Open PowerShell in the folder, pull the latest code, run setup once, then run_mock each time. The browser opens on its own. In the Tune box, a changed value takes effect when you press Enter; an amber box means it is not in use yet. Ctrl+C in the PowerShell window stops everything. Easier still: make_shortcut puts a TurtleBot3 Lab icon on the desktop once; double-clicking it gets the latest code and starts the simulator. If it cannot update, for example with no internet, it says why and starts with the code already on the laptop. The ExecutionPolicy Bypass part lets that one script run without changing any Windows setting.",
 "Three levels of testing, none of which need the robot. Level 1 is 105 automatic tests. Level 2 is the simulator with the page, including scored timed runs and a scope. Level 3 races controllers on a simulated clock: here goal_seek reached the goal in 33.6 seconds, and the other two ran out of time because they are not designed to seek a goal.",
 "This is what a student writes. Three settings at the top and a step function that returns forward speed and turn rate. The controller never touches the wheels directly, so a student mistake cannot get past the safety layer. A crash or a hang just stops the robot and switches to idle.",
 "Downloading means this script. It tests, checks, packages with a manifest of versions and fingerprints, then copies to the Pi over SSH. The copying step is switched off in the code until robot day, so today it prints what it would do. The output here is from today's run.",
 "Robot day happens on the laptop, on the robot's Wi-Fi. Step 1 only looks and reports. Nothing changes on the robot until you approve it and the SD card is backed up. First motion happens on a stand. The full checklist is in the repository.",
-"Two reviews are pending before this is called accepted, plus your own hands-on check and your review of the Pause button in pull request 7. There are four decisions only you can make. And some things simply cannot be tested until the robot is here.",
+"Two reviews are pending before this is called accepted, plus your own hands-on check. There are four decisions only you can make. And some things simply cannot be tested until the robot is here.",
 "How I propose we work: you stay in online Claude, I explain before I act, one status page tells you where things are, and the laptop only comes in for the robot. Your next step is to run the simulator and try it."];
 const S=[...document.querySelectorAll('.page')], stage=document.getElementById('stage');
 let i=0, step=0;
