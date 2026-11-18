@@ -131,7 +131,7 @@
     <h3>Controllers</h3>
     <ul>
       <li>Built in: <code>teleop</code>, <code>obstacle_avoid</code>, <code>wall_follow</code> (PID, gains editable
-        live), <code>goal_seek</code>, plus <code>idle</code> and a watchdog demonstration.</li>
+        live; from v1.2.0 it curves in toward a far wall instead of spinning), <code>goal_seek</code>, plus <code>idle</code> and a watchdog demonstration.</li>
       <li>Students write a controller as one short Python function, <code>step(s)</code>, that returns a forward speed
         and a turn rate. Each runs in its own process; one that hangs for more than 0.5&nbsp;s is stopped.</li>
       <li>Three simulated arenas (room, maze, open field) with goal pads; a Burger or Waffle Pi robot.</li>
@@ -151,6 +151,7 @@
 cd turtlebot3-lab
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\run_mock.ps1</code></pre>
+    <p>Developer tests: 105 pass (18 Nov 2026).</p>
     <p>The control page opens at <code>http://localhost:8080/</code>. Press <strong>Ctrl+C</strong> in the PowerShell
       window to stop everything. Options: <code>--model waffle_pi</code>, <code>--arena maze</code> or
       <code>--arena open_field</code>.</p>

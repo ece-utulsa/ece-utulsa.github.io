@@ -60,9 +60,9 @@ body:hover #bar{opacity:1}
 <h1>Where we are,<br>and how to use it</h1>
 <p class="lede">A simulated TurtleBot3, a browser control page, a safety layer and swappable controllers are built and tested. The real robot is not connected yet.</p>
 <div class="row" style="gap:16px;flex-wrap:wrap">
-<span class="chip c-ok">SIMULATOR: WORKING</span><span class="chip c-ok">104 / 104 TESTS PASS</span><span class="chip c-off">DOWNLOAD: DRY RUN ONLY</span><span class="chip c-no">REAL ROBOT: NOT YET</span>
+<span class="chip c-ok">SIMULATOR: WORKING</span><span class="chip c-ok">105 / 105 TESTS PASS</span><span class="chip c-off">DOWNLOAD: DRY RUN ONLY</span><span class="chip c-no">REAL ROBOT: NOT YET</span>
 </div>
-<p class="small">18 November 2026 · control page v0.4.0 · repository ece-utulsa/turtlebot3-lab, main branch, commit 80a8681</p>
+<p class="small">18 November 2026 · control page v0.4.0 · repository ece-utulsa/turtlebot3-lab, main branch, commit 2e9ea84</p>
 </section></div>
 
 <!-- 2 Answers -->
@@ -72,7 +72,7 @@ body:hover #bar{opacity:1}
 <table class="t">
 <tr><th style="width:30%">Question</th><th>Answer</th><th style="width:14%">Status</th></tr>
 <tr data-build-in="rise order 1"><td><b>Is there working code?</b></td><td>Yes. Mock robot, control page, safety layer, 7 controllers and a deploy script, merged to <code>main</code>.</td><td><span class="chip c-ok">DONE</span></td></tr>
-<tr data-build-in="rise order 2"><td><b>Is there an environment to test the robot code?</b></td><td>Yes. A simulated TurtleBot3 Burger runs on the laptop, plus faster-than-real-time race runs. All 104 automatic tests pass (18 Nov).</td><td><span class="chip c-ok">WORKING</span></td></tr>
+<tr data-build-in="rise order 2"><td><b>Is there an environment to test the robot code?</b></td><td>Yes. A simulated TurtleBot3 Burger runs on the laptop, plus faster-than-real-time race runs. All 105 automatic tests pass (18 Nov).</td><td><span class="chip c-ok">WORKING</span></td></tr>
 <tr data-build-in="rise order 3"><td><b>Can we download the system to the TurtleBot?</b></td><td>The script is written and does a dry run: it checks, packages and prints the copy commands. Real copying is switched off until the robot is on the Wi-Fi.</td><td><span class="chip c-off">READY, OFF</span></td></tr>
 <tr data-build-in="rise order 4"><td><b>Has it run on the real robot?</b></td><td>No. The programs that will run on the robot's Raspberry Pi (ROS 2) are written but untested.</td><td><span class="chip c-no">WAITING</span></td></tr>
 </table>
@@ -199,7 +199,7 @@ body:hover #bar{opacity:1}
 <p class="kick">The test environment</p>
 <h2>Three ways to test, all without the robot</h2>
 <div class="row" style="align-items:stretch">
-<div class="card" style="flex:1"><span class="chip c-ok" style="align-self:flex-start">LEVEL 1</span><h3>Automatic tests</h3><p class="mid">104 checks of the safety rules, simulator, controllers, switching, crashes and a full run over the network. About 15 seconds.</p><pre style="font-size:20px">.\.venv\Scripts\python.exe -m pytest</pre></div>
+<div class="card" style="flex:1"><span class="chip c-ok" style="align-self:flex-start">LEVEL 1</span><h3>Automatic tests</h3><p class="mid">105 checks of the safety rules, simulator, controllers, switching, crashes and a full run over the network. About 15 seconds.</p><pre style="font-size:20px">.\.venv\Scripts\python.exe -m pytest</pre></div>
 <div class="card" style="flex:1"><span class="chip c-ok" style="align-self:flex-start">LEVEL 2</span><h3>Simulator + page</h3><p class="mid">Drive, switch controllers, set goals and watch the safety layer step in. <b>Timed run</b> scores a controller; <b>Bench</b> is a 2-channel scope with CSV recording.</p></div>
 <div class="card" style="flex:1"><span class="chip c-ok" style="align-self:flex-start">LEVEL 3</span><h3>Race</h3><p class="mid">Several controllers on the same arena on a simulated clock, about 40 times real time, with the same result every run.</p></div>
 </div>
@@ -232,7 +232,7 @@ def step(s):               <span class="c"># 10 times a second</span>
 <div class="step mid"><span class="num">3</span><p>Restart <code>run_mock</code>; it appears in the controller list.</p></div>
 <div class="step mid"><span class="num">4</span><p>If <code>step()</code> crashes or takes longer than 0.5 s, the robot stops and <code>idle</code> takes over.</p></div>
 </div></div>
-<p class="small">Built in: idle · teleop · obstacle_avoid · wall_follow (PID) · goal_seek · demo_runaway (deliberately hangs, to show the watchdog) · onnx_policy (placeholder for the AI controller)</p>
+<p class="small">Built in: idle · teleop · obstacle_avoid · wall_follow (PID, v1.2.0) · goal_seek · demo_runaway (deliberately hangs, to show the watchdog) · onnx_policy (placeholder for the AI controller)</p>
 </section></div>
 
 <!-- 11 Download -->
@@ -320,7 +320,7 @@ const NOTES=[
 "E-STOP latches. Once pressed, the safety layer sends zero speed until someone clears it, whatever the controller asks. After clearing, the robot waits for a fresh command. This is the first thing we test on the real robot, with the wheels off the floor.",
 "This answers the question about the tilted map. Odometry is the robot's own estimate of where it is. The simulated gyro has a small bias, so the heading estimate turns about 3.4 degrees a minute, and everything drawn from it rotates with it. The robot itself is fine: the controllers steer from LiDAR distances. Realign odometry, in the simulator only, puts the estimate back on the true position and clears the smeared map. On robot day we measure the real gyro drift.",
 "These are the only commands needed. Open PowerShell in the folder, pull the latest code, run setup once, then run_mock each time. The browser opens on its own. In the Tune box, a changed value takes effect when you press Enter; an amber box means it is not in use yet. Ctrl+C in the PowerShell window stops everything. Easier still: make_shortcut puts a TurtleBot3 Lab icon on the desktop once; double-clicking it gets the latest code and starts the simulator. If it cannot update, for example with no internet, it says why and starts with the code already on the laptop. The ExecutionPolicy Bypass part lets that one script run without changing any Windows setting.",
-"Three levels of testing, none of which need the robot. Level 1 is 104 automatic tests. Level 2 is the simulator with the page, including scored timed runs and a scope. Level 3 races controllers on a simulated clock: here goal_seek reached the goal in 33.6 seconds, and the other two ran out of time because they are not designed to seek a goal.",
+"Three levels of testing, none of which need the robot. Level 1 is 105 automatic tests. Level 2 is the simulator with the page, including scored timed runs and a scope. Level 3 races controllers on a simulated clock: here goal_seek reached the goal in 33.6 seconds, and the other two ran out of time because they are not designed to seek a goal.",
 "This is what a student writes. Three settings at the top and a step function that returns forward speed and turn rate. The controller never touches the wheels directly, so a student mistake cannot get past the safety layer. A crash or a hang just stops the robot and switches to idle.",
 "Downloading means this script. It tests, checks, packages with a manifest of versions and fingerprints, then copies to the Pi over SSH. The copying step is switched off in the code until robot day, so today it prints what it would do. The output here is from today's run.",
 "Robot day happens on the laptop, on the robot's Wi-Fi. Step 1 only looks and reports. Nothing changes on the robot until you approve it and the SD card is backed up. First motion happens on a stand. The full checklist is in the repository.",
