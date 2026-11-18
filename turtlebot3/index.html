@@ -73,7 +73,7 @@
       <span class="badge b-ok">Simulated robot: working</span>
       <span class="badge b-wait">Real robot: not yet connected</span>
       <span class="badge b-ok">Code: merged to main</span>
-      <span class="badge b-info">Control page v0.4.0</span>
+      <span class="badge b-info">Control page v0.4.1</span>
       <span class="badge b-wait">Reviews: pending</span>
       <span class="badge b-info">Status as of 18 Nov 2026</span>
     </div>
@@ -87,7 +87,7 @@
       This page explains the project and links to it.</div>
     <div class="flow">
       <ol>
-        <li><strong>Web page</strong> — a live arena view of the robot's world with the controller's reasoning drawn on it, a race mode, an instrument bench, and an always-visible <strong>E-STOP</strong>.</li>
+        <li><strong>Web page</strong> — a live arena view of the robot's world with the controller's reasoning drawn on it, a race mode, an instrument bench, and an always-visible <strong>E-STOP</strong>. A <strong>Pause</strong> button freezes the simulator.</li>
         <li><strong>Controller host</strong> — runs one student controller at a time, each in its own process; a controller that hangs for more than 0.5 s is stopped and <code>idle</code> takes over.</li>
         <li><strong>Safety layer</strong> — the only source of wheel commands: speed limit 0.10 m/s and 1.0 rad/s, 0.5 s watchdog, latched e-stop, stop if an obstacle is closer than 0.20 m ahead.</li>
         <li><strong>Robot</strong> — the simulated TurtleBot3 on a laptop today; the real TurtleBot3 (ROS 2) later.</li>
@@ -105,6 +105,11 @@
         the true position in the simulator, and a changed <strong>Tune</strong> value applies on Enter, with an amber box
         until it is in use.</li>
       <li>LiDAR rays in real time, and a LiDAR map that builds up as the robot drives.</li>
+      <li><strong>Pause</strong> (simulator only, added in
+        <a href="https://github.com/ece-utulsa/turtlebot3-lab/pull/7">pull request #7</a>): a button next to E-STOP, or the
+        <strong>P</strong> key, freezes the simulated world (the robot, its clock, odometry drift, the battery and any timed run)
+        so students can study the map and the controller's reasoning; <strong>Resume</strong> carries on from the same moment.
+        It is not a safety stop: a real robot cannot be paused, so on the robot E-STOP is the way to stop.</li>
       <li><strong>Asked versus sent:</strong> a dashed arc shows where the controller asked to go in the next
         1.5&nbsp;s, a solid arc what the safety layer actually sent. When they differ, a banner says why and the
         stop zone ahead of the robot turns solid.</li>
