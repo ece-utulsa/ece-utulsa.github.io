@@ -154,6 +154,9 @@ powershell -ExecutionPolicy Bypass -File .\run_mock.ps1</code></pre>
     <p>The control page opens at <code>http://localhost:8080/</code>. Press <strong>Ctrl+C</strong> in the PowerShell
       window to stop everything. Options: <code>--model waffle_pi</code>, <code>--arena maze</code> or
       <code>--arena open_field</code>.</p>
+    <p><strong>Desktop icon (Windows):</strong> run <code>powershell -ExecutionPolicy Bypass -File .\make_shortcut.ps1</code>
+      once. Double-clicking the <strong>TurtleBot3 Lab</strong> icon then gets the latest code from GitHub and starts the
+      simulator; if it cannot update (for example with no internet) it says why and starts with the code already on the laptop.</p>
     <p>Compare controllers without the page:</p>
 <pre><code>.\.venv\Scripts\python.exe -m tblab.runner -c goal_seek,obstacle_avoid,wall_follow --arena open_field</code></pre>
   </section>
