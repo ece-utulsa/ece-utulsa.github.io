@@ -185,11 +185,12 @@ body:hover #bar{opacity:1}
 <pre>powershell -ExecutionPolicy Bypass -File .\setup.ps1</pre>
 <div class="step big"><span class="num">4</span><p><b>Start everything</b> (the browser opens by itself):</p></div>
 <pre>powershell -ExecutionPolicy Bypass -File .\run_mock.ps1</pre>
+<p class="big"><b>To stop:</b> the robot with <b>E-STOP</b>; everything with <b>Ctrl+C</b> in the PowerShell window.</p>
+<p class="small">Options: <code>--arena maze</code>, <code>--arena open_field</code>, <code>--model waffle_pi</code></p>
 </div>
 <div class="col" style="flex:.85">
+<div class="card" style="background:#eaf3f2;border-color:#b9d6d3"><h3>Easiest: the desktop icon</h3><p class="mid">Double-click <b>TurtleBot3 Lab</b> on the desktop. It gets the latest code, then starts everything (steps 2 and 4 together).</p><p class="small">Make the icon once, after step 2:</p><pre style="font-size:16px;padding:12px 16px">powershell -ExecutionPolicy Bypass -File .\make_shortcut.ps1</pre></div>
 <div class="card"><h3>Then</h3><ul class="mid"><li>Press any key or click the map to take over from the demo</li><li>Hold the arrows to drive</li><li>Click a controller to switch</li><li>Click the map to set a goal</li><li>Tune: type a value, press <b>Enter</b> (amber box = not applied yet)</li></ul></div>
-<div class="card"><h3>To stop</h3><p class="mid">Robot: <b>E-STOP</b>.<br>Everything: <b>Ctrl+C</b> in the PowerShell window.</p></div>
-<p class="small">Options: <code>--arena maze</code>, <code>--arena open_field</code>, <code>--model waffle_pi</code></p>
 </div></div>
 </section></div>
 
@@ -318,7 +319,7 @@ const NOTES=[
 "This is the real page running against the simulator today. The goal_seek controller is driving toward the green goal pad. The orange arrow and green lines are its reasoning: the gaps it considered and the one it chose. The red dots are what the LiDAR sees right now.",
 "E-STOP latches. Once pressed, the safety layer sends zero speed until someone clears it, whatever the controller asks. After clearing, the robot waits for a fresh command. This is the first thing we test on the real robot, with the wheels off the floor.",
 "This answers the question about the tilted map. Odometry is the robot's own estimate of where it is. The simulated gyro has a small bias, so the heading estimate turns about 3.4 degrees a minute, and everything drawn from it rotates with it. The robot itself is fine: the controllers steer from LiDAR distances. Realign odometry, in the simulator only, puts the estimate back on the true position and clears the smeared map. On robot day we measure the real gyro drift.",
-"These are the only commands needed. Open PowerShell in the folder, pull the latest code, run setup once, then run_mock each time. The browser opens on its own. In the Tune box, a changed value takes effect when you press Enter; an amber box means it is not in use yet. Ctrl+C in the PowerShell window stops everything. The ExecutionPolicy Bypass part lets that one script run without changing any Windows setting.",
+"These are the only commands needed. Open PowerShell in the folder, pull the latest code, run setup once, then run_mock each time. The browser opens on its own. In the Tune box, a changed value takes effect when you press Enter; an amber box means it is not in use yet. Ctrl+C in the PowerShell window stops everything. Easier still: make_shortcut puts a TurtleBot3 Lab icon on the desktop once; double-clicking it gets the latest code and starts the simulator. If it cannot update, for example with no internet, it says why and starts with the code already on the laptop. The ExecutionPolicy Bypass part lets that one script run without changing any Windows setting.",
 "Three levels of testing, none of which need the robot. Level 1 is 104 automatic tests. Level 2 is the simulator with the page, including scored timed runs and a scope. Level 3 races controllers on a simulated clock: here goal_seek reached the goal in 33.6 seconds, and the other two ran out of time because they are not designed to seek a goal.",
 "This is what a student writes. Three settings at the top and a step function that returns forward speed and turn rate. The controller never touches the wheels directly, so a student mistake cannot get past the safety layer. A crash or a hang just stops the robot and switches to idle.",
 "Downloading means this script. It tests, checks, packages with a manifest of versions and fingerprints, then copies to the Pi over SSH. The copying step is switched off in the code until robot day, so today it prints what it would do. The output here is from today's run.",
