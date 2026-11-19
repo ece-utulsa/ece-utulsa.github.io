@@ -343,7 +343,7 @@ function matches(t, q){
 
 function cardHTML(t){
   const tags = (t.tags||[]).map(x => `<span class="tag">${x}</span>`).join("");
-  const kindLabel = t.kind === "animation" ? "Animation" : t.kind === "lecture" ? (/\.pptx$/i.test(t.file||"") ? "Lecture · PowerPoint" : "Lecture") : "Tool";
+  const kindLabel = t.kind === "animation" ? "Animation" : t.kind === "lecture" ? (/\.pptx$/i.test(t.file||"") ? "Lecture · PowerPoint" : /\.docx$/i.test(t.file||"") ? "Lecture · Word" : "Lecture") : "Tool";
   const cls = "card" + (t.kind === "animation" ? " card-anim" : "") + (t.kind === "lecture" ? " card-lecture" : "") + (t.file ? "" : " card-todo");
   const inner = `
     <span class="card-kind">${kindLabel}</span>
@@ -351,10 +351,10 @@ function cardHTML(t){
     <p>${t.blurb || ""}</p>
     <div class="card-foot">
       <div class="tags">${tags}</div>
-      <span class="card-go">${t.file ? (/\.pptx$/i.test(t.file) ? "Download ↓" : "Open →") : "Add file"}</span>
+      <span class="card-go">${t.file ? (/\.(pptx|docx)$/i.test(t.file) ? "Download ↓" : "Open →") : "Add file"}</span>
     </div>`;
   return t.file
-    ? `<a class="${cls}" href="${encodeURI(t.file)}">${inner}</a>`
+    ? `<a class="${cls}" href="${encodeURI(t.file)}"${/\.(pptx|docx)$/i.test(t.file) ? " download" : ""}>${inner}</a>`
     : `<div class="${cls}">${inner}</div>`;
 }
 
