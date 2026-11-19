@@ -256,6 +256,12 @@ footer{
    tags   : short labels for search/scan
    ================================================================== */
 const TOOLS = [
+  /* --- interactive lectures -------------------------------------------- */
+  { file:"Paralleling_Lab_v1.0.0.html",
+    title:"Paralleling a Synchronous Generator", kind:"tool", group:"Interactive Lectures",
+    blurb:"Bring an incoming generator onto a 60 Hz, 13.8 kV system: set speed and field current, check the phase sequence with three lamps, watch the synchroscope, and close the breaker \u2014 smoothly, or out of phase with a surge and a trip. Live checklist of the four conditions, equations beside each instrument, a five-step tutorial, five experiments and a saved worksheet. v1.0.0.",
+    tags:["paralleling","synchroscope","three-lamp method","phase sequence"] },
+
   /* --- three-phase power ----------------------------------------------- */
   { file:"Polyphase_Power_Superposition_Explorer_v0.1.0.html",
     title:"Polyphase Power Superposition Explorer", kind:"tool", group:"Three-Phase Circuits",
@@ -281,6 +287,7 @@ const TOOLS = [
 
 /* Section order. Groups not listed here are appended alphabetically. */
 const GROUP_ORDER = [
+  "Interactive Lectures",
   "Fundamentals",
   "Three-Phase Circuits",
   "Per-Unit System",
