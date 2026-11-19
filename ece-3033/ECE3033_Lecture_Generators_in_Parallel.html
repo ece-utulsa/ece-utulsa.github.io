@@ -14,17 +14,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-mUTz0SSxdG0TQDIskd+7yCBU8rawQlSoCem3jy0zGas='; style-src 'sha256-/xYJedinjhdhkzsMapnYFCaTRZ0nuDrVL+hvxoEOe3Q='; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iLC8M/Bl7GstVjI86S6aXTPC6Xbj+dePblEt6tSCDIM='; style-src 'sha256-VhkbZ+Gid4weS1b/CHVcZxwlMWVzoJvvSOiI99wlV2Q='; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="version" content="v1.0.0">
 <title>Generators in Parallel — ECE 3033 Interactive Lecture v1.0.0</title>
 <style>
 /* ═══ BASE ═══ light theme: dark text on a light background */
-html,body{margin:0;height:100%;background:#d9dcd6;overflow:hidden;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:#1a2328}
+html,body{margin:0;height:100%;background:#e3e8ec;overflow:hidden;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:#1a2328}
 #stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
 .page{position:absolute;left:0;top:0;width:1920px;height:1080px;display:none}
 .page.on{display:block}
-.slide{position:absolute;left:0;top:0;width:1920px;height:1080px;box-sizing:border-box;overflow:hidden;background:#f7f6f2;padding:96px 128px 140px}
+.slide{position:absolute;left:0;top:0;width:1920px;height:1080px;box-sizing:border-box;overflow:hidden;background:#ffffff;padding:96px 128px 140px}
 .slide *{box-sizing:border-box}
 .slide p,.slide h1,.slide h2,.slide h3{margin:0}
 .mono{font-family:Consolas,"Courier New",monospace}
@@ -33,7 +33,7 @@ html,body{margin:0;height:100%;background:#d9dcd6;overflow:hidden;font-family:"S
 h2.t{font-size:56px;font-weight:800;line-height:1.08;letter-spacing:-1px;margin-top:14px;max-width:1664px}
 .body{font-size:34px;line-height:1.3;margin-top:28px;color:#33424a;max-width:1664px}
 .foot{position:absolute;left:128px;right:128px;bottom:56px;display:flex;justify-content:space-between;font-family:Consolas,"Courier New",monospace;font-size:22px;color:#55636b}
-.card{position:absolute;background:#fff;border-radius:16px;box-shadow:0 4px 18px rgba(26,35,40,.10);padding:28px 32px}
+.card{position:absolute;background:#f4f7f9;border:1px solid #dbe3e8;border-radius:16px;padding:28px 32px}
 .card h3{font-size:30px;font-weight:700;margin-bottom:10px}
 .card p{font-size:26px;line-height:1.35;color:#33424a}
 svg text{font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif}
@@ -47,7 +47,7 @@ svg .bus{stroke:#1a2328;stroke-width:4;fill:none}
 svg .busd{stroke:#1a2328;stroke-width:3;stroke-dasharray:10 8;fill:none}
 svg .ld{stroke:#a3261d;stroke-width:5;fill:none} svg .ldf{fill:#a3261d}
 svg .tl{stroke:#0f6e6c;stroke-width:5;fill:none} svg .tlf{fill:#0f6e6c}
-svg .box{fill:#fff;stroke:#1a2328;stroke-width:3}
+svg .box{fill:#f4f7f9;stroke:#1a2328;stroke-width:3}
 svg .arr{stroke:#1a2328;stroke-width:3;fill:none;marker-end:url(#ah)}
 math{font-size:38px;math-style:normal}
 math.sm{font-size:30px}
@@ -63,7 +63,7 @@ math.sm{font-size:30px}
 #L5{left:990px;top:340px;width:802px}
 #c6{left:990px;top:380px;width:802px}
 #L8,#L9{left:980px;top:330px;width:812px}
-#c10{left:128px;top:330px;width:1664px}
+#c10{left:128px;top:300px;width:1664px;height:640px;display:flex;flex-direction:column;justify-content:space-evenly;padding:20px 48px}
 #c11{left:128px;top:320px;width:1664px;padding:16px 40px}
 .labs5{font-size:22px;color:#55636b;margin-bottom:4px}
 .cp{margin-top:16px}
@@ -72,7 +72,7 @@ math.sm{font-size:30px}
 .sn{font-size:30px;font-weight:700;color:#0f6e6c}
 #ntext sub{font-size:.75em}
 /* ═══ LIVE PANELS ═══ */
-.live{position:absolute;background:#fff;border-radius:16px;box-shadow:0 4px 18px rgba(26,35,40,.10);padding:24px 30px;font-size:26px}
+.live{position:absolute;background:#f4f7f9;border:1px solid #dbe3e8;border-radius:16px;padding:24px 30px;font-size:26px}
 .ctl{display:grid;grid-template-columns:260px 1fr 190px;align-items:center;gap:14px;margin:12px 0}
 .ctl label{font-size:26px;font-weight:600}
 .ctl output{font-family:Consolas,"Courier New",monospace;font-size:26px;text-align:right}
@@ -89,13 +89,14 @@ math.sm{font-size:30px}
 /* ═══ STEP REVEAL ═══ */
 [data-step]{transition:opacity .4s ease}
 .pending{opacity:0}
-.step{font-size:28px;line-height:1.35;margin:10px 0}
+.step{font-size:32px;line-height:1.4;margin:0}
+#c10 math{font-size:36px}
 .step .n{display:inline-block;width:44px;height:44px;border-radius:22px;background:#0f6e6c;color:#fff;text-align:center;line-height:44px;font-weight:700;margin-right:12px}
 /* ═══ CHROME: bar and notes ═══ */
 #bar{position:fixed;left:0;right:0;bottom:0;opacity:0;transition:opacity .3s;display:flex;gap:10px;align-items:center;justify-content:center;padding:8px;font:16px Consolas,"Courier New",monospace;color:#1a2328;background:rgba(255,255,255,.92);border-top:1px solid #c8cfd2}
 body:hover #bar,#bar:focus-within{opacity:1}
 #bar button{font:inherit;background:#e8ecee;color:#1a2328;border:1px solid #9aa7ad;border-radius:6px;padding:6px 12px;cursor:pointer;min-height:36px}
-#notes{position:fixed;left:0;right:0;bottom:0;padding-bottom:64px;max-height:40%;overflow:auto;background:#fffdf6;color:#1a2328;font:20px/1.55 "Segoe UI",Arial,sans-serif;padding:18px 28px;box-shadow:0 -6px 24px rgba(0,0,0,.2);display:none}
+#notes{position:fixed;left:0;right:0;bottom:0;padding-bottom:64px;max-height:40%;overflow:auto;background:#ffffff;color:#1a2328;font:20px/1.55 "Segoe UI",Arial,sans-serif;padding:18px 28px;box-shadow:0 -6px 24px rgba(0,0,0,.2);display:none}
 #notes.on{display:block}
 #notes b{font-family:Consolas,"Courier New",monospace;font-size:15px;color:#55636b;letter-spacing:.1em}
 </style>
@@ -111,13 +112,17 @@ body:hover #bar,#bar:focus-within{opacity:1}
 <p class="kick">ECE 3033 · INTERACTIVE LECTURE</p>
 <h1 class="t1">Generators in Parallel</h1>
 <p class="promise">How do generators share a load — and who decides how much each one carries?</p>
-<svg class="vis1" viewBox="0 0 700 520" role="img" aria-label="Two generators feeding one bus that supplies a load">
-  <circle cx="110" cy="130" r="70" class="box"/><text x="110" y="142" text-anchor="middle" class="lab" font-weight="700" fill="#10668a">G1</text>
-  <circle cx="110" cy="390" r="70" class="box"/><text x="110" y="402" text-anchor="middle" class="lab" font-weight="700" fill="#6a4fc8">G2</text>
-  <path d="M180 130H330" class="g1"/><path d="M180 390H330" class="g2"/>
-  <path d="M330 60V460" class="bus"/><text x="342" y="52" class="labs">bus: one f, one V</text>
-  <path d="M330 260H520" class="arr"/>
-  <rect x="530" y="200" width="140" height="120" rx="12" class="box"/><text x="600" y="268" text-anchor="middle" class="lab" fill="#a3261d" font-weight="700">LOAD</text>
+<svg class="vis1" viewBox="-10 0 720 560" role="img" aria-label="House diagram: generator 1 power to the left, generator 2 power to the right, their frequency lines meet one system frequency, where the two shares add up to the load">
+  <path d="M350 30V470M40 470H660" class="ax"/>
+  <text x="350" y="20" text-anchor="middle" class="lab">f</text>
+  <path d="M350 110L70 440" class="g1"/><path d="M350 150L630 420" class="g2"/>
+  <path d="M40 260H660" class="busd"/>
+  <rect x="223" y="268" width="127" height="26" class="g1f"/><rect x="350" y="268" width="114" height="26" class="g2f"/>
+  <text x="287" y="330" text-anchor="middle" class="lab" font-weight="700" fill="#10668a">P<tspan baseline-shift="sub" font-size="17">G1</tspan></text>
+  <text x="407" y="330" text-anchor="middle" class="lab" font-weight="700" fill="#6a4fc8">P<tspan baseline-shift="sub" font-size="17">G2</tspan></text>
+  <text x="660" y="250" text-anchor="end" class="lab" font-weight="700">f<tspan baseline-shift="sub" font-size="17">sys</tspan></text>
+  <text x="62" y="420" text-anchor="end" class="lab" font-weight="700" fill="#10668a">G1</text><text x="640" y="415" class="lab" font-weight="700" fill="#6a4fc8">G2</text>
+  <text x="350" y="530" text-anchor="middle" class="lab" font-weight="700" fill="#a3261d">P<tspan baseline-shift="sub" font-size="17">G1</tspan> + P<tspan baseline-shift="sub" font-size="17">G2</tspan> = P<tspan baseline-shift="sub" font-size="17">load</tspan></text>
 </svg>
 <div class="foot"><span>ECE 3033 · Generators in Parallel · v1.0.0</span><span>01</span></div>
 </section></div>
@@ -127,22 +132,7 @@ body:hover #bar,#bar:focus-within{opacity:1}
 <p class="kick blue">WHY PARALLEL</p>
 <h2 class="t">No single generator can carry a grid, so many share one bus</h2>
 <p class="body">Every machine on the bus runs at the same frequency and voltage.</p>
-<svg class="visw" viewBox="0 0 1664 560" role="img" aria-label="Four power plants connected to one bus, which feeds homes, industry and a city">
-  <g>
-    <rect x="20" y="30" width="260" height="90" rx="12" class="box"/><text x="150" y="85" text-anchor="middle" class="lab">Coal / gas plant</text>
-    <rect x="20" y="160" width="260" height="90" rx="12" class="box"/><text x="150" y="215" text-anchor="middle" class="lab">Hydro plant</text>
-    <rect x="20" y="290" width="260" height="90" rx="12" class="box"/><text x="150" y="345" text-anchor="middle" class="lab">Wind farm</text>
-    <rect x="20" y="420" width="260" height="90" rx="12" class="box"/><text x="150" y="475" text-anchor="middle" class="lab">Nuclear plant</text>
-    <path d="M280 75H700M280 205H700M280 335H700M280 465H700" class="g1"/>
-  </g>
-  <path d="M700 20V520" class="bus"/>
-  <text x="720" y="250" class="lab" font-weight="700">BUS</text><text x="720" y="285" class="labs">60.00 Hz · same V</text>
-  <path d="M700 110H1180M700 270H1180M700 430H1180" class="arr"/>
-  <rect x="1190" y="70" width="300" height="80" rx="12" class="box"/><text x="1340" y="120" text-anchor="middle" class="lab" fill="#a3261d">Homes</text>
-  <rect x="1190" y="230" width="300" height="80" rx="12" class="box"/><text x="1340" y="280" text-anchor="middle" class="lab" fill="#a3261d">Industry</text>
-  <rect x="1190" y="390" width="300" height="80" rx="12" class="box"/><text x="1340" y="440" text-anchor="middle" class="lab" fill="#a3261d">City</text>
-  <text x="1340" y="540" text-anchor="middle" class="labs">a unit can be taken out for maintenance; the rest carry on</text>
-</svg>
+<svg class="visw" viewBox="0 0 1664 560" role="img" aria-label="Illustrative 24-hour demand curve filled by four plants stacked: nuclear, coal, hydro and gas. The largest single unit, 1200 megawatts, covers well under half of it." id="mixPlot"></svg>
 <div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>02</span></div>
 </section></div>
 
@@ -151,18 +141,7 @@ body:hover #bar,#bar:focus-within{opacity:1}
 <p class="kick blue">THE INFINITE BUS</p>
 <h2 class="t">An infinite bus holds f and V fixed, whatever one generator does</h2>
 <p class="body">Your generator is tiny next to the grid it joins.</p>
-<svg class="visw" viewBox="0 0 1664 560" role="img" aria-label="A small generator joins a very large grid whose frequency stays at 60.00 hertz and voltage at 13.8 kilovolts">
-  <circle cx="200" cy="280" r="70" class="box"/><text x="200" y="292" text-anchor="middle" class="lab" font-weight="700" fill="#10668a">G</text>
-  <path d="M270 280H560" class="g1"/><text x="300" y="260" class="labs">your machine: a few MW</text>
-  <path d="M560 40V520" class="bus"/>
-  <rect x="640" y="40" width="980" height="480" rx="20" fill="#eef2f3" stroke="#1a2328" stroke-width="3"/>
-  <text x="1130" y="130" text-anchor="middle" class="lab" font-weight="700">THE GRID — thousands of MW</text>
-  <rect x="740" y="190" width="360" height="200" rx="16" class="box"/>
-  <text x="920" y="275" text-anchor="middle" font-size="60" font-weight="800" class="mono">60.00</text><text x="920" y="335" text-anchor="middle" class="lab">Hz — fixed</text>
-  <rect x="1160" y="190" width="360" height="200" rx="16" class="box"/>
-  <text x="1340" y="275" text-anchor="middle" font-size="60" font-weight="800" class="mono">13.8</text><text x="1340" y="335" text-anchor="middle" class="lab">kV — fixed</text>
-  <text x="1130" y="460" text-anchor="middle" class="labs">turning one governor or one field knob does not move these</text>
-</svg>
+<svg class="visw" viewBox="0 0 1664 560" role="img" aria-label="Left: a 5 megawatt generator drawn to scale against a 50 000 megawatt grid. Right: the generator output steps up and down while the bus frequency stays at 60.00 hertz." id="busSize"></svg>
 <div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>03</span></div>
 </section></div>
 
@@ -333,6 +312,8 @@ const RPM_HZ = 120;                        // f_e = n_m P / 120
 const PCT = 100;                           // percent per unit
 const MINUS = '−';                    // typographic minus for negative readouts
 const P_ZERO = 1e-9;                       // MW, below this |P| counts as zero
+const AXIS_CLEAR_HZ = 0.40;                // Hz, a P–f line stops this far above the plot's lowest frequency (the axis is not 0 Hz)
+const AXIS_CLEAR_KV = 0.30;                // kV, the same for a Q–V line
 const NOTES = [
  'Today you will see how several generators share one load. Two ideas carry the whole topic: the governor on the prime mover decides how much real power a generator delivers, and the field current decides how much reactive power it delivers. Keep those two knobs separate in your head. Use the arrow keys or click to move on; press N to open these notes.',
  'Real systems never run on one machine. Several generators in parallel can carry a load larger than any one of them, keep the lights on when one is taken out for maintenance, and let each plant run near its most efficient point. The price is that every machine connected to the bus must run at the same frequency and the same terminal voltage.',
@@ -370,8 +351,66 @@ function subText(parent, x, y, main, sub, attrs) {
   const s = document.createElementNS(SVGNS, 'tspan'); s.setAttribute('baseline-shift', 'sub'); s.setAttribute('font-size', '16'); s.textContent = sub; t.appendChild(s);
   return t;
 }
+/* Draw a break mark (two short slashes) on a vertical axis at x, y: the axis does not start at zero. */
+function axisBreak(svg, x, y) {
+  el(svg, 'rect', { x: x - 9, y: y - 9, width: 18, height: 14, fill: '#ffffff' });
+  el(svg, 'path', { d: `M${x - 10} ${y - 2}l20 -8M${x - 10} ${y + 6}l20 -8`, class: 'ax' });
+}
 /* Mirror a range input's value into its aria-valuetext. */
 function aria(inp, txt) { inp.setAttribute('aria-valuetext', txt); }
+
+/* ═══ 2b. SLIDES 2 AND 3 (static figures drawn once) ═══ */
+const MIX = [                              // illustrative plant outputs (MW) over 24 h, stacked bottom to top
+  { name: 'Nuclear', color: '#55636b', mw: h => 1200 },
+  { name: 'Coal', color: '#10668a', mw: h => 1000 },
+  { name: 'Hydro', color: '#0f6e6c', mw: h => 300 + 500 * Math.max(0, Math.sin(Math.PI * (h - 6) / 16)) },
+  { name: 'Gas', color: '#6a4fc8', mw: h => 200 + 900 * Math.max(0, Math.sin(Math.PI * (h - 9) / 13)) ** 2 }
+];
+const UNIT_MAX_MW = 1200;                  // MW, the largest single unit in the illustration
+/* Slide 2: a day of demand filled by four plants stacked, with the largest unit's capacity for comparison. */
+function drawMix() {
+  const svg = document.getElementById('mixPlot'), X = lin(0, 24, 120, 1200), Y = lin(0, 4000, 500, 30);
+  for (let m = 0; m <= 4000; m += 1000) { el(svg, 'path', { d: `M120 ${Y(m)}H1200`, class: 'grid' }); el(svg, 'text', { x: 108, y: Y(m) + 8, 'text-anchor': 'end', class: 'labs' }, String(m)); }
+  for (let h = 0; h <= 24; h += 6) el(svg, 'text', { x: X(h), y: 530, 'text-anchor': 'middle', class: 'labs' }, (h < 10 ? '0' : '') + h + ':00');
+  let base = Array.from({ length: 49 }, () => 0);
+  for (const pl of MIX) {
+    const top = base.map((b, k) => b + pl.mw(k / 2));
+    const d = 'M' + top.map((t, k) => `${X(k / 2)} ${Y(t)}`).join('L') + 'L' + base.map((b, k) => `${X(k / 2)} ${Y(b)}`).reverse().join('L') + 'Z';
+    el(svg, 'path', { d, fill: pl.color, 'fill-opacity': 0.85 });
+    const k = 24; el(svg, 'text', { x: X(12), y: (Y(base[k]) + Y(top[k])) / 2 + 8, 'text-anchor': 'middle', 'font-size': 24, 'font-weight': 700, fill: '#ffffff' }, pl.name);
+    base = top;
+  }
+  el(svg, 'path', { d: 'M120 20V500H1210', class: 'ax' });
+  el(svg, 'text', { x: 120, y: 14, class: 'lab' }, 'MW'); el(svg, 'text', { x: 1210, y: 556, 'text-anchor': 'end', class: 'lab' }, 'hour of day');
+  el(svg, 'path', { d: `M120 ${Y(UNIT_MAX_MW)}H1200`, stroke: '#a3261d', 'stroke-width': 4, 'stroke-dasharray': '14 8', fill: 'none' });
+  el(svg, 'text', { x: 1230, y: Y(UNIT_MAX_MW) + 8, class: 'lab', fill: '#a3261d', 'font-weight': 700 }, 'largest single unit');
+  el(svg, 'text', { x: 1230, y: Y(UNIT_MAX_MW) + 38, class: 'labs', fill: '#a3261d' }, UNIT_MAX_MW + ' MW');
+  el(svg, 'text', { x: 1230, y: Y(3700), class: 'lab', 'font-weight': 700 }, 'total demand');
+  el(svg, 'text', { x: 1230, y: Y(3700) + 30, class: 'labs' }, 'shared by every unit on the bus');
+  el(svg, 'text', { x: 1230, y: 470, class: 'labs' }, 'illustrative system');
+}
+/* Slide 3: a small machine to scale against the grid, and its output stepping while the bus frequency stays flat. */
+function drawBusSize() {
+  const svg = document.getElementById('busSize');
+  const side = 440, small = side * Math.sqrt(5 / 50000);        // areas to scale: 5 MW against 50 000 MW
+  el(svg, 'rect', { x: 20, y: 40, width: side, height: side, fill: '#e3e8ec', stroke: '#1a2328', 'stroke-width': 3 });
+  el(svg, 'text', { x: 20 + side / 2, y: 40 + side / 2, 'text-anchor': 'middle', class: 'lab', 'font-weight': 700 }, 'grid 50 000 MW');
+  el(svg, 'rect', { x: 20 + side - small - 30, y: 40 + side - small - 30, width: small, height: small, fill: '#10668a' });
+  el(svg, 'circle', { cx: 20 + side - 30 - small / 2, cy: 40 + side - 30 - small / 2, r: 16, fill: 'none', stroke: '#10668a', 'stroke-width': 2 });   // ring so the dot can be found
+  el(svg, 'text', { x: 20 + side, y: 40 + side + 40, 'text-anchor': 'end', class: 'lab', fill: '#10668a', 'font-weight': 700 }, 'your 5 MW, to scale (ringed)');
+  // right: P_gen steps, f flat
+  const X = lin(0, 60, 760, 1640), YP = lin(0, 5, 230, 50), YF = lin(59.9, 60.1, 510, 340);
+  el(svg, 'path', { d: 'M760 36V230H1640M760 326V520H1640', class: 'ax' }); axisBreak(svg, 760, 496);
+  subText(svg, 772, 24, 'P', 'gen', { class: 'lab', fill: '#10668a', 'font-weight': 700 }).appendChild(document.createTextNode(' (MW)'));
+  el(svg, 'text', { x: 772, y: 312, class: 'lab', 'font-weight': 700 }, 'f (Hz)');
+  for (const m of [0, 5]) el(svg, 'text', { x: 750, y: YP(m) + 8, 'text-anchor': 'end', class: 'labs' }, String(m));
+  for (const f of [59.9, 60.0, 60.1]) el(svg, 'text', { x: 750, y: YF(f) + 8, 'text-anchor': 'end', class: 'labs' }, f.toFixed(2));
+  const steps = [[0, 1], [12, 4], [30, 2], [45, 5], [60, 5]];
+  el(svg, 'path', { d: 'M' + steps.map((p, k) => (k ? `H${X(p[0])}V${YP(p[1])}` : `${X(p[0])} ${YP(p[1])}`)).join(''), class: 'g1' });
+  el(svg, 'path', { d: `M760 ${YF(60)}H1640`, class: 'bus' });
+  el(svg, 'text', { x: 1640, y: 556, 'text-anchor': 'end', class: 'lab' }, 'time (s)');
+  el(svg, 'text', { x: 1200, y: YF(60) - 18, 'text-anchor': 'middle', class: 'labs' }, 'bus frequency: 60.00 Hz throughout');
+}
 
 /* ═══ 3. SLIDE 4 SPEED ═══ */
 let poles4 = 4;
@@ -407,7 +446,7 @@ function upd5() {
   const X = lin(0, 100, 130, 760), Y = lin(1780, 2000, 520, 40);
   for (let s = 1800; s <= 2000; s += 50) { el(svg, 'path', { d: `M130 ${Y(s)}H760`, class: 'grid' }); el(svg, 'text', { x: 118, y: Y(s) + 8, 'text-anchor': 'end', class: 'labs' }, String(s)); }
   for (let p = 0; p <= 100; p += 25) el(svg, 'text', { x: X(p), y: 550, 'text-anchor': 'middle', class: 'labs' }, p + ' %');
-  el(svg, 'path', { d: 'M130 30V520H770', class: 'ax' });
+  el(svg, 'path', { d: 'M130 30V520H770', class: 'ax' }); axisBreak(svg, 130, 508);
   el(svg, 'text', { x: 130, y: 22, 'text-anchor': 'middle', class: 'lab' }, 'n (r/min)');
   el(svg, 'text', { x: 770, y: 590, 'text-anchor': 'end', class: 'lab' }, 'P (percent of rated)');
   el(svg, 'path', { d: `M${X(0)} ${Y(nnl)}L${X(100)} ${Y(NFL5)}`, class: 'g1' });
@@ -434,11 +473,11 @@ function upd8() {
   const X = lin(-2, 3, 110, 790), Y = lin(58.8, 62.2, 280, 20);
   for (let p = -2; p <= 3; p++) { el(svg, 'path', { d: `M${X(p)} 20V280`, class: 'grid' }); el(svg, 'text', { x: X(p), y: 304, 'text-anchor': 'middle', class: 'labs' }, fmt(p, 0)); }
   for (const f of [59, 60, 61, 62]) el(svg, 'text', { x: 100, y: Y(f) + 7, 'text-anchor': 'end', class: 'labs' }, f + '.00');
-  el(svg, 'path', { d: `M${X(0)} 15V285M110 280H795`, class: 'ax' });
+  el(svg, 'path', { d: `M${X(0)} 15V285M110 280H795`, class: 'ax' }); axisBreak(svg, X(0), 268);
   el(svg, 'text', { x: 30, y: 20, class: 'lab' }, 'f (Hz)'); el(svg, 'text', { x: 795, y: 330, 'text-anchor': 'end', class: 'lab' }, 'P (MW)');
   if (P < 0) el(svg, 'rect', { x: 110, y: 20, width: X(0) - 110, height: 260, fill: '#fbe9e6' });
   el(svg, 'path', { d: `M110 ${Y(F_BUS)}H790`, class: 'bus' }); el(svg, 'text', { x: 785, y: Y(F_BUS) - 10, 'text-anchor': 'end', class: 'labs' }, 'bus 60.00 Hz');
-  const pa = Math.max(-2, SP8 * (fnl - 62.2)), pb = Math.min(3, SP8 * (fnl - 58.8));   // the part of the line inside the plot
+  const pa = Math.max(-2, SP8 * (fnl - 62.2)), pb = Math.min(3, SP8 * (fnl - 58.8 - AXIS_CLEAR_HZ));   // inside the plot, ending above the axis
   el(svg, 'path', { d: `M${X(pa)} ${Y(fnl - pa / SP8)}L${X(pb)} ${Y(fnl - pb / SP8)}`, class: 'g1' });
   el(svg, 'circle', { cx: X(P), cy: Y(F_BUS), r: 11, fill: P < 0 ? '#a3261d' : '#10668a' });
   el(svg, 'text', { x: X(P) - 16, y: Y(F_BUS) + 34, 'text-anchor': 'end', class: 'lab', fill: P < 0 ? '#a3261d' : '#10668a', 'font-weight': 700 }, 'P = ' + fmt(P, 2));
@@ -447,10 +486,10 @@ function upd8() {
   const XQ = lin(-3, 3, 110, 790), YV = lin(12.8, 15.2, 610, 380);
   for (let q = -3; q <= 3; q++) { el(svg, 'path', { d: `M${XQ(q)} 380V610`, class: 'grid' }); el(svg, 'text', { x: XQ(q), y: 634, 'text-anchor': 'middle', class: 'labs' }, fmt(q, 0)); }
   for (const v of [13, 14, 15]) el(svg, 'text', { x: 100, y: YV(v) + 7, 'text-anchor': 'end', class: 'labs' }, v + '.0');
-  el(svg, 'path', { d: `M${XQ(0)} 375V615M110 610H795`, class: 'ax' });
+  el(svg, 'path', { d: `M${XQ(0)} 375V615M110 610H795`, class: 'ax' }); axisBreak(svg, XQ(0), 598);
   el(svg, 'text', { x: 30, y: 372, class: 'lab' }, 'V (kV)'); el(svg, 'text', { x: 795, y: 668, 'text-anchor': 'end', class: 'lab' }, 'Q (MVAR)');
   el(svg, 'path', { d: `M110 ${YV(V_BUS)}H790`, class: 'bus' }); el(svg, 'text', { x: 785, y: YV(V_BUS) - 10, 'text-anchor': 'end', class: 'labs' }, 'bus 13.80 kV');
-  const qa = Math.max(-3, SQ8 * (vnl - 15.2)), qb = Math.min(3, SQ8 * (vnl - 12.8));   // the part of the line inside the plot
+  const qa = Math.max(-3, SQ8 * (vnl - 15.2)), qb = Math.min(3, SQ8 * (vnl - 12.8 - AXIS_CLEAR_KV));   // inside the plot, ending above the axis
   el(svg, 'path', { d: `M${XQ(qa)} ${YV(vnl - qa / SQ8)}L${XQ(qb)} ${YV(vnl - qb / SQ8)}`, class: 'tl' });
   el(svg, 'circle', { cx: XQ(Math.max(-3, Math.min(3, Q))), cy: YV(V_BUS), r: 11, class: 'tlf' });
 }
@@ -473,11 +512,11 @@ function upd9() {
   const C = 410, XL = lin(0, 3, C, 60), XR = lin(0, 3, C, 760), Y = lin(58.5, 63.0, 560, 40);
   for (let p = 1; p <= 3; p++) { el(svg, 'path', { d: `M${XL(p)} 40V560M${XR(p)} 40V560`, class: 'grid' }); el(svg, 'text', { x: XL(p), y: 590, 'text-anchor': 'middle', class: 'labs' }, String(p)); el(svg, 'text', { x: XR(p), y: 590, 'text-anchor': 'middle', class: 'labs' }, String(p)); }
   for (const f of [59, 60, 61, 62, 63]) { el(svg, 'path', { d: `M${C - 8} ${Y(f)}H${C + 8}`, class: 'ax' }); el(svg, 'text', { x: C - 14, y: Y(f) + 7, 'text-anchor': 'end', class: 'labs' }, f + '.00'); }
-  el(svg, 'path', { d: `M60 560H760M${C} 30V560`, class: 'ax' });
+  el(svg, 'path', { d: `M60 560H760M${C} 30V560`, class: 'ax' }); axisBreak(svg, C, 546);
   el(svg, 'text', { x: C, y: 22, 'text-anchor': 'middle', class: 'lab' }, 'f (Hz)');
   subText(svg, 60, 625, '← P', 'G1', { class: 'lab', fill: '#10668a', 'font-weight': 700 }).appendChild(document.createTextNode(' (MW)'));
   subText(svg, 760, 625, 'P', 'G2', { class: 'lab', fill: '#6a4fc8', 'font-weight': 700, 'text-anchor': 'end' }).appendChild(document.createTextNode(' (MW) →'));
-  const seg = (fnl, sP, X) => { const a = Math.max(0, sP * (fnl - 63.0)), b = Math.min(3, sP * (fnl - 58.5)); return `M${X(a)} ${Y(fnl - a / sP)}L${X(b)} ${Y(fnl - b / sP)}`; };   // inside the plot
+  const seg = (fnl, sP, X) => { const a = Math.max(0, sP * (fnl - 63.0)), b = Math.min(3, sP * (fnl - 58.5 - AXIS_CLEAR_HZ)); return `M${X(a)} ${Y(fnl - a / sP)}L${X(b)} ${Y(fnl - b / sP)}`; };   // inside the plot
   el(svg, 'path', { d: seg(f1, SP9[0], XL), class: 'g1' });
   el(svg, 'path', { d: seg(f2, SP9[1], XR), class: 'g2' });
   el(svg, 'path', { d: `M60 ${Y(fs)}H760`, class: 'busd' });
@@ -543,7 +582,7 @@ document.getElementById('sd').addEventListener('input', upd5);
 ['f8', 'v8'].forEach(id => document.getElementById(id).addEventListener('input', upd8));
 ['f91', 'f92', 'pl9'].forEach(id => document.getElementById(id).addEventListener('input', upd9));
 addEventListener('resize', fit);
-fit(); upd4(); upd5(); upd8(); upd9();
+fit(); drawMix(); drawBusSize(); upd4(); upd5(); upd8(); upd9();
 show(Math.max(0, (parseInt(location.hash.slice(1), 10) || 1) - 1));
 </script>
 </body>
