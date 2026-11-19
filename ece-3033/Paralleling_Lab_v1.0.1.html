@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<!--
+  Paralleling a Synchronous Generator — ECE 3033 Lab
+  Version: v1.0.1
+  Released: 2026-11-19
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  Changelog: v1.0.1 — principal review of v1.0.0 (2026-11-19 16:18–16:19). (1) Readouts and live equation numbers
+  update at most 4 times a second, in fixed-width digits with a fixed digit count, so nothing shifts. (2) Fine
+  controls: "Run up to speed"; governor Raise/Lower in 0.01 Hz and 0.1 Hz steps (press and hold repeats) and a fine
+  frequency slider 59.00–61.00 Hz; "Excite field", field Raise/Lower in 0.01 kV and 0.1 kV steps and a fine slider
+  within ±10 % of the bus voltage; generator f and V shown beside the controls. (3) Lamps always show the
+  instantaneous voltage, with an incandescent-like curve (off below 10 % of 2V, brightness ∝ (V_lamp/2V)²); lamps
+  labelled A, B, C; "blinking too fast to see" said instead of averaging; slow motion is the default until the
+  breaker has closed once. (4) The breaker visibly closes for 1 s with a surge meter, then stays shut ("IN STEP" /
+  "JOINED — JOLT") or visibly trips ("TRIPPED") with the reason. (5) Check yourself removed. (6) Waveform panel:
+  phase-A voltage of the bus and of the generator on a time base locked to the bus, and the lamp-voltage envelope
+  (beat) over ten slip periods.
+  v1.0.0 — first release (not published).
+  Model: V_g ∝ I_F × speed (open circuit, no saturation, no residual voltage); lamp k reads |V_bus,k − V_g,k|
+  (phasors, through potential transformers); closing surge ≈ max_k |ΔV_k| / X_S with X_S = 1.0 pu = 7.62 Ω on
+  25 MVA, 13.8 kV; synchronizing power at the close P = 3 V_bus V_g sin Δθ / X_S; after joining P = s_P (f_set − f_bus)
+  with 4 % governor droop. Sources: Chapman, Electric Machinery Fundamentals (paralleling conditions, synchroscope,
+  three-lamp method); Guru & Hiziroglu, Electric Machinery and Transformers.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-tVnsJQhW9EChMgmQc0KrhSiffn0Q+HQuJZxnWsVdnio='; style-src 'sha256-9yAwsgaA28IJMdCxmzWzAOEeHn/bJsC8b3k5BNIUEvU='; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v1.0.1">
+<title>Paralleling a Synchronous Generator — ECE 3033 Lab v1.0.1</title>
+<style>
+/* ═══ TOKENS (TU ECE Course Materials, light; page ground white per principal 2026-11-19) ═══ */
+:root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
+  --acc:#0f6e6c;--err:#c2412f;--warn:#8a5700;--ok:#18744a;--bus:#d32f2f;--gen:#1c5fd6;--lamp:#f2a900;
+  --sans:"Segoe UI","Helvetica Neue",Arial,sans-serif;--mono:Consolas,"Courier New",monospace}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 var(--sans)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+button{font:600 14px var(--sans);min-height:34px;padding:5px 10px;border-radius:6px;border:1px solid var(--edge);background:var(--panel);color:var(--txt);cursor:pointer;touch-action:manipulation;user-select:none}
+button:hover{background:var(--soft)}
+button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+button.danger{border-color:var(--err);color:var(--err)}
+button[aria-pressed="true"]{background:var(--acc);color:#fff;border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:not-allowed}
+/* ═══ HEADER AND TABS ═══ */
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:19px;margin:0;font-weight:800}
+.badge{font:12px var(--mono);color:var(--mut)}
+nav.tabs{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.page{display:none;padding:14px 20px 40px}
+.page.on{display:block}
+/* ═══ LAB LAYOUT ═══ */
+#callout{min-height:46px;margin:0 0 12px;padding:10px 16px;border-radius:12px;background:var(--soft);border-left:6px solid var(--acc);font-size:19px;font-weight:800}
+#callout.bad{background:#fbe9e6;border-left-color:var(--err);color:#8f2a1d}
+#callout.good{background:#e3f3ea;border-left-color:var(--ok);color:#10512f}
+.lab{display:grid;grid-template-columns:310px minmax(420px,1fr) 330px;gap:14px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.panel h2{font-size:15px;margin:0 0 8px;color:var(--acc);text-transform:uppercase;letter-spacing:1px}
+.row{margin:10px 0}
+.row label,.row .lbl{display:block;font-weight:700;font-size:14px}
+.row input[type=range]{width:100%;accent-color:var(--acc);height:28px}
+.ro,.lv,.meters td.v,#chk .val,.num-t{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.ro{font-weight:800;font-size:14px;background:var(--inset);border-radius:6px;padding:4px 8px;display:inline-block;white-space:pre}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center}
+.step4{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
+.step4 button{padding:5px 2px}
+.note{font-size:12.5px;color:var(--mut);margin:4px 0}
+.eq{background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:8px 0;overflow-x:auto}
+math{font-size:17px;math-style:normal}
+mn.lv{font-family:var(--mono);white-space:pre}
+.center{display:flex;flex-direction:column;gap:12px}
+#scene,#wave{width:100%;height:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.instr{display:grid;grid-template-columns:230px 1fr;gap:12px}
+#scope{width:100%;height:auto}
+.meters{width:100%;border-collapse:collapse;font-size:14px}
+.meters th,.meters td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left}
+.meters td.v{font-weight:800;text-align:right;white-space:pre}
+.bus{color:var(--bus)} .gen{color:var(--gen)}
+#chk{list-style:none;padding:0;margin:0}
+#chk li{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+#chk .mark{font-size:20px;font-weight:800;text-align:center}
+#chk li.ok .mark{color:var(--ok)} #chk li.no .mark{color:var(--err)}
+#chk .val{font-weight:700;font-size:13px;white-space:pre}
+#ready{margin-top:10px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px}
+#readyDot{width:22px;height:22px;border-radius:50%;background:#c9d1d5;border:2px solid var(--edge)}
+#ready.on #readyDot{background:var(--ok)}
+#result .verdict{font-weight:800;font-size:15px;margin:6px 0}
+#result .verdict.bad{color:var(--err)} #result .verdict.good{color:var(--ok)} #result .verdict.mid{color:var(--warn)}
+#surgeSvg{width:100%;height:auto}
+@media (max-width:1250px){.lab{grid-template-columns:290px 1fr}.right{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:14px}}
+@media (max-width:820px){.lab{grid-template-columns:1fr}.right{grid-template-columns:1fr}.instr{grid-template-columns:1fr}}
+/* ═══ KEY POINTS OVERLAY ═══ */
+#kp{position:fixed;inset:0;background:rgba(26,35,40,.45);display:none;align-items:center;justify-content:center;z-index:10;padding:20px}
+#kp.on{display:flex}
+#kp .card{background:var(--panel);border-radius:16px;max-width:980px;width:100%;max-height:92vh;overflow:auto;padding:22px 28px;border:1px solid var(--edge)}
+#kp h2{margin:0 0 6px;font-size:24px}
+#kp h3{color:var(--acc);margin:14px 0 6px;font-size:16px;text-transform:uppercase;letter-spacing:1px}
+#kp ol{margin:0;padding-left:22px;font-size:16px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:820px){.kgrid{grid-template-columns:1fr}}
+/* ═══ DOCUMENT PAGES ═══ */
+.doc{max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 28px}
+.doc h1{font-size:24px;margin:0 0 4px}
+.doc p,.doc li{font-size:15.5px}
+.step,.exp-card{border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:14px 0;background:#fbfcfd}
+.step h3,.exp-card h3{margin:0 0 4px;font-size:17px}
+.num{font:700 12px var(--mono);color:var(--acc);letter-spacing:2px;text-transform:uppercase}
+textarea,input[type=text],input[type=date]{font:15px var(--sans);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;width:100%}
+textarea{min-height:64px;margin-top:4px}
+.sheetHead{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.sheetHead label{font-weight:700;font-size:13px}
+#sheetStatus{font-weight:700;font-size:13.5px;margin:8px 0}
+#sheetStatus.bad{color:var(--err)} #sheetStatus.good{color:var(--ok)}
+details summary{cursor:pointer;font-weight:700;color:var(--acc);margin-top:6px}
+.fix{border-left:5px solid var(--warn);background:#fff7e8;padding:8px 12px;border-radius:8px}
+table.rec{border-collapse:collapse;margin:8px 0}
+table.rec th,table.rec td{border:1px solid var(--line);padding:4px 8px;font-size:14px}
+table.rec input{width:110px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Paralleling a Synchronous Generator</h1><span class="badge">ECE 3033 · v1.0.1</span>
+  <nav class="tabs" aria-label="Pages">
+    <button data-page="lab" aria-pressed="true">Lab</button>
+    <button data-page="tut" aria-pressed="false">Tutorial</button>
+    <button data-page="exp" aria-pressed="false">Experiments</button>
+    <button id="kpBtn" class="pri">★ Key points</button>
+  </nav>
+</header>
+
+<!-- ═══ LAB ═══ -->
+<section class="page on" id="page-lab" aria-label="Lab">
+<div id="callout" role="status" aria-live="polite"></div>
+<div class="lab">
+  <!-- controls -->
+  <div class="panel" aria-label="Incoming generator controls">
+    <h2>Incoming generator</h2>
+    <div class="row"><span class="lbl">Prime mover and governor</span>
+      <div class="btns"><button id="runUp" class="pri">⏵ Run up to speed</button><button id="stopBtn">Stop</button></div>
+      <div class="btns"><span class="ro">f<sub>g</sub> <span id="fgO"> 0.00</span> Hz</span><span class="ro"><span id="nO">   0.0</span> r/min</span></div>
+      <div class="step4" role="group" aria-label="Governor lower and raise"><button id="fm1" aria-label="Lower 0.1 hertz">−0.1 Hz</button><button id="fm2" aria-label="Lower 0.01 hertz">−0.01</button><button id="fp2" aria-label="Raise 0.01 hertz">+0.01</button><button id="fp1" aria-label="Raise 0.1 hertz">+0.1 Hz</button></div>
+      <label for="fgS" class="note">Fine governor, 59.00–61.00 Hz (hold a button to repeat)</label>
+      <input type="range" id="fgS" min="59" max="61" step="0.01" value="60">
+      <div class="eq"><math display="block"><msub><mi>f</mi><mi>g</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>n</mi><mi>m</mi></msub><mi>P</mi></mrow><mn>120</mn></mfrac></math><math display="block"><mo>=</mo><mfrac><mrow><mo>(</mo><mn class="lv" id="q_n">0.0</mn><mo>)</mo><mo>(</mo><mn>4</mn><mo>)</mo></mrow><mn>120</mn></mfrac><mo>=</mo><mn class="lv" id="q_f">0.00</mn><mspace width="0.2em"/><mtext>Hz</mtext></math></div>
+    </div>
+    <div class="row"><span class="lbl">Field current I<sub>F</sub></span>
+      <div class="btns"><button id="excite" class="pri">⚡ Excite field</button><button id="fieldOff">Field off</button></div>
+      <div class="btns"><span class="ro">V<sub>g</sub> <span id="vgO"> 0.00</span> kV</span><span class="ro">I<sub>F</sub> <span id="ifO">0.000</span> A</span></div>
+      <div class="step4" role="group" aria-label="Field lower and raise"><button id="vm1" aria-label="Lower 0.1 kilovolt">−0.1 kV</button><button id="vm2" aria-label="Lower 0.01 kilovolt">−0.01</button><button id="vp2" aria-label="Raise 0.01 kilovolt">+0.01</button><button id="vp1" aria-label="Raise 0.1 kilovolt">+0.1 kV</button></div>
+      <label for="vgS" class="note">Fine field: V<sub>g</sub> within ±10 % of the bus (12.42–15.18 kV)</label>
+      <input type="range" id="vgS" min="12.42" max="15.18" step="0.01" value="13.8">
+      <p class="note">V<sub>g</sub> ∝ I<sub>F</sub> × speed (no saturation): 5.00 A at 60.00 Hz gives 13.80 kV.</p>
+    </div>
+    <div class="row"><span class="lbl" id="seqL">Phase sequence of the incoming leads</span>
+      <div class="btns" role="group" aria-labelledby="seqL"><button id="seqABC" aria-pressed="true">ABC</button><button id="seqACB" aria-pressed="false">ACB (two leads swapped)</button></div>
+    </div>
+    <div class="row"><span class="lbl" id="brkL">Breaker</span>
+      <div class="btns" role="group" aria-labelledby="brkL"><button id="closeBtn" class="pri">Close breaker</button><button id="openBtn">Open</button><button id="resetBtn" class="danger">↺ Reset</button></div>
+    </div>
+    <div class="row"><span class="lbl" id="timeL">Time</span>
+      <div class="btns" role="group" aria-labelledby="timeL"><button id="pauseBtn" aria-pressed="false">❚❚ Pause</button><button id="slowBtn" aria-pressed="true">Slow motion ×0.1</button></div>
+      <p class="note" id="timeO"></p>
+    </div>
+  </div>
+  <!-- scene, waveforms and instruments -->
+  <div class="center">
+    <svg id="scene" viewBox="0 0 900 400" role="img" aria-label="Running system bus at left, three-pole breaker with lamps A, B and C across its poles in the middle, incoming generator and prime mover at right">
+      <text x="20" y="28" font-size="15" font-weight="700" fill="#d32f2f">RUNNING SYSTEM (bus)</text>
+      <text x="20" y="48" font-size="13" fill="#55636b">13.8 kV · 60.00 Hz · ABC</text>
+      <path d="M80 70V370" stroke="#d32f2f" stroke-width="8"/>
+      <g id="phases"></g>
+      <text x="610" y="28" font-size="15" font-weight="700" fill="#1c5fd6">INCOMING GENERATOR</text>
+      <circle cx="700" cy="220" r="58" fill="#eef4fe" stroke="#1c5fd6" stroke-width="4"/>
+      <text x="700" y="232" text-anchor="middle" font-size="34" font-weight="800" fill="#1c5fd6">G</text>
+      <path d="M758 220H800" stroke="#1a2328" stroke-width="10"/>
+      <rect x="800" y="180" width="86" height="80" rx="10" fill="#eceef4" stroke="#55636b" stroke-width="2"/>
+      <text x="843" y="214" text-anchor="middle" font-size="12.5" font-weight="700">Prime</text><text x="843" y="230" text-anchor="middle" font-size="12.5" font-weight="700">mover</text><text x="843" y="246" text-anchor="middle" font-size="11" fill="#55636b">governor</text>
+      <g id="tag"></g>
+      <text x="390" y="392" text-anchor="middle" font-size="12.5" fill="#55636b">lamps across the breaker poles (via potential transformers) · off below 10 % of 2V, brightness ∝ (V_lamp/2V)²</text>
+    </svg>
+    <div class="panel"><h2>Waveforms: phase A</h2>
+      <svg id="wave" viewBox="0 0 900 352" role="img" aria-label="Top: bus and generator phase-A voltage over three cycles on a time base locked to the bus. Bottom: the lamp voltage envelope, v bus minus v generator, over ten slip periods.">
+        <g id="waveG"></g>
+      </svg>
+      <p class="note" id="waveTxt"></p>
+    </div>
+    <div class="instr">
+      <div class="panel"><h2>Synchroscope</h2>
+        <svg id="scope" viewBox="0 0 220 236" role="img" aria-label="Synchroscope: the pointer shows the phase difference; it turns clockwise when the generator is fast">
+          <circle cx="110" cy="112" r="92" fill="#f7f9fb" stroke="#1a2328" stroke-width="3"/>
+          <path d="M110 22V36" stroke="#18744a" stroke-width="5"/>
+          <text x="110" y="14" text-anchor="middle" font-size="12" font-weight="700" fill="#18744a">IN PHASE</text>
+          <text x="214" y="230" text-anchor="end" font-size="13" font-weight="700">FAST ↻ (clockwise)</text><text x="6" y="230" font-size="13" font-weight="700">↺ SLOW</text>
+          <line id="ptr" x1="110" y1="112" x2="110" y2="34" stroke="#1c5fd6" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="110" cy="112" r="8" fill="#1a2328"/>
+        </svg>
+      </div>
+      <div class="panel"><h2>Why: phase and lamps</h2>
+        <div class="eq"><math display="block"><mi>Δ</mi><mi>θ</mi><mo>(</mo><mi>t</mi><mo>)</mo><mo>=</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>+</mo><mn>2</mn><mi>π</mi><mo>(</mo><msub><mi>f</mi><mi>g</mi></msub><mo>−</mo><msub><mi>f</mi><mi>bus</mi></msub><mo>)</mo><mi>t</mi></math>
+          <math display="block"><mtext>slip</mtext><mo>=</mo><msub><mi>f</mi><mi>g</mi></msub><mo>−</mo><msub><mi>f</mi><mi>bus</mi></msub><mo>=</mo><mn class="lv" id="q_fg">0.00</mn><mo>−</mo><mn>60.00</mn><mo>=</mo><mn class="lv" id="q_slip">0.00</mn><mspace width="0.2em"/><mtext>Hz</mtext><mspace width="1em"/><mi>Δ</mi><mi>θ</mi><mo>=</mo><mn class="lv" id="q_dth">0</mn><mo>°</mo></math></div>
+        <div class="eq"><math display="block"><msub><mi>V</mi><mi>lamp</mi></msub><mo>=</mo><mn>2</mn><mi>V</mi><mi>sin</mi><mo>(</mo><mfrac><mrow><mi>Δ</mi><mi>θ</mi></mrow><mn>2</mn></mfrac><mo>)</mo><mo>=</mo><mn>2</mn><mo>(</mo><mn>7.97</mn><mo>)</mo><mi>sin</mi><mo>(</mo><mfrac><mrow><mn class="lv" id="q_th2">0</mn><mo>°</mo></mrow><mn>2</mn></mfrac><mo>)</mo><mo>=</mo><mn class="lv" id="q_vl">0.00</mn><mspace width="0.2em"/><mtext>kV</mtext></math>
+          <p class="note"><span id="lampNote">Equal magnitudes (V = 7.97 kV per phase).</span> Lamp A reads <b class="num-t" id="q_vA">0.00 kV</b> now.</p>
+          <math display="block"><mtext>blinks per second</mtext><mo>=</mo><mo>|</mo><msub><mi>f</mi><mi>g</mi></msub><mo>−</mo><msub><mi>f</mi><mi>bus</mi></msub><mo>|</mo><mo>=</mo><mn class="lv" id="q_blink">0.00</mn></math></div>
+      </div>
+    </div>
+  </div>
+  <!-- meters, checklist, breaker -->
+  <div class="right">
+    <div class="panel"><h2>Meters</h2>
+      <table class="meters"><tr><th></th><th>Voltage (line)</th><th>Frequency</th></tr>
+        <tr><td class="bus"><b>Bus</b></td><td class="v bus">13.80 kV</td><td class="v bus">60.00 Hz</td></tr>
+        <tr><td class="gen"><b>Generator</b></td><td class="v gen" id="mVg"> 0.00 kV</td><td class="v gen" id="mFg"> 0.00 Hz</td></tr></table>
+    </div>
+    <div class="panel"><h2>Ready to close?</h2>
+      <ul id="chk">
+        <li id="c1"><span class="mark">✗</span><span>1 Voltages equal</span><span class="val"></span></li>
+        <li id="c2"><span class="mark">✗</span><span>2 Same phase sequence</span><span class="val"></span></li>
+        <li id="c3"><span class="mark">✗</span><span>3 Phase angle near zero</span><span class="val"></span></li>
+        <li id="c4"><span class="mark">✗</span><span>4 f<sub>g</sub> slightly above f<sub>bus</sub></span><span class="val"></span></li>
+      </ul>
+      <div id="ready"><span id="readyDot"></span><span id="readyTxt">Not ready</span></div>
+      <p class="note">Tolerances: |ΔV| ≤ 5 %, |Δθ| ≤ 10°, 0 &lt; slip ≤ 0.20 Hz.</p>
+    </div>
+    <div class="panel"><h2>Breaker and surge</h2>
+      <svg id="surgeSvg" viewBox="0 0 300 64" role="img" aria-label="Surge meter, current at the instant of closing in multiples of rated current">
+        <rect x="10" y="14" width="56" height="18" fill="#d9efe2"/><rect x="66" y="14" width="112" height="18" fill="#f6e7c8"/><rect x="178" y="14" width="112" height="18" fill="#f6d5cf"/>
+        <rect x="10" y="14" width="280" height="18" fill="none" stroke="#55636b"/>
+        <rect id="surgeBar" x="10" y="17" width="0" height="12" fill="#1a2328"/>
+        <text x="10" y="50" font-size="11" fill="#55636b">0</text><text x="66" y="50" font-size="11" fill="#55636b" text-anchor="middle">0.2</text><text x="178" y="50" font-size="11" fill="#55636b" text-anchor="middle">0.6</text><text x="290" y="50" font-size="11" fill="#55636b" text-anchor="end">2.5 × rated</text>
+        <text id="surgeTxt" x="150" y="62" font-size="11" text-anchor="middle" font-weight="700"></text>
+      </svg>
+      <div id="result"><p class="note">Open. The machine is not connected.</p></div>
+    </div>
+  </div>
+</div>
+<p class="note">Model: 25 MVA, 13.8 kV, 4-pole machine, X<sub>S</sub> = 1.0 pu = 7.62 Ω, rated current 1046 A; the bus is infinite. Surge at the close ≈ |ΔV|/X<sub>S</sub> (worst phase): ≤ 0.20 × rated smooth, ≤ 0.60 × rated a jolt, above that (or wrong sequence, or |slip| &gt; 1 Hz) a trip. After joining, the governor's 4 % droop gives P = s<sub>P</sub>(f<sub>set</sub> − f<sub>bus</sub>), s<sub>P</sub> = 10.4 MW/Hz.</p>
+</section>
+
+<!-- ═══ KEY POINTS ═══ -->
+<div id="kp" role="dialog" aria-modal="true" aria-labelledby="kpH"><div class="card">
+  <div class="btns"><h2 id="kpH">Key points: paralleling a generator</h2><button id="kpClose" class="pri">Close ✕</button></div>
+  <div class="kgrid">
+    <div><h3>Four conditions before closing</h3><ol>
+      <li>Equal rms voltages (set with the <b>field current</b>).</li>
+      <li>Same phase sequence (lamps together, not taking turns).</li>
+      <li>Phase angles equal: Δθ ≈ 0 (lamps dark, pointer at 12).</li>
+      <li>Generator frequency <b>slightly above</b> the bus (pointer turns slowly clockwise).</li></ol></div>
+    <div><h3>Five steps</h3><ol>
+      <li>Bring the machine to speed, field off.</li>
+      <li>Raise I<sub>F</sub> until V<sub>g</sub> = V<sub>bus</sub>.</li>
+      <li>Check the sequence with the three lamps.</li>
+      <li>Set f<sub>g</sub> slightly above f<sub>bus</sub>.</li>
+      <li>Close when the lamps are dark.</li></ol></div>
+  </div>
+  <h3>Four equations</h3>
+  <div class="kgrid">
+    <div class="eq"><math display="block"><msub><mi>f</mi><mi>e</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>n</mi><mi>m</mi></msub><mi>P</mi></mrow><mn>120</mn></mfrac></math></div>
+    <div class="eq"><math display="block"><mi>Δ</mi><mi>θ</mi><mo>(</mo><mi>t</mi><mo>)</mo><mo>=</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>+</mo><mn>2</mn><mi>π</mi><mo>(</mo><msub><mi>f</mi><mi>g</mi></msub><mo>−</mo><msub><mi>f</mi><mi>bus</mi></msub><mo>)</mo><mi>t</mi></math></div>
+    <div class="eq"><math display="block"><msub><mi>V</mi><mi>lamp</mi></msub><mo>=</mo><mn>2</mn><mi>V</mi><mi>sin</mi><mo>(</mo><mfrac><mrow><mi>Δ</mi><mi>θ</mi></mrow><mn>2</mn></mfrac><mo>)</mo><mo>,</mo><mspace width="0.5em"/><mtext>blinks/s</mtext><mo>=</mo><mo>|</mo><msub><mi>f</mi><mi>g</mi></msub><mo>−</mo><msub><mi>f</mi><mi>bus</mi></msub><mo>|</mo></math></div>
+    <div class="eq"><math display="block"><msub><mi>I</mi><mi>surge</mi></msub><mo>≈</mo><mfrac><mrow><mo>|</mo><mi>Δ</mi><mi>V</mi><mo>|</mo></mrow><msub><mi>X</mi><mi>S</mi></msub></mfrac></math></div>
+  </div>
+  <p class="note">The blink rate is set by the frequency difference; the phase difference sets how bright the lamps are at that instant.</p>
+</div></div>
+
+<!-- ═══ TUTORIAL ═══ -->
+<section class="page" id="page-tut" aria-label="Tutorial"><article class="doc">
+  <h1>Tutorial: the five-step procedure</h1>
+  <p>Each step sets up the Lab for you. Press <b>▶ Set up</b>, then do and look where the step says.</p>
+  <div class="step"><p class="num">Step 1</p><h3>Bring the machine up to speed with the field off.</h3>
+    <button class="try" data-try='{"fg":0,"iF":0,"seq":"ABC","th0":0,"slow":true}'>▶ Set up</button>
+    <p>Do: press <b>⏵ Run up to speed</b>. Look at: f<sub>g</sub> reads about 60.30 Hz, the generator voltmeter reads 0 kV, and all three lamps glow steadily — each sees the full bus phase voltage.</p></div>
+  <div class="step"><p class="num">Step 2</p><h3>Raise the field current until V<sub>g</sub> = V<sub>bus</sub>.</h3>
+    <button class="try" data-try='{"fg":60.3,"iF":0,"seq":"ABC","th0":0,"slow":true}'>▶ Set up</button>
+    <p>Do: press <b>⚡ Excite field</b> (about 12.8 kV), then the field <b>+0.1 kV</b> and <b>+0.01</b> buttons until V<sub>g</sub> reads 13.80 kV. Look at: checklist line 1 turns ✓.</p></div>
+  <div class="step"><p class="num">Step 3</p><h3>Check the phase sequence with the three lamps.</h3>
+    <button class="try" data-try='{"fg":60.3,"vg":13.8,"seq":"ACB","th0":0,"slow":true}'>▶ Set up</button>
+    <p>Look at: lamps A, B and C light one after another — the sequence is wrong. Press <b>ABC</b> (swap two leads back): now all three brighten and go dark <b>together</b>.</p></div>
+  <div class="step"><p class="num">Step 4</p><h3>Set f<sub>g</sub> slightly above f<sub>bus</sub>.</h3>
+    <button class="try" data-try='{"fg":60.3,"vg":13.8,"seq":"ABC","th0":120,"slow":false}'>▶ Set up</button>
+    <p>Do: press governor <b>−0.1 Hz</b> twice and <b>−0.01</b> five times, to 60.05 Hz. Look at: the synchroscope slows to one clockwise turn every 1/0.05 = 20 s, and the generator wave in the waveform panel drifts slowly ahead of the bus wave.</p></div>
+  <div class="step"><p class="num">Step 5</p><h3>Close when the lamps are dark and the pointer is at 12 o'clock.</h3>
+    <button class="try" data-try='{"fg":60.05,"vg":13.8,"seq":"ABC","th0":-40,"slow":false}'>▶ Set up</button>
+    <p>Do: wait for the <b>Ready</b> light, then press <b>Close breaker</b>. Look at: the blades close, the surge meter barely moves, the tag reads <b>IN STEP</b>, and the machine picks up a little power.</p></div>
+  <h2>Reading the lamps</h2>
+  <p>The lamps <b>blink at the slip frequency</b> |f<sub>g</sub> − f<sub>bus</sub>|: 0.5 Hz difference, one blink every 2 s. How <b>bright</b> they are at any instant is set by the phase difference: V<sub>lamp</sub> = 2V sin(Δθ/2), dark at Δθ = 0, brightest at 180°.</p>
+  <p>All three together = same phase sequence. One after another (rotating) = wrong sequence; they are never all dark at once.</p>
+  <p>The waveform panel shows the same thing as waves: the generator wave slides past the bus wave once every 1/slip seconds, and their difference (the lamp voltage) swells and shrinks — a beat at the slip frequency.</p>
+  <p class="fix">Chapman's four conditions are: equal rms voltages, the same phase sequence, equal phase angles, and the incoming frequency slightly higher than the running system's.</p>
+</article></section>
+
+<!-- ═══ EXPERIMENTS ═══ -->
+<section class="page" id="page-exp" aria-label="Experiments"><article class="doc" id="sheet">
+  <h1>Experiments</h1>
+  <p>Five short investigations, about 30 minutes. Each <b>▶ Set up</b> puts the Lab in the right state. Predict before you look.</p>
+  <div class="sheetHead"><label>Name<input type="text" data-k="name" autocomplete="name"></label><label>Section<input type="text" data-k="section"></label><label>Date<input type="date" data-k="date"></label></div>
+  <div class="btns"><button id="exportBtn" class="pri">⇩ Export my answers</button><button id="clearBtn">Clear my answers</button></div>
+  <p id="sheetStatus" role="status" aria-live="polite"></p>
+
+  <div class="exp-card"><p class="num">Experiment 1</p><h3>Wrong phase sequence</h3>
+    <p>Goal: see what the lamps do when two leads are swapped, and fix it.</p>
+    <button class="try" data-try='{"fg":60.2,"vg":13.8,"seq":"ACB","th0":0,"slow":false}'>▶ Set up</button>
+    <ol><li>Predict: will lamps A, B, C blink together or one after another?</li><li>Watch for 10 s. Then press <b>ABC</b>.</li></ol>
+    <ol class="qs"><li>Prediction, then what you saw with ACB.<textarea data-k="e1q1"></textarea></li>
+      <li>Why are the lamps never all dark at the same time with ACB?<textarea data-k="e1q2"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>With ACB the lamps take turns — the dark lamp moves A → C → B (or the reverse) and never all three go dark together, because phases B and C of the generator sit 120° away from the bus phases they face. Pressing ABC makes all three brighten and go dark together.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 2</p><h3>Blink rate and frequency difference</h3>
+    <p>Goal: show that the blink rate equals |f<sub>g</sub> − f<sub>bus</sub>|.</p>
+    <button class="try" data-try='{"fg":60.5,"vg":13.8,"seq":"ABC","th0":0,"slow":false}'>▶ Set up</button>
+    <ol><li>Real time is on. Count dark moments in 10 s at each frequency; set it with the governor buttons (−0.1 Hz, −0.01).</li></ol>
+    <table class="rec"><tr><th>f<sub>g</sub> (Hz)</th><th>Slip (Hz)</th><th>Blinks in 10 s</th></tr>
+      <tr><td>60.50</td><td>0.50</td><td><input type="text" data-k="e2a" aria-label="Blinks at 0.50 hertz slip"></td></tr>
+      <tr><td>60.20</td><td>0.20</td><td><input type="text" data-k="e2b" aria-label="Blinks at 0.20 hertz slip"></td></tr>
+      <tr><td>60.05</td><td>0.05</td><td><input type="text" data-k="e2c" aria-label="Blinks at 0.05 hertz slip"></td></tr></table>
+    <ol class="qs"><li>Predict first: how many blinks in 10 s at 0.20 Hz? Then explain the pattern. What does the envelope in the waveform panel show?<textarea data-k="e2q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>5, 2 and 0.5 blinks in 10 s: blinks per second = |f<sub>g</sub> − f<sub>bus</sub>|. The lamp-voltage envelope in the waveform panel beats at the same rate. The phase difference does not set the rate; it sets how bright the lamps are at each instant.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 3</p><h3>Close at the wrong moment</h3>
+    <p>Goal: compare the surge for a close at Δθ = 90°, 180° and ≈ 0°.</p>
+    <button class="try" data-try='{"fg":60,"vg":13.8,"seq":"ABC","th0":90,"pause":true}'>▶ Set up 90°</button>
+    <div class="btns"><button class="try" data-try='{"fg":60,"vg":13.8,"seq":"ABC","th0":180,"pause":true}'>▶ Set up 180°</button><button class="try" data-try='{"fg":60,"vg":13.8,"seq":"ABC","th0":5,"pause":true}'>▶ Set up 5°</button></div>
+    <ol><li>Time is paused at the set angle. Press <b>Close breaker</b> and read the surge meter. Then <b>↺ Reset</b> and use the next set-up.</li></ol>
+    <table class="rec"><tr><th>Δθ</th><th>Surge (A)</th><th>Surge (× rated)</th></tr>
+      <tr><td>90°</td><td><input type="text" data-k="e3a" aria-label="Surge at 90 degrees"></td><td><input type="text" data-k="e3a2" aria-label="Surge per unit at 90 degrees"></td></tr>
+      <tr><td>180°</td><td><input type="text" data-k="e3b" aria-label="Surge at 180 degrees"></td><td><input type="text" data-k="e3b2" aria-label="Surge per unit at 180 degrees"></td></tr>
+      <tr><td>5°</td><td><input type="text" data-k="e3c" aria-label="Surge at 5 degrees"></td><td><input type="text" data-k="e3c2" aria-label="Surge per unit at 5 degrees"></td></tr></table>
+    <ol class="qs"><li>Predict first: which angle gives the largest surge? Check with |ΔV| = 2V sin(Δθ/2).<textarea data-k="e3q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>90°: |ΔV| = 11.27 kV, surge ≈ 1479 A (1.41 × rated) — the breaker closes, then trips. 180°: 15.93 kV, ≈ 2092 A (2.00 × rated) — trip. 5°: 0.70 kV, ≈ 91 A (0.09 × rated) — stays closed, IN STEP; equal frequencies here, so P ≈ 0.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 4</p><h3>Unequal voltages</h3>
+    <p>Goal: see why the lamps never go fully dark when V<sub>g</sub> ≠ V<sub>bus</sub>, then close anyway.</p>
+    <button class="try" data-try='{"fg":60.05,"iF":3,"seq":"ABC","th0":0,"slow":false}'>▶ Set up</button>
+    <ol><li>The set-up puts the field low on purpose (V<sub>g</sub> = 8.29 kV). Watch the lamps at their darkest; read lamp A's voltage then.</li><li>Close when the lamps are darkest. Read the surge.</li></ol>
+    <ol class="qs"><li>Why do the lamps never go fully dark?<textarea data-k="e4q1"></textarea></li>
+      <li>What surge did you get, and which condition was missing?<textarea data-k="e4q2"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>At Δθ = 0 the lamp still reads |V<sub>bus</sub> − V<sub>g</sub>| = 7.97 − 4.78 = 3.18 kV per phase, so the lamps stay dimly lit. Closing at Δθ ≈ 0 gives about 418 A (0.40 × rated): it joins with a jolt (amber tag). Condition 1, equal voltages, was missing.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 5</p><h3>Close with the generator slow</h3>
+    <p>Goal: find which way power flows after closing with f<sub>g</sub> below the bus.</p>
+    <button class="try" data-try='{"fg":59.9,"vg":13.8,"seq":"ABC","th0":30,"slow":false}'>▶ Set up</button>
+    <ol><li>Watch the synchroscope direction. Close when the lamps are dark.</li></ol>
+    <ol class="qs"><li>Predict first: generating or motoring? Then read P after the close.<textarea data-k="e5q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>The pointer turns counter-clockwise (SLOW). After the close the machine is pulled up to 60.00 Hz and runs as a motor: P = 10.4 × (59.90 − 60.00) ≈ −1.04 MW. That is why condition 4 asks for f<sub>g</sub> slightly above the bus.</p></details></div>
+</article></section>
+
+<script>
+/* ═══ CONTENTS ═══
+   1. CONSTANTS   2. STATE   3. PHYSICS   4. FORMATTING   5. SCENE AND WAVEFORMS   6. CHECKLIST, CALLOUTS, READOUTS
+   7. BREAKER     8. CONTROLS AND PAGES   9. WORKSHEET   10. LOOP */
+'use strict';
+/* ═══ 1. CONSTANTS ═══ */
+const POLES = 4;                          // poles of the incoming machine
+const F_BUS = 60.00;                      // Hz, running system (infinite bus)
+const V_LL = 13.8;                        // kV line, bus and machine rating
+const V_PH = V_LL / Math.sqrt(3);         // kV per phase, 7.967
+const IF_RATED = 5.00;                    // A, field current for 13.80 kV at 60.00 Hz (open circuit, no saturation)
+const S_RATED = 25;                       // MVA machine rating
+const X_S = V_LL * V_LL / S_RATED;        // Ω, 1.0 pu synchronous reactance = 7.6176 Ω
+const I_RATED = S_RATED * 1e3 / (Math.sqrt(3) * V_LL);   // A, 1045.9
+const DROOP = 0.04;                       // governor speed droop (4 %)
+const S_P = S_RATED / (DROOP * F_BUS);    // MW/Hz, 10.42
+const TOL_V = 0.05, TOL_TH = 10, SLIP_MAX = 0.20;   // condition tolerances: voltage fraction, degrees, Hz
+const FAST_SLIP = 0.5;                    // Hz, above this the blinking is "fast"
+const SEE_HZ = 3;                         // Hz of on-screen blinking above which it is too fast to see
+const SMOOTH_PU = 0.20, TRIP_PU = 0.60;   // surge (× rated) limits for a smooth close and for a trip
+const SLIP_PULL = 1.0;                    // Hz, beyond this the machine cannot pull into step: trip
+const LOW_V = 0.2;                        // V_g below this fraction of V_bus: "no voltage yet"
+const LAMP_OFF = 0.10;                    // lamp off below this fraction of 2V
+const SLOW = 0.1;                         // slow-motion time factor
+const DT_MAX = 0.1;                       // s, largest frame step
+const RO_MS = 250;                        // ms between numeric updates (4 per second)
+const CLOSE_MS = 1000;                    // ms the breaker stays shut before a bad close trips
+const F_RUN = 60.30;                      // Hz after "Run up to speed" (about 1809 r/min, field off)
+const F_MIN = 59.00, F_MAX = 61.00;       // Hz, governor range once running
+const V_EXCITE = 12.80;                   // kV after "Excite field"
+const HOLD_DELAY = 400, HOLD_EVERY = 110; // ms, press-and-hold repeat
+const SURGE_FULL = 2.5;                   // × rated at the right end of the surge meter
+const DEG = 180 / Math.PI, TWO_PI = 2 * Math.PI, PH120 = TWO_PI / 3;
+const MINUS = '−', FIG = ' ';   // typographic minus; figure space (width of a digit)
+const SHEET_KEY = 'paralleling-lab-worksheet-v1';
+const SHEET_MAX = 4000;                   // longest stored answer (characters)
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+/* ═══ 2. STATE ═══ */
+const START = { fg: 0, iF: 0, seq: 'ABC', th0: 0 };   // Reset: machine at rest, field off (Tutorial step 1)
+const S = { fg: 0, iF: 0, seq: 'ABC', th: 0, closed: false, closing: false, joined: false, paused: false, slow: true,
+            result: null, tag: null, surgePu: 0, kpShown: false, everClosed: false };
+
+/* ═══ 3. PHYSICS ═══ */
+/* Shaft speed (r/min) from generator frequency: n = 120 f / P. */
+function nMech() { return S.fg * 120 / POLES; }
+/* Generator line voltage (kV): proportional to field current and speed (open circuit, no saturation). */
+function vGenLL() { return V_LL * (S.iF / IF_RATED) * (S.fg / F_BUS); }
+/* Field current (A) that gives line voltage v (kV) at the present speed. */
+function iFor(v) { return S.fg > 1 ? v / V_LL * IF_RATED * F_BUS / S.fg : S.iF; }
+/* Wrap an angle (rad) into (−π, π]. */
+function wrap(a) { a = (a + Math.PI) % TWO_PI; if (a < 0) a += TWO_PI; return a - Math.PI; }
+/* Lamp voltages (kV per phase) for phases A, B, C at phase difference th: |V_bus,k − V_gen,k| as phasors.
+   Bus phase k at −k·120°; generator phase k at th − k·120° (ABC) or th + k·120° (ACB, two leads swapped). */
+function lampKV(th) {
+  const vg = vGenLL() / Math.sqrt(3), sg = S.seq === 'ABC' ? -1 : 1;
+  return [0, 1, 2].map(k => {
+    const ab = -k * PH120, ag = th + sg * k * PH120;
+    return Math.hypot(V_PH * Math.cos(ab) - vg * Math.cos(ag), V_PH * Math.sin(ab) - vg * Math.sin(ag));
+  });
+}
+/* Lamp brightness 0…1 from its voltage: off below 10 % of 2V, then ∝ (V_lamp / 2V)² (incandescent-like). */
+function bright(v) { const x = v / (2 * V_PH); return x < LAMP_OFF ? 0 : Math.min(1, x * x); }
+
+/* ═══ 4. FORMATTING (fixed width: figure spaces pad, so digits never shift) ═══ */
+/* Unsigned number, d decimals, padded to w characters. */
+function fx(x, d, w) { return Math.abs(x).toFixed(d).padStart(w, FIG); }
+/* Signed number with +, − or a figure space next to the digits, d decimals, padded to w + 1 characters. */
+function sx(x, d, w) { const a = Math.abs(x).toFixed(d), z = +a === 0; return ((z ? FIG : x < 0 ? MINUS : '+') + a).padStart(w + 1, FIG); }
+function put(id, t) { const e = document.getElementById(id); if (e.textContent !== t) e.textContent = t; }
+/* Write text into el, showing "x_ab" as x with subscript ab (text nodes and <sub> only, no markup parsed). */
+function richText(el, txt) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+  for (const part of String(txt).split(/(_[A-Za-z]+)/)) {
+    if (part.startsWith('_')) { const sb = document.createElement('sub'); sb.textContent = part.slice(1); el.appendChild(sb); }
+    else if (part) el.appendChild(document.createTextNode(part));
+  }
+}
+
+/* ═══ 5. SCENE AND WAVEFORMS ═══ */
+const ph = document.getElementById('phases'), PH_Y = [120, 220, 320], LAMP = [];
+/* Create an SVG element in parent. */
+function mk(parent, tag, a, txt) { const e = document.createElementNS(SVGNS, tag); for (const k in a) e.setAttribute(k, a[k]); if (txt !== undefined) e.textContent = txt; parent.appendChild(e); return e; }
+/* Build the three phase lines, breaker contacts and lamps once. */
+function buildScene() {
+  ['A', 'B', 'C'].forEach((p, k) => {
+    const y = PH_Y[k];
+    mk(ph, 'path', { d: `M80 ${y}H330`, stroke: '#d32f2f', 'stroke-width': 4 });
+    mk(ph, 'text', { x: 92, y: y - 10, 'font-size': 15, 'font-weight': 700, fill: '#d32f2f' }, p);
+    mk(ph, 'circle', { cx: 330, cy: y, r: 6, fill: '#1a2328' }); mk(ph, 'circle', { cx: 450, cy: y, r: 6, fill: '#1a2328' });
+    const blade = mk(ph, 'path', { d: `M330 ${y}L440 ${y - 34}`, stroke: '#1a2328', 'stroke-width': 5, 'stroke-linecap': 'round' });
+    mk(ph, 'path', { d: `M450 ${y}H590L650 ${220 + (y - 220) * 0.55}`, stroke: '#1c5fd6', 'stroke-width': 4, fill: 'none' });   // to the generator terminals
+    mk(ph, 'text', { x: 560, y: y - 10, 'font-size': 15, 'font-weight': 700, fill: '#1c5fd6' }, p + '*');
+    mk(ph, 'path', { d: `M330 ${y}V${y - 46}H368M412 ${y - 46}H450V${y}`, stroke: '#55636b', 'stroke-width': 2, fill: 'none' });   // lamp across the pole
+    const glow = mk(ph, 'circle', { cx: 390, cy: y - 46, r: 36, fill: '#f2a900', 'fill-opacity': 0 });
+    mk(ph, 'circle', { cx: 390, cy: y - 46, r: 20, fill: '#7d868b', stroke: '#1a2328', 'stroke-width': 2.5 });   // unlit lamp: grey
+    const core = mk(ph, 'circle', { cx: 390, cy: y - 46, r: 18, fill: '#ffc400', 'fill-opacity': 0 });
+    mk(ph, 'path', { d: `M377 ${y - 59}l26 26M403 ${y - 59}l-26 26`, stroke: '#1a2328', 'stroke-width': 2 });
+    mk(ph, 'text', { x: 322, y: y - 50, 'text-anchor': 'end', 'font-size': 14, 'font-weight': 800 }, 'Lamp ' + p);
+    const lbl = mk(ph, 'text', { x: 480, y: y - 40, 'font-size': 13, 'font-family': 'Consolas, monospace', 'font-weight': 700 }, '0.00 kV');
+    LAMP.push({ glow, core, lbl, blade, y });
+  });
+  mk(ph, 'text', { x: 390, y: 28, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700 }, 'BREAKER + LAMPS');
+}
+/* Draw lamps (instantaneous, never averaged), breaker blades, the breaker tag and the synchroscope pointer. */
+function drawScene(lamps) {
+  LAMP.forEach((L, k) => {
+    const b = S.closed ? 0 : bright(lamps[k]);
+    L.glow.setAttribute('fill-opacity', (0.7 * b).toFixed(3)); L.core.setAttribute('fill-opacity', b ? (0.45 + 0.55 * b).toFixed(3) : '0');
+    L.blade.setAttribute('d', S.closed ? `M330 ${L.y}L450 ${L.y}` : `M330 ${L.y}L440 ${L.y - 34}`);
+  });
+  const d = S.closed ? 0 : wrap(S.th) * DEG;
+  document.getElementById('ptr').setAttribute('transform', `rotate(${d.toFixed(2)} 110 112)`);
+}
+/* Breaker tag drawn on the scene: TRIPPED (red), IN STEP (green), JOINED — JOLT or MOTORING (amber), CLOSING…, or none. */
+function drawTag() {
+  const g = document.getElementById('tag'); while (g.firstChild) g.removeChild(g.firstChild);
+  const T = { trip: ['TRIPPED', '#c2412f'], instep: ['IN STEP', '#18744a'], jolt: ['JOINED — JOLT', '#8a5700'], motor: ['JOINED — MOTORING', '#8a5700'], closing: ['CLOSING…', '#1a2328'] }[S.tag];
+  if (!T) return;
+  mk(g, 'rect', { x: 280, y: 336, width: 220, height: 34, rx: 17, fill: T[1] });
+  mk(g, 'text', { x: 390, y: 359, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800, fill: '#ffffff' }, T[0]);
+}
+const WG = document.getElementById('waveG'), W = {};
+/* Build the waveform panel once: top, three bus cycles; bottom, lamp-voltage envelope over ten slip periods. */
+function buildWave() {
+  const ax = (y0, y1) => mk(WG, 'path', { d: `M60 ${y0}V${y1}M60 ${(y0 + y1) / 2}H880`, stroke: '#55636b', 'stroke-width': 1.5, fill: 'none' });
+  ax(30, 150); ax(206, 326);
+  mk(WG, 'text', { x: 52, y: 40, 'text-anchor': 'end', 'font-size': 11, fill: '#55636b' }, '+11.3');
+  mk(WG, 'text', { x: 52, y: 94, 'text-anchor': 'end', 'font-size': 11, fill: '#55636b' }, '0 kV');
+  mk(WG, 'text', { x: 52, y: 150, 'text-anchor': 'end', 'font-size': 11, fill: '#55636b' }, MINUS + '11.3');
+  mk(WG, 'text', { x: 52, y: 216, 'text-anchor': 'end', 'font-size': 11, fill: '#55636b' }, '+22.5');
+  mk(WG, 'text', { x: 52, y: 326, 'text-anchor': 'end', 'font-size': 11, fill: '#55636b' }, MINUS + '22.5');
+  mk(WG, 'text', { x: 880, y: 168, 'text-anchor': 'end', 'font-size': 12, fill: '#55636b' }, 'three bus cycles (50 ms), time base locked to the bus wave');
+  W.env = mk(WG, 'path', { d: '', fill: '#f2a900', 'fill-opacity': 0.45, stroke: '#8a5700', 'stroke-width': 1.2 });
+  W.bus = mk(WG, 'polyline', { points: '', fill: 'none', stroke: '#d32f2f', 'stroke-width': 3 });
+  W.gen = mk(WG, 'polyline', { points: '', fill: 'none', stroke: '#1c5fd6', 'stroke-width': 3, 'stroke-dasharray': '10 5' });
+  mk(WG, 'text', { x: 64, y: 18, 'font-size': 13, 'font-weight': 800, fill: '#d32f2f' }, 'bus, phase A (solid)');
+  mk(WG, 'text', { x: 230, y: 18, 'font-size': 13, 'font-weight': 800, fill: '#1c5fd6' }, 'generator, phase A (dashed)');
+  mk(WG, 'text', { x: 64, y: 196, 'font-size': 13, 'font-weight': 800, fill: '#8a5700' }, 'lamp A voltage = bus − generator (the 60 Hz wave fills the band)');
+  W.span = mk(WG, 'text', { x: 880, y: 346, 'text-anchor': 'end', 'font-size': 12, fill: '#55636b' }, '');
+  mk(WG, 'path', { d: 'M880 206V326', stroke: '#1a2328', 'stroke-width': 2, 'stroke-dasharray': '4 3' });
+  mk(WG, 'text', { x: 880, y: 196, 'text-anchor': 'end', 'font-size': 12, 'font-weight': 700 }, 'now');
+}
+/* Draw the waves for the present state. Top: v_bus = √2 V sin ωt and v_g = √2 V_g sin(ωt + Δθ) over three bus cycles,
+   the bus wave held still (stroboscopic), so v_g slides by Δθ. Bottom: envelope ±√2 |V̄_bus − V̄_g| of lamp A back
+   through ten slip periods (window 10/|slip| s, at most 200 s, 10 s at zero slip). */
+function drawWave() {
+  const vg = (S.closed ? V_LL : vGenLL()) / Math.sqrt(3), th = S.closed ? 0 : S.th, pk = Math.SQRT2 * V_PH, N = 240;
+  const Y1 = v => 90 - v / pk * 56, b = [], g = [];
+  for (let i = 0; i <= N; i++) { const a = 3 * TWO_PI * i / N, x = (60 + 820 * i / N).toFixed(1); b.push(x + ',' + Y1(pk * Math.sin(a)).toFixed(1)); g.push(x + ',' + Y1(Math.SQRT2 * vg * Math.sin(a + th)).toFixed(1)); }
+  W.bus.setAttribute('points', b.join(' ')); W.gen.setAttribute('points', g.join(' '));
+  const slip = S.closed ? 0 : S.fg - F_BUS, span = Math.abs(slip) >= 0.05 - 1e-9 ? 10 / Math.abs(slip) : 200;   // s, ten slip periods (at most 200 s)
+  const Y2 = v => 266 - v / (2 * pk) * 56, top = [], bot = [];
+  for (let i = 0; i <= N; i++) {
+    const back = span * (1 - i / N), t = th - TWO_PI * slip * back;
+    const e = S.closed ? 0 : Math.SQRT2 * Math.hypot(V_PH - vg * Math.cos(t), vg * Math.sin(t)), x = (60 + 820 * i / N).toFixed(1);
+    top.push(x + ' ' + Y2(e).toFixed(1)); bot.push(x + ' ' + Y2(-e).toFixed(1));
+  }
+  W.env.setAttribute('d', 'M' + top.join('L') + 'L' + bot.reverse().join('L') + 'Z');
+  W.span.textContent = 'last ' + span.toFixed(0) + ' s' + (Math.abs(slip) >= 0.05 - 1e-9 ? ' (ten slip periods)' : '');
+}
+
+/* ═══ 6. CHECKLIST, CALLOUTS, READOUTS ═══ */
+/* The four paralleling conditions for the present state. */
+function conditions() {
+  const vg = vGenLL(), slip = S.fg - F_BUS, dth = wrap(S.th) * DEG;
+  return { v: Math.abs(vg - V_LL) / V_LL <= TOL_V, s: S.seq === 'ABC', t: Math.abs(dth) <= TOL_TH + 1e-9, f: slip > 1e-9 && slip <= SLIP_MAX + 1e-9, vg, slip, dth };
+}
+/* The time factor in force (0 paused, 0.1 slow, 1 real time). */
+function tFactor() { return S.paused ? 0 : S.slow ? SLOW : 1; }
+/* Pick the one key-point callout for what the student sees now: [text, kind]. */
+function callout(c) {
+  if (S.closing) return ['Breaker closing…', ''];
+  if (S.result) return [S.result.callout, S.result.kind];
+  if (S.fg < 1) return ['Machine at rest: press Run up to speed.', ''];
+  if (c.vg < LOW_V * V_LL) return ['Generator voltage near zero: press Excite field.', ''];
+  if (!c.s) return ['Lamps take turns: phase sequence is wrong — swap two leads.', 'bad'];
+  if (Math.abs(c.slip) * (tFactor() || 1) > SEE_HZ) return ['Blinking too fast to see — bring f_g closer to f_bus.', ''];
+  if (Math.abs(c.slip) > FAST_SLIP) return ['Fast blinking = big frequency difference. Bring f_g closer to f_bus.', ''];
+  if (!c.v) return ['Voltages unequal: adjust the field current.', ''];
+  if (c.slip < -1e-9) return ['Generator slow: it would come on as a motor.', ''];
+  return ['Lamps together: sequence is right.', 'good'];
+}
+let lastTxt = -1e9;
+/* Update checklist, callout, meters and the live equations: at most 4 times a second (or at once when forced). */
+function readouts(force) {
+  const now = performance.now(); if (!force && now - lastTxt < RO_MS) return; lastTxt = now;
+  const c = conditions(), on = S.closed && S.joined, fgShow = on ? F_BUS : S.fg, vgShow = on ? V_LL : c.vg;
+  const set = (id, ok, val) => { const li = document.getElementById(id); li.className = ok ? 'ok' : 'no'; li.querySelector('.mark').textContent = ok ? '✓' : '✗'; put(id + 'v', val); };
+  set('c1', c.v, fx(c.vg, 2, 5) + ' vs 13.80 kV'); set('c2', c.s, S.seq);
+  set('c3', c.t, 'Δθ = ' + sx(c.dth, 0, 3) + '°'); set('c4', c.f, sx(c.slip, 2, 5) + ' Hz');
+  const ready = c.v && c.s && c.t && c.f && !S.closed;
+  document.getElementById('ready').classList.toggle('on', ready);
+  put('readyTxt', S.closed ? 'Breaker closed' : ready ? 'Ready to close' : 'Not ready');
+  const [txt, kind] = callout(c), co = document.getElementById('callout');
+  if (co.dataset.raw !== txt) { richText(co, txt); co.dataset.raw = txt; }
+  co.className = kind;
+  put('mVg', fx(vgShow, 2, 5) + ' kV'); put('mFg', fx(fgShow, 2, 5) + ' Hz');
+  put('fgO', fx(S.fg, 2, 5)); put('nO', fx(nMech(), 1, 6));
+  put('vgO', fx(c.vg, 2, 5)); put('ifO', fx(S.iF, 3, 5));
+  put('q_n', fx(nMech(), 1, 6)); put('q_f', fx(S.fg, 2, 5));
+  put('q_fg', fx(S.fg, 2, 5)); put('q_slip', sx(c.slip, 2, 5)); put('q_dth', sx(c.dth, 0, 3)); put('q_th2', sx(c.dth, 0, 3));
+  put('q_vl', fx(2 * V_PH * Math.abs(Math.sin(c.dth / 2 / DEG)), 2, 5)); put('q_blink', fx(c.slip, 2, 5));
+  put('q_vA', fx(S.closed ? 0 : lampKV(S.th)[0], 2, 5) + ' kV');
+  put('lampNote', c.v ? 'Equal magnitudes (V = 7.97 kV per phase).' : 'Magnitudes unequal: the lamps never reach 0.');
+  LAMP.forEach((L, k) => { L.lbl.textContent = fx(S.closed ? 0 : lampKV(S.th)[k], 2, 5) + ' kV'; });
+  const sl = S.closed ? 0 : c.slip;
+  richText(document.getElementById('waveTxt'), 'slip f_g − f_bus = ' + sx(sl, 2, 5) + ' Hz; ' + (Math.abs(sl) >= 0.005 ? 'the waves drift one full cycle every 1/slip = ' + (1 / Math.abs(sl)).toFixed(1) + ' s.' : (S.closed ? 'breaker closed: the two waves sit on top of each other.' : 'no drift: the waves keep their phase difference.')) + (S.slow && !S.paused ? ' Slow motion ×0.1 is on.' : ''));
+}
+
+/* ═══ 7. BREAKER ═══ */
+/* Close the breaker: the blades shut for CLOSE_MS and the surge meter jumps; then a bad close trips (blades open,
+   TRIPPED) and a good one stays shut (IN STEP or JOINED — JOLT). */
+function closeBreaker() {
+  if (S.closed || S.closing) return;
+  const c = conditions(), dv = Math.max(...lampKV(S.th)), I = dv * 1e3 / X_S, pu = I / I_RATED;
+  const pj = 3 * V_PH * (c.vg / Math.sqrt(3)) * Math.sin(wrap(S.th)) / X_S;    // MW, synchronizing power at the instant of closing
+  const trip = !c.s || pu > TRIP_PU || Math.abs(c.slip) > SLIP_PULL;
+  let kind, verdict, call;
+  if (trip) {
+    kind = 'bad'; verdict = 'Large surge — this would damage the machine and trip the breaker.';
+    call = !c.s ? 'Closed with the wrong sequence: phase-to-phase short — trip.' : pu <= TRIP_PU ? 'Frequencies too far apart: it cannot pull into step — trip.' : 'Closed out of phase: large surge — damage and a trip.';
+  } else if (pu <= SMOOTH_PU && c.v) { kind = 'good'; verdict = 'Smooth close: in step.'; call = c.slip > 1e-9 ? 'In step: the generator joins smoothly and picks up a little power.' : c.slip < -1e-9 ? 'Joined, but slow: it is running as a motor.' : 'In step: joined at no load (equal frequencies).'; }
+  else { kind = ''; verdict = 'Joined with a jolt.'; call = c.v ? 'Joined with a jolt: closed a little out of phase.' : 'Joined with a jolt: voltages were unequal.'; }
+  S.closing = true; S.closed = true; S.everClosed = true; S.tag = 'closing'; S.surgePu = pu; drawTag(); drawSurge();
+  setTimeout(() => {
+    S.closing = false;
+    if (trip) { S.closed = false; S.joined = false; S.tag = 'trip'; }
+    else { S.joined = true; S.th = 0; S.tag = kind !== 'good' ? 'jolt' : c.slip < -1e-9 ? 'motor' : 'instep'; if (S.tag === 'motor') kind = ''; }
+    S.result = { kind, callout: call }; drawTag(); syncButtons();
+    showResult(trip, verdict, kind, dv, I, pu, pj, c);
+    if (S.tag === 'instep' && !S.kpShown) { S.kpShown = true; setTimeout(() => showKP(true), 1000); }
+  }, CLOSE_MS);
+  syncButtons(); readouts(true);
+}
+/* Surge meter: bar length ∝ surge in multiples of rated current (0 … 2.5). */
+function drawSurge() {
+  const w = Math.min(1, S.surgePu / SURGE_FULL) * 280;
+  document.getElementById('surgeBar').setAttribute('width', w.toFixed(1));
+  document.getElementById('surgeTxt').textContent = S.surgePu > 0 ? 'surge ' + (S.surgePu * I_RATED).toFixed(0) + ' A = ' + S.surgePu.toFixed(2) + ' × rated' : '';
+}
+/* Write the verdict, the surge equation with numbers, and what happens next. */
+function showResult(trip, verdict, kind, dv, I, pu, pj, c) {
+  const box = document.getElementById('result'); while (box.firstChild) box.removeChild(box.firstChild);
+  const v = document.createElement('p'); v.className = 'verdict ' + (kind === 'bad' ? 'bad' : kind === 'good' ? 'good' : 'mid'); v.textContent = verdict; box.appendChild(v);
+  const eq = document.createElement('div'); eq.className = 'eq'; box.appendChild(eq);
+  eq.appendChild(mathRow([['msub', 'I', 'surge'], ['mo', '≈'], ['frac', '|ΔV|', 'X_S'], ['mo', '='], ['frac', dv.toFixed(2) + ' kV', X_S.toFixed(2) + ' Ω'], ['mo', '='], ['mn', I.toFixed(0)], ['mtext', 'A']]));
+  const p1 = document.createElement('p'); p1.className = 'note'; richText(p1, '= ' + pu.toFixed(2) + ' × rated current. Synchronizing power at the close: 3 V_bus V_g sin Δθ / X_S = ' + (pj < 0 ? MINUS : '') + Math.abs(pj).toFixed(1) + ' MW.'); box.appendChild(p1);
+  const p2 = document.createElement('p'); p2.className = 'note'; box.appendChild(p2);
+  if (!trip) { const P = S_P * c.slip; richText(p2, 'Now locked to 60.00 Hz. P = s_P (f_set − f_bus) = 10.4 × (' + S.fg.toFixed(2) + ' − 60.00) = ' + (P < -1e-9 ? MINUS : '') + Math.abs(P).toFixed(2) + ' MW (' + (P > 1e-6 ? 'generating' : P < -1e-6 ? 'motoring' : 'no load') + ').'); }
+  else p2.textContent = 'The breaker closed, then tripped open. Change a setting or press Reset to try again.';
+  readouts(true);
+}
+/* Build a small MathML row: ['msub', base, sub], ['mo', op], ['mn', n], ['mtext', t], ['frac', num, den]. */
+function mathRow(items) {
+  const M = 'http://www.w3.org/1998/Math/MathML', m = document.createElementNS(M, 'math'); m.setAttribute('display', 'block');
+  const node = (tag, t) => { const e = document.createElementNS(M, tag); e.textContent = t; return e; };
+  const sub = (b, s) => { const e = document.createElementNS(M, 'msub'); e.appendChild(node('mi', b)); e.appendChild(node('mi', s)); return e; };
+  const cell = t => t === 'X_S' ? sub('X', 'S') : node(/^[\d.]/.test(t) ? 'mtext' : 'mi', t);
+  for (const it of items) {
+    if (it[0] === 'msub') m.appendChild(sub(it[1], it[2]));
+    else if (it[0] === 'frac') { const f = document.createElementNS(M, 'mfrac'); f.appendChild(cell(it[1])); f.appendChild(cell(it[2])); m.appendChild(f); }
+    else { if (it[0] === 'mtext') { const sp = document.createElementNS(M, 'mspace'); sp.setAttribute('width', '0.2em'); m.appendChild(sp); } m.appendChild(node(it[0], it[1])); }
+  }
+  return m;
+}
+/* Open the breaker (a joined machine is disconnected; frequency follows the governor again). */
+function openBreaker() { if (S.closing) return; S.closed = false; S.joined = false; clearResult(); }
+/* Forget the last close verdict, tag and surge. */
+function clearResult() {
+  S.result = null; if (!S.closed) { S.tag = null; S.surgePu = 0; } drawTag(); drawSurge();
+  const box = document.getElementById('result'); while (box.firstChild) box.removeChild(box.firstChild);
+  const p = document.createElement('p'); p.className = 'note'; p.textContent = S.closed ? 'Closed.' : 'Open. The machine is not connected.'; box.appendChild(p);
+  syncButtons(); readouts(true);
+}
+
+/* ═══ 8. CONTROLS AND PAGES ═══ */
+const fgS = document.getElementById('fgS'), vgS = document.getElementById('vgS');
+/* A control changed: an open breaker's verdict is cleared so the callout follows the new state. */
+function changed() { if (!S.closed && S.result) clearResult(); syncButtons(); readouts(true); }
+/* Set the state (Reset, Tutorial and Experiment set-ups). o: { fg, iF | vg, seq, th0, pause, slow }. */
+function setup(o) {
+  if (S.closing) return;
+  S.closed = false; S.joined = false; S.fg = o.fg; S.seq = o.seq || 'ABC'; S.th = (o.th0 || 0) / DEG;
+  S.iF = o.vg !== undefined ? iFor(o.vg) : o.iF || 0;
+  S.paused = !!o.pause; S.slow = o.slow !== undefined ? !!o.slow : !S.everClosed;
+  clearResult();
+}
+/* Governor: change f_g by df (Hz), within 59.00–61.00 Hz once running. */
+function gov(df) { if (S.fg < 1 || S.closing) return; S.fg = Math.min(F_MAX, Math.max(F_MIN, Math.round((S.fg + df) * 100) / 100)); changed(); }
+/* Field: change V_g by dv (kV) at the present speed. */
+function field(dv) { if (S.fg < 1 || S.iF === 0 || S.closing) return; S.iF = Math.max(0, iFor(Math.max(0, Math.round((vGenLL() + dv) * 100) / 100))); changed(); }
+/* Mirror the state on buttons and sliders. */
+function syncButtons() {
+  const running = S.fg >= 1, excited = S.iF > 0;
+  const pr = (id, on) => document.getElementById(id).setAttribute('aria-pressed', String(on));
+  pr('seqABC', S.seq === 'ABC'); pr('seqACB', S.seq === 'ACB'); pr('pauseBtn', S.paused); pr('slowBtn', S.slow);
+  document.getElementById('pauseBtn').textContent = S.paused ? '▶ Run' : '❚❚ Pause';
+  put('timeO', (S.paused ? 'Paused. ' : '') + (S.slow ? 'Slow motion: 1 s on screen = 0.1 s.' : 'Real time.'));
+  ['fm1', 'fm2', 'fp2', 'fp1'].forEach(id => { document.getElementById(id).disabled = !running || S.closing; });
+  ['vm1', 'vm2', 'vp2', 'vp1'].forEach(id => { document.getElementById(id).disabled = !running || !excited || S.closing; });
+  fgS.disabled = !running || S.closing; vgS.disabled = !running || !excited || S.closing;
+  document.getElementById('excite').disabled = !running || S.closing;
+  fgS.value = running ? S.fg : 60; vgS.value = Math.min(15.18, Math.max(12.42, vGenLL()));
+  fgS.setAttribute('aria-valuetext', S.fg.toFixed(2) + ' hertz'); vgS.setAttribute('aria-valuetext', vGenLL().toFixed(2) + ' kilovolts');
+  document.getElementById('closeBtn').disabled = S.closed || S.closing; document.getElementById('openBtn').disabled = !S.closed || S.closing;
+}
+/* Run fn now, then repeat while the button is held (press and hold). Keyboard activation runs fn once. */
+function holdButton(id, fn) {
+  const b = document.getElementById(id); let t1 = null, t2 = null;
+  const stop = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; };
+  b.addEventListener('pointerdown', e => { if (b.disabled || e.button !== 0) return; fn(); stop(); t1 = setTimeout(() => { t2 = setInterval(() => { if (b.disabled) stop(); else fn(); }, HOLD_EVERY); }, HOLD_DELAY); });
+  ['pointerup', 'pointerleave', 'pointercancel', 'blur'].forEach(ev => b.addEventListener(ev, stop));
+  b.addEventListener('click', e => { if (e.detail === 0) fn(); });   // keyboard (Enter / Space)
+}
+holdButton('fm1', () => gov(-0.1)); holdButton('fm2', () => gov(-0.01)); holdButton('fp2', () => gov(0.01)); holdButton('fp1', () => gov(0.1));
+holdButton('vm1', () => field(-0.1)); holdButton('vm2', () => field(-0.01)); holdButton('vp2', () => field(0.01)); holdButton('vp1', () => field(0.1));
+fgS.addEventListener('input', () => { if (S.fg >= 1) { S.fg = +(+fgS.value).toFixed(2); changed(); } });
+vgS.addEventListener('input', () => { if (S.fg >= 1 && S.iF > 0) { S.iF = iFor(+vgS.value); changed(); } });
+document.getElementById('runUp').addEventListener('click', () => { if (S.closed || S.closing) return; S.fg = F_RUN; S.iF = 0; changed(); });
+document.getElementById('stopBtn').addEventListener('click', () => { if (S.closed || S.closing) return; S.fg = 0; S.iF = 0; changed(); });
+document.getElementById('excite').addEventListener('click', () => { if (S.fg >= 1 && !S.closing) { S.iF = iFor(V_EXCITE); changed(); } });
+document.getElementById('fieldOff').addEventListener('click', () => { if (!S.closed && !S.closing) { S.iF = 0; changed(); } });
+document.getElementById('seqABC').addEventListener('click', () => { if (S.closing) return; S.seq = 'ABC'; changed(); });
+document.getElementById('seqACB').addEventListener('click', () => { if (S.closing) return; S.seq = 'ACB'; changed(); });
+document.getElementById('closeBtn').addEventListener('click', closeBreaker);
+document.getElementById('openBtn').addEventListener('click', openBreaker);
+document.getElementById('resetBtn').addEventListener('click', () => setup(START));
+document.getElementById('pauseBtn').addEventListener('click', () => { S.paused = !S.paused; syncButtons(); readouts(true); });
+document.getElementById('slowBtn').addEventListener('click', () => { S.slow = !S.slow; syncButtons(); readouts(true); });
+/* Show one page. */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'page-' + id));
+  document.querySelectorAll('nav.tabs button[data-page]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.page === id)));
+  scrollTo(0, 0);
+}
+document.querySelectorAll('nav.tabs button[data-page]').forEach(b => b.addEventListener('click', () => showPage(b.dataset.page)));
+document.querySelectorAll('button.try').forEach(b => b.addEventListener('click', () => {
+  let o; try { o = JSON.parse(b.dataset.try); } catch (e) { return; }
+  setup(o); showPage('lab');
+}));
+/* Key points card. */
+function showKP(on) { document.getElementById('kp').classList.toggle('on', on); if (on) document.getElementById('kpClose').focus(); }
+document.getElementById('kpBtn').addEventListener('click', () => showKP(true));
+document.getElementById('kpClose').addEventListener('click', () => showKP(false));
+document.getElementById('kp').addEventListener('click', e => { if (e.target.id === 'kp') showKP(false); });
+addEventListener('keydown', e => { if (e.key === 'Escape') showKP(false); });
+
+/* ═══ 9. WORKSHEET ═══ */
+let SHEET = {};
+const KEYS = [...document.querySelectorAll('[data-k]')].map(e => e.dataset.k);
+/* Show the worksheet status (never silent). */
+function sheetMsg(t, bad) { const e = document.getElementById('sheetStatus'); e.textContent = t; e.className = bad ? 'bad' : 'good'; }
+/* Load and validate the stored record: a plain object of known keys holding short strings. */
+function loadSheet() {
+  let raw = null;
+  try { raw = localStorage.getItem(SHEET_KEY); } catch (e) { sheetMsg('This browser will not store answers here. Use “Export my answers” before you close the page.', true); return; }
+  if (raw === null) { sheetMsg('Answers are saved in this browser only.', false); return; }
+  let rec; try { rec = JSON.parse(raw); } catch (e) { rec = null; }
+  if (!rec || typeof rec !== 'object' || Array.isArray(rec)) { sheetMsg('A stored worksheet record was invalid and was not loaded.', true); return; }
+  let dropped = 0;
+  for (const k of Object.keys(rec)) { if (KEYS.includes(k) && typeof rec[k] === 'string' && rec[k].length <= SHEET_MAX) SHEET[k] = rec[k]; else dropped++; }
+  sheetMsg(dropped ? dropped + ' stored entr' + (dropped === 1 ? 'y was' : 'ies were') + ' invalid and not loaded; the rest are restored.' : 'Answers restored from this browser.', dropped > 0);
+  document.querySelectorAll('[data-k]').forEach(e => { if (SHEET[e.dataset.k] !== undefined) e.value = SHEET[e.dataset.k]; });
+}
+/* Save the worksheet; say so if the browser refuses. */
+function saveSheet() {
+  try { localStorage.setItem(SHEET_KEY, JSON.stringify(SHEET)); sheetMsg('Saved in this browser.', false); }
+  catch (e) { sheetMsg('Could not save in this browser. Use “Export my answers” before you close the page.', true); }
+}
+document.querySelectorAll('[data-k]').forEach(e => e.addEventListener('input', () => { SHEET[e.dataset.k] = String(e.value).slice(0, SHEET_MAX); saveSheet(); }));
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!confirm('Clear every answer on this worksheet?')) return;
+  SHEET = {}; document.querySelectorAll('[data-k]').forEach(e => { e.value = ''; });
+  try { localStorage.removeItem(SHEET_KEY); sheetMsg('Answers cleared.', false); } catch (e) { sheetMsg('Could not clear the stored copy in this browser.', true); }
+});
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const lines = ['Paralleling a Synchronous Generator — ECE 3033 Lab v1.0.1', 'Name: ' + (SHEET.name || ''), 'Section: ' + (SHEET.section || ''), 'Date: ' + (SHEET.date || ''), ''];
+  document.querySelectorAll('#sheet [data-k]').forEach(e => { if (['name', 'section', 'date'].includes(e.dataset.k)) return;
+    const lab = e.getAttribute('aria-label') || (e.closest('li') ? e.closest('li').firstChild.textContent.trim() : e.dataset.k);
+    lines.push('[' + e.dataset.k + '] ' + lab, '  ' + (SHEET[e.dataset.k] || '(blank)')); });
+  const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' }));
+  const a = document.createElement('a'); a.href = url; a.download = 'Paralleling_Lab_answers.txt'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000); sheetMsg('Exported to Paralleling_Lab_answers.txt.', false);
+});
+
+/* ═══ 10. LOOP ═══ */
+let tPrev = performance.now();
+/* One frame: advance the phase difference at the slip frequency, then draw lamps and waves; numbers 4 times a second. */
+function frame(t) {
+  const dt = Math.min(DT_MAX, (t - tPrev) / 1000); tPrev = t;
+  if (!S.closed) S.th = wrap(S.th + TWO_PI * (S.fg - F_BUS) * dt * tFactor());
+  drawScene(lampKV(S.th)); drawWave();
+  readouts(false);
+  requestAnimationFrame(frame);
+}
+/* Checklist value cells get ids so put() can skip unchanged text. */
+['c1', 'c2', 'c3', 'c4'].forEach(id => { document.getElementById(id).querySelector('.val').id = id + 'v'; });
+buildScene(); buildWave(); setup(START); loadSheet(); readouts(true);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
