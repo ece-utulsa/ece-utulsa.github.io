@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<!--
+  ECE 3033 Interactive Lecture — Generators in Parallel
+  Version: v1.0.0
+  Released: 2026-11-19
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  Changelog: v1.0.0 — first release. Eleven slides: why generators run in parallel, the infinite bus, speed and
+  frequency, governor droop, the power–frequency line, the house diagram, one generator on an infinite bus, two
+  generators sharing a load, a worked example and a summary of five equations. Slides 4, 5, 8 and 9 are live; slide 10
+  reveals its steps one at a time. Sources: Chapman, Electric Machinery Fundamentals (parallel operation of synchronous
+  generators); Guru & Hiziroglu, Electric Machinery and Transformers.
+  Keys: ◀ ▶ (or click) next / previous, N lecture notes, F full screen, Home / End first / last slide.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iLC8M/Bl7GstVjI86S6aXTPC6Xbj+dePblEt6tSCDIM='; style-src 'sha256-VhkbZ+Gid4weS1b/CHVcZxwlMWVzoJvvSOiI99wlV2Q='; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v1.0.0">
+<title>Generators in Parallel — ECE 3033 Interactive Lecture v1.0.0</title>
+<style>
+/* ═══ BASE ═══ light theme: dark text on a light background */
+html,body{margin:0;height:100%;background:#e3e8ec;overflow:hidden;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;color:#1a2328}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+.page{position:absolute;left:0;top:0;width:1920px;height:1080px;display:none}
+.page.on{display:block}
+.slide{position:absolute;left:0;top:0;width:1920px;height:1080px;box-sizing:border-box;overflow:hidden;background:#ffffff;padding:96px 128px 140px}
+.slide *{box-sizing:border-box}
+.slide p,.slide h1,.slide h2,.slide h3{margin:0}
+.mono{font-family:Consolas,"Courier New",monospace}
+.kick{font-family:Consolas,"Courier New",monospace;font-size:24px;letter-spacing:3px;color:#0f6e6c}
+.kick.blue{color:#10668a} .kick.purple{color:#6a4fc8} .kick.red{color:#a3261d}
+h2.t{font-size:56px;font-weight:800;line-height:1.08;letter-spacing:-1px;margin-top:14px;max-width:1664px}
+.body{font-size:34px;line-height:1.3;margin-top:28px;color:#33424a;max-width:1664px}
+.foot{position:absolute;left:128px;right:128px;bottom:56px;display:flex;justify-content:space-between;font-family:Consolas,"Courier New",monospace;font-size:22px;color:#55636b}
+.card{position:absolute;background:#f4f7f9;border:1px solid #dbe3e8;border-radius:16px;padding:28px 32px}
+.card h3{font-size:30px;font-weight:700;margin-bottom:10px}
+.card p{font-size:26px;line-height:1.35;color:#33424a}
+svg text{font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif}
+svg .ax{stroke:#1a2328;stroke-width:2;fill:none}
+svg .grid{stroke:#d6dde0;stroke-width:1}
+svg .lab{font-size:24px;fill:#33424a}
+svg .labs{font-size:20px;fill:#55636b}
+svg .g1{stroke:#10668a;stroke-width:5;fill:none} svg .g1f{fill:#10668a}
+svg .g2{stroke:#6a4fc8;stroke-width:5;fill:none} svg .g2f{fill:#6a4fc8}
+svg .bus{stroke:#1a2328;stroke-width:4;fill:none}
+svg .busd{stroke:#1a2328;stroke-width:3;stroke-dasharray:10 8;fill:none}
+svg .ld{stroke:#a3261d;stroke-width:5;fill:none} svg .ldf{fill:#a3261d}
+svg .tl{stroke:#0f6e6c;stroke-width:5;fill:none} svg .tlf{fill:#0f6e6c}
+svg .box{fill:#f4f7f9;stroke:#1a2328;stroke-width:3}
+svg .arr{stroke:#1a2328;stroke-width:3;fill:none;marker-end:url(#ah)}
+math{font-size:38px;math-style:normal}
+math.sm{font-size:30px}
+/* ═══ LAYOUT (slide coordinates, px) ═══ */
+.t1{position:absolute;left:128px;top:330px;width:940px;font-size:112px;font-weight:800;line-height:1.0;letter-spacing:-2px}
+.promise{position:absolute;left:128px;top:600px;width:900px;font-size:40px;line-height:1.3;font-weight:600;color:#33424a}
+.vis1{position:absolute;left:1120px;top:270px;width:672px;height:500px}
+.visw{position:absolute;left:128px;top:350px;width:1664px;height:560px}
+.visl{position:absolute;left:128px;top:340px;width:560px;height:560px}
+.visl2{position:absolute;left:128px;top:340px;width:800px;height:585px}
+.vis8{position:absolute;left:128px;top:336px;width:760px;height:630px}
+#L4{left:760px;top:340px;width:1032px}
+#L5{left:990px;top:340px;width:802px}
+#c6{left:990px;top:380px;width:802px}
+#L8,#L9{left:980px;top:330px;width:812px}
+#c10{left:128px;top:300px;width:1664px;height:640px;display:flex;flex-direction:column;justify-content:space-evenly;padding:20px 48px}
+#c11{left:128px;top:320px;width:1664px;padding:16px 40px}
+.labs5{font-size:22px;color:#55636b;margin-bottom:4px}
+.cp{margin-top:16px}
+.sumrow{display:grid;grid-template-columns:420px 1fr;align-items:center;min-height:108px;border-bottom:1px solid #d6dde0}
+.sumrow:last-child{border-bottom:0}
+.sn{font-size:30px;font-weight:700;color:#0f6e6c}
+#ntext sub{font-size:.75em}
+/* ═══ LIVE PANELS ═══ */
+.live{position:absolute;background:#f4f7f9;border:1px solid #dbe3e8;border-radius:16px;padding:24px 30px;font-size:26px}
+.ctl{display:grid;grid-template-columns:260px 1fr 190px;align-items:center;gap:14px;margin:12px 0}
+.ctl label{font-size:26px;font-weight:600}
+.ctl output{font-family:Consolas,"Courier New",monospace;font-size:26px;text-align:right}
+.ctl input[type=range]{width:100%;height:36px;accent-color:#0f6e6c}
+.seg{display:flex;gap:8px}
+.seg button{font:600 24px "Segoe UI",Arial,sans-serif;min-width:64px;min-height:48px;border:2px solid #10668a;background:#fff;color:#10668a;border-radius:8px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:#10668a;color:#fff}
+.eqline{margin:14px 0 4px}
+.res{font-family:Consolas,"Courier New",monospace;font-size:26px;margin-top:8px}
+.res b{font-weight:700}
+.warn{margin-top:10px;font-size:26px;font-weight:700;color:#a3261d;min-height:36px}
+.ok{color:#0f6e6c}
+:focus-visible{outline:4px solid #e0a100;outline-offset:3px}
+/* ═══ STEP REVEAL ═══ */
+[data-step]{transition:opacity .4s ease}
+.pending{opacity:0}
+.step{font-size:32px;line-height:1.4;margin:0}
+#c10 math{font-size:36px}
+.step .n{display:inline-block;width:44px;height:44px;border-radius:22px;background:#0f6e6c;color:#fff;text-align:center;line-height:44px;font-weight:700;margin-right:12px}
+/* ═══ CHROME: bar and notes ═══ */
+#bar{position:fixed;left:0;right:0;bottom:0;opacity:0;transition:opacity .3s;display:flex;gap:10px;align-items:center;justify-content:center;padding:8px;font:16px Consolas,"Courier New",monospace;color:#1a2328;background:rgba(255,255,255,.92);border-top:1px solid #c8cfd2}
+body:hover #bar,#bar:focus-within{opacity:1}
+#bar button{font:inherit;background:#e8ecee;color:#1a2328;border:1px solid #9aa7ad;border-radius:6px;padding:6px 12px;cursor:pointer;min-height:36px}
+#notes{position:fixed;left:0;right:0;bottom:0;padding-bottom:64px;max-height:40%;overflow:auto;background:#ffffff;color:#1a2328;font:20px/1.55 "Segoe UI",Arial,sans-serif;padding:18px 28px;box-shadow:0 -6px 24px rgba(0,0,0,.2);display:none}
+#notes.on{display:block}
+#notes b{font-family:Consolas,"Courier New",monospace;font-size:15px;color:#55636b;letter-spacing:.1em}
+</style>
+</head>
+<body>
+<svg width="0" height="0" aria-hidden="true" focusable="false"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1a2328"/></marker>
+</defs></svg>
+<div id="stage">
+
+<!-- ═══ 1 TITLE ═══ -->
+<div class="page"><section class="slide" id="s1">
+<p class="kick">ECE 3033 · INTERACTIVE LECTURE</p>
+<h1 class="t1">Generators in Parallel</h1>
+<p class="promise">How do generators share a load — and who decides how much each one carries?</p>
+<svg class="vis1" viewBox="-10 0 720 560" role="img" aria-label="House diagram: generator 1 power to the left, generator 2 power to the right, their frequency lines meet one system frequency, where the two shares add up to the load">
+  <path d="M350 30V470M40 470H660" class="ax"/>
+  <text x="350" y="20" text-anchor="middle" class="lab">f</text>
+  <path d="M350 110L70 440" class="g1"/><path d="M350 150L630 420" class="g2"/>
+  <path d="M40 260H660" class="busd"/>
+  <rect x="223" y="268" width="127" height="26" class="g1f"/><rect x="350" y="268" width="114" height="26" class="g2f"/>
+  <text x="287" y="330" text-anchor="middle" class="lab" font-weight="700" fill="#10668a">P<tspan baseline-shift="sub" font-size="17">G1</tspan></text>
+  <text x="407" y="330" text-anchor="middle" class="lab" font-weight="700" fill="#6a4fc8">P<tspan baseline-shift="sub" font-size="17">G2</tspan></text>
+  <text x="660" y="250" text-anchor="end" class="lab" font-weight="700">f<tspan baseline-shift="sub" font-size="17">sys</tspan></text>
+  <text x="62" y="420" text-anchor="end" class="lab" font-weight="700" fill="#10668a">G1</text><text x="640" y="415" class="lab" font-weight="700" fill="#6a4fc8">G2</text>
+  <text x="350" y="530" text-anchor="middle" class="lab" font-weight="700" fill="#a3261d">P<tspan baseline-shift="sub" font-size="17">G1</tspan> + P<tspan baseline-shift="sub" font-size="17">G2</tspan> = P<tspan baseline-shift="sub" font-size="17">load</tspan></text>
+</svg>
+<div class="foot"><span>ECE 3033 · Generators in Parallel · v1.0.0</span><span>01</span></div>
+</section></div>
+
+<!-- ═══ 2 WHY PARALLEL ═══ -->
+<div class="page"><section class="slide" id="s2">
+<p class="kick blue">WHY PARALLEL</p>
+<h2 class="t">No single generator can carry a grid, so many share one bus</h2>
+<p class="body">Every machine on the bus runs at the same frequency and voltage.</p>
+<svg class="visw" viewBox="0 0 1664 560" role="img" aria-label="Illustrative 24-hour demand curve filled by four plants stacked: nuclear, coal, hydro and gas. The largest single unit, 1200 megawatts, covers well under half of it." id="mixPlot"></svg>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>02</span></div>
+</section></div>
+
+<!-- ═══ 3 INFINITE BUS ═══ -->
+<div class="page"><section class="slide" id="s3">
+<p class="kick blue">THE INFINITE BUS</p>
+<h2 class="t">An infinite bus holds f and V fixed, whatever one generator does</h2>
+<p class="body">Your generator is tiny next to the grid it joins.</p>
+<svg class="visw" viewBox="0 0 1664 560" role="img" aria-label="Left: a 5 megawatt generator drawn to scale against a 50 000 megawatt grid. Right: the generator output steps up and down while the bus frequency stays at 60.00 hertz." id="busSize"></svg>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>03</span></div>
+</section></div>
+
+<!-- ═══ 4 SPEED SETS FREQUENCY (live) ═══ -->
+<div class="page"><section class="slide" id="s4">
+<p class="kick">TRY IT · SPEED AND FREQUENCY</p>
+<h2 class="t">Shaft speed sets the electrical frequency</h2>
+<p class="body">Pick the poles and the speed; read the frequency.</p>
+<svg class="visl" viewBox="0 0 560 560" role="img" aria-label="Rotor with its poles shown around the rim" id="rotor"></svg>
+<div class="live" id="L4">
+  <div class="ctl"><label id="l4p">Poles, P</label><div class="seg" id="poles" role="group" aria-labelledby="l4p">
+    <button data-p="2" aria-pressed="false">2</button><button data-p="4" aria-pressed="true">4</button><button data-p="6" aria-pressed="false">6</button><button data-p="8" aria-pressed="false">8</button><button data-p="12" aria-pressed="false">12</button></div><span></span></div>
+  <div class="ctl"><label for="nm">Speed, n<sub>m</sub></label><input type="range" id="nm" min="0" max="3600" step="10" value="1800" aria-valuetext="1800 r/min"><output id="nmO" for="nm">1800 r/min</output></div>
+  <div class="eqline"><math display="block"><msub><mi>f</mi><mi>e</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>n</mi><mi>m</mi></msub><mi>P</mi></mrow><mn>120</mn></mfrac><mo>=</mo><mfrac><mrow><mo>(</mo><mn id="e4n">1800</mn><mo>)</mo><mo>(</mo><mn id="e4p">4</mn><mo>)</mo></mrow><mn>120</mn></mfrac><mo>=</mo><mn id="e4f">60.00</mn><mspace width="0.3em"/><mtext>Hz</mtext></math></div>
+  <p class="res">For 60.00 Hz this machine must turn at <b id="n60">1800</b> r/min.</p>
+</div>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>04</span></div>
+</section></div>
+
+<!-- ═══ 5 DROOP (live) ═══ -->
+<div class="page"><section class="slide" id="s5">
+<p class="kick">TRY IT · SPEED DROOP</p>
+<h2 class="t">The governor lets speed fall a little as load rises — that is droop</h2>
+<p class="body">Grid generators run at 4–5 % droop.</p>
+<svg class="visl2" viewBox="0 0 820 600" role="img" aria-label="Speed against output power: a straight line falling from no-load speed to full-load speed" id="droopPlot"></svg>
+<div class="live" id="L5">
+  <p class="labs5">4-pole machine, full-load speed n<sub>fl</sub> = 1800 r/min (60.00 Hz)</p>
+  <div class="ctl"><label for="sd">Droop, SD</label><input type="range" id="sd" min="1" max="10" step="0.5" value="4" aria-valuetext="4.0 percent"><output id="sdO" for="sd">4.0 %</output></div>
+  <div class="eqline"><math display="block"><mi>SD</mi><mo>=</mo><mfrac><mrow><msub><mi>n</mi><mi>nl</mi></msub><mo>−</mo><msub><mi>n</mi><mi>fl</mi></msub></mrow><msub><mi>n</mi><mi>fl</mi></msub></mfrac><mo>×</mo><mn>100</mn><mo>%</mo></math></div>
+  <div class="eqline"><math display="block" class="sm"><msub><mi>n</mi><mi>nl</mi></msub><mo>=</mo><msub><mi>n</mi><mi>fl</mi></msub><mo>(</mo><mn>1</mn><mo>+</mo><mi>SD</mi><mo>)</mo><mo>=</mo><mn>1800</mn><mo>(</mo><mn>1</mn><mo>+</mo><mn id="e5sd">0.040</mn><mo>)</mo><mo>=</mo><mn id="e5n">1872</mn><mspace width="0.3em"/><mtext>r/min</mtext></math></div>
+  <p class="res">No-load frequency f<sub>nl</sub> = <b id="e5f">62.40</b> Hz &nbsp;·&nbsp; full load <b>60.00</b> Hz</p>
+</div>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>05</span></div>
+</section></div>
+
+<!-- ═══ 6 P–f LINE ═══ -->
+<div class="page"><section class="slide" id="s6">
+<p class="kick purple">THE POWER–FREQUENCY LINE</p>
+<h2 class="t">A generator's power depends on how far f sits below its set point</h2>
+<p class="body">The set point is the no-load frequency, f<sub>nl</sub>.</p>
+<svg class="visl2" viewBox="0 0 820 600" role="img" aria-label="Frequency against power: a line falling from the set point at zero power; at the system frequency the generator delivers P">
+  <path d="M110 40V520H780" class="ax"/>
+  <text x="96" y="40" text-anchor="end" class="lab">f</text><text x="780" y="560" text-anchor="end" class="lab">P (MW)</text>
+  <path d="M110 120L740 470" class="g1"/>
+  <circle cx="110" cy="120" r="9" class="g1f"/><text x="96" y="128" text-anchor="end" class="lab" fill="#10668a">f<tspan baseline-shift="sub" font-size="17">nl</tspan></text>
+  <path d="M110 300H434" class="busd"/><text x="96" y="308" text-anchor="end" class="lab">f<tspan baseline-shift="sub" font-size="17">sys</tspan></text>
+  <circle cx="434" cy="300" r="10" class="g1f"/>
+  <path d="M434 300V520" class="busd"/><text x="434" y="550" text-anchor="middle" class="lab" fill="#10668a">P</text>
+  <text x="560" y="300" class="lab" fill="#10668a">slope −1/s<tspan baseline-shift="sub" font-size="17">P</tspan></text>
+  <path d="M130 140V280" class="arr"/><text x="140" y="215" class="labs">f<tspan baseline-shift="sub" font-size="14">nl</tspan> − f<tspan baseline-shift="sub" font-size="14">sys</tspan></text>
+</svg>
+<div class="card" id="c6">
+  <h3>The rule</h3>
+  <math display="block"><mi>P</mi><mo>=</mo><msub><mi>s</mi><mi>P</mi></msub><mo>(</mo><msub><mi>f</mi><mi>nl</mi></msub><mo>−</mo><msub><mi>f</mi><mi>sys</mi></msub><mo>)</mo></math>
+  <p class="cp">s<sub>P</sub> in MW/Hz. Raise the governor set point f<sub>nl</sub> and the whole line moves up.</p>
+</div>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>06</span></div>
+</section></div>
+
+<!-- ═══ 7 HOUSE DIAGRAM ═══ -->
+<div class="page"><section class="slide" id="s7">
+<p class="kick purple">THE HOUSE DIAGRAM</p>
+<h2 class="t">The governor moves the P–f line; the field moves the Q–V line</h2>
+<p class="body">Two knobs, two separate jobs.</p>
+<svg class="visw" viewBox="0 0 1664 560" role="img" aria-label="Left: frequency against real power, the governor shifts the line up. Right: voltage against reactive power, the field current shifts the line up">
+  <path d="M120 30V480H760" class="ax"/><text x="106" y="40" text-anchor="end" class="lab">f</text><text x="760" y="516" text-anchor="end" class="lab">P (MW)</text>
+  <path d="M120 160L700 420" class="g1"/><path d="M120 90L700 350" class="g1" stroke-dasharray="12 8"/>
+  <path d="M400 290V210" class="arr"/><text x="150" y="455" class="lab">governor set point ↑ moves the line up</text>
+  <text x="440" y="545" text-anchor="middle" class="lab" font-weight="700" fill="#10668a">GOVERNOR → P</text>
+  <path d="M940 30V480H1580" class="ax"/><text x="926" y="40" text-anchor="end" class="lab">V</text><text x="1580" y="516" text-anchor="end" class="lab">Q (MVAR)</text>
+  <path d="M940 160L1520 420" class="tl"/><path d="M940 90L1520 350" class="tl" stroke-dasharray="12 8"/>
+  <path d="M1220 290V210" class="arr"/><text x="970" y="455" class="lab">field current I<tspan baseline-shift="sub" font-size="17">F</tspan> ↑ moves the line up</text>
+  <text x="1260" y="545" text-anchor="middle" class="lab" font-weight="700" fill="#0f6e6c">FIELD → Q</text>
+</svg>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>07</span></div>
+</section></div>
+
+<!-- ═══ 8 ONE GENERATOR ON THE INFINITE BUS (live) ═══ -->
+<div class="page"><section class="slide" id="s8">
+<p class="kick">TRY IT · ONE GENERATOR ON THE INFINITE BUS</p>
+<h2 class="t">On an infinite bus, the governor sets P and the field sets Q</h2>
+<p class="body">Set point below 60 Hz: the machine motors and trips.</p>
+<svg class="vis8" viewBox="0 0 820 680" role="img" aria-label="Frequency against power for the generator and the 60 hertz bus, and voltage against reactive power for the generator and the 13.8 kilovolt bus" id="busPlot"></svg>
+<div class="live" id="L8">
+  <p class="labs5">s<sub>P</sub> = 1.00 MW/Hz · s<sub>Q</sub> = 2.00 MVAR/kV · local load 1.50 MW · bus 60.00 Hz, 13.80 kV</p>
+  <div class="ctl"><label for="f8">Set point, f<sub>nl</sub></label><input type="range" id="f8" min="59.00" max="62.00" step="0.05" value="61.00" aria-valuetext="61.00 hertz"><output id="f8O" for="f8">61.00 Hz</output></div>
+  <div class="ctl"><label for="v8">Field, V<sub>nl</sub></label><input type="range" id="v8" min="13.00" max="15.00" step="0.05" value="14.30" aria-valuetext="14.30 kilovolts"><output id="v8O" for="v8">14.30 kV</output></div>
+  <div class="eqline"><math display="block" class="sm"><msub><mi>P</mi><mi>gen</mi></msub><mo>=</mo><mn>1.00</mn><mo>(</mo><mn id="e8f">61.00</mn><mo>−</mo><mn>60.00</mn><mo>)</mo><mo>=</mo><mn id="e8p">1.00</mn><mspace width="0.3em"/><mtext>MW</mtext></math></div>
+  <div class="eqline"><math display="block" class="sm"><msub><mi>Q</mi><mi>gen</mi></msub><mo>=</mo><mn>2.00</mn><mo>(</mo><mn id="e8v">14.30</mn><mo>−</mo><mn>13.80</mn><mo>)</mo><mo>=</mo><mn id="e8q">1.00</mn><mspace width="0.3em"/><mtext>MVAR</mtext></math></div>
+  <p class="res">From the bus: P<sub>bus</sub> = 1.50 − P<sub>gen</sub> = <b id="e8b">0.50</b> MW</p>
+  <p class="warn" id="w8" role="status" aria-live="polite"></p>
+</div>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>08</span></div>
+</section></div>
+
+<!-- ═══ 9 TWO GENERATORS (live) ═══ -->
+<div class="page"><section class="slide" id="s9">
+<p class="kick">TRY IT · TWO GENERATORS, ONE LOAD</p>
+<h2 class="t">Two generators share a load at the one frequency where their powers add up</h2>
+<p class="body">Raise G2's set point: G2 takes load, G1 sheds it, f rises.</p>
+<svg class="vis8" viewBox="0 0 820 680" role="img" aria-label="House diagram: generator 1 power to the left, generator 2 power to the right, a shared frequency axis and the system frequency line" id="housePlot"></svg>
+<div class="live" id="L9">
+  <p class="labs5">s<sub>P1</sub> = s<sub>P2</sub> = 1.00 MW/Hz · no infinite bus</p>
+  <div class="ctl"><label for="f91">G1 set point, f<sub>nl,1</sub></label><input type="range" id="f91" min="60.00" max="62.50" step="0.05" value="61.00" aria-valuetext="61.00 hertz"><output id="f91O" for="f91">61.00 Hz</output></div>
+  <div class="ctl"><label for="f92">G2 set point, f<sub>nl,2</sub></label><input type="range" id="f92" min="60.00" max="62.50" step="0.05" value="61.00" aria-valuetext="61.00 hertz"><output id="f92O" for="f92">61.00 Hz</output></div>
+  <div class="ctl"><label for="pl9">Load, P<sub>load</sub></label><input type="range" id="pl9" min="0.50" max="4.00" step="0.05" value="2.50" aria-valuetext="2.50 megawatts"><output id="pl9O" for="pl9">2.50 MW</output></div>
+  <div class="eqline"><math display="block" class="sm"><msub><mi>f</mi><mi>sys</mi></msub><mo>=</mo><mfrac><mrow><mn>1.00</mn><mo>(</mo><mn id="e9a">61.00</mn><mo>)</mo><mo>+</mo><mn>1.00</mn><mo>(</mo><mn id="e9b">61.00</mn><mo>)</mo><mo>−</mo><mn id="e9l">2.50</mn></mrow><mrow><mn>1.00</mn><mo>+</mo><mn>1.00</mn></mrow></mfrac><mo>=</mo><mn id="e9f">59.75</mn><mspace width="0.3em"/><mtext>Hz</mtext></math></div>
+  <p class="res">P<sub>G1</sub> = <b id="e9p1">1.25</b> MW · P<sub>G2</sub> = <b id="e9p2">1.25</b> MW · sum <b id="e9s">2.50</b> MW</p>
+  <p class="warn" id="w9" role="status" aria-live="polite"></p>
+</div>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>09</span></div>
+</section></div>
+
+<!-- ═══ 10 WORKED EXAMPLE ═══ -->
+<div class="page"><section class="slide" id="s10">
+<p class="kick red">WORKED EXAMPLE · PRESS ▶ FOR EACH STEP</p>
+<h2 class="t">Work it once: two identical generators, one 2.50 MW load</h2>
+<p class="body">Each: f<sub>nl</sub> = 61.00 Hz, s<sub>P</sub> = 1.00 MW/Hz. Find f<sub>sys</sub>, shares, fix.</p>
+<div class="card" id="c10">
+  <div class="step" data-step="1"><span class="n">1</span>System frequency:
+    <math display="block" class="sm"><msub><mi>f</mi><mi>sys</mi></msub><mo>=</mo><mfrac><mrow><mn>1.00</mn><mo>(</mo><mn>61.00</mn><mo>)</mo><mo>+</mo><mn>1.00</mn><mo>(</mo><mn>61.00</mn><mo>)</mo><mo>−</mo><mn>2.50</mn></mrow><mn>2.00</mn></mfrac><mo>=</mo><mn>59.75</mn><mspace width="0.3em"/><mtext>Hz</mtext></math></div>
+  <div class="step" data-step="2"><span class="n">2</span>Each share:
+    <math display="inline" class="sm"><msub><mi>P</mi><mi>G1</mi></msub><mo>=</mo><msub><mi>P</mi><mi>G2</mi></msub><mo>=</mo><mn>1.00</mn><mo>(</mo><mn>61.00</mn><mo>−</mo><mn>59.75</mn><mo>)</mo><mo>=</mo><mn>1.25</mn><mspace width="0.3em"/><mtext>MW</mtext></math></div>
+  <div class="step" data-step="3"><span class="n">3</span>Back to 60.00 Hz using G2 only: G1 then carries
+    <math display="inline" class="sm"><mn>1.00</mn><mo>(</mo><mn>61.00</mn><mo>−</mo><mn>60.00</mn><mo>)</mo><mo>=</mo><mn>1.00</mn><mspace width="0.3em"/><mtext>MW</mtext></math>, so G2 must carry 1.50 MW:
+    <math display="block" class="sm"><msub><mi>f</mi><mrow><mi>nl</mi><mo>,</mo><mn>2</mn></mrow></msub><mo>=</mo><mn>60.00</mn><mo>+</mo><mfrac><mn>1.50</mn><mn>1.00</mn></mfrac><mo>=</mo><mn>61.50</mn><mspace width="0.3em"/><mtext>Hz</mtext></math></div>
+  <div class="step" data-step="4"><span class="n">✓</span>Check: (61.00 + 61.50 − 2.50) / 2.00 = 60.00 Hz; 1.00 + 1.50 = 2.50 MW.</div>
+</div>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>10</span></div>
+</section></div>
+
+<!-- ═══ 11 SUMMARY ═══ -->
+<div class="page"><section class="slide" id="s11">
+<p class="kick">SUMMARY</p>
+<h2 class="t">Five equations carry the whole topic</h2>
+<p class="body">Governor → P and f. Field → Q and V.</p>
+<div class="card" id="c11">
+  <div class="sumrow"><span class="sn">Speed → frequency</span><math class="sm"><msub><mi>f</mi><mi>e</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>n</mi><mi>m</mi></msub><mi>P</mi></mrow><mn>120</mn></mfrac></math></div>
+  <div class="sumrow"><span class="sn">Speed droop</span><math class="sm"><mi>SD</mi><mo>=</mo><mfrac><mrow><msub><mi>n</mi><mi>nl</mi></msub><mo>−</mo><msub><mi>n</mi><mi>fl</mi></msub></mrow><msub><mi>n</mi><mi>fl</mi></msub></mfrac><mo>×</mo><mn>100</mn><mo>%</mo></math></div>
+  <div class="sumrow"><span class="sn">Real power</span><math class="sm"><mi>P</mi><mo>=</mo><msub><mi>s</mi><mi>P</mi></msub><mo>(</mo><msub><mi>f</mi><mi>nl</mi></msub><mo>−</mo><msub><mi>f</mi><mi>sys</mi></msub><mo>)</mo></math></div>
+  <div class="sumrow"><span class="sn">Reactive power</span><math class="sm"><mi>Q</mi><mo>=</mo><msub><mi>s</mi><mi>Q</mi></msub><mo>(</mo><msub><mi>V</mi><mi>nl</mi></msub><mo>−</mo><msub><mi>V</mi><mi>sys</mi></msub><mo>)</mo></math></div>
+  <div class="sumrow"><span class="sn">Shared frequency</span><math class="sm"><msub><mi>f</mi><mi>sys</mi></msub><mo>=</mo><mfrac><mrow><mo>∑</mo><msub><mi>s</mi><mrow><mi>P</mi><mi>i</mi></mrow></msub><msub><mi>f</mi><mrow><mi>nl</mi><mo>,</mo><mi>i</mi></mrow></msub><mo>−</mo><msub><mi>P</mi><mi>load</mi></msub></mrow><mrow><mo>∑</mo><msub><mi>s</mi><mrow><mi>P</mi><mi>i</mi></mrow></msub></mrow></mfrac></math></div>
+</div>
+<div class="foot"><span>ECE 3033 · Generators in Parallel</span><span>11</span></div>
+</section></div>
+
+</div>
+<div id="notes" aria-live="polite"><b>LECTURE NOTES</b><p id="ntext"></p></div>
+<div id="bar"><button id="prev" aria-label="Previous slide">◀</button><span id="pos"></span><button id="next" aria-label="Next slide">▶</button>
+<button id="nbtn">Notes (N)</button><button id="fbtn">Full screen (F)</button><span>ECE 3033 · Generators in Parallel · v1.0.0</span></div>
+<script>
+/* ═══ CONTENTS ═══
+   1. CONSTANTS AND NOTES   2. FORMATTING AND SVG HELPERS   3. SLIDE 4 SPEED   4. SLIDE 5 DROOP
+   5. SLIDE 8 INFINITE BUS  6. SLIDE 9 TWO GENERATORS       7. NAVIGATION */
+'use strict';
+/* ═══ 1. CONSTANTS AND NOTES ═══ */
+const STAGE_W = 1920, STAGE_H = 1080;     // design size of every slide (px)
+const SVGNS = 'http://www.w3.org/2000/svg';
+const F_BUS = 60.00;                       // Hz, infinite-bus frequency (slide 8)
+const V_BUS = 13.80;                       // kV, infinite-bus voltage (slide 8)
+const SP8 = 1.00;                          // MW/Hz, slide 8 generator P–f slope
+const SQ8 = 2.00;                          // MVAR/kV, slide 8 generator Q–V slope
+const PLOAD8 = 1.50;                       // MW, slide 8 local load
+const SP9 = [1.00, 1.00];                  // MW/Hz, slide 9 slopes of G1 and G2
+const NFL5 = 1800;                         // r/min, slide 5 full-load speed (4 poles, 60 Hz)
+const POLES5 = 4;                          // slide 5 pole count
+const RPM_HZ = 120;                        // f_e = n_m P / 120
+const PCT = 100;                           // percent per unit
+const MINUS = '−';                    // typographic minus for negative readouts
+const P_ZERO = 1e-9;                       // MW, below this |P| counts as zero
+const AXIS_CLEAR_HZ = 0.40;                // Hz, a P–f line stops this far above the plot's lowest frequency (the axis is not 0 Hz)
+const AXIS_CLEAR_KV = 0.30;                // kV, the same for a Q–V line
+const NOTES = [
+ 'Today you will see how several generators share one load. Two ideas carry the whole topic: the governor on the prime mover decides how much real power a generator delivers, and the field current decides how much reactive power it delivers. Keep those two knobs separate in your head. Use the arrow keys or click to move on; press N to open these notes.',
+ 'Real systems never run on one machine. Several generators in parallel can carry a load larger than any one of them, keep the lights on when one is taken out for maintenance, and let each plant run near its most efficient point. The price is that every machine connected to the bus must run at the same frequency and the same terminal voltage.',
+ 'An infinite bus is a system so large that one generator cannot change its frequency or voltage. Compared with a grid of thousands of megawatts, your few-megawatt machine is exactly that small. On an infinite bus, f and V are given. What you can still change is how much P and Q your generator delivers.',
+ 'A synchronous machine with P poles turning at n_m revolutions per minute makes an electrical frequency f_e = n_m P / 120. Try it: a 4-pole machine must turn at 1800 r/min for 60 Hz; a 2-pole steam turbine at 3600 r/min; a slow 12-pole hydro unit at 600 r/min. So controlling the shaft speed controls the frequency.',
+ 'The governor does not hold speed exactly constant. It lets speed fall slightly as the load increases. The speed droop is SD = (n_nl − n_fl)/n_fl × 100 %, with the full-load speed in the denominator. Most grid generators use about 4 to 5 %. Move the slider: a larger droop means a steeper line and a bigger change in speed for the same change in load.',
+ 'Because speed and frequency are proportional, the droop line can be redrawn as frequency against power. It falls from the set point f_nl at no load. At system frequency f_sys the generator delivers P = s_P (f_nl − f_sys), where s_P is the slope in MW/Hz. The governor set point moves the whole line up or down; it does not change the slope.',
+ 'The same picture works for reactive power. Terminal voltage falls as the generator delivers more reactive power, so Q = s_Q (V_nl − V_sys). Raising the field current moves the Q–V line up. Chapman calls the back-to-back pair of these plots a house diagram. Remember the pairing: governor with P and f, field with Q and V.',
+ 'Here the bus fixes 60.00 Hz and 13.80 kV. Move the governor set point: P_gen changes and the bus supplies the rest of the 1.50 MW local load. Move the field: Q_gen changes and frequency does not. Now drag the set point below 60 Hz. P_gen goes negative: the machine takes power from the bus and runs as a motor. A reverse-power relay trips it to protect the prime mover.',
+ 'Without an infinite bus, two generators must agree on one frequency at which their powers add up to the load: P_G1 + P_G2 = P_load. Solving gives f_sys = (Σ s_Pi f_nl,i − P_load) / Σ s_Pi. Raise G2’s set point and watch three things happen together: G2 picks up load, G1 gives some up, and the frequency rises. Raise both set points together to change only the frequency.',
+ 'Work it with me. Two identical generators each have f_nl = 61.00 Hz and s_P = 1.00 MW/Hz, sharing 2.50 MW. Step 1: f_sys = 59.75 Hz. Step 2: identical machines share equally, 1.25 MW each. Step 3: to get back to 60.00 Hz using G2 alone, G1 will carry 1.00 MW, so G2 must carry 1.50 MW and its set point must be 61.50 Hz. Always check that the powers add to the load.',
+ 'Five equations carry this topic. Speed sets frequency. Droop is measured against full-load speed. Real power follows the P–f line, reactive power the Q–V line. With several generators and no infinite bus, the system frequency is where the powers add up to the load. Read the parallel-operation section of Chapman, Electric Machinery Fundamentals, and try the end-of-chapter problems.'
+];
+
+/* ═══ 2. FORMATTING AND SVG HELPERS ═══ */
+/* Number with d decimals and a typographic minus. */
+function fmt(x, d) { const s = Math.abs(x).toFixed(d); return (x < 0 && +s !== 0 ? MINUS : '') + s; }
+/* Set the text of the element with this id. */
+function put(id, txt) { document.getElementById(id).textContent = txt; }
+/* Create an SVG element with attributes and add it to parent. */
+function el(parent, tag, attrs, text) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  parent.appendChild(e); return e;
+}
+/* Linear map from [a0, a1] to [b0, b1]. */
+function lin(a0, a1, b0, b1) { return v => b0 + (v - a0) * (b1 - b0) / (a1 - a0); }
+/* Clear an SVG. */
+function clear(svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+/* Text with a subscript (main, sub) at x, y. */
+function subText(parent, x, y, main, sub, attrs) {
+  const t = el(parent, 'text', Object.assign({ x, y }, attrs || {}));
+  t.appendChild(document.createTextNode(main));
+  const s = document.createElementNS(SVGNS, 'tspan'); s.setAttribute('baseline-shift', 'sub'); s.setAttribute('font-size', '16'); s.textContent = sub; t.appendChild(s);
+  return t;
+}
+/* Draw a break mark (two short slashes) on a vertical axis at x, y: the axis does not start at zero. */
+function axisBreak(svg, x, y) {
+  el(svg, 'rect', { x: x - 9, y: y - 9, width: 18, height: 14, fill: '#ffffff' });
+  el(svg, 'path', { d: `M${x - 10} ${y - 2}l20 -8M${x - 10} ${y + 6}l20 -8`, class: 'ax' });
+}
+/* Mirror a range input's value into its aria-valuetext. */
+function aria(inp, txt) { inp.setAttribute('aria-valuetext', txt); }
+
+/* ═══ 2b. SLIDES 2 AND 3 (static figures drawn once) ═══ */
+const MIX = [                              // illustrative plant outputs (MW) over 24 h, stacked bottom to top
+  { name: 'Nuclear', color: '#55636b', mw: h => 1200 },
+  { name: 'Coal', color: '#10668a', mw: h => 1000 },
+  { name: 'Hydro', color: '#0f6e6c', mw: h => 300 + 500 * Math.max(0, Math.sin(Math.PI * (h - 6) / 16)) },
+  { name: 'Gas', color: '#6a4fc8', mw: h => 200 + 900 * Math.max(0, Math.sin(Math.PI * (h - 9) / 13)) ** 2 }
+];
+const UNIT_MAX_MW = 1200;                  // MW, the largest single unit in the illustration
+/* Slide 2: a day of demand filled by four plants stacked, with the largest unit's capacity for comparison. */
+function drawMix() {
+  const svg = document.getElementById('mixPlot'), X = lin(0, 24, 120, 1200), Y = lin(0, 4000, 500, 30);
+  for (let m = 0; m <= 4000; m += 1000) { el(svg, 'path', { d: `M120 ${Y(m)}H1200`, class: 'grid' }); el(svg, 'text', { x: 108, y: Y(m) + 8, 'text-anchor': 'end', class: 'labs' }, String(m)); }
+  for (let h = 0; h <= 24; h += 6) el(svg, 'text', { x: X(h), y: 530, 'text-anchor': 'middle', class: 'labs' }, (h < 10 ? '0' : '') + h + ':00');
+  let base = Array.from({ length: 49 }, () => 0);
+  for (const pl of MIX) {
+    const top = base.map((b, k) => b + pl.mw(k / 2));
+    const d = 'M' + top.map((t, k) => `${X(k / 2)} ${Y(t)}`).join('L') + 'L' + base.map((b, k) => `${X(k / 2)} ${Y(b)}`).reverse().join('L') + 'Z';
+    el(svg, 'path', { d, fill: pl.color, 'fill-opacity': 0.85 });
+    const k = 24; el(svg, 'text', { x: X(12), y: (Y(base[k]) + Y(top[k])) / 2 + 8, 'text-anchor': 'middle', 'font-size': 24, 'font-weight': 700, fill: '#ffffff' }, pl.name);
+    base = top;
+  }
+  el(svg, 'path', { d: 'M120 20V500H1210', class: 'ax' });
+  el(svg, 'text', { x: 120, y: 14, class: 'lab' }, 'MW'); el(svg, 'text', { x: 1210, y: 556, 'text-anchor': 'end', class: 'lab' }, 'hour of day');
+  el(svg, 'path', { d: `M120 ${Y(UNIT_MAX_MW)}H1200`, stroke: '#a3261d', 'stroke-width': 4, 'stroke-dasharray': '14 8', fill: 'none' });
+  el(svg, 'text', { x: 1230, y: Y(UNIT_MAX_MW) + 8, class: 'lab', fill: '#a3261d', 'font-weight': 700 }, 'largest single unit');
+  el(svg, 'text', { x: 1230, y: Y(UNIT_MAX_MW) + 38, class: 'labs', fill: '#a3261d' }, UNIT_MAX_MW + ' MW');
+  el(svg, 'text', { x: 1230, y: Y(3700), class: 'lab', 'font-weight': 700 }, 'total demand');
+  el(svg, 'text', { x: 1230, y: Y(3700) + 30, class: 'labs' }, 'shared by every unit on the bus');
+  el(svg, 'text', { x: 1230, y: 470, class: 'labs' }, 'illustrative system');
+}
+/* Slide 3: a small machine to scale against the grid, and its output stepping while the bus frequency stays flat. */
+function drawBusSize() {
+  const svg = document.getElementById('busSize');
+  const side = 440, small = side * Math.sqrt(5 / 50000);        // areas to scale: 5 MW against 50 000 MW
+  el(svg, 'rect', { x: 20, y: 40, width: side, height: side, fill: '#e3e8ec', stroke: '#1a2328', 'stroke-width': 3 });
+  el(svg, 'text', { x: 20 + side / 2, y: 40 + side / 2, 'text-anchor': 'middle', class: 'lab', 'font-weight': 700 }, 'grid 50 000 MW');
+  el(svg, 'rect', { x: 20 + side - small - 30, y: 40 + side - small - 30, width: small, height: small, fill: '#10668a' });
+  el(svg, 'circle', { cx: 20 + side - 30 - small / 2, cy: 40 + side - 30 - small / 2, r: 16, fill: 'none', stroke: '#10668a', 'stroke-width': 2 });   // ring so the dot can be found
+  el(svg, 'text', { x: 20 + side, y: 40 + side + 40, 'text-anchor': 'end', class: 'lab', fill: '#10668a', 'font-weight': 700 }, 'your 5 MW, to scale (ringed)');
+  // right: P_gen steps, f flat
+  const X = lin(0, 60, 760, 1640), YP = lin(0, 5, 230, 50), YF = lin(59.9, 60.1, 510, 340);
+  el(svg, 'path', { d: 'M760 36V230H1640M760 326V520H1640', class: 'ax' }); axisBreak(svg, 760, 496);
+  subText(svg, 772, 24, 'P', 'gen', { class: 'lab', fill: '#10668a', 'font-weight': 700 }).appendChild(document.createTextNode(' (MW)'));
+  el(svg, 'text', { x: 772, y: 312, class: 'lab', 'font-weight': 700 }, 'f (Hz)');
+  for (const m of [0, 5]) el(svg, 'text', { x: 750, y: YP(m) + 8, 'text-anchor': 'end', class: 'labs' }, String(m));
+  for (const f of [59.9, 60.0, 60.1]) el(svg, 'text', { x: 750, y: YF(f) + 8, 'text-anchor': 'end', class: 'labs' }, f.toFixed(2));
+  const steps = [[0, 1], [12, 4], [30, 2], [45, 5], [60, 5]];
+  el(svg, 'path', { d: 'M' + steps.map((p, k) => (k ? `H${X(p[0])}V${YP(p[1])}` : `${X(p[0])} ${YP(p[1])}`)).join(''), class: 'g1' });
+  el(svg, 'path', { d: `M760 ${YF(60)}H1640`, class: 'bus' });
+  el(svg, 'text', { x: 1640, y: 556, 'text-anchor': 'end', class: 'lab' }, 'time (s)');
+  el(svg, 'text', { x: 1200, y: YF(60) - 18, 'text-anchor': 'middle', class: 'labs' }, 'bus frequency: 60.00 Hz throughout');
+}
+
+/* ═══ 3. SLIDE 4 SPEED ═══ */
+let poles4 = 4;
+/* Draw the rotor with its poles (N and S alternate round the rim). */
+function drawRotor(P) {
+  const svg = document.getElementById('rotor'); clear(svg);
+  const cx = 280, cy = 280, R = 220, r = 150;
+  el(svg, 'circle', { cx, cy, r: R, fill: '#eef2f3', stroke: '#1a2328', 'stroke-width': 3 });
+  for (let k = 0; k < P; k++) {
+    const a = 2 * Math.PI * k / P - Math.PI / 2, x = cx + r * Math.cos(a), y = cy + r * Math.sin(a), n = k % 2 === 0;
+    el(svg, 'circle', { cx: x, cy: y, r: Math.min(46, 300 / P), fill: n ? '#a3261d' : '#10668a' });
+    el(svg, 'text', { x, y: y + 9, 'text-anchor': 'middle', 'font-size': 26, 'font-weight': 700, fill: '#fff' }, n ? 'N' : 'S');
+  }
+  el(svg, 'circle', { cx, cy, r: 18, fill: '#1a2328' });
+  el(svg, 'text', { x: cx, y: 545, 'text-anchor': 'middle', class: 'lab' }, P + ' poles = ' + (P / 2) + ' pole pairs');
+}
+/* Recompute slide 4. */
+function upd4() {
+  const inp = document.getElementById('nm'), n = +inp.value, f = n * poles4 / RPM_HZ;
+  put('nmO', n + ' r/min'); aria(inp, n + ' r/min');
+  put('e4n', String(n)); put('e4p', String(poles4)); put('e4f', fmt(f, 2));
+  put('n60', String(Math.round(F_BUS * RPM_HZ / poles4)));
+  drawRotor(poles4);
+}
+
+/* ═══ 4. SLIDE 5 DROOP ═══ */
+/* Recompute slide 5 and draw speed against power. */
+function upd5() {
+  const inp = document.getElementById('sd'), sd = +inp.value / PCT, nnl = NFL5 * (1 + sd), fnl = nnl * POLES5 / RPM_HZ;
+  put('sdO', (sd * PCT).toFixed(1) + ' %'); aria(inp, (sd * PCT).toFixed(1) + ' percent');
+  put('e5sd', sd.toFixed(3)); put('e5n', String(Math.round(nnl))); put('e5f', fmt(fnl, 2));
+  const svg = document.getElementById('droopPlot'); clear(svg);
+  const X = lin(0, 100, 130, 760), Y = lin(1780, 2000, 520, 40);
+  for (let s = 1800; s <= 2000; s += 50) { el(svg, 'path', { d: `M130 ${Y(s)}H760`, class: 'grid' }); el(svg, 'text', { x: 118, y: Y(s) + 8, 'text-anchor': 'end', class: 'labs' }, String(s)); }
+  for (let p = 0; p <= 100; p += 25) el(svg, 'text', { x: X(p), y: 550, 'text-anchor': 'middle', class: 'labs' }, p + ' %');
+  el(svg, 'path', { d: 'M130 30V520H770', class: 'ax' }); axisBreak(svg, 130, 508);
+  el(svg, 'text', { x: 130, y: 22, 'text-anchor': 'middle', class: 'lab' }, 'n (r/min)');
+  el(svg, 'text', { x: 770, y: 590, 'text-anchor': 'end', class: 'lab' }, 'P (percent of rated)');
+  el(svg, 'path', { d: `M${X(0)} ${Y(nnl)}L${X(100)} ${Y(NFL5)}`, class: 'g1' });
+  el(svg, 'circle', { cx: X(0), cy: Y(nnl), r: 9, class: 'g1f' });
+  el(svg, 'circle', { cx: X(100), cy: Y(NFL5), r: 9, class: 'g1f' });
+  subText(svg, X(0) + 18, Y(nnl) - 14, 'n', 'nl', { class: 'lab', fill: '#10668a' }).appendChild(document.createTextNode(' = ' + Math.round(nnl) + ' r/min'));
+  subText(svg, X(100) - 20, Y(NFL5) + 32, 'n', 'fl', { class: 'lab', fill: '#10668a', 'text-anchor': 'end' }).appendChild(document.createTextNode(' = 1800 r/min'));
+}
+
+/* ═══ 5. SLIDE 8 INFINITE BUS ═══ */
+/* Recompute slide 8 and draw the P–f and Q–V plots. */
+function upd8() {
+  const fi = document.getElementById('f8'), vi = document.getElementById('v8'), fnl = +fi.value, vnl = +vi.value;
+  const P = SP8 * (fnl - F_BUS), Q = SQ8 * (vnl - V_BUS), Pb = PLOAD8 - P;
+  put('f8O', fnl.toFixed(2) + ' Hz'); aria(fi, fnl.toFixed(2) + ' hertz');
+  put('v8O', vnl.toFixed(2) + ' kV'); aria(vi, vnl.toFixed(2) + ' kilovolts');
+  put('e8f', fnl.toFixed(2)); put('e8p', fmt(P, 2)); put('e8v', vnl.toFixed(2)); put('e8q', fmt(Q, 2)); put('e8b', fmt(Pb, 2));
+  const w = document.getElementById('w8');
+  if (P < 0) { w.textContent = 'Reverse power: the generator takes ' + fmt(-P, 2) + ' MW from the bus and runs as a motor. The reverse-power relay trips it.'; w.classList.remove('ok'); }
+  else if (Math.abs(P) < P_ZERO) { w.textContent = 'Floating: the set point equals the bus frequency, so the generator delivers no real power.'; w.classList.add('ok'); }
+  else { w.textContent = 'Generating: the bus supplies the rest of the load.'; w.classList.add('ok'); }
+  const svg = document.getElementById('busPlot'); clear(svg);
+  // P–f (top)
+  const X = lin(-2, 3, 110, 790), Y = lin(58.8, 62.2, 280, 20);
+  for (let p = -2; p <= 3; p++) { el(svg, 'path', { d: `M${X(p)} 20V280`, class: 'grid' }); el(svg, 'text', { x: X(p), y: 304, 'text-anchor': 'middle', class: 'labs' }, fmt(p, 0)); }
+  for (const f of [59, 60, 61, 62]) el(svg, 'text', { x: 100, y: Y(f) + 7, 'text-anchor': 'end', class: 'labs' }, f + '.00');
+  el(svg, 'path', { d: `M${X(0)} 15V285M110 280H795`, class: 'ax' }); axisBreak(svg, X(0), 268);
+  el(svg, 'text', { x: 30, y: 20, class: 'lab' }, 'f (Hz)'); el(svg, 'text', { x: 795, y: 330, 'text-anchor': 'end', class: 'lab' }, 'P (MW)');
+  if (P < 0) el(svg, 'rect', { x: 110, y: 20, width: X(0) - 110, height: 260, fill: '#fbe9e6' });
+  el(svg, 'path', { d: `M110 ${Y(F_BUS)}H790`, class: 'bus' }); el(svg, 'text', { x: 785, y: Y(F_BUS) - 10, 'text-anchor': 'end', class: 'labs' }, 'bus 60.00 Hz');
+  const pa = Math.max(-2, SP8 * (fnl - 62.2)), pb = Math.min(3, SP8 * (fnl - 58.8 - AXIS_CLEAR_HZ));   // inside the plot, ending above the axis
+  el(svg, 'path', { d: `M${X(pa)} ${Y(fnl - pa / SP8)}L${X(pb)} ${Y(fnl - pb / SP8)}`, class: 'g1' });
+  el(svg, 'circle', { cx: X(P), cy: Y(F_BUS), r: 11, fill: P < 0 ? '#a3261d' : '#10668a' });
+  el(svg, 'text', { x: X(P) - 16, y: Y(F_BUS) + 34, 'text-anchor': 'end', class: 'lab', fill: P < 0 ? '#a3261d' : '#10668a', 'font-weight': 700 }, 'P = ' + fmt(P, 2));
+  if (P < 0) el(svg, 'text', { x: 120, y: 44, class: 'labs', fill: '#a3261d' }, 'motoring');
+  // Q–V (bottom)
+  const XQ = lin(-3, 3, 110, 790), YV = lin(12.8, 15.2, 610, 380);
+  for (let q = -3; q <= 3; q++) { el(svg, 'path', { d: `M${XQ(q)} 380V610`, class: 'grid' }); el(svg, 'text', { x: XQ(q), y: 634, 'text-anchor': 'middle', class: 'labs' }, fmt(q, 0)); }
+  for (const v of [13, 14, 15]) el(svg, 'text', { x: 100, y: YV(v) + 7, 'text-anchor': 'end', class: 'labs' }, v + '.0');
+  el(svg, 'path', { d: `M${XQ(0)} 375V615M110 610H795`, class: 'ax' }); axisBreak(svg, XQ(0), 598);
+  el(svg, 'text', { x: 30, y: 372, class: 'lab' }, 'V (kV)'); el(svg, 'text', { x: 795, y: 668, 'text-anchor': 'end', class: 'lab' }, 'Q (MVAR)');
+  el(svg, 'path', { d: `M110 ${YV(V_BUS)}H790`, class: 'bus' }); el(svg, 'text', { x: 785, y: YV(V_BUS) - 10, 'text-anchor': 'end', class: 'labs' }, 'bus 13.80 kV');
+  const qa = Math.max(-3, SQ8 * (vnl - 15.2)), qb = Math.min(3, SQ8 * (vnl - 12.8 - AXIS_CLEAR_KV));   // inside the plot, ending above the axis
+  el(svg, 'path', { d: `M${XQ(qa)} ${YV(vnl - qa / SQ8)}L${XQ(qb)} ${YV(vnl - qb / SQ8)}`, class: 'tl' });
+  el(svg, 'circle', { cx: XQ(Math.max(-3, Math.min(3, Q))), cy: YV(V_BUS), r: 11, class: 'tlf' });
+}
+
+/* ═══ 6. SLIDE 9 TWO GENERATORS ═══ */
+/* Recompute slide 9 and draw the house diagram (G1 power to the left, G2 to the right). */
+function upd9() {
+  const a = document.getElementById('f91'), b = document.getElementById('f92'), l = document.getElementById('pl9');
+  const f1 = +a.value, f2 = +b.value, PL = +l.value, S = SP9[0] + SP9[1];
+  const fs = (SP9[0] * f1 + SP9[1] * f2 - PL) / S, P1 = SP9[0] * (f1 - fs), P2 = SP9[1] * (f2 - fs);
+  put('f91O', f1.toFixed(2) + ' Hz'); aria(a, f1.toFixed(2) + ' hertz');
+  put('f92O', f2.toFixed(2) + ' Hz'); aria(b, f2.toFixed(2) + ' hertz');
+  put('pl9O', PL.toFixed(2) + ' MW'); aria(l, PL.toFixed(2) + ' megawatts');
+  put('e9a', f1.toFixed(2)); put('e9b', f2.toFixed(2)); put('e9l', PL.toFixed(2)); put('e9f', fmt(fs, 2));
+  put('e9p1', fmt(P1, 2)); put('e9p2', fmt(P2, 2)); put('e9s', fmt(P1 + P2, 2));
+  const w = document.getElementById('w9');
+  if (P1 < 0 || P2 < 0) { w.textContent = (P1 < 0 ? 'G1' : 'G2') + ' is motoring: the other generator is driving it. Its reverse-power relay would trip it.'; w.classList.remove('ok'); }
+  else { w.textContent = 'Both generating. The powers add up to the load.'; w.classList.add('ok'); }
+  const svg = document.getElementById('housePlot'); clear(svg);
+  const C = 410, XL = lin(0, 3, C, 60), XR = lin(0, 3, C, 760), Y = lin(58.5, 63.0, 560, 40);
+  for (let p = 1; p <= 3; p++) { el(svg, 'path', { d: `M${XL(p)} 40V560M${XR(p)} 40V560`, class: 'grid' }); el(svg, 'text', { x: XL(p), y: 590, 'text-anchor': 'middle', class: 'labs' }, String(p)); el(svg, 'text', { x: XR(p), y: 590, 'text-anchor': 'middle', class: 'labs' }, String(p)); }
+  for (const f of [59, 60, 61, 62, 63]) { el(svg, 'path', { d: `M${C - 8} ${Y(f)}H${C + 8}`, class: 'ax' }); el(svg, 'text', { x: C - 14, y: Y(f) + 7, 'text-anchor': 'end', class: 'labs' }, f + '.00'); }
+  el(svg, 'path', { d: `M60 560H760M${C} 30V560`, class: 'ax' }); axisBreak(svg, C, 546);
+  el(svg, 'text', { x: C, y: 22, 'text-anchor': 'middle', class: 'lab' }, 'f (Hz)');
+  subText(svg, 60, 625, '← P', 'G1', { class: 'lab', fill: '#10668a', 'font-weight': 700 }).appendChild(document.createTextNode(' (MW)'));
+  subText(svg, 760, 625, 'P', 'G2', { class: 'lab', fill: '#6a4fc8', 'font-weight': 700, 'text-anchor': 'end' }).appendChild(document.createTextNode(' (MW) →'));
+  const seg = (fnl, sP, X) => { const a = Math.max(0, sP * (fnl - 63.0)), b = Math.min(3, sP * (fnl - 58.5 - AXIS_CLEAR_HZ)); return `M${X(a)} ${Y(fnl - a / sP)}L${X(b)} ${Y(fnl - b / sP)}`; };   // inside the plot
+  el(svg, 'path', { d: seg(f1, SP9[0], XL), class: 'g1' });
+  el(svg, 'path', { d: seg(f2, SP9[1], XR), class: 'g2' });
+  el(svg, 'path', { d: `M60 ${Y(fs)}H760`, class: 'busd' });
+  el(svg, 'path', { d: 'M510 64H550', class: 'busd' });   // legend for the dashed system-frequency line, top right where no line runs
+  subText(svg, 760, 72, 'f', 'sys', { 'text-anchor': 'end', class: 'lab', 'font-weight': 700 }).appendChild(document.createTextNode(' = ' + fmt(fs, 2) + ' Hz'));
+  const p1c = Math.max(-0.4, Math.min(3, P1)), p2c = Math.max(-0.4, Math.min(3, P2));
+  el(svg, 'rect', { x: Math.min(XL(p1c), C), y: Y(fs) + 8, width: Math.abs(XL(p1c) - C), height: 22, fill: P1 < 0 ? '#a3261d' : '#10668a' });
+  el(svg, 'rect', { x: Math.min(XR(p2c), C), y: Y(fs) + 8, width: Math.abs(XR(p2c) - C), height: 22, fill: P2 < 0 ? '#a3261d' : '#6a4fc8' });
+  el(svg, 'text', { x: (XL(p1c) + C) / 2, y: Y(fs) + 58, 'text-anchor': 'middle', class: 'lab', fill: '#10668a', 'font-weight': 700 }, fmt(P1, 2) + ' MW');
+  el(svg, 'text', { x: (XR(p2c) + C) / 2, y: Y(fs) + 58, 'text-anchor': 'middle', class: 'lab', fill: '#6a4fc8', 'font-weight': 700 }, fmt(P2, 2) + ' MW');
+}
+
+/* ═══ 7. NAVIGATION ═══ */
+const PAGES = [...document.querySelectorAll('.page')], stage = document.getElementById('stage');
+let cur = 0, step = 0;
+/* Scale the 1920 × 1080 stage to the window. */
+function fit() { const k = Math.min(innerWidth / STAGE_W, innerHeight / STAGE_H); stage.style.transform = `translate(${(innerWidth - STAGE_W * k) / 2}px,${(innerHeight - STAGE_H * k) / 2}px) scale(${k})`; }
+/* Number of hidden steps on a page. */
+function steps(p) { return p.querySelectorAll('[data-step]').length; }
+/* Show the steps already revealed on the current page. */
+function applySteps() { PAGES[cur].querySelectorAll('[data-step]').forEach(e => e.classList.toggle('pending', +e.dataset.step > step)); }
+/* Go to page n, at its first step or (atEnd) with every step shown. */
+function show(n, atEnd) {
+  PAGES[cur].classList.remove('on'); cur = Math.max(0, Math.min(PAGES.length - 1, n)); PAGES[cur].classList.add('on');
+  step = atEnd ? steps(PAGES[cur]) : 0; applySteps();
+  put('pos', (cur + 1) + ' / ' + PAGES.length); setNotes(NOTES[cur]);
+  history.replaceState(null, '', '#' + (cur + 1));
+}
+/* Write the notes for a page: "x_ab" is shown as x with subscript ab (text nodes and <sub> only). */
+function setNotes(txt) {
+  const box = document.getElementById('ntext'); while (box.firstChild) box.removeChild(box.firstChild);
+  for (const part of txt.split(/(_[A-Za-z0-9]+(?:,[a-z0-9]+)?)/)) {
+    if (part.startsWith('_')) { const sb = document.createElement('sub'); sb.textContent = part.slice(1); box.appendChild(sb); }
+    else box.appendChild(document.createTextNode(part));
+  }
+}
+/* Next step, else next page. */
+function next() { if (step < steps(PAGES[cur])) { step++; applySteps(); } else if (cur < PAGES.length - 1) show(cur + 1); }
+/* Previous step, else previous page. */
+function prev() { if (step > 0) { step--; applySteps(); } else if (cur > 0) show(cur - 1, true); }
+/* Toggle full screen. */
+function full() { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); }
+/* Is the event's target one of the live controls (keys and clicks then belong to the control)? */
+function onControl(t) { return !!(t && t.closest && t.closest('.live, input, button, select')); }
+addEventListener('keydown', e => {
+  if (onControl(e.target) && !['n', 'N', 'f', 'F', 'PageDown', 'PageUp'].includes(e.key)) return;
+  if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); next(); }
+  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); prev(); }
+  else if (e.key === 'n' || e.key === 'N') document.getElementById('notes').classList.toggle('on');
+  else if (e.key === 'f' || e.key === 'F') full();
+  else if (e.key === 'Home') show(0); else if (e.key === 'End') show(PAGES.length - 1, true);
+});
+stage.addEventListener('click', e => { if (!onControl(e.target)) next(); });
+document.getElementById('next').addEventListener('click', next);
+document.getElementById('prev').addEventListener('click', prev);
+document.getElementById('nbtn').addEventListener('click', () => document.getElementById('notes').classList.toggle('on'));
+document.getElementById('fbtn').addEventListener('click', full);
+document.querySelectorAll('#poles button').forEach(b => b.addEventListener('click', () => {
+  poles4 = +b.dataset.p; document.querySelectorAll('#poles button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); upd4();
+}));
+document.getElementById('nm').addEventListener('input', upd4);
+document.getElementById('sd').addEventListener('input', upd5);
+['f8', 'v8'].forEach(id => document.getElementById(id).addEventListener('input', upd8));
+['f91', 'f92', 'pl9'].forEach(id => document.getElementById(id).addEventListener('input', upd9));
+addEventListener('resize', fit);
+fit(); drawMix(); drawBusSize(); upd4(); upd5(); upd8(); upd9();
+show(Math.max(0, (parseInt(location.hash.slice(1), 10) || 1) - 1));
+</script>
+</body>
+</html>

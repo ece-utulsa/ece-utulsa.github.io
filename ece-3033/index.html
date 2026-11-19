@@ -250,12 +250,18 @@ footer{
 
    file   : filename in this folder, or null if not built/wired yet
    title  : display name
-   kind   : "tool" | "animation"
+   kind   : "tool" | "animation" | "lecture"
    group  : section heading (see GROUP_ORDER below)
    blurb  : one line, what it does for the student
    tags   : short labels for search/scan
    ================================================================== */
 const TOOLS = [
+  /* --- interactive lectures -------------------------------------------- */
+  { file:"ECE3033_Lecture_Generators_in_Parallel.html",
+    title:"Generators in Parallel", kind:"lecture", group:"Interactive Lectures",
+    blurb:"How generators share a load and who decides how much each one carries: the infinite bus, speed and frequency, governor droop, the P\u2013f and Q\u2013V lines, one generator on the bus, two generators sharing a load, and a worked example. Live slides; press N for notes. v1.0.0.",
+    tags:["parallel operation","droop","infinite bus","house diagram"] },
+
   /* --- three-phase power ----------------------------------------------- */
   { file:"Polyphase_Power_Superposition_Explorer_v0.1.0.html",
     title:"Polyphase Power Superposition Explorer", kind:"tool", group:"Three-Phase Circuits",
@@ -281,6 +287,7 @@ const TOOLS = [
 
 /* Section order. Groups not listed here are appended alphabetically. */
 const GROUP_ORDER = [
+  "Interactive Lectures",
   "Fundamentals",
   "Three-Phase Circuits",
   "Per-Unit System",
@@ -322,7 +329,7 @@ function matches(t, q){
 
 function cardHTML(t){
   const tags = (t.tags||[]).map(x => `<span class="tag">${x}</span>`).join("");
-  const kindLabel = t.kind === "animation" ? "Animation" : "Tool";
+  const kindLabel = t.kind === "animation" ? "Animation" : t.kind === "lecture" ? "Lecture" : "Tool";
   const cls = "card" + (t.kind === "animation" ? " card-anim" : "") + (t.file ? "" : " card-todo");
   const inner = `
     <span class="card-kind">${kindLabel}</span>
