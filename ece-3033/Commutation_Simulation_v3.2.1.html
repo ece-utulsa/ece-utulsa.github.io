@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Commutation — Simple DC Motor</title>
+<meta name="version" content="v3.2.1">
+<title>Commutation — Simple DC Motor v3.2.1</title>
 <script>/* set the theme before first paint so there is no flash */
 try { var t = localStorage.getItem('commutation-theme'); if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -224,7 +225,7 @@ select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(
   <div class="brand">
     <span class="dot"></span>
     <div>
-      <h1>Commutation <span class="ver">v3.2.0</span></h1>
+      <h1>Commutation <span class="ver">v3.2.1</span></h1>
       <p>How a split ring keeps the current — and the torque — going the same way</p>
     </div>
   </div>
@@ -652,7 +653,9 @@ select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(
 
 <script>
 /* =====================================================================
-   COMMUTATION — v3.2.0
+   COMMUTATION — v3.2.1
+   v3.2.1 (2026-11-19): PPR-COM-001 — machine ③ RIGHT NOW card states the
+     conductor marks under each pole from the supply polarity (S.pol).
    Conventions (end view, looking along the shaft from the brush end):
      x right, y up, angles CCW from +x.  N pole on top, S pole on bottom,
      field points DOWN through the rotor.  Out of page (•) = toward viewer.
@@ -1669,7 +1672,11 @@ function updateText() {
     const cc = E.comm.map((v, i) => v ? i + 1 : 0).filter(Boolean);
     txt = `+ brush on <b>${onP.join(' & ')}</b>, − brush on <b>${onM.join(' & ')}</b>. `;
     txt += cc.length ? `Coils <b style="color:var(--comm)">${cc.join(' & ')}</b> are shorted by the brushes and reversing. The others carry ½I each, in two parallel paths. ` : 'All four coils carry ½I, in two parallel paths of two coils each. ';
-    txt += `Every conductor under N is <b style="color:var(--out)">•</b> and every one under S is <b style="color:var(--into)">×</b>, so the torque stays <b style="color:var(--force)">${S.pol > 0 ? 'clockwise' : 'counter-clockwise'}</b>.`;
+    // PPR-COM-001: normal polarity (S.pol > 0) → • under N, × under S, torque CW;
+    // reversed (S.pol < 0) → × under N, • under S, torque CCW (F = I L × B, Tutorial §1).
+    const markN = S.pol > 0 ? '<b style="color:var(--out)">•</b>' : '<b style="color:var(--into)">×</b>';
+    const markS = S.pol > 0 ? '<b style="color:var(--into)">×</b>' : '<b style="color:var(--out)">•</b>';
+    txt += `Every conductor under N is ${markN} and every one under S is ${markS}, so the torque stays <b style="color:var(--force)">${S.pol > 0 ? 'clockwise' : 'counter-clockwise'}</b>.`;
   }
   put('nowText', 'html', txt);
 
