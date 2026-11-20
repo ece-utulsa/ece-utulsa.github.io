@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <!--
   Static Stability Limit — ECE 3033 Lecture 2
-  Version: v1.0.0
+  Version: v1.0.1
   Released: 2026-11-20
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
   DEMO RELEASE 2026-11-20 (principal ruling; gates pending)
-  Changelog: v1.0.0 — first build (briefing 2026-11-20, slide spec sections A–D). Six-slide interactive lecture on the
+  Changelog: v1.0.1 — three fixes from the Director early read of v1.0.0 (briefing 2026-11-20 v1.0.1). F1: the slide-6
+  key-equations card is computed from one model, the lossless operating point (P_in = P_conv = P_out; the losses row
+  says they are ignored and that slide 1 shows them). F2: style rules left from the Lecture 1 shell for instruments
+  this tool does not have are removed. F3: the amber low-margin lamp is off once G3 is slipping or tripped.
+  v1.0.0 — first build (briefing 2026-11-20, slide spec sections A–D). Six-slide interactive lecture on the
   Lecture 1 shell: power flow with illustrative losses, the live phasor diagram with ghosts, the six-step derivation of
   P = 3 V_φ E_A sin δ / X_S to P_max and τ_max, the static stability limit with alarms and a qualitative pole slip,
-  "Your turn", and the key equations with live values. Lab and Experiments tabs. Not published.
+  "Your turn", and the key equations with live values. Lab and Experiments tabs.
   Model: G3, 25 MVA, 13.8 kV, 4 poles, 1800 r/min (ω_m = 188.5 rad/s), X_S = 1.0 pu = 7.62 Ω, on the infinite bus
   V_φ = 7.97 kV; E_A = V_φ × I_F / 5.00 A (no saturation). From slide 2 on R_A and the rotational losses are ignored:
   P = 3 V_φ E_A sin δ / X_S, Q = 3 V_φ (E_A cos δ − V_φ) / X_S, I_A = (E_A − V_φ) / jX_S. Slide 1 losses are
@@ -19,10 +23,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-+Eh/ys131oMuLAPog1FwMLM3yplHUTF8WTK1w463LY0='; style-src 'sha256-CaH758FShjzWQoKQLhcv8t2qR5VI9pJv/gdoaTbVpG8='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/kZ0/MCEjDuLtR7yLCMQ5XJhsljKyMIFUbFzC+4iNdk='; style-src 'sha256-63nMG1UU4MGyN7BR4muWuZp/4HyySPyk4HXgxr8bkUY='; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v1.0.0">
-<title>Static Stability Limit — ECE 3033 Lecture 2 v1.0.0</title>
+<meta name="version" content="v1.0.1">
+<title>Static Stability Limit — ECE 3033 Lecture 2 v1.0.1</title>
 <style>
 /* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
 :root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
@@ -54,7 +58,7 @@ nav.tabs{display:flex;gap:6px;margin-left:auto}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:0;min-width:0}
 .panel h2,.it h2{font-size:12px;margin:0 0 4px;color:var(--acc);text-transform:uppercase;letter-spacing:1px}
 .note{font-size:12.5px;color:var(--mut);margin:3px 0}
-.ro,.lv,.meters td.v,#chk .val,.num-t,.c1 span{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.ro,.lv,.num-t,.c1 span{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .ro{font-weight:800;font-size:12.5px;background:var(--inset);border-radius:6px;padding:3px 6px;white-space:pre;text-align:right}
 .eq{background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin:6px 0}
 .eq .dim{opacity:.4}
@@ -76,62 +80,19 @@ mn.lv{font-family:var(--mono);white-space:pre}
 .steps li{display:grid;grid-template-columns:22px 1fr;padding:2px 0}
 .steps .mark{font-weight:800;color:var(--mut)}
 .steps li.ok .mark{color:var(--ok)}
-.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-.kgrid .eq{margin:0;padding:1px 4px} .kgrid math{font-size:12.5px}
-#sumBox .eq{margin:4px 0} #sumBox .strip{margin:4px 0} #sumBox .def{margin:4px 0} #toS1{min-height:24px;padding:1px 8px}
+ #toS1{min-height:24px;padding:1px 8px}
 /* ═══ MAIN: STAGE AND NOTES ═══ */
 #main{display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0}
 #stage{position:relative;flex:1;min-height:0;display:grid;gap:8px;overflow:hidden}
-#colA,#colB{display:contents}
 .it{display:none;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;overflow:hidden}
 .it.on{display:flex}
 .it>svg{flex:1 1 0;min-height:0;width:100%}
-#itDay{grid-area:day} #itDayRo{grid-area:dayro} #itScene{grid-area:scene} #itWave{grid-area:wave} #itPhasors{grid-area:phasors}
-#itScope{grid-area:scope} #itMeters{grid-area:meters} #itChk{grid-area:chk} #itWhy{grid-area:why} #itResult{grid-area:result}
-#stage[data-view=v1]{grid-template:"day" minmax(0,1fr) "dayro" auto/minmax(0,1fr)}
-#stage[data-view=v2]{grid-template:"scene" minmax(0,1fr) "meters" auto/minmax(0,1fr)}
-#stage[data-view=v3]{grid-template:"scene scene" minmax(0,58fr) "meters result" minmax(0,42fr)/280px minmax(0,1fr)}
-#stage[data-view=v4]{grid-template:"scene" minmax(0,40fr) "result" 104px "phasors" minmax(0,31fr)/minmax(0,1fr)}
-#stage[data-view=v5]{grid-template:"scene scene" minmax(0,58fr) "scope result" minmax(0,42fr)/200px minmax(0,1fr)}
-#stage[data-view=v6]{grid-template:"scene scene" minmax(0,58fr) "scope result" minmax(0,42fr)/200px minmax(0,1fr)}
-#stage[data-view=v7]{grid-template:"scene scene scene" minmax(0,54fr) "scope chk result" minmax(0,46fr)/130px 258px minmax(0,1fr)}
-#stage[data-view=lab]{grid-template:"a b" minmax(0,1fr)/minmax(0,1fr) 400px}
-#stage[data-view=lab] #colA{display:flex;flex-direction:column;gap:8px;grid-area:a;min-height:0;min-width:0}
-#stage[data-view=lab] #colB{display:grid;gap:8px;grid-area:b;min-height:0;min-width:0;grid-template:"scope meters" 150px "chk chk" auto "why why" auto/150px minmax(0,1fr);align-content:start}
-#stage[data-view=lab] #itScene{flex:40 1 0} #stage[data-view=lab] #itWave{flex:25 1 0} #stage[data-view=lab] #itPhasors{flex:30 1 0} #stage[data-view=lab] #itResult{flex:0 0 148px}
-#stage[data-view=lab] #result{font-size:12px}
-#itDayRo{flex-direction:row;flex-wrap:wrap;gap:6px;align-items:center}
-#itDayRo .ro{font-weight:600;text-align:left} #itDayRo b{font-weight:800}
-#itDay.zoom{display:flex;position:absolute;inset:0;grid-area:auto;z-index:3;transform-origin:81% 51%;animation:zoomG3 1.6s ease-in forwards}
-@keyframes zoomG3{0%,30%{transform:scale(1);opacity:1}100%{transform:scale(4.5);opacity:0}}
-.wrow{display:flex;gap:8px;align-items:center;flex:none}
-.wrow .note{margin:0}
-.meters{width:100%;border-collapse:collapse;font-size:13px}
-.meters th,.meters td{padding:2px 6px;border-bottom:1px solid var(--line);text-align:left}
-.meters td.v{font-weight:800;text-align:right;white-space:pre}
-#stage[data-view=v2] .meters,#stage[data-view=v3] .meters{font-size:15px}
-#chk{list-style:none;padding:0;margin:0}
-#chk li{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:4px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px}
-#chk .mark{font-size:16px;font-weight:800;text-align:center}
-#chk li.ok .mark{color:var(--ok)} #chk li.no .mark{color:var(--err)}
-#chk .val{font-weight:700;font-size:12px;white-space:pre}
 .chead{display:flex;justify-content:space-between;align-items:center}
-#ready{display:flex;align-items:center;gap:6px;font-weight:800;font-size:13px}
-#readyDot{width:14px;height:14px;border-radius:50%;background:#c9d1d5;border:2px solid var(--edge)}
-#ready.on #readyDot{background:var(--ok)}
-#itWhy math{font-size:14px} #itWhy .eq{margin:3px 0;padding:2px 6px}
-#itResult{flex-direction:row;flex-wrap:wrap;gap:4px 10px;align-content:flex-start}
-#surgeSvg{flex:0 0 230px;height:60px}
-#result{flex:1 1 210px;min-width:0;font-size:12.5px}
-#result p{margin:0 0 2px}
-#result .verdict{font-weight:800;font-size:14px}
-#result .verdict.bad{color:var(--err)} #result .verdict.good{color:var(--ok)} #result .verdict.mid{color:var(--warn)}
 #notesBox{flex:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
 #slNotes{margin:2px 0 0;font-size:13px}
 /* ═══ SIDEBAR ═══ */
 #side{display:flex;flex-direction:column;gap:6px;overflow:hidden}
 .grp{border-bottom:1px solid var(--line);padding-bottom:5px}
-.grp.off{display:none}
 .grp .crow{display:none} .grp.open .crow{display:grid}
 .grp .c1{display:none;margin:0;font-size:12.5px} .grp.min .c1{display:block}
 .c1 b{display:inline-block;min-width:66px}
@@ -224,17 +185,14 @@ body.paused .flash{animation-play-state:paused}
   #app,#app.lab{display:block}
   #app>*{margin-bottom:8px}
   #stage[data-view]{display:block;overflow:visible}
-  #stage[data-view] #colA,#stage[data-view] #colB{display:block}
   #stage .it{margin-bottom:8px}
   #stage .it>svg{flex:none;height:auto}
-  #stage #surgeSvg{flex:0 0 230px;height:60px}
-  #stage #itScope>svg{max-width:240px}
 }
 </style>
 </head>
 <body>
 <header>
-  <h1>Static Stability Limit</h1><span class="badge">ECE 3033 · Lecture 2 · v1.0.0</span>
+  <h1>Static Stability Limit</h1><span class="badge">ECE 3033 · Lecture 2 · v1.0.1</span>
   <details id="model"><summary>Model</summary><div class="pop">
     <p>Machine G3: 25 MVA, 13.8 kV, 4 poles, 1800 r/min (ω<sub>m</sub> = 188.5 rad/s), X<sub>S</sub> = 7.62 Ω (1.0 pu), on the infinite bus: V<sub>φ</sub> = 7.97 kV, 60 Hz. E<sub>A</sub> = V<sub>φ</sub> × I<sub>F</sub> / 5.00 A (no saturation).</p>
     <p>Slide 1 and the power-flow panel use illustrative losses at unity power factor: friction and windage 0.15 MW, core 0.20 MW, stray 0.25 MW × P<sub>out</sub> / 25 MW, copper 3I<sub>A</sub>²R<sub>A</sub> with R<sub>A</sub> = 0.07 Ω. Arrow widths follow MW; the loss arrows use their own, larger scale.</p>
@@ -750,7 +708,7 @@ function drawDial() {
 function drawAlarms() {
   const deg = S.d * DEG, slip = S.run === 'slip', trip = S.run === 'trip';
   const lamp = (id, on, flash) => { const e = document.getElementById(id); e.classList.toggle('on', on); e.classList.toggle('flash', on && flash); };
-  lamp('lmOk', S.run === 'ok' && !S.over && deg <= BAND_HI + 0.05, false); lamp('lmLow', (S.run === 'ok' && deg > BAND_HI + 0.05) || (slip && deg <= 90), false);
+  lamp('lmOk', S.run === 'ok' && !S.over && deg <= BAND_HI + 0.05, false); lamp('lmLow', S.run === 'ok' && deg > BAND_HI + 0.05, false);   // off once G3 is slipping or tripped (v1.0.1)
   lamp('lmOver', slip && deg > 90, true); lamp('lmSlip', trip || (slip && deg > 180), !trip);
   const b = document.getElementById('banner'), t = trip ? 'BREAKER TRIPPED — G3 LOST SYNCHRONISM. Press Reset.' : slip ? 'LOSS OF SYNCHRONISM — G3 IS SLIPPING POLES' : '';
   if (b.textContent !== t) b.textContent = t; b.classList.toggle('on', !!t); b.classList.toggle('flash', slip);
@@ -791,11 +749,12 @@ function strip(p) {
     default: return 'highest steady load found at ' + f(TASK_A_IF, 2) + ' A: ' + (S.bestA > 0 ? f(S.bestA, 1) + ' MW' : 'none yet') + '\nnow: ' + f(S.pm, 1) + ' MW at I_F = ' + f(S.iF, 2) + ' A, δ = ' + (S.run === 'ok' ? dg + '°' : 'no steady value');
   }
 }
-/* Slide 6: each key equation with G3's value at the present settings: [equation key, value]. */
+/* Slide 6: each key equation with G3's value at the present settings: [equation key, value]. Every row comes from the one
+   lossless operating point p, so the card agrees with itself. */
 function eqValues(p) {
-  const F = flow(S.pm), m = pMax(), T = x => f(x * 1e3 / W_M, 1) + ' kN·m';
-  return [['pin', f(F.pin, 2) + ' MW = ' + f(F.tApp, 1) + ' kN·m × ' + f(W_M, 1) + ' rad/s'], ['pconv', f(F.pconv, 2) + ' MW = ' + f(F.tInd, 1) + ' kN·m × ' + f(W_M, 1) + ' rad/s'],
-    ['loss', f(F.pin, 2) + ' − ' + f(F.po, 2) + ' = ' + f(F.pin - F.po, 2) + ' MW (illustrative, unity pf)'], ['pout', '3(' + f(V_PH, 2) + ' kV)(' + f(p.I, 3) + ' kA)(' + f(p.pf, 3) + ') = ' + f(p.P, 1) + ' MW'],
+  const m = pMax(), T = x => f(x * 1e3 / W_M, 1) + ' kN·m', PT = f(p.P, 1) + ' MW = ' + f(p.P * 1e3 / W_M, 1) + ' kN·m × ' + f(W_M, 1) + ' rad/s';   // one model for every row: R_A and the rotational losses ignored, so P_in = P_conv = P_out (v1.0.1)
+  return [['pin', PT], ['pconv', PT],
+    ['loss', '≈ 0 with R_A and rotational losses ignored; slide 1 shows them'], ['pout', '3(' + f(V_PH, 2) + ' kV)(' + f(p.I, 3) + ' kA)(' + f(p.pf, 3) + ') = ' + f(p.P, 1) + ' MW'],
     ['kvl', f(p.E, 2) + '∠' + f(p.d * DEG, 1) + '° = ' + f(V_PH, 2) + '∠0° + j' + f(X_S, 2) + ' × ' + f(p.I, 3) + '∠' + f(p.th * DEG, 1) + '° kV'], ['vert', f(p.vert, 2) + ' kV = ' + f(X_S * p.I * p.pf, 2) + ' kV'],
     ['p', f(p.P, 1) + ' MW at δ = ' + f(p.d * DEG, 1) + '°'], ['pmax', f(m, 1) + ' MW at I_F = ' + f(S.iF, 2) + ' A'], ['tau', T(p.P)], ['taumax', T(m)], ['band', 'now δ = ' + f(p.d * DEG, 1) + '°, margin ' + f(m - p.P, 1) + ' MW']];
 }
@@ -889,7 +848,7 @@ const NOTES = [
   'Six steps turn the diagram into the power equation; press Next step for each. With R_A ignored, the converted power is the output power, 3V_φ I_A cos θ. Slide 2 gave I_A cos θ in terms of E_A and δ. Substitute, and the power depends on the sine of δ: that is the curve. A sine cannot exceed 1, so the power has a peak at 90°: P_max, the static stability limit, 30.0 MW at a field current of 6 A. Divide by the speed and the same curve reads as torque on the right-hand axis. Real machines run at 20° to 30°, far below the peak. At step 6 the sliders unlock: move them and watch the point and the peak.',
   'This is what the limit means. The prime mover line is the power pushed in; the curve is the power G3 can send to the bus at each δ. Where they cross, G3 runs in step. Press the first Show me: the prime mover rises past the peak. Now no δ balances it. The rotor runs ahead, δ passes 90°, G3 slips a pole and the breaker trips. Reset, then press the second Show me: at 20 MW, δ is 42°, too close for comfort. Raising the field lifts the whole curve, and δ falls back to 29°. The slip shown here is qualitative; what happens after a sudden change, transient stability, is not modelled.',
   'Your turn, two tasks. First, with the field at 6.00 A, raise the prime mover as far as G3 will carry it. The tool remembers the highest steady load you reached; go past it and G3 slips, so press Reset and try again. Second, set 20 MW and find a field current that brings δ down to 30° or less. Watch the margin readout as you go.',
-  'Everything in this lecture is on this card, with G3\'s values at the settings you left. The first four lines are the power flow of slide 1; its values use the illustrative losses at unity power factor. The next two are the phasor diagram. The last five are the power–angle curve: the power, its peak, the same two as torque, and where real machines run. Go back to slide 5 or the Lab, change the prime mover or the field, and return: the values follow.'];
+  'Everything in this lecture is on this card, with G3\'s values at the settings you left. The first four lines are the power flow of slide 1; here R_A and the rotational losses are ignored, as on every slide after the first, so P_in, P_conv and P_out are the same number. The next two are the phasor diagram. The last five are the power–angle curve: the power, its peak, the same two as torque, and where real machines run. Go back to slide 5 or the Lab, change the prime mover or the field, and return: the values follow.'];
 const LAB_START = { pm: 15, iF: 6 };       // Lab Reset
 /* Each slide: the stage view, the sidebar groups shown in full, and the preset applied on entry and by Reset (slide 6 keeps the present settings). */
 const SL = {
@@ -1077,7 +1036,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   try { localStorage.removeItem(SHEET_KEY); sheetMsg('Answers cleared.', false); } catch (e) { sheetMsg('Could not clear the stored copy in this browser.', true); }
 });
 document.getElementById('exportBtn').addEventListener('click', () => {
-  const lines = ['Static Stability Limit — ECE 3033 Lecture 2 v1.0.0', 'Name: ' + (SHEET.name || ''), 'Section: ' + (SHEET.section || ''), 'Date: ' + (SHEET.date || ''), ''];
+  const lines = ['Static Stability Limit — ECE 3033 Lecture 2 v1.0.1', 'Name: ' + (SHEET.name || ''), 'Section: ' + (SHEET.section || ''), 'Date: ' + (SHEET.date || ''), ''];
   document.querySelectorAll('#sheet [data-k]').forEach(e => { if (['name', 'section', 'date'].includes(e.dataset.k)) return;
     const lab = e.getAttribute('aria-label') || (e.closest('li') ? e.closest('li').firstChild.textContent.trim() : e.dataset.k);
     lines.push('[' + e.dataset.k + '] ' + lab, '  ' + (SHEET[e.dataset.k] || '(blank)')); });
