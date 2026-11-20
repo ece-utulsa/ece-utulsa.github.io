@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <!--
   Paralleling a Synchronous Generator — ECE 3033 Lab
-  Version: v1.2.0
+  Version: v1.2.1
   Released: 2026-11-20
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
-  Changelog: v1.2.0 — 7-slide Lecture rebuild (briefing 2026-11-20, slide spec sections A–E). Two tabs: Lecture (opens
+  Changelog: v1.2.1 — Experiments tab kept (principal, 2026-11-20): the five experiments, their Lab set-ups and the saved
+  worksheet return as a third tab, worded for the v1.2 controls. That page is a document and scrolls.
+  v1.2.0 — 7-slide Lecture rebuild (briefing 2026-11-20, slide spec sections A–E). Tabs: Lecture (opens
   first) and Lab. Slide 1 is new: a plant's daily load curve with five 60 MW units coming on and off an infinite bus.
   Slides 2–7: bring G3 to speed and voltage, one slide per paralleling condition with its Show-me demos, and "Your
   turn". Each slide shows only the instruments and the sidebar controls it uses; an equation appears only where the
   main area demonstrates it; speaker notes sit under the animation; the pinned bar holds Close / Open / Reset, Pause,
   the verdict and the pager. The page fits the window without scrolling. Quick fixes: lamp-voltage band removed from
   the waveform panel; the open breaker arm clears the lamps; source references removed. Run up and Excite now ramp so
-  the meters climb. Tutorial, Experiments and Key points pages removed.
+  the meters climb. Tutorial and Key points pages removed.
   v1.1.0 — Lecture mode, eleven slides (not published). v1.0.0–v1.0.2 — first builds (not published).
   Model: V_g ∝ I_F × speed (open circuit, no saturation, no residual voltage); lamp k reads |V_bus,k − V_g,k|
   (phasors, through potential transformers); closing surge ≈ max_k |ΔV_k| / X_S across the breaker poles with
@@ -22,10 +24,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-t+x+4rWOM4IHys/FgQvUdB/r3/+8EJX321K3hpJt9jY='; style-src 'sha256-/H7p8lj3f1wvNRmJEad+P5D7uGoaJxU13sOqqBQvhcg='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-IOfPmFqdRJESnMpsmu3v0gt2cOHNKl1+BtCeTOCNN98='; style-src 'sha256-MoMhuagN7I/oNI5JCZNf7efW/nDPVPL2cF41+wzvi/Q='; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v1.2.0">
-<title>Paralleling a Synchronous Generator — ECE 3033 Lab v1.2.0</title>
+<meta name="version" content="v1.2.1">
+<title>Paralleling a Synchronous Generator — ECE 3033 Lab v1.2.1</title>
 <style>
 /* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
 :root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
@@ -152,6 +154,24 @@ mn.lv{font-family:var(--mono);white-space:pre}
 #pager{display:flex;gap:6px;align-items:center}
 #pager .ro{min-width:44px;text-align:center}
 #pager #slNbtn{margin-left:auto}
+/* ═══ EXPERIMENTS WORKSHEET (a document: this page scrolls) ═══ */
+#page-exp{flex:1;min-height:0;overflow:auto;padding:10px}
+.doc{max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 24px}
+.doc h1{font-size:22px;margin:0 0 4px}
+.doc p,.doc li{font-size:15px}
+.exp-card{border:1px solid var(--line);border-radius:12px;padding:10px 16px;margin:12px 0;background:#fbfcfd}
+.exp-card h3{margin:0 0 4px;font-size:17px}
+.num{font:700 12px var(--mono);color:var(--acc);letter-spacing:2px;text-transform:uppercase;margin:0}
+textarea,input[type=text],input[type=date]{font:15px var(--sans);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;width:100%;color:var(--txt);background:var(--panel)}
+textarea{min-height:64px;margin-top:4px}
+.sheetHead{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.sheetHead label{font-weight:700;font-size:13px}
+#sheetStatus{font-weight:700;font-size:13.5px;margin:8px 0}
+#sheetStatus.bad{color:var(--err)} #sheetStatus.good{color:var(--ok)}
+.doc details summary{cursor:pointer;font-weight:700;color:var(--acc);margin-top:6px}
+table.rec{border-collapse:collapse;margin:8px 0}
+table.rec th,table.rec td{border:1px solid var(--line);padding:4px 8px;font-size:14px}
+table.rec input{width:110px}
 /* ═══ NARROW OR SHORT WINDOWS: the page scrolls instead of squeezing ═══ */
 @media (max-width:1199px),(max-height:559px){
   html,body{height:auto} body{display:block;min-height:0}
@@ -168,7 +188,7 @@ mn.lv{font-family:var(--mono);white-space:pre}
 </head>
 <body>
 <header>
-  <h1>Paralleling a Synchronous Generator</h1><span class="badge">ECE 3033 · v1.2.0</span>
+  <h1>Paralleling a Synchronous Generator</h1><span class="badge">ECE 3033 · v1.2.1</span>
   <details id="model"><summary>Model</summary><div class="pop">
     <p>Incoming machine G3: 25 MVA, 13.8 kV, 4 poles, X<sub>S</sub> = 1.0 pu = 7.62 Ω, rated current 1046 A. The bus is infinite: 13.8 kV, 60.00 Hz, sequence ABC. V<sub>g</sub> ∝ I<sub>F</sub> × speed (open circuit, no saturation).</p>
     <p>Surge at the close ≈ |ΔV|/X<sub>S</sub> on the worst breaker pole, using the steady-state X<sub>S</sub>; the real first-cycle surge is larger (subtransient reactance X″<sub>d</sub>). Up to 0.20 × rated: smooth. Up to 0.60 × rated: a jolt. Above that, or wrong sequence, or |slip| &gt; 0.5 Hz (cannot pull into step): a trip.</p>
@@ -178,6 +198,7 @@ mn.lv{font-family:var(--mono);white-space:pre}
   <nav class="tabs" aria-label="Pages">
     <button data-page="lec" aria-pressed="true">Lecture</button>
     <button data-page="lab" aria-pressed="false">Lab</button>
+    <button data-page="exp" aria-pressed="false">Experiments</button>
   </nav>
 </header>
 
@@ -365,10 +386,65 @@ mn.lv{font-family:var(--mono);white-space:pre}
   </div>
 </div>
 
+<!-- ═══ EXPERIMENTS ═══ -->
+<section id="page-exp" aria-label="Experiments" hidden><article class="doc" id="sheet">
+  <h1>Experiments</h1>
+  <p>Five short investigations, about 30 minutes. Each <b>▶ Set up</b> puts the Lab in the right state. Predict before you look.</p>
+  <div class="sheetHead"><label>Name<input type="text" data-k="name" autocomplete="name"></label><label>Section<input type="text" data-k="section"></label><label>Date<input type="date" data-k="date"></label></div>
+  <div class="btns"><button id="exportBtn" class="pri">⇩ Export my answers</button><button id="clearBtn">Clear my answers</button></div>
+  <p id="sheetStatus" role="status" aria-live="polite"></p>
+
+  <div class="exp-card"><p class="num">Experiment 1</p><h3>Wrong phase sequence</h3>
+    <p>Goal: see what the lamps do when two leads are swapped, and fix it.</p>
+    <button class="try" data-try='{"fg":60.2,"vg":13.8,"seq":"ACB","th0":0}'>▶ Set up</button>
+    <ol><li>Predict: will lamps A, B, C blink together or one after another?</li><li>Watch for 10 s. Then press <b>⇄ Swap two leads (b↔c)</b>.</li></ol>
+    <ol class="qs"><li>Prediction, then what you saw with ACB.<textarea data-k="e1q1"></textarea></li>
+      <li>Why are the lamps never all dark at the same time with ACB?<textarea data-k="e1q2"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>With ACB the lamps take turns — the dark lamp moves A → C → B (or the reverse) and never all three go dark together, because phases B and C of the generator sit 120° away from the bus phases they face. Swapping the two leads back makes all three brighten and go dark together.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 2</p><h3>Blink rate and frequency difference</h3>
+    <p>Goal: show that the blink rate equals |f<sub>g</sub> − f<sub>bus</sub>|.</p>
+    <button class="try" data-try='{"fg":60.5,"vg":13.8,"seq":"ABC","th0":0}'>▶ Set up</button>
+    <ol><li>Real time is on. Count dark moments in 10 s at each frequency; set it with the Governor slider and its − and + buttons.</li></ol>
+    <table class="rec"><tr><th>f<sub>g</sub> (Hz)</th><th>Slip (Hz)</th><th>Blinks in 10 s</th></tr>
+      <tr><td>60.50</td><td>0.50</td><td><input type="text" data-k="e2a" aria-label="Blinks at 0.50 hertz slip"></td></tr>
+      <tr><td>60.20</td><td>0.20</td><td><input type="text" data-k="e2b" aria-label="Blinks at 0.20 hertz slip"></td></tr>
+      <tr><td>60.05</td><td>0.05</td><td><input type="text" data-k="e2c" aria-label="Blinks at 0.05 hertz slip"></td></tr></table>
+    <ol class="qs"><li>Predict first: how many blinks in 10 s at 0.20 Hz? Then explain the pattern. What do the two waves in the waveform panel do?<textarea data-k="e2q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>5, 2 and 0.5 blinks in 10 s: blinks per second = |f<sub>g</sub> − f<sub>bus</sub>|. In the waveform panel the generator wave slides past the bus wave once for every blink. The phase difference does not set the rate; it sets how bright the lamps are at each instant.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 3</p><h3>Close at the wrong moment</h3>
+    <p>Goal: compare the surge for a close at Δθ = 90°, 180° and ≈ 0°.</p>
+    <button class="try" data-try='{"fg":60,"vg":13.8,"seq":"ABC","th0":90,"pause":true}'>▶ Set up 90°</button>
+    <div class="btns"><button class="try" data-try='{"fg":60,"vg":13.8,"seq":"ABC","th0":180,"pause":true}'>▶ Set up 180°</button><button class="try" data-try='{"fg":60,"vg":13.8,"seq":"ABC","th0":5,"pause":true}'>▶ Set up 5°</button></div>
+    <ol><li>Time is paused at the set angle. Press <b>Close</b> and read the surge meter. Then <b>↺ Reset</b> and use the next set-up.</li></ol>
+    <table class="rec"><tr><th>Δθ</th><th>Surge (A)</th><th>Surge (× rated)</th></tr>
+      <tr><td>90°</td><td><input type="text" data-k="e3a" aria-label="Surge at 90 degrees"></td><td><input type="text" data-k="e3a2" aria-label="Surge per unit at 90 degrees"></td></tr>
+      <tr><td>180°</td><td><input type="text" data-k="e3b" aria-label="Surge at 180 degrees"></td><td><input type="text" data-k="e3b2" aria-label="Surge per unit at 180 degrees"></td></tr>
+      <tr><td>5°</td><td><input type="text" data-k="e3c" aria-label="Surge at 5 degrees"></td><td><input type="text" data-k="e3c2" aria-label="Surge per unit at 5 degrees"></td></tr></table>
+    <ol class="qs"><li>Predict first: which angle gives the largest surge? Check with |ΔV| = 2V sin(Δθ/2).<textarea data-k="e3q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>90°: |ΔV| = 11.27 kV, surge ≈ 1479 A (1.41 × rated) — the breaker closes, then trips. 180°: 15.93 kV, ≈ 2092 A (2.00 × rated) — trip. 5°: 0.70 kV, ≈ 91 A (0.09 × rated) — stays closed, IN STEP; equal frequencies here, so P ≈ 0.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 4</p><h3>Unequal voltages</h3>
+    <p>Goal: see why the lamps never go fully dark when V<sub>g</sub> ≠ V<sub>bus</sub>, then close anyway.</p>
+    <button class="try" data-try='{"fg":60.05,"iF":3,"seq":"ABC","th0":0}'>▶ Set up</button>
+    <ol><li>The set-up puts the field low on purpose (V<sub>g</sub> = 8.29 kV). Watch the lamps at their darkest; read lamp A's voltage then.</li><li>Close when the lamps are darkest. Read the surge.</li></ol>
+    <ol class="qs"><li>Why do the lamps never go fully dark?<textarea data-k="e4q1"></textarea></li>
+      <li>What surge did you get, and which condition was missing?<textarea data-k="e4q2"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>At Δθ = 0 the lamp still reads |V<sub>bus</sub> − V<sub>g</sub>| = 7.97 − 4.78 = 3.18 kV per phase, so the lamps stay dimly lit. Closing at Δθ ≈ 0 gives about 418 A (0.40 × rated): it joins with a jolt (amber tag). Condition 1, equal voltages, was missing.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 5</p><h3>Close with the generator slow</h3>
+    <p>Goal: find which way power flows after closing with f<sub>g</sub> below the bus.</p>
+    <button class="try" data-try='{"fg":59.9,"vg":13.8,"seq":"ABC","th0":30}'>▶ Set up</button>
+    <ol><li>Watch the synchroscope direction. Close when the lamps are dark.</li></ol>
+    <ol class="qs"><li>Predict first: generating or motoring? Then read P after the close.<textarea data-k="e5q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>The pointer turns counter-clockwise (SLOW). After the close the machine is pulled up to 60.00 Hz and runs as a motor: P = 10.4 × (59.90 − 60.00) ≈ −1.04 MW. That is why condition 4 asks for f<sub>g</sub> slightly above the bus.</p></details></div>
+</article></section>
+
 <script>
 /* ═══ CONTENTS ═══
    1. CONSTANTS   2. STATE   3. PHYSICS   4. FORMATTING   5. SCENE AND WAVEFORMS   6. CHECKLIST, CALLOUT, READOUTS
-   7. BREAKER     8. CONTROLS   9. LECTURE (slides, views, demos)   10. PHASOR VIEW   11. SLIDE 1: PLANT DAY   12. LOOP */
+   7. BREAKER     8. CONTROLS   9. LECTURE (slides, views, demos)   10. PHASOR VIEW   11. SLIDE 1: PLANT DAY   12. WORKSHEET   13. LOOP */
 'use strict';
 /* ═══ 1. CONSTANTS ═══ */
 const POLES = 4;                          // poles of the incoming machine
@@ -416,6 +492,8 @@ const DAY_START = 2;                      // h, time of day when slide 1 opens
 const DAY_ZOOM = 5.5;                     // h, time of day shown while slide 2 zooms in: G3 is being synchronized on the morning ramp
 const DAY_STEP = 0.25;                    // h, the day clock's − / + buttons
 const EPS = 1e-9;                         // comparison slack for hours and MW
+const SHEET_KEY = 'paralleling-lab-worksheet-v1';   // the only localStorage key this tool reads or writes
+const SHEET_MAX = 4000;                   // longest stored answer (characters)
 
 /* ═══ 2. STATE ═══ */
 const START = { fg: 0, iF: 0, seq: 'ABC', th0: 0 };   // Reset in the Lab and slide 7: machine at rest, field off
@@ -677,11 +755,12 @@ function clearResult() {
 const fgS = document.getElementById('fgS'), vgS = document.getElementById('vgS'), dayS = document.getElementById('dayS');
 /* A control changed: an open breaker's verdict is cleared so the verdict line follows the new state; a joined machine's P and Q are refreshed. */
 function changed() { if (!S.closed && S.result) clearResult(); else if (S.joined) renderResult(); syncButtons(); readouts(true); }
-/* Set the state (Reset, slide presets and demos). o: { fg, iF | vg, seq, th0 }. Cancels any run-up in progress. */
+/* Set the state (Reset, slide presets, demos and Experiment set-ups). o: { fg, iF | vg, seq, th0, pause }. Cancels any run-up in progress. */
 function setup(o) {
   if (S.closing) return;
   S.closed = false; S.joined = false; S.fgT = null; S.iFT = null; S.fg = o.fg; S.seq = o.seq || 'ABC'; S.th = (o.th0 || 0) / DEG;
   S.iF = o.vg !== undefined ? iFor(o.vg) : o.iF || 0;
+  S.paused = !!o.pause;
   clearResult();
 }
 /* True when the machine is at speed and not being run up or down. */
@@ -732,13 +811,20 @@ document.getElementById('resetBtn').addEventListener('click', () => { if (S.mode
 document.getElementById('pauseBtn').addEventListener('click', () => { S.paused = !S.paused; syncButtons(); readouts(true); });
 document.getElementById('waveSlowBtn').addEventListener('click', () => { S.waveSlow = !S.waveSlow; syncButtons(); readouts(true); });
 document.getElementById('dayRun').addEventListener('click', () => { if (!S.dayRun && S.dayH >= 24 - EPS) S.dayH = 0; S.dayRun = !S.dayRun; if (S.dayRun) S.paused = false; syncButtons(); });
-/* Show the Lecture or the Lab. */
+/* Show the Lecture, the Lab or the Experiments worksheet. */
 function showPage(id) {
-  S.mode = id === 'lab' ? 'lab' : 'lec';
-  document.querySelectorAll('nav.tabs button[data-page]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.page === S.mode)));
+  const exp = id === 'exp';
+  S.mode = id === 'lec' ? 'lec' : 'lab';
+  document.getElementById('app').hidden = exp; document.getElementById('page-exp').hidden = !exp;
+  document.querySelectorAll('nav.tabs button[data-page]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.page === id)));
   if (S.mode === 'lec') goSlide(S.slide); else { S.demoId++; S.busy = false; S.dayRun = false; applyView(); renderResult(); syncButtons(); readouts(true); }
 }
 document.querySelectorAll('nav.tabs button[data-page]').forEach(b => b.addEventListener('click', () => showPage(b.dataset.page)));
+/* Experiment set-ups: put the Lab in the stated state and show it. */
+document.querySelectorAll('button.try').forEach(b => b.addEventListener('click', () => {
+  let o; try { o = JSON.parse(b.dataset.try); } catch (e) { return; }
+  S.cross = false; setup(o); showPage('lab');
+}));
 
 /* ═══ 9. LECTURE (slides, views, demos) ═══ */
 const NOTES = [
@@ -966,7 +1052,45 @@ function drawDay(force) {
 /* Move the day clock to h (0–24 h); moving it by hand pauses the day. */
 function setDay(h) { S.dayH = Math.min(24, Math.max(0, h)); S.dayRun = false; syncButtons(); readouts(true); }
 
-/* ═══ 12. LOOP ═══ */
+/* ═══ 12. WORKSHEET ═══ */
+let SHEET = {};
+const KEYS = [...document.querySelectorAll('[data-k]')].map(e => e.dataset.k);
+/* Show the worksheet status (never silent). */
+function sheetMsg(t, bad) { const e = document.getElementById('sheetStatus'); e.textContent = t; e.className = bad ? 'bad' : 'good'; }
+/* Load and validate the stored record: a plain object of known keys holding short strings. */
+function loadSheet() {
+  let raw = null;
+  try { raw = localStorage.getItem(SHEET_KEY); } catch (e) { sheetMsg('This browser will not store answers here. Use “Export my answers” before you close the page.', true); return; }
+  if (raw === null) { sheetMsg('Answers are saved in this browser only.', false); return; }
+  let rec; try { rec = JSON.parse(raw); } catch (e) { rec = null; }
+  if (!rec || typeof rec !== 'object' || Array.isArray(rec)) { sheetMsg('A stored worksheet record was invalid and was not loaded.', true); return; }
+  let dropped = 0;
+  for (const k of Object.keys(rec)) { if (KEYS.includes(k) && typeof rec[k] === 'string' && rec[k].length <= SHEET_MAX) SHEET[k] = rec[k]; else dropped++; }
+  sheetMsg(dropped ? dropped + ' stored entr' + (dropped === 1 ? 'y was' : 'ies were') + ' invalid and not loaded; the rest are restored.' : 'Answers restored from this browser.', dropped > 0);
+  document.querySelectorAll('[data-k]').forEach(e => { if (SHEET[e.dataset.k] !== undefined) e.value = SHEET[e.dataset.k]; });
+}
+/* Save the worksheet; say so if the browser refuses. */
+function saveSheet() {
+  try { localStorage.setItem(SHEET_KEY, JSON.stringify(SHEET)); sheetMsg('Saved in this browser.', false); }
+  catch (e) { sheetMsg('Could not save in this browser. Use “Export my answers” before you close the page.', true); }
+}
+document.querySelectorAll('[data-k]').forEach(e => e.addEventListener('input', () => { SHEET[e.dataset.k] = String(e.value).slice(0, SHEET_MAX); saveSheet(); }));
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!confirm('Clear every answer on this worksheet?')) return;
+  SHEET = {}; document.querySelectorAll('[data-k]').forEach(e => { e.value = ''; });
+  try { localStorage.removeItem(SHEET_KEY); sheetMsg('Answers cleared.', false); } catch (e) { sheetMsg('Could not clear the stored copy in this browser.', true); }
+});
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const lines = ['Paralleling a Synchronous Generator — ECE 3033 Lab v1.2.1', 'Name: ' + (SHEET.name || ''), 'Section: ' + (SHEET.section || ''), 'Date: ' + (SHEET.date || ''), ''];
+  document.querySelectorAll('#sheet [data-k]').forEach(e => { if (['name', 'section', 'date'].includes(e.dataset.k)) return;
+    const lab = e.getAttribute('aria-label') || (e.closest('li') ? e.closest('li').firstChild.textContent.trim() : e.dataset.k);
+    lines.push('[' + e.dataset.k + '] ' + lab, '  ' + (SHEET[e.dataset.k] || '(blank)')); });
+  const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' }));
+  const a = document.createElement('a'); a.href = url; a.download = 'Paralleling_Lab_answers.txt'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000); sheetMsg('Exported to Paralleling_Lab_answers.txt.', false);
+});
+
+/* ═══ 13. LOOP ═══ */
 let tPrev = performance.now();
 /* One frame: advance the phase difference at the slip frequency (real time) and the day clock, then draw what is on screen; numbers 4 times a second. */
 function frame(t) {
@@ -984,7 +1108,7 @@ function frame(t) {
 }
 /* Checklist value cells get ids so put() can skip unchanged text. */
 ['c1', 'c2', 'c3', 'c4'].forEach(id => { document.getElementById(id).querySelector('.val').id = id + 'v'; });
-buildScene(); buildWave(); buildPhasors(); buildDay(); showPage('lec');
+buildScene(); buildWave(); buildPhasors(); buildDay(); loadSheet(); showPage('lec');
 requestAnimationFrame(frame);
 </script>
 </body>
