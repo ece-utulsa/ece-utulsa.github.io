@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <!--
   Synchronous Generator Phasor Lab
-  Version: v2.2.5
-  Released: 2026-11-17
-  Changelog: v2.2.5 — PPR-SG-010, ruling J4 option A, 2026-11-17 (Claude Code). Motor and Condenser views (round rotor and salient pole): the drawn drop phasors are −jX_S I_A and −R_A I_A, and are now labelled so on the diagram and in the legend ("−jX_S I_A", "−R_A I_A"; salient pole "−jX_d I_d − jX_q I_q"), matching the KVL strip term by term and Experiment 12 step 1. The drawing itself, the Generator view and the physics are unchanged. No other change.
-  v2.2.4 — fix pass on the v2.2.3 gates (Claude Code). Capability plot: each half-plane name ("lagging pf" / "leading pf") is placed on the P side where the machine shown operates (P ≥ 0 generator, P ≤ 0 motor, either side for the condenser) (PPR-SG-007). Theory: the unity-load and regulation statements, and "a generator has a positive δ", are scoped to X_S ≫ R_A, as in every real machine; the lab lets R_A approach X_S, where they can reverse (PPR-SG-011). Excitation pill: a reversed field is named as such, never as a field above its limit (PPR-SG-012). Phasor labels: the origin dot is a label obstacle, and in the dark view the glow of the three phasors is too (VIS-SG-002). Pin reference, Fit, the theme button and the guide's Restart / Hide / close carry their meaning in visible text (a note under Pin reference; "Fit diagram", "Restart experiment", "Leave guide"), with no tooltip-only instruction (VIS-SG-008). The status chip and the R_A note print I_f, P_max, R_A and V_φ with subscripts, built as text nodes (VIS-SG-012). Panel titles, the mini buttons and the nav badge are 0.72rem (11.52 px), so every page label is at least 11.5 px as the v2.2.3 entry says (CQ-SG-602). The v2.2.3 entry below now lists every shipped change (CQ-SG-601).
+  Version: v2.2.7
+  Released: 2026-11-19
+  Changelog: v2.2.7 — fix pass on the v2.2.6 Visual gate (Claude Code). Motor view, round rotor, R_A = 0, construction lines: the three parts of the height relation "−E_A sin δ" / "= X_S I_A cos θ" / "∝ P" are placed as one block beside the bracket with the Generator view's spacing (second line starts 1 px after the end of the first, third under the first, 16 px rows), and no part sits on the row of the −jX_S I_A drop label when that label is within 96 px of it, nor on the row next to it when the drop label is directly over or under it (VIS-SG-014). New placeGroup draws the block; placeLabel now returns the box it drew; the drop label is tagged so the block can keep off its row. Search: the bracket-side columns, then straight up and down, then rings kept on the bracket side; the left-of-triangle position is no longer offered for the motor relation. The Generator view's labels are placed exactly as in v2.2.6. Printed text unchanged. No other change.
+  v2.2.6 — fix pass on the v2.2.5 gates (Claude Code). Motor view, round rotor, R_A = 0, construction lines: the height relation is printed signed, "−E_A sin δ = X_S I_A cos θ ∝ P", which is true for the negative δ on screen and agrees with the KVL strip E_A = V_φ − jX_S I_A (PPR-SG-013; relabel only, the drawing is unchanged; the Condenser view uses the same signed form if its height bracket is ever drawn; the Generator view keeps "E_A sin δ = X_S I_A cos θ ∝ P" / "∝ real current"). setSubText is declared once: the v2.2.4 declaration, which a later declaration shadowed and which never ran, is removed; the body that has run since v2.2.3 (split on "_" followed by letters or digits, linear in its input) is kept, and it builds only text nodes and attribute-free <sub> elements (CQ-SG-701, SEC-SG-601). The v2.2.4 entry below is corrected to say so. The construction-line comments name the drop phasor as drawn in each view, jX_S I_A for a generator and −jX_S I_A for a motor or condenser (CQ-SG-702; comments only). No other change.
+  v2.2.5 — PPR-SG-010, ruling J4 option A, 2026-11-17 (Claude Code). Motor and Condenser views (round rotor and salient pole): the drawn drop phasors are −jX_S I_A and −R_A I_A, and are now labelled so on the diagram and in the legend ("−jX_S I_A", "−R_A I_A"; salient pole "−jX_d I_d − jX_q I_q"), matching the KVL strip term by term and Experiment 12 step 1. The drawing itself, the Generator view and the physics are unchanged. No other change.
+  v2.2.4 — fix pass on the v2.2.3 gates (Claude Code). Capability plot: each half-plane name ("lagging pf" / "leading pf") is placed on the P side where the machine shown operates (P ≥ 0 generator, P ≤ 0 motor, either side for the condenser) (PPR-SG-007). Theory: the unity-load and regulation statements, and "a generator has a positive δ", are scoped to X_S ≫ R_A, as in every real machine; the lab lets R_A approach X_S, where they can reverse (PPR-SG-011). Excitation pill: a reversed field is named as such, never as a field above its limit (PPR-SG-012). Phasor labels: the origin dot is a label obstacle, and in the dark view the glow of the three phasors is too (VIS-SG-002). Pin reference, Fit, the theme button and the guide's Restart / Hide / close carry their meaning in visible text (a note under Pin reference; "Fit diagram", "Restart experiment", "Leave guide"), with no tooltip-only instruction (VIS-SG-008). The status chip and the R_A note print I_f, P_max, R_A and V_φ with subscripts, built as text nodes and <sub> elements (VIS-SG-012). Correction (v2.2.6, CQ-SG-701): v2.2.4 added a second setSubText declaration that was shadowed by the existing v2.2.3 one; the body in force was the v2.2.3 body, which already built text nodes and <sub> elements, so the output was as stated but the function described here never ran. Panel titles, the mini buttons and the nav badge are 0.72rem (11.52 px), so every page label is at least 11.5 px as the v2.2.3 entry says (CQ-SG-602). The v2.2.3 entry below now lists every shipped change (CQ-SG-601).
   v2.2.3 — fix pass on the v2.2.2 gates. Round-rotor stability test changed from δ > δ_pull + tol to sin(δ − δ_pull) > tol, so a lightly loaded motor with R_A > 0 whose δ has passed 180° is flagged unstable (red status chip, capability dot) where v2.2.2 did not flag it. A reversed field is also named in the drive-switch reason, and its E_A phasor is labelled "E_A (reversed)". Salient pole, Set P & pf: a point whose two-reaction solution needs a field at or below zero is named as a reversed field, outside the model; its field is shown with its sign, delta is the angle of the q-axis, no stability claim is made and no dot is put on the V-curve (PPR-SG-001). Capability plot: the dot is not reported inside the limits beyond the stability limit; for the round-rotor model the stability limit is drawn when it is in view and bounds the shaded region, and Theory section 6 names it (PPR-SG-002). The "proportional to P / real current" label is shown only with R_A = 0, and the texts that rely on it say so (PPR-SG-003). Unity-load and regulation wording no longer state a size (PPR-SG-004, -005). No per-unit reactances in the rating line (PPR-SG-006). Capability half-plane labels name Q supplied / absorbed and the lead or lag of the machine shown (PPR-SG-007). The salient-pole capability view says its limits are round-rotor circles (PPR-SG-009). A typed number too large to hold ("1e999") is reported as too large (SG-213). Right-hand column scrolls instead of painting over the equation strip when the window is short (VIS-SG-001). Labels on both canvases keep clear of every drawn line: loci, construction lines, the pinned reference, angle arcs, limit curves and guide lines are label obstacles; side-plot notes sit in a margin above the frame; the left margin grows with the tick labels (VIS-SG-002, -003, SG-214). |E_A| locus drawn darker (VIS-SG-004); theta arc dashed (VIS-SG-005); canvas text at least 11.5 px with 8 px subscripts and page labels at least 11.5 px (VIS-SG-006); Compare check boxes 26 px high (VIS-SG-007); drive-switch reason, Lead / Lag note, allowed ranges and button-group explanations are printed beside their controls (VIS-SG-008); pressed Pin reference text contrast in the dark view (VIS-SG-009); Theory figure 1 no longer clips I_A (VIS-SG-010); the status chip has its own row and the combined field text is shorter (VIS-SG-011). Version in the title and a version meta tag (CQ-SG-502); unreachable floor branch of the load-to-field hand-over removed (CQ-SG-503); placeInFrame comment corrected (CQ-SG-504).
   v2.2.2 — fix pass on the v2.2.1 gates. Typed boxes: text that is not wholly a number ("12abc", "12 A", "1,2,3", "0x10", "1e", "1/2") no longer leaves a prefix of itself applied; the value in force when the box was entered is kept, the box is marked and the row says "not a number - kept <value>"; an emptied box keeps that value too (DEFECT-SG-209). The number pattern now has one way to match any text and text longer than 24 characters is refused before it is tested (SEC-SG-301). Solve for E_A names a field outside 0.30-2.20 pu in the status chip in every state, also when delta beyond 90 degrees is flagged (the delta wording is unchanged) (DEFECT-SG-210 / CQ-SG-401). The drive-switch tooltip on a state where the set P is below the least input the field allows now says so, in either direction, instead of "cannot reproduce this point exactly" (DEFECT-SG-211 / CQ-SG-103). A required label whose listed positions are all taken now tries rings of positions around them (6 px apart, up to 48 px) before it would overprint, so "rated V_phi", "unity", "25 kW" and "jX_S I_A" sit clear of the curves, phasors and the operating dot at the experiment start states (DEFECT-SG-212 / CQ-SG-021). The Pin reference button carries aria-pressed and the page tab in use aria-current (CQ-SG-402). The v2.2.1 entry below now lists every v2.2.1 change (CQ-SG-403).
   v2.2.1 — fix pass on the v2.2.0 gates. Solve for E_A now computes E_A = V_phi + (R_A + jX_S) I_A directly from the given V_phi (it used to re-derive V_phi from the field and could return a different operating point for a strongly leading load: DEFECT-SG-201 / CQ-SG-301); a torque angle beyond 90 degrees is flagged in red; the field needed is shown as found, with a warning when it lies outside 0.30-2.20 pu, instead of being clamped (SG-202), and the field-current input is no longer overwritten (SG-204). Load is limited to 0-200 % of full-load current whatever the rating (SG-206). The typed boxes are text boxes that accept a decimal comma, mark an entry that is not a number and say when a value was limited (SG-207, SG-208); the Lead / Lag choice is disabled at unity (SG-203). The power-factor slider and box share one range (to 87 degrees); line-entry sliders run on whole numbers and reach the exact limits; a Y / delta switch in line entry keeps the load percentage. Status texts print the signed delta; the drive-switch tooltip names the actual reason and the switch no longer locks at an end stop; the horizontal construction label reads +X_S I_A sin theta for a motor or condenser, the Q supplied. Label placement tries more positions for the angle and tick labels. Internal: purpose-named constants, aria-pressed on the segmented buttons, dead CSS removed, state field hold renamed solveFor. Also in v2.2.1: the Theory page says the angle inside the construction triangle is |theta| (section 3) and states that for a motor or condenser the lab reports the Q supplied, Q = +3 V_phi I_A sin theta with I_A flowing in (section 7); the terminal characteristic is drawn for the field in force (the field found, in Solve for E_A) and, when delta is beyond 90 degrees, a dashed lower-voltage branch of the same field is drawn; every typed box carries an "Allowed: min to max" tooltip; with the load limited to 200 % of full-load current, the largest per-phase load current is now 2,000 A (200 % of the 1,000 A maximum rating; it was 1,000 A).
@@ -17,8 +19,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="version" content="v2.2.5">
-<title>Synchronous Generator Phasor Lab v2.2.5</title>
+<meta name="version" content="v2.2.7">
+<title>Synchronous Generator Phasor Lab v2.2.7</title>
 <script>
 /* Theme is applied before first paint: saved choice, else the system preference. */
 (function () {
@@ -251,7 +253,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <body>
 
 <div class="topnav">
-    <div class="brand"><i></i>Synchronous Generator Phasor Lab <small>ECE-3033 · v2.2.5</small></div>
+    <div class="brand"><i></i>Synchronous Generator Phasor Lab <small>ECE-3033 · v2.2.7</small></div>
     <div class="nav-right">
         <div class="tabs" id="pageTabs">
             <button class="active" data-page="theoryPage" aria-current="page">Theory</button>
@@ -518,7 +520,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 
 <script>
 /* ============================================================
-   SYNCHRONOUS GENERATOR PHASOR LAB v2.2.5 — University of Tulsa ECE-3033
+   SYNCHRONOUS GENERATOR PHASOR LAB v2.2.7 — University of Tulsa ECE-3033
    Sign conventions (per phase, V_φ on the real axis):
      Generator:  E_A = V_φ + I_A (R_A + jX_S)     E_A leads V_φ by δ
      Motor:      E_A = V_φ − I_A (R_A + jX_S)     E_A lags  V_φ by δ
@@ -557,7 +559,7 @@ const KILO = 1000;                         // V→kV, A→kA, kW→MW display br
 const KV_BREAK = 10000;                    // show kV from here up
 const PCT = 100;
 const EMPTY = '—';
-const MINUS = '−';                         // U+2212, the sign written before each drawn drop term in the Motor and Condenser views (v2.2.5, PPR-SG-010)
+const MINUS = '−';                         // U+2212, the sign written before each drawn drop term in the Motor and Condenser views (v2.2.5, PPR-SG-010) and before E_A sin δ in their construction label (v2.2.6, PPR-SG-013)
 
 /* Slider limits: the range inputs take min / max / step from here (see init) and the logic clamps to the same values. */
 const LIM = Object.freeze({
@@ -622,6 +624,7 @@ const TEXT = Object.freeze({
 });
 /* Wider search for a required label whose own candidates are all taken: rings around each candidate, nearest first. */
 const LBL_SEARCH = Object.freeze({ STEP: 6, RINGS: 8, DIRS: 12 });   // ring spacing (px), number of rings, positions per ring
+const GROUP_SEARCH_MULT = 2;               // a block of label lines searches twice as far as one label before it is split (v2.2.7)
 const OBST_ARC_STEP = 0.05;                // an arc is a label obstacle as chords this long (rad)
 const ARROW = Object.freeze({ HEAD_MIN: 10, HEAD_PER_W: 3, HEAD_MAX_FRAC: 0.6, HEAD_HALF_ANGLE: 0.36, SHAFT_BACK: 0.7, MIN_LEN: 3, GLOW: 9 });
 const FULL_CIRCLE = 2 * Math.PI;
@@ -645,6 +648,8 @@ const PH = Object.freeze({
     CONSTP_LBL_BACK: 150, CONSTP_LBL_STEP: 150, CONSTP_LBL_FWD: 30, CONSTP_LBL_LEFT: 8, CONSTP_LBL_RIGHT: 230, CONSTP_LBL_DY: 14, CONSTP_LBL_SIZE: 11.5,
     CONS_W: 1.4, CONS_DASH: [5, 4], CONS_MIN_H: 30, CONS_MIN_W: 34, CONS_BRACKET_DX: 12, CONS_BRACKET_ARM: 5,
     CONS_TXT_DX: 7, CONS_TXT_COLS: [0, 48, 96], CONS_LINE_DY: 16, CONS_SIZE: 11.5, CONS_Q_DY: 15, CONS_Q_SIZE: 11.5,
+    CONS_REL_GAP: 1,   // px between the box of a relation line and the box of the line after it (the Generator view's spacing: column 48 after its 47 px first line)
+    CONS_KEEP_REACH: 96,   // px: a label this close beside a relation line, on its row, would read as part of it (two text columns; VIS-SG-014 measured 29–33 px)
     CONS_MIN_THETA: 0.05, CONS_EXT_ALPHA: 0.6, CONS_EXT_W: 1.2, CONS_EXT_DASH: [4, 5], CONS_SQUARE: 9,
     GHOST_DASH: [7, 5], GHOST_W: 2, GHOST_DROP_W: 1.6,
     ARC_W: 1.8, THETA_DASH: [5, 3], ARC_LBL_GAP: 10,   // the θ arc is dashed, the δ arc solid: told apart without colour
@@ -937,6 +942,7 @@ function alpha(color, a) { return 'color-mix(in srgb, ' + color + ' ' + Math.rou
 let phC, phX, sdC, sdX;                    // phasor canvas / context, side-plot canvas / context
 let OBST = [];                             // obstacles for label placement during one phasor draw
 let AREA = { w: 0, h: 0 };                 // canvas area labels must stay inside
+let KEEP_OFF = {};                         // boxes of placed labels that a relation must not share a line with, by tag (v2.2.7)
 
 /* Match a canvas's backing store to its CSS size; returns { w, h } in CSS px, or false if it has no area. */
 function sizeCanvas(c) {
@@ -1041,8 +1047,54 @@ function placeLabel(ctx, str, cands, o, required, fits) {
     if (!pick) pick = ringFree(ctx, str, cands, o, fits);
     if (!pick) { if (!required) return false; pick = cands[0]; }
     const oo = Object.assign({}, o, { align: pick.align || o.align });
-    OBST.push(textBox(ctx, str, pick.x, pick.y, oo));
+    const box = textBox(ctx, str, pick.x, pick.y, oo);
+    OBST.push(box);
     stext(ctx, str, pick.x, pick.y, oo);
+    return box;
+}
+
+/* v2.2.7 (VIS-SG-014): draw a relation printed on several lines as one block. Each line l of g.lines is placed at
+   (x, y + l.dy), or, with l.after, just after the end of the line before it (CONS_REL_GAP); the block moves as a
+   whole. A position is taken only if every line is clear and no line shares a row (centres closer than one line
+   spacing, g.row) with a label tagged in g.apart that is within CONS_KEEP_REACH of it horizontally, and a tagged
+   label directly over or under a line keeps one empty row between them. Search: the candidates and straight up and down from them, nearest to the
+   bracket first (column offset plus vertical shift, px), then rings around them kept at or right of g.minX (the bracket side), each to GROUP_SEARCH_MULT times the usual reach.
+   With no such position the lines are placed one by one, as single labels. Returns true when drawn. */
+function placeGroup(ctx, g) {
+    const lay = (x, y) => {
+        const out = []; let px = x;
+        for (const l of g.lines) {
+            const lx = l.after ? px + PH.CONS_REL_GAP + TEXT.BOX_PAD : x, b = textBox(ctx, l.str, lx, y + l.dy, l.o);
+            out.push({ l, x: lx, y: y + l.dy, b }); px = b.x1;
+        }
+        return out;
+    };
+    const apart = (g.apart || []).map(t => KEEP_OFF[t]).filter(Boolean);
+    // rows the label must be from a line: one when it is beside the line, two (one empty row between) when it is over or under it
+    const rows = (b, k) => { const gap = Math.max(k.x0 - b.x1, b.x0 - k.x1); return gap >= PH.CONS_KEEP_REACH ? 0 : gap < 0 ? BOTH_SIDES : 1; };
+    const offRow = parts => parts.every(p => apart.every(k => Math.abs((p.b.y0 + p.b.y1) * MID - (k.y0 + k.y1) * MID) >= rows(p.b, k) * g.row));
+    const ok = parts => parts.every(p => boxFree(p.b)) && offRow(parts);
+    let pick = null;
+    // the candidates and straight up or down from them, nearest to the first candidate (the bracket) first
+    const c0 = g.cands[0], steps = [];
+    for (const c of g.cands) for (let r = -LBL_SEARCH.RINGS * GROUP_SEARCH_MULT; r <= LBL_SEARCH.RINGS * GROUP_SEARCH_MULT; r++)
+        steps.push({ x: c.x, y: c.y + r * LBL_SEARCH.STEP, cost: Math.abs(c.x - c0.x) + Math.abs(r) * LBL_SEARCH.STEP });
+    steps.sort((p, q) => p.cost - q.cost);
+    for (const st of steps) { const parts = lay(st.x, st.y); if (ok(parts)) { pick = parts; break; } }
+    for (let r = 1; !pick && r <= LBL_SEARCH.RINGS * GROUP_SEARCH_MULT; r++) for (const c of g.cands) {
+        for (let d = 0; d < LBL_SEARCH.DIRS && !pick; d++) {
+            const a = FULL_CIRCLE * d / LBL_SEARCH.DIRS, x = c.x + r * LBL_SEARCH.STEP * Math.cos(a), y = c.y + r * LBL_SEARCH.STEP * Math.sin(a);
+            if (x < g.minX) continue;
+            const parts = lay(x, y); if (ok(parts)) pick = parts;
+        }
+        if (pick) break;
+    }
+    if (!pick) {
+        // no room for the block: each line is placed on its own (the v2.2.6 rule), so no line is drawn over another label
+        for (const l of g.lines) placeLabel(ctx, l.str, g.cands.map(c => ({ x: c.x, y: c.y + l.dy })), l.o, g.required);
+        return true;
+    }
+    for (const p of pick) { OBST.push(p.b); stext(ctx, p.l.str, p.x, p.y, p.l.o); }
     return true;
 }
 
@@ -1163,8 +1215,9 @@ function drawLoci(ctx, s, g, labels) {
     }
 }
 
-/* Construction lines: the P and Q sides of the triangle and the right angle between I_A and jX_S·I_A. Every line
-   drawn here is a label obstacle. */
+/* Construction lines: the P and Q sides of the triangle and the right angle between I_A and the drop phasor drawn from
+   the V_φ tip (jX_S I_A in the Generator view, −jX_S I_A in the Motor and Condenser views). Every line drawn here is a
+   label obstacle. */
 function drawConstruction(ctx, s, g, labels) {
     const { oy, PV, vEnd, eEnd, iEnd, motorLike, alone } = g;
     const foot = PV(cx(s.Ec.re, 0)), exact = s.ra === 0;
@@ -1182,10 +1235,20 @@ function drawConstruction(ctx, s, g, labels) {
         const col = y => PH.CONS_TXT_COLS.map(dx => ({ x: tx + dx, y })).concat([{ x: lx, y, align: 'right' }]);   // beside the bracket, then further right, then left of the triangle
         // E_A sin δ = X_S I_A cos θ, proportional to P (bus) or to the real current (alone), holds only with R_A = 0.
         // With R_A > 0 the height is X_S I_A cos θ + R_A I_A sin θ, so the height is named and nothing more is claimed.
-        labels.push({ str: 'E_A sin δ', cands: col(exact ? my - dy : my), o, required: true });
-        if (exact) {
-            labels.push({ str: '= X_S I_A cos θ', cands: col(my), o, required: true });
-            labels.push({ str: alone ? '∝ real current' : '∝ P', cands: col(my + dy), o: { size: PH.CONS_SIZE, color: C.warn, weight: WEIGHT.HEAVY }, required: true });
+        // v2.2.6 (PPR-SG-013): a motor or condenser has E_A = V_φ − jX_S I_A (I_A flowing in), so E_A sin δ = −X_S I_A cos θ;
+        // the relation is printed signed, "−E_A sin δ = X_S I_A cos θ ∝ P", true for the negative δ on screen.
+        // v2.2.7 (VIS-SG-014): in the Motor and Condenser views the three parts are placed as one block, beside the bracket,
+        // with the Generator view's spacing, and never on the row of the −jX_S I_A drop label; the Generator view is unchanged
+        if (exact && motorLike) {
+            labels.push({ group: true, required: true, apart: ['drop'], row: dy, minX: tx, cands: PH.CONS_TXT_COLS.map(dx => ({ x: tx + dx, y: my })),
+                          lines: [{ str: MINUS + 'E_A sin δ', dy: -dy, o }, { str: '= X_S I_A cos θ', dy: 0, o, after: true },
+                                  { str: alone ? '∝ real current' : '∝ P', dy, o: { size: PH.CONS_SIZE, color: C.warn, weight: WEIGHT.HEAVY } }] });
+        } else {
+            labels.push({ str: 'E_A sin δ', cands: col(exact ? my - dy : my), o, required: true });
+            if (exact) {
+                labels.push({ str: '= X_S I_A cos θ', cands: col(my), o, required: true });
+                labels.push({ str: alone ? '∝ real current' : '∝ P', cands: col(my + dy), o: { size: PH.CONS_SIZE, color: C.warn, weight: WEIGHT.HEAVY }, required: true });
+            }
         }
     }
     if (wid > PH.CONS_MIN_W && exact)
@@ -1193,7 +1256,7 @@ function drawConstruction(ctx, s, g, labels) {
         labels.push({ str: (motorLike ? '' : '−') + 'X_S I_A sin θ' + (alone ? '' : ' ∝ Q'), cands: [PH.CONS_Q_DY, PH.CONS_Q_DY + PH.CONS_LINE_DY, PH.CONS_Q_DY + BOTH_SIDES * PH.CONS_LINE_DY, -PH.CONS_Q_DY].map(dy => ({ x: (vEnd.x + foot.x) * MID, y: oy + (motorLike ? -dy : dy) })),   // beside the axis, then further out, then the other side
                       o: { size: PH.CONS_Q_SIZE, color: C.body, align: 'center', weight: WEIGHT.SEMI }, required: true });
     if (exact && Math.abs(s.theta) > PH.CONS_MIN_THETA) {
-        // extend I_A and back-extend jX_S I_A to where they meet at 90°
+        // extend I_A and back-extend the drawn drop phasor (jX_S I_A generator, −jX_S I_A motor / condenser) to where they meet at 90°
         const u = cx(s.Ia.re / s.Iabs, s.Ia.im / s.Iabs), t = s.V * u.re, ft = PV(cx(u.re * t, u.im * t));
         dashed(ctx, iEnd, ft, alpha(C.i, PH.CONS_EXT_ALPHA), PH.CONS_EXT_W, PH.CONS_EXT_DASH); obstSeg(iEnd, ft);
         dashed(ctx, vEnd, ft, alpha(C.x, PH.CONS_EXT_ALPHA), PH.CONS_EXT_W, PH.CONS_EXT_DASH); obstSeg(vEnd, ft);
@@ -1244,7 +1307,7 @@ function queuePhasorLabels(s, g, labels) {
     // are −R_A I_A and −jX_S I_A and carry that sign in their names, term by term as in the KVL strip
     const dsg = motorLike ? MINUS : '';
     if (Math.hypot(eEnd.x - jEnd.x, eEnd.y - jEnd.y) > PH.LBL_X_MIN)
-        labels.push({ str: s.sal ? dsg + 'jX_d I_d ' + (dsg || '+') + ' jX_q I_q' : dsg + 'jX_S I_A', o: { size: PH.LBL_X_SIZE, italic: true, weight: WEIGHT.HEAVY, color: C.x }, required: true,
+        labels.push({ tag: 'drop', str: s.sal ? dsg + 'jX_d I_d ' + (dsg || '+') + ' jX_q I_q' : dsg + 'jX_S I_A', o: { size: PH.LBL_X_SIZE, italic: true, weight: WEIGHT.HEAVY, color: C.x }, required: true,
                       cands: [{ x: dmx - PH.LBL_X_DX, y: dmy + PH.LBL_X_DY, align: 'right' }, { x: dmx - PH.LBL_X_DX - PH.LBL_STEP, y: dmy + PH.LBL_X_DY, align: 'right' },
                               { x: dmx + PH.LBL_X_DX, y: dmy + PH.LBL_X_DY, align: 'left' },
                               { x: dmx, y: dmy + side * PH.LBL_STEP, align: 'center' }, { x: dmx, y: dmy - side * PH.LBL_STEP, align: 'center' }] });
@@ -1313,7 +1376,12 @@ function drawPhasor(s) {
     if (hasI) { obstSeg(O, iEnd, gp); obstSeg(jEnd, eEnd); if (s.ra > 0) obstSeg(vEnd, jEnd); }
     OBST.push({ x0: ox - PH.ORIGIN_R - PH.ORIGIN_PAD, x1: ox + PH.ORIGIN_R + PH.ORIGIN_PAD, y0: oy - PH.ORIGIN_R - PH.ORIGIN_PAD, y1: oy + PH.ORIGIN_R + PH.ORIGIN_PAD });
     const names = []; queuePhasorLabels(s, g, names);
-    for (const l of names.concat(arcLabels, labels)) placeLabel(ctx, l.str, l.cands, l.o, l.required);
+    KEEP_OFF = {};
+    for (const l of names.concat(arcLabels, labels)) {
+        if (l.group) { placeGroup(ctx, l); continue; }
+        const box = placeLabel(ctx, l.str, l.cands, l.o, l.required);
+        if (l.tag && box) KEEP_OFF[l.tag] = box;   // v2.2.7: a relation placed later keeps off this label's row
+    }
     // ── end labels ──
 
     phC.setAttribute('aria-label', 'Phasor diagram. V phi ' + fV(s.V) + ' at 0 degrees. E A ' + fV(s.Eabs) + ' at ' + fAng(carg(s.Ec) * DEG)
@@ -1646,16 +1714,6 @@ function updatePill(s, alone) {
     else if (!alone && s.Eabs > ratedE(M) * SOLVER.RATED_TOL) txt += '<br><span style="color:var(--bad)">⚠ field current above rated field limit' + (s.sal ? ' (round-rotor estimate with X<sub>d</sub>)' : '') + '</span>';
     pill.innerHTML = txt; chipColor(pill, col);
 }
-/* v2.2.4 (VIS-SG-012): put text into a node with every symbol written X_y (I_f, P_max, R_A, V_φ) shown as X with a
-   subscript y, as in the readouts; built from text nodes and <sub> elements, never parsed as markup. */
-function setSubText(node, str) {
-    node.textContent = '';
-    String(str).split(/([A-Za-zφδθ]+_[A-Za-z0-9φ]+)/).forEach((part, i) => {
-        if (i % 2 === 0) { if (part) node.appendChild(document.createTextNode(part)); return; }
-        const k = part.indexOf('_'), sub = document.createElement('sub');
-        node.appendChild(document.createTextNode(part.slice(0, k))); sub.textContent = part.slice(k + 1); node.appendChild(sub);
-    });
-}
 /* Status badge in the diagram header. */
 function updateStatus(s, alone) {
     const st = el('phStatus'); let txt, col = 'var(--mut)';
@@ -1717,7 +1775,9 @@ function setActive(sel, attr, val) { document.querySelectorAll(sel + ' button').
 function markActive(b, on) { b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); }
 /* Show one page tab as the current page or not, to the eye and to assistive technology. */
 function markTab(b, on) { b.classList.toggle('active', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }
-/* Write str into node with "X_y" shown as X with a subscript y (text nodes and <sub> elements only). */
+/* Write str into node with every symbol written X_y (I_f, P_max, R_A, V_φ) shown as X with a subscript y, as in the
+   readouts; built from text nodes and attribute-free <sub> elements set by textContent, never parsed as markup. The split
+   pattern has one way to match at each position, so the cost is linear in the length of str (SEC-SG-601). */
 function setSubText(node, str) {
     node.textContent = '';
     for (const part of str.split(/(_[A-Za-z0-9φ]+)/)) {
