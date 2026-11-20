@@ -14,15 +14,29 @@ Sources:
 
 Usage:  python3 build.py            writes ../RF_Cascade_Analyzer_v<VERSION>.html
         python3 build.py OUT.html   writes OUT.html
+        python3 build.py --check    rebuilds in memory and compares with the committed page (SHA-256); exit 1 if they differ
+The page is written as bytes with LF line ends on every platform, so the rebuild is byte for byte (CQ-RFC-018).
 """
 import base64
+import hashlib
 import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.8.0'
-RELEASED = '2026-10-26'
-CHANGELOG = ('\n    v1.8.0 - Cascade: the plot under the circuit is compact (about a third of the height) or off, and the circuit '
+VERSION = '1.8.1'
+RELEASED = '2026-11-20'
+CHANGELOG = ('\n    v1.8.1 - Fix pass on the first gates (PPR, Test, Code Quality, Cybersecurity, Visual). A power or gain at or below '
+             'zero is never given a dB value: it is written in words with its direction, and an active circuit is named once. '
+             'Cascade: the input account closes (mismatch loss P_avs - P_in; the reflected wave named as the Z0-referenced '
+             '1/2|b1|^2); every percentage names its basis; the marker box follows the current band and a plot click lands '
+             'on a swept frequency; every refused entry says why, and typed numbers use a strict decimal grammar '
+             '("0x10", "1e309", "Infinity" refused); entries are bounded in length; traces beyond a plot axis are drawn '
+             'dotted on its edge; the band sweep is cached while only the marker moves; phase shifter, amplifier, '
+             'Wilkinson and Devices wording corrected (outgoing waves labelled b1, b2; a wave carries 1/2|a|^2). Drawings '
+             'are built as DOM nodes, not markup; one redraw per interaction; Reflections recomputes only the wave heights '
+             'per frame; named constants; dead engine helpers removed; drawn text at least 11 px, focus rings on every drawn '
+             'button, remove buttons at least 24 px, the device bar wraps at narrow widths. Legacy unversioned copy removed.'
+             '\n    v1.8.0 - Cascade: the plot under the circuit is compact (about a third of the height) or off, and the circuit '
              'and its junction spectra grow into the room (up to 2×); "Along the chain" is the default, one line per '
              'frequency across the band plus the marker, so the frequencies are seen separating stage by stage (branch B '
              'dotted after a divider). The spectra and the chain plot show the forward power arriving at each stage (delivered power at '
@@ -79,8 +93,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def read(name, mode='r'):
-    """Read a source file relative to this folder."""
-    with open(os.path.join(HERE, name), mode, **({} if 'b' in mode else {'encoding': 'utf-8'})) as f:
+    """Read a source file relative to this folder (text as UTF-8 with its line ends kept, or bytes)."""
+    kw = {} if 'b' in mode else {'encoding': 'utf-8', 'newline': ''}
+    with open(os.path.join(HERE, name), mode, **kw) as f:
         return f.read()
 
 
@@ -103,18 +118,31 @@ def script():
 
 
 def build():
-    """Fill the template and return the page."""
+    """Fill the template and return the page as UTF-8 bytes with LF line ends."""
+    if '-->' in CHANGELOG:
+        raise SystemExit('the changelog contains "-->", which would end the header comment')
     page = read('template.html')
     for key, val in (('@@FONTFACES@@', fontfaces()), ('@@SCRIPT@@', script()), ('@@VERSION@@', 'v' + VERSION),
                      ('@@RELEASED@@', RELEASED), ('@@CHANGELOG@@', CHANGELOG)):
         page = page.replace(key, val)
     if '@@' in page:
         raise SystemExit('unfilled placeholder in the template')
-    return page
+    return page.replace('\r\n', '\n').encode('utf-8')
+
+
+def default_out():
+    """The committed page for this version."""
+    return os.path.join(HERE, '..', 'RF_Cascade_Analyzer_v%s.html' % VERSION)
 
 
 if __name__ == '__main__':
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, '..', 'RF_Cascade_Analyzer_v%s.html' % VERSION)
-    with open(out, 'w', encoding='utf-8') as f:
+    if sys.argv[1:] == ['--check']:
+        want = hashlib.sha256(build()).hexdigest()
+        with open(default_out(), 'rb') as f:
+            have = hashlib.sha256(f.read()).hexdigest()
+        print('rebuild', want, '\ncommitted', have)
+        sys.exit(0 if want == have else 1)
+    out = sys.argv[1] if len(sys.argv) > 1 else default_out()
+    with open(out, 'wb') as f:
         f.write(build())
     print('wrote', os.path.normpath(out), os.path.getsize(out), 'bytes')
