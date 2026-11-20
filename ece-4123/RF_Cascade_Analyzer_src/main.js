@@ -1,6 +1,8 @@
 /* RF Cascade Analyzer — application shell: the three views as tabs (Reflections, Devices, Cascade), Next/Previous
    (which also step through the device list inside Devices; they keep the Forward/Reverse drive), the URL hash, clicker and keyboard keys, presentation
-   mode, the theme, and the View 1 snapshot-wave animation with pause and reduced motion. */
+   mode, the theme, and the View 1 snapshot-wave animation with pause and reduced motion. v1.8.1: the drawing is built as
+   nodes (no innerHTML, CQ-RFC-003); one redraw per interaction (the top bar settles first, and a resize the app itself
+   caused is not drawn twice, CQ-RFC-006); the main area is the tabs' tabpanel (CQ-RFC-011). */
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — DOM handles, views, hash format
@@ -24,6 +26,8 @@ const VIEW = {
 };
 const HASH_RE = /^#?view=(reflections|devices|cascade)(?:&device=(through|atten|amp|iso|custom)(?:&drive=(fwd|rev))?)?(?:&vr=([01]))?$/;
 const TEXT_TYPES = ['text', 'number', 'search', 'email', 'url', 'tel', 'password'];
+const FRAME_MAX_S = 0.1;         // the animation clock advances at most this per frame (s), so a stalled tab does not jump
+const MS_PER_S = 1000;
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── APP STATE ─────────────────────────────────────────────────
@@ -32,6 +36,7 @@ const app = {
   present: false, fsOwned: false,                   // presentation layout on; fullscreen entered by us
   theme: { window: 'dark', present: 'light' },      // dark windowed, light Projector theme in presentation
   paused: false, raf: 0, last: 0, tNow: 0,          // animation state (s)
+  drawn: '',                                        // stage size (CSS px) at the last draw: a resize to the same size is not redrawn
 };
 // ── END APP STATE ─────────────────────────────────────────────
 
@@ -44,24 +49,28 @@ function drawBox(){ const st = $('stage'), s = Math.min(st.clientWidth / DESIGN_
   return { s, w, off: (st.clientWidth - w * s) / 2 }; }
 // Height of the drawing in design units: the stage's full height at the drawing scale.
 function drawH(){ const st = $('stage'); return st.clientWidth > 0 ? st.clientHeight / drawBox().s : 0; }
-// Draw the current view (and the Cascade "+" menu over it).
+// The stage's size in CSS px as a key.
+const stageSize = () => { const st = $('stage'); return st.clientWidth + 'x' + st.clientHeight; };
+// Draw the current view (and the Cascade "+" menu over it): the view's drawing is a node tree, put in place whole.
 function renderDrawing(){
   const H = drawH(); if(H <= 0) return;
-  const b = drawBox();
-  $('stage').innerHTML = VIEW[app.view].draw(H, b.w);
-  const sv = $('stage').querySelector('svg.vis'); sv.style.width = b.w * b.s + 'px'; sv.style.left = b.off + 'px';
+  const b = drawBox(); DRAW.s = b.s;
+  const sv = VIEW[app.view].draw(H, b.w); sv.style.width = b.w * b.s + 'px'; sv.style.left = b.off + 'px';
+  $('stage').replaceChildren(sv);
   if(app.view === 'cascade'){ const m = addMenu(); if(m) $('stage').append(m); }
+  app.drawn = stageSize();
 }
 /* Redraw after a state change. full: also rebuild the panel (a button or a mode changed); otherwise only the
    panel's readouts are refreshed, so a slider being dragged keeps focus. Focus on a drawing element is restored. */
 function redraw(full){
   const a = document.activeElement, id = a && a.id, dk = a && a.closest && a.closest('#stage [data-blk],#stage [data-add]');
   const key = dk ? (dk.dataset.blk !== undefined ? '[data-blk="' + dk.dataset.blk + '"]' : '[data-add="' + dk.dataset.add + '"]') : null;
+  renderTop();   // first: the device bar shows or hides before the drawing is sized (one redraw, CQ-RFC-006)
   renderDrawing();
   if(full){ $('panel').replaceChildren(...VIEW[app.view].panel()); } else VIEW[app.view].sync();
   const back = key ? $('stage').querySelector(key) : id ? $(id) : null;
   if(back && back !== document.activeElement) back.focus({ preventScroll: true });
-  renderTop(); syncAnim();
+  syncAnim();
 }
 // Top bar and device selector: pressed tab, Previous/Next state, the selected device.
 function renderTop(){
@@ -72,6 +81,7 @@ function renderTop(){
   $('devbar').classList.toggle('hidden', app.view !== 'devices');
   DEVICES.forEach(d => { const b = $('dev_' + d); b.setAttribute('aria-pressed', String(d === D.dev)); b.classList.toggle('on', d === D.dev); });
   ['fwd', 'rev'].forEach(r => $('drive_' + r).setAttribute('aria-pressed', String(r === D.drive)));
+  $('main').setAttribute('aria-labelledby', 'tab_' + app.view);
   $('drawCol').setAttribute('aria-label', VIEW_NAME[app.view] + (app.view === 'devices' ? ': ' + DEV_NAME[D.dev] + ', ' + (D.drive === 'fwd' ? 'forward' : 'reverse') : ''));
 }
 // ── END RENDERING ─────────────────────────────────────────────
@@ -90,6 +100,7 @@ function show(v, d, r, vr){
 }
 // Next and Previous stops (stop at the ends).
 function next(){ const i = stopIndex(); if(i < STOPS.length - 1) show(...STOPS[i + 1]); }
+// Go to the previous stop.
 function prev(){ const i = stopIndex(); if(i > 0) show(...STOPS[i - 1]); }
 // Mirror the view (and device) in the URL hash without adding history entries.
 function syncHash(){
@@ -97,7 +108,7 @@ function syncHash(){
   if(location.hash !== want) history.replaceState(null, '', want);
 }
 // [view, device, drive, vr] from the URL hash, or null.
-function readHash(){ const m = HASH_RE.exec(location.hash); return m ? [m[1], m[2] || null, m[3] || null, m[4] || null] : null; }
+function readHash(){ const m = HASH_RE.exec(location.hash); if(!m) return null; const [, v, d, r, vr] = m; return [v, d || null, r || null, vr || null]; }
 // ── END NAVIGATION ────────────────────────────────────────────
 
 // ── ANIMATION ─────────────────────────────────────────────────
@@ -111,8 +122,8 @@ function syncAnim(){
 // One frame: advance the clock and move the snapshot wave (the rest of the drawing is static).
 function tick(ts){
   app.raf = 0; if(!animating()) return;
-  if(app.last) app.tNow += Math.min(0.1, (ts - app.last) / 1000);
-  app.last = ts; tickReflections(drawH(), app.tNow);
+  if(app.last) app.tNow += Math.min(FRAME_MAX_S, (ts - app.last) / MS_PER_S);
+  app.last = ts; tickReflections(app.tNow);
   app.raf = requestAnimationFrame(tick);
 }
 // Pause or play (key P).
@@ -135,6 +146,8 @@ function applyTheme(){
 function toggleTheme(){ const k = app.present ? 'present' : 'window'; app.theme[k] = app.theme[k] === 'light' ? 'dark' : 'light'; applyTheme(); }
 // Recompute sizes and redraw after the window changed size or layout.
 function relayout(){ updateSizes(app.present); redraw(false); }
+// The stage was resized: redraw, unless the drawing already has this size (a resize the app itself drew for).
+function onStageResize(){ if(stageSize() !== app.drawn) relayout(); }
 // Enter or leave presentation mode. Fullscreen is requested; if refused, the layout still applies in the window.
 function setPresent(on){
   if(on === app.present) return;
@@ -214,7 +227,7 @@ function start(){
   document.addEventListener('fullscreenchange', onFullscreenChange);
   document.addEventListener('visibilitychange', syncAnim);
   window.addEventListener('hashchange', () => { const hs = readHash(); if(hs) show(...hs); });
-  let rz = 0; new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(relayout); }).observe($('stage'));
+  let rz = 0; new ResizeObserver(() => { cancelAnimationFrame(rz); rz = requestAnimationFrame(onStageResize); }).observe($('stage'));
   updateSizes(false); applyTheme();
   setPaused(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const hs = readHash(); show(...(hs || ['reflections', null, null, null]));
