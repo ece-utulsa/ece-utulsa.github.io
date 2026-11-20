@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <!--
   Two Generators Sharing Real and Reactive Power — ECE 3033 Lecture 5
-  Version: v1.0.0
+  Version: v1.0.1
   Released: 2026-11-20
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
   DEMO RELEASE 2026-11-20 (principal ruling; gates pending)
-  Changelog: v1.0.0 — first build (briefing 2026-11-20, slide spec v1.0.0). Five-slide interactive lecture on the
+  Changelog: v1.0.1 — DEMO RELEASE. Three fixes from the Director early read of v1.0.0 (briefing 2026-11-20 v1.0.1).
+  F1: the "your turn" problem has its own load (5.6 MW at 0.85 lagging, G1 3.2 MW at 0.95 lagging), which slide 4 cannot
+  set. F2: the f_sys tag hides the wall tick label it covers, and the f_sys orange is darker (#a84d00). F3: the Q
+  equation is removed from slide 1 (Q is first shown on slide 3).
+  v1.0.0 — first build (briefing 2026-11-20, slide spec v1.0.0). Five-slide interactive lecture on the
   shared lecture shell: the house diagram for sharing real power; moving the set points; the fields sharing reactive
   power with P fixed and the terminal voltage held; KCL currents and each unit's E_A; "your turn". Lecture only.
   Model: two identical units, 4 MVA, 4.16 kV, Y, V_φ = 2,401.8 V, Z_S = 0.2 + j4.5 Ω per phase; governors with
   s_P = 2.2514 MW/Hz (3 % droop at f_nl = 61.0 Hz, 4 MW), kept constant when a set point moves. Load 5.0 MW at 0.80
-  lagging (Q_load = 3.75 MVAR, I_L = 867.4∠−36.87° A). P_k = s_P (f_nl,k − f_sys), P_1 + P_2 = P_load;
+  lagging (Q_load = 3.75 MVAR, I_L = 867.4∠−36.87° A); slide 5 uses 5.6 MW at 0.85 lagging. P_k = s_P (f_nl,k − f_sys), P_1 + P_2 = P_load;
   I_Ak = (P_k − jQ_k) / 3V_φ with V_φ as reference, I_A1 + I_A2 = I_L, E_Ak = V_φ + I_Ak Z_S.
   Steady state only: no governor, rotor or regulator dynamics, no saturation; the field current is not computed.
   In the phasor diagrams the currents are on their own scale.
@@ -18,10 +22,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-YWgPenn1A6x/cdwQ6UOvMz+heCjablg8P53YJh000B4='; style-src 'sha256-HkurHcmenkqCV7mB4Mk0Ch09myCfgwTLo4UUt7/QQO8='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-aln9JkLEiBzQWWCI8BRHin6UR+MURNKKXmfv2Ie9jak='; style-src 'sha256-HkurHcmenkqCV7mB4Mk0Ch09myCfgwTLo4UUt7/QQO8='; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v1.0.0">
-<title>Two Generators Sharing Real and Reactive Power — ECE 3033 Lecture 5 v1.0.0</title>
+<meta name="version" content="v1.0.1">
+<title>Two Generators Sharing Real and Reactive Power — ECE 3033 Lecture 5 v1.0.1</title>
 <style>
 /* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
 :root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
@@ -139,9 +143,9 @@ math{font-size:16px;math-style:normal}
 </head>
 <body>
 <header>
-  <h1>Two Generators Sharing Real and Reactive Power</h1><span class="badge">ECE 3033 · Lecture 5 · v1.0.0</span>
+  <h1>Two Generators Sharing Real and Reactive Power</h1><span class="badge">ECE 3033 · Lecture 5 · v1.0.1</span>
   <details id="model"><summary>Model</summary><div class="pop">
-    <p>Two identical three-phase, Y-connected units: 4 MVA, 4.16 kV, V<sub>φ</sub> = 2,401.8 V, rated I<sub>A</sub> = 555.1 A, Z<sub>S</sub> = 0.2 + j4.5 Ω per phase. Load: 5.0 MW at 0.80 lagging, so Q<sub>load</sub> = 3.75 MVAR and I<sub>L</sub> = 867.4∠−36.87° A.</p>
+    <p>Two identical three-phase, Y-connected units: 4 MVA, 4.16 kV, V<sub>φ</sub> = 2,401.8 V, rated I<sub>A</sub> = 555.1 A, Z<sub>S</sub> = 0.2 + j4.5 Ω per phase. Load on slides 1 to 4: 5.0 MW at 0.80 lagging, so Q<sub>load</sub> = 3.75 MVAR and I<sub>L</sub> = 867.4∠−36.87° A. Slide 5 has its own load, 5.6 MW at 0.85 lagging.</p>
     <p>Governors (slides 1 and 2): straight droop lines with s<sub>P</sub> = 2.2514 MW/Hz (3 % speed droop at f<sub>nl</sub> = 61.0 Hz, 4 MW full load). P<sub>k</sub> = s<sub>P</sub>(f<sub>nl,k</sub> − f<sub>sys</sub>) and P<sub>1</sub> + P<sub>2</sub> = P<sub>load</sub>. Moving a set point slides the line parallel to itself; s<sub>P</sub> does not change.</p>
     <p>Fields (slides 3 to 5): the terminal voltage is held at 4.16 kV and taken as the reference. Each unit's current is I<sub>Ak</sub> = (P<sub>k</sub> − jQ<sub>k</sub>) / 3V<sub>φ</sub>, the currents add to I<sub>L</sub>, and E<sub>Ak</sub> = V<sub>φ</sub> + I<sub>Ak</sub>Z<sub>S</sub>. No saturation; the field current is not computed, only the E<sub>A</sub> it must produce.</p>
     <p>Steady state only: no governor, rotor or voltage-regulator dynamics, no losses other than R<sub>A</sub> in E<sub>A</sub>. In the phasor diagrams the currents are drawn on their own scale: directions are exact, lengths are not comparable with the voltages.</p>
@@ -155,7 +159,6 @@ math{font-size:16px;math-style:normal}
   <section class="sl" data-n="1"><p class="kick">1 of 5 · Two units, one load</p><h2 class="st">Two units, one load: only the totals are fixed.</h2>
     <p class="keyp">No bus holds the frequency; it settles where the two shares add up to the load.</p>
     <div class="eq" data-eq="psum"></div>
-    <div class="eq" data-eq="qsum"></div>
     <p class="def">The two frequency axes stand one load apart, like the walls of a house. G1's droop line starts at the left wall, G2's at the right wall, drawn mirrored. Where they cross, both units are at the same frequency and their powers fill the floor exactly.</p>
     <p class="def">The reactive power is shared the same way, but by the fields, not the governors: slides 3 and 4.</p></section>
   <section class="sl" data-n="2"><p class="kick">2 of 5 · Moving the set points</p><h2 class="st">Move one set point and both the split and the frequency move.</h2>
@@ -174,7 +177,7 @@ math{font-size:16px;math-style:normal}
     <div class="eq" data-eq="ea"></div>
     <p class="def">Set G1's power and power factor. The load current is fixed by the load, so G2's current is whatever is left: I<sub>A2</sub> = I<sub>L</sub> − I<sub>A1</sub>.</p></section>
   <section class="sl" data-n="5"><p class="kick">5 of 5 · Your turn</p><h2 class="st">G1's share is given: find everything about G2.</h2>
-    <p class="keyp" id="task">The load is 5.0 MW at 0.80 lagging, 4.16 kV. G1 carries 3.0 MW at 0.95 lagging. Find G2's P, Q, power factor, I<sub>A2</sub>, |E<sub>A2</sub>| and δ<sub>2</sub>.</p>
+    <p class="keyp" id="task">The load is 5.6 MW at 0.85 lagging, 4.16 kV. G1 carries 3.2 MW at 0.95 lagging. Find G2's P, Q, power factor, I<sub>A2</sub>, |E<sub>A2</sub>| and δ<sub>2</sub>.</p>
     <div class="eqrow"><div class="eq" data-eq="psum"></div><div class="eq" data-eq="qsum"></div></div>
     <div class="eq" data-eq="kcl"></div>
     <div class="eq" data-eq="ea"></div>
@@ -201,7 +204,7 @@ math{font-size:16px;math-style:normal}
         <div class="chiprow" id="chips"></div>
         <p class="strip" id="strip"></p>
       </div>
-      <div class="it" id="itTurn"><h2>Your turn: G1 carries 3.0 MW at 0.95 lagging. Find G2's values.</h2>
+      <div class="it" id="itTurn"><h2>Your turn: load 5.6 MW at 0.85 lagging; G1 carries 3.2 MW at 0.95 lagging. Find G2's values.</h2>
         <div class="trow">
           <label><span>P<sub>2</sub> (MW)</span> <input type="text" id="inP" inputmode="decimal" maxlength="12" autocomplete="off" aria-describedby="turnMsg"></label>
           <label><span>Q<sub>2</sub> (MVAR)</span> <input type="text" id="inQ" inputmode="decimal" maxlength="12" autocomplete="off" aria-describedby="turnMsg"></label>
@@ -272,8 +275,10 @@ const SET_A = [61.244, 60.977];           // Hz, the set points of slide 2's sec
 const P1_OP = 2.8, PF1_OP = 0.90;         // MW and lagging power factor of G1 at the operating point of slides 3 and 4
 const Q1_OP = P1_OP * Math.tan(Math.acos(PF1_OP));   // MVAR
 const Q_DEMO = [1.0, 2.5];                // MVAR, Q_1 at the start and end of slide 3's Show me
-const TURN_P1 = 3.0, TURN_PF1 = 0.95;     // MW and lagging power factor of G1 in the "your turn" problem
-const COL = { g1: '#1c5fd6', g2: '#b0127e', f: '#c25a00', ink: '#1a2328', mut: '#55636b', load: '#18744a', bad: '#c2412f' };
+const TURN_PL = 5.6, TURN_PFL = 0.85;     // MW and lagging power factor of the "your turn" load: its own load, which slide 4 cannot set (v1.0.1)
+const TURN_QL = TURN_PL * Math.tan(Math.acos(TURN_PFL));   // MVAR
+const TURN_P1 = 3.2, TURN_PF1 = 0.95;     // MW and lagging power factor of G1 in the "your turn" problem
+const COL = { g1: '#1c5fd6', g2: '#b0127e', f: '#a84d00', ink: '#1a2328', mut: '#55636b', load: '#18744a', bad: '#c2412f' };
 const DEMO_HOLD_MS = 1500, DEMO_STEP_MS = 2600, DEMO_END_MS = 2500;   // ms a Show me rests on a cue
 const RAMP_HZ_S = 0.1;                    // Hz/s, set-point ramps of slide 2
 const RAMP_Q_S = 0.4;                     // MVAR/s, the Q ramp of slide 3
@@ -300,10 +305,11 @@ function sharing(fn, L) { const f = (S_P * fn[0] + S_P * fn[1] - L) / (2 * S_P);
 function current(P, Q) { const re = P * 1e6 / (3 * V_PH), im = -Q * 1e6 / (3 * V_PH); return { re, im, mag: Math.hypot(re, im), ang: Math.atan2(im, re) * DEG }; }
 /* Internal voltage E_A = V_φ + I_A (R_A + jX_S) for the current I: parts (V), magnitude (V) and angle δ (degrees). */
 function internal(I) { const re = V_PH + R_A * I.re - X_S * I.im, im = R_A * I.im + X_S * I.re; return { re, im, mag: Math.hypot(re, im), ang: Math.atan2(im, re) * DEG }; }
-/* Slides 3 to 5: both units for G1 supplying P1 (MW) and Q1 (MVAR) of the lecture's load; G2 takes the rest (KCL). */
-function split(P1, Q1) {
+/* Slides 3 to 5: both units for G1 supplying P1 (MW) and Q1 (MVAR) of a load PL (MW), QL (MVAR); G2 takes the rest (KCL).
+   The load defaults to the lecture's load. */
+function split(P1, Q1, PL = P_LOAD, QL = Q_LOAD) {
   const mkU = (P, Q) => { const I = current(P, Q), Sm = Math.hypot(P, Q); return { P, Q, S: Sm, pf: Sm > EPS ? P / Sm : 1, I, E: internal(I) }; };
-  return { IL: current(P_LOAD, Q_LOAD), u: [mkU(P1, Q1), mkU(P_LOAD - P1, Q_LOAD - Q1)] };
+  return { IL: current(PL, QL), u: [mkU(P1, Q1), mkU(PL - P1, QL - Q1)] };
 }
 /* What the present slide shows: { house } on slides 1 and 2, { pq } (both units) on slides 3 to 5. */
 function model() {
@@ -399,6 +405,7 @@ const HF_LO = 58.5, HF_HI = 62.0;         // Hz, the frequency range of the wall
 const HY_LO = 292, HY_HI = 44;            // viewBox y of HF_LO and HF_HI
 const HY = hz => HY_LO - (hz - HF_LO) * (HY_LO - HY_HI) / (HF_HI - HF_LO);
 const FLOOR_Y = 300, FLOOR_H = 20;        // viewBox y and height of the floor bar
+const TAG_CLEAR = 12;                     // viewBox units: a left-wall tick label this close to the f_sys tag is hidden (v1.0.1)
 const HOUSE_L_MAX = 7;                    // MW, the widest house (largest load)
 /* Build the house diagram once; drawHouse() moves its parts. */
 function buildHouse() {
@@ -454,6 +461,7 @@ function drawHouse(H) {
   HS.wall[0].setAttribute('d', `M${HX0} ${HY_HI - 8}V${FLOOR_Y}`);
   HS.wall[1].setAttribute('d', `M${xr.toFixed(1)} ${HY_HI - 8}V${FLOOR_Y}`);
   HS.ticksR.forEach(t => t.setAttribute('x', (xr + 9).toFixed(1)));
+  HS.ticksL.forEach((t, k) => t.setAttribute('opacity', Math.abs(HY(Math.ceil(HF_LO) + k) - yf) <= TAG_CLEAR ? 0 : 1));
   HS.g2T.setAttribute('x', xr.toFixed(1));
   HS.span.setAttribute('d', `M${HX0 + 4} 32H${(xr - 4).toFixed(1)}M${HX0 + 10} 28l-6 4l6 4M${(xr - 10).toFixed(1)} 28l6 4l-6 4`);
   at(HS.spanT, (HX0 + xr) / 2, 20, 'P_load = ' + f(H.L, 1) + ' MW');
@@ -612,12 +620,12 @@ function drawKcl(M, hide) {
 }
 
 /* ═══ 9. YOUR TURN (slide 5) ═══ */
-const TURN = split(TURN_P1, TURN_P1 * Math.tan(Math.acos(TURN_PF1)));
+const TURN = split(TURN_P1, TURN_P1 * Math.tan(Math.acos(TURN_PF1)), TURN_PL, TURN_QL);
 const T2 = TURN.u[1];
 /* The six answers: box id, name, the printed answer, the accepted error either side, and the step to check when it is wrong. */
 const ANSWERS = [
   { id: 'inP', name: 'P_2', val: +T2.P.toFixed(3), tol: 0.02, fix: 'P_2 = P_load − P_1.' },
-  { id: 'inQ', name: 'Q_2', val: +T2.Q.toFixed(3), tol: 0.05, fix: 'Q_2 = Q_load − Q_1, with Q_load = 5.0 tan(cos⁻¹ 0.80) and Q_1 = 3.0 tan(cos⁻¹ 0.95).' },
+  { id: 'inQ', name: 'Q_2', val: +T2.Q.toFixed(3), tol: 0.05, fix: 'Q_2 = Q_load − Q_1, with Q_load = 5.6 tan(cos⁻¹ 0.85) and Q_1 = 3.2 tan(cos⁻¹ 0.95).' },
   { id: 'inPf', name: 'pf_2', val: +T2.pf.toFixed(3), tol: 0.01, fix: 'pf_2 = P_2 / √(P_2² + Q_2²).' },
   { id: 'inI', name: '|I_A2|', val: +T2.I.mag.toFixed(1), tol: 5, fix: '|I_A2| = S_2 / (3 V_φ), or subtract the phasors: I_A2 = I_L − I_A1.' },
   { id: 'inE', name: '|E_A2|', val: Math.round(T2.E.mag), tol: 20, fix: 'E_A2 = V_φ + I_A2 (0.2 + j4.5), with I_A2 at its lagging angle.' },
@@ -651,7 +659,7 @@ function checkAnswers() {
 function showSolution() {
   const box = document.getElementById('sol'), I1 = TURN.u[0].I, I2 = T2.I;
   S.shown = true;
-  richText(box, 'I_L = ' + pol(f(TURN.IL.mag, 1), TURN.IL.ang) + ' A;   I_A1 = 3.0 MW / (3 × 2,401.8 V × 0.95) = ' + pol(f(I1.mag, 1), I1.ang) + ' A\n'
+  richText(box, 'I_L = ' + pol(f(TURN.IL.mag, 1), TURN.IL.ang) + ' A;   I_A1 = 3.2 MW / (3 × 2,401.8 V × 0.95) = ' + pol(f(I1.mag, 1), I1.ang) + ' A\n'
     + 'I_A2 = I_L − I_A1 = ' + pol(f(I2.mag, 1), I2.ang) + ' A\n'
     + 'S_2 = 3 V_φ I_A2* = ' + f(T2.P, 3) + ' MW + j' + f(T2.Q, 3) + ' MVAR;   pf_2 = ' + f(T2.pf, 3) + ' lagging\n'
     + 'E_A2 = ' + pol(volts(V_PH), 0) + ' + (' + pol(f(I2.mag, 1), I2.ang) + ')(0.2 + j4.5) = ' + pol(volts(T2.E.mag), T2.E.ang) + ' V;   δ_2 = ' + f(T2.E.ang, 2) + '°');
@@ -660,7 +668,7 @@ function showSolution() {
 }
 document.getElementById('chkBtn').addEventListener('click', checkAnswers);
 ANSWERS.forEach(a => { const b = document.getElementById(a.id); b.addEventListener('keydown', e => { if (e.key === 'Enter') checkAnswers(); }); b.addEventListener('focus', () => readouts(true)); });
-document.getElementById('hintBtn').addEventListener('click', () => { S.tried = true; turnMsg('Hint: G2 supplies what G1 does not. P_2 = 5.0 − 3.0 and Q_2 = Q_load − Q_1. Then I_A2 = (P_2 − jQ_2) / 3V_φ and E_A2 = V_φ + I_A2 Z_S.', 'mid'); readouts(true); });
+document.getElementById('hintBtn').addEventListener('click', () => { S.tried = true; turnMsg('Hint: G2 supplies what G1 does not. P_2 = 5.6 − 3.2 and Q_2 = Q_load − Q_1. Then I_A2 = (P_2 − jQ_2) / 3V_φ and E_A2 = V_φ + I_A2 Z_S.', 'mid'); readouts(true); });
 document.getElementById('solBtn').addEventListener('click', showSolution);
 /* Clear the answer boxes, the message and the solution. */
 function resetTurn() {
@@ -796,7 +804,7 @@ const NOTES = [
   'Now the set points. Press the first Show me: only G1\'s set point is raised. Its line slides up, so the crossing moves to the right and up. G1 takes more, G2 takes less, and the frequency rises to 60.01 Hz. One knob moved two things. If we want a particular split at exactly 60 Hz we need both knobs. Press the second Show me: G1 goes up to 61.244 Hz and G2 comes down a little to 60.977 Hz. Now G1 carries 2.8 MW, G2 carries 2.2 MW, and the frequency is 60 Hz. That is how operators move load from one unit to another without disturbing the frequency.',
   'The governors have done their work: G1 carries 2.8 MW and G2 carries 2.2 MW, and those do not change on this slide. The reactive power is a separate decision, made by the field currents. The load needs 3.75 MVAR in total. Press Show me. We raise G1\'s field and lower G2\'s together. Reactive power moves from G2 to G1, the P bar does not move at all, and the terminal voltage stays at 4.16 kV. Look at the two phasor diagrams. The unit that is taking more reactive power needs a longer E_A, which is more field current; the other needs less. If we raised only one field, that unit would still take more of the reactive power, but the terminal voltage would rise as well. Moving both in opposite directions keeps the voltage where it was.',
   'Here is the same idea with the currents. The load current is fixed by the load: 867 A at 36.9 degrees lagging. Press Show me and build the diagram. G1\'s current comes from its power and power factor. G2 has no choice: its current is the load current minus G1\'s, phasor subtraction, Kirchhoff\'s current law at the bus. Then each unit\'s internal voltage is the terminal voltage plus its own current times its synchronous impedance. Compare the two E_A phasors. G2 is carrying less real power but more reactive power, so its current lags further and its E_A is the longer one. Change G1\'s power factor and watch G2\'s current swing and its E_A change length. Push G1 toward unity and G2 must supply nearly all the reactive power, and it can pass its 4 MVA rating.',
-  'Your turn. The load is the same, but now G1 carries 3.0 MW at 0.95 lagging. Start with the totals: G2\'s real and reactive power are what is left. From those get its power factor and its current, or subtract the current phasors. Then build E_A2 from the terminal voltage and G2\'s own drop. Type the six values and press Check; each box is marked separately.'];
+  'Your turn. New numbers: the load is now 5.6 MW at 0.85 lagging, and G1 carries 3.2 MW at 0.95 lagging. Start with the totals: G2\'s real and reactive power are what is left. From those get its power factor and its current, or subtract the current phasors. Then build E_A2 from the terminal voltage and G2\'s own drop. Type the six values and press Check; each box is marked separately.'];
 /* Each slide: the stage view (which instruments it shows). */
 const VIEW = { 1: ['house', 'ro'], 2: ['house', 'ro'], 3: ['bars', 'ph', 'ro'], 4: ['kcl', 'ro'], 5: ['kcl', 'turn'] };
 const IT = { house: 'itHouse', bars: 'itBars', ph: 'itPh', kcl: 'itKcl', ro: 'itRo', turn: 'itTurn' };
