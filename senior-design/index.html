@@ -300,12 +300,22 @@ const TOOLS = [
     title:"How to use the WBS, Schedule and Earned Value Tool", kind:"tool", group:"Project Management",
     blurb:"Step-by-step instructions and tips: set up the project at week 0, build the WBS, schedule and baseline it, run the ten-minute weekly update, read the numbers and the signal, print the status report, change the plan, and save and share the project file.",
     tags:["guide","how-to"] },
+
+  { file:"SD1_Design_Review_Grading_Sheet.pdf",
+    title:"Design Review Grading Sheet", kind:"lecture", group:"Grading Sheets",
+    blurb:"The two-page sheet reviewers use at the end-of-semester design review: what earns a good grade in each of the eight sections, then a score sheet, 1 to 5 per section, totalled out of 40. PDF to print or email.",
+    tags:["design review","grading","rubric"] },
+  { file:"SD1_Design_Review_Grading_Sheet.docx",
+    title:"Design Review Grading Sheet (Word)", kind:"lecture", group:"Grading Sheets",
+    blurb:"The same grading sheet as an editable Word file.",
+    tags:["design review","grading","Word"] },
 ];
 
 /* Section order. Groups not listed here are appended alphabetically. */
 const GROUP_ORDER = [
   "Senior Design 1 and 2",
   "Project Management",
+  "Grading Sheets",
 ];
 
 /* ================================ render ================================ */
@@ -335,7 +345,7 @@ function matches(t, q){
 
 function cardHTML(t){
   const tags = (t.tags||[]).map(x => `<span class="tag">${x}</span>`).join("");
-  const kindLabel = t.kind === "animation" ? "Animation" : t.kind === "lecture" ? (/\.pptx$/i.test(t.file||"") ? "Lecture · PowerPoint" : "Lecture") : "Tool";
+  const kindLabel = t.kind === "animation" ? "Animation" : t.kind === "lecture" ? (/\.pptx$/i.test(t.file||"") ? "Lecture · PowerPoint" : /\.docx$/i.test(t.file||"") ? "Lecture · Word" : /\.pdf$/i.test(t.file||"") ? "Lecture · PDF" : "Lecture") : "Tool";
   const cls = "card" + (t.kind === "animation" ? " card-anim" : "") + (t.kind === "lecture" ? " card-lecture" : "") + (t.file ? "" : " card-todo");
   const inner = `
     <span class="card-kind">${kindLabel}</span>
@@ -343,10 +353,10 @@ function cardHTML(t){
     <p>${t.blurb || ""}</p>
     <div class="card-foot">
       <div class="tags">${tags}</div>
-      <span class="card-go">${t.file ? (/\.pptx$/i.test(t.file) ? "Download ↓" : "Open →") : "Add file"}</span>
+      <span class="card-go">${t.file ? (/\.(pptx|docx|pdf)$/i.test(t.file) ? "Download ↓" : "Open →") : "Add file"}</span>
     </div>`;
   return t.file
-    ? `<a class="${cls}" href="${encodeURI(t.file)}">${inner}</a>`
+    ? `<a class="${cls}" href="${encodeURI(t.file)}"${/\.(pptx|docx|pdf)$/i.test(t.file) ? " download" : ""}>${inner}</a>`
     : `<div class="${cls}">${inner}</div>`;
 }
 

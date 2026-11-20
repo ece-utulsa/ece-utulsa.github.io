@@ -6,6 +6,7 @@
   Released:  2026-09-29
   Owner:     Design (EE Interactive Teaching Simulations)
   Changelog:
+    2026-11-19 (Claude Code) — AT-006-1: S8 step 3 i_x arrow, reversed to the actual direction (x → s), now reads ⅓ A, not −⅓ A.
     1.2.0-draft — Node-voltage solves rewritten as full derivations: KCL in=out → collect i_x → Ohm's law → substitute →
               clear denominators (× R product) → reduce by gcd → solve → KCL check. clearDen() helper generates the lines.
     1.1.3-draft — Captions and hover text refer to resistors by value ("the 6 Ω to a"), matching the unnamed drawing.
@@ -684,7 +685,7 @@ TN.SEGMENTS = [
   steps: [
     c => { c.line('*Z_TH = V_oc / I_sc = ' + SB.Voc + ' / ' + SB.Isc + ' = ' + fO(SB.Zth) + '*', 'res'); },
     c => { c.card('~dependent source off too:  ' + PB.R1 + ' ∥ ' + PB.R2 + ' + ' + PB.R3 + ' = ' + fO(SB.naive_wrong) + '~  ✗', 'err', 'Wrong way'); },
-    c => { c.sch.off('Vs', 'short'); TN.addTest(c.sch, 'B', 'I', fA(1)); c.sch.setVal('x', fV(SB.test_vx)); c.sch.reverse('ix', true); c.sch.setVal('ix', IX + ' = −⅓ A'); c.sch.setVal('F', '−⅙ A'); c.sch.hi(['test']);
+    c => { c.sch.off('Vs', 'short'); TN.addTest(c.sch, 'B', 'I', fA(1)); c.sch.setVal('x', fV(SB.test_vx)); c.sch.reverse('ix', true); c.sch.setVal('ix', '⅓ A'); /* AT-006-1: reversed arrow = actual direction x → s, so it carries the positive ⅓ A */ c.sch.setVal('F', '−⅙ A'); c.sch.hi(['test']);
       c.line('Check: ' + fV(PB.Vs) + ' off, 1 A in →  v_ab = ' + fV(SB.test_vab) + ',  @i_x = −⅓ A@ (reversed)  →  ' + fO(SB.test_vab / 1) + ' ✓'); },
     c => { c.sch.clearFx(); c.strip.show('thev'); c.strip.show('nort'); c.strip.thev.setVals(fV(SB.Voc), fO(SB.Zth)); c.strip.nort.setVals(fA(SB.IN), fO(SB.Zth)); c.line('Thévenin: *' + fV(SB.Voc) + '* + *' + fO(SB.Zth) + '*.   Norton: *' + fA(SB.IN) + '* ∥ *' + fO(SB.Zth) + '*'); }
   ],
