@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <!--
   Load Sharing and Speed Droop — ECE 3033 Lecture 4
-  Version: v1.0.0
+  Version: v1.0.1
   Released: 2026-11-20
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
   DEMO RELEASE 2026-11-20 (principal ruling; gates pending)
-  Changelog: v1.0.0 — first build (briefing 2026-11-20, slide spec v1.0.0). Five-slide interactive lecture on the
+  Changelog: v1.0.1 — two fixes from the Director early read of v1.0.0 (briefing 2026-11-20 v1.0.1). F1: on slide 2 the
+  infinite-bus line is drawn solid, thick and bus-red (its styling sat behind a comment and never ran). F2: style rules
+  the tool does not use are removed and duplicate rules merged.
+  v1.0.0 — first build (briefing 2026-11-20, slide spec v1.0.0). Five-slide interactive lecture on the
   Lecture 1 shell: the speed-droop line of one unit; the unit on the infinite bus; three units sharing a load, with a
   load step; moving a set point to bring the frequency back to 60 Hz; "your turn" at 240 MW. Lecture only.
   Model: three 100 MW, 4-pole units (r/min = 30 f). G1: f_nl = 61.0 Hz, SD = 3.0 %; G2: 61.5 Hz, 4.0 %; G3: 60.8 Hz,
@@ -17,14 +20,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-mwm5kzsZtWMpKppa0byKltWQ0T3D9/ATxgVjnSilx6I='; style-src 'sha256-6G6ja0JQXoPZIar3CqxyjSL8DYhxSU8/p4weeyLedNQ='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Ot/otY+CwtAF2yTZqMm4FKgHZNtXbLb2Zm9LMrJCptM='; style-src 'sha256-DCO+9WGKiMCgmRDouZ4uIWQqnOU7Z1YcwNLbmxAHi3A='; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v1.0.0">
-<title>Load Sharing and Speed Droop — ECE 3033 Lecture 4 v1.0.0</title>
+<meta name="version" content="v1.0.1">
+<title>Load Sharing and Speed Droop — ECE 3033 Lecture 4 v1.0.1</title>
 <style>
 /* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
 :root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
-  --acc:#0f6e6c;--err:#c2412f;--warn:#8a5700;--ok:#18744a;--bus:#d32f2f;--gen:#1c5fd6;
+  --acc:#0f6e6c;--err:#c2412f;--warn:#8a5700;--ok:#18744a;
   --sans:"Segoe UI","Helvetica Neue",Arial,sans-serif;--mono:Consolas,"Courier New",monospace}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -45,50 +48,37 @@ header h1{font-size:17px;margin:0;font-weight:800}
 #model .pop{position:absolute;right:12px;top:100%;z-index:6;width:min(560px,92vw);background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:10px 14px;font-size:13px;box-shadow:0 6px 18px rgba(26,35,40,.18)}
 #model .pop p{margin:0 0 6px}
 /* ═══ APP GRID ═══ */
-#app{flex:1;min-height:0;display:grid;grid-template-columns:326px minmax(0,1fr) 316px;gap:8px;padding:8px}
+#app{flex:1;min-height:0;display:grid;grid-template-columns:392px minmax(0,1fr) 316px;gap:8px;padding:8px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:0;min-width:0}
 .panel h2,.it h2{font-size:12px;margin:0 0 4px;color:var(--acc);text-transform:uppercase;letter-spacing:1px}
-.note{font-size:12.5px;color:var(--mut);margin:3px 0}
-.ro,.lv,.num-t,.c1 span{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.ro{font-weight:800;font-size:12.5px;background:var(--inset);border-radius:6px;padding:3px 6px;white-space:pre;text-align:right}
-.eq{background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin:6px 0}
-.eq .dim{opacity:.4}
+.ro{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800;font-size:12.5px;background:var(--inset);border-radius:6px;padding:3px 6px;white-space:pre;text-align:right}
+.eq{background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin:4px 0}
 math{font-size:16px;math-style:normal}
-mn.lv{font-family:var(--mono);white-space:pre}
-.bus{color:var(--bus)} .gen{color:var(--gen)}
 /* ═══ SLIDE PANEL ═══ */
-#slidePanel{overflow:hidden}
+#slidePanel{overflow-x:hidden;overflow-y:auto}
 .sl{display:none} .sl.on{display:block}
 .kick{font:700 11.5px var(--mono);color:var(--acc);letter-spacing:1.5px;text-transform:uppercase;margin:0}
 .sl h2.st{font-size:20px;line-height:1.2;margin:4px 0 6px;color:var(--txt);text-transform:none;letter-spacing:0}
 .keyp{font-size:15.5px;font-weight:700;background:var(--soft);border-radius:8px;padding:7px 10px;margin:6px 0}
-.def{font-size:13.5px;margin:7px 0}
+.def{font-size:13px;margin:5px 0}
 .strip{font:600 12.5px var(--mono);background:#fff8e6;border:1px solid #ecd9a6;border-radius:8px;padding:6px 8px;margin:6px 0;white-space:pre-wrap}
-.strip::before{content:"From the lab";display:block;font:700 10.5px var(--sans);color:var(--warn);letter-spacing:1px;text-transform:uppercase}
+.strip::before{content:"Live values";display:block;font:700 10.5px var(--sans);color:var(--warn);letter-spacing:1px;text-transform:uppercase}
 .btns{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;align-items:center}
 .show{font-size:14px;padding:6px 10px}
-.steps{list-style:none;margin:6px 0;padding:0;font-size:13.5px}
-.steps li{display:grid;grid-template-columns:22px 1fr;padding:2px 0}
-.steps .mark{font-weight:800;color:var(--mut)}
-.steps li.ok .mark{color:var(--ok)}
- #toS1{min-height:24px;padding:1px 8px}
+#toS1{min-height:24px;padding:1px 8px}
 /* ═══ MAIN: STAGE AND NOTES ═══ */
 #main{display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0}
 #stage{position:relative;flex:1;min-height:0;display:grid;gap:8px;overflow:hidden}
 .it{display:none;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;overflow:hidden}
 .it.on{display:flex}
 .it>svg{flex:1 1 0;min-height:0;width:100%}
-.chead{display:flex;justify-content:space-between;align-items:center}
 #notesBox{flex:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
 #slNotes{margin:2px 0 0;font-size:13px}
 /* ═══ SIDEBAR ═══ */
 #side{display:flex;flex-direction:column;gap:6px;overflow:hidden}
-.grp{border-bottom:1px solid var(--line);padding-bottom:5px}
+.grp{display:none;border-bottom:1px solid var(--line);padding-bottom:5px} .grp.open{display:block}
 .grp .crow{display:none} .grp.open .crow{display:grid}
-.grp .c1{display:none;margin:0;font-size:12.5px} .grp.min .c1{display:block}
-.c1 b{display:inline-block;min-width:66px}
 .crow{grid-template-columns:62px minmax(0,1fr) 26px 26px 80px;gap:4px;align-items:center;margin:4px 0}
-.crow.b{grid-template-columns:62px auto auto minmax(0,1fr)}
 .crow .cl{font-weight:700;font-size:12.5px}
 .crow input[type=range]{width:100%;accent-color:var(--acc);height:24px;margin:0}
 .crow button.sm{padding:0;min-height:28px;font-size:15px}
@@ -96,8 +86,6 @@ mn.lv{font-family:var(--mono);white-space:pre}
 #pin .btns{margin:0 0 5px;flex-wrap:nowrap;gap:4px}
 #pin .btns button{flex:1 1 auto;padding:3px 4px}
 #callout{height:60px;overflow:hidden;margin:0 0 5px;padding:4px 8px;border-radius:8px;background:var(--soft);border-left:5px solid var(--acc);font-size:13px;font-weight:700;line-height:1.3}
-#callout.bad{background:#fbe9e6;border-left-color:var(--err);color:#8f2a1d}
-#callout.good{background:#e3f3ea;border-left-color:var(--ok);color:#10512f}
 #pager{display:flex;gap:6px;align-items:center}
 #pager .ro{min-width:44px;text-align:center}
 #pager #slNbtn{margin-left:auto}
@@ -115,40 +103,19 @@ mn.lv{font-family:var(--mono);white-space:pre}
 .it{transition:opacity .25s}
 .it.dim{opacity:.72}
 @media (prefers-reduced-motion:reduce){.cq.cur{animation:none}.it{transition:none}}
-/* ═══ EXPERIMENTS WORKSHEET (a document: this page scrolls) ═══ */
-#page-exp{flex:1;min-height:0;overflow:auto;padding:10px}
-.doc{max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 24px}
-.doc h1{font-size:22px;margin:0 0 4px}
-.doc p,.doc li{font-size:15px}
-.exp-card{border:1px solid var(--line);border-radius:12px;padding:10px 16px;margin:12px 0;background:#fbfcfd}
-.exp-card h3{margin:0 0 4px;font-size:17px}
-.num{font:700 12px var(--mono);color:var(--acc);letter-spacing:2px;text-transform:uppercase;margin:0}
-textarea,input[type=text],input[type=date]{font:15px var(--sans);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;width:100%;color:var(--txt);background:var(--panel)}
-textarea{min-height:64px;margin-top:4px}
-.sheetHead{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
-.sheetHead label{font-weight:700;font-size:13px}
-#sheetStatus{font-weight:700;font-size:13.5px;margin:8px 0}
-#sheetStatus.bad{color:var(--err)} #sheetStatus.good{color:var(--ok)}
-.doc details summary{cursor:pointer;font-weight:700;color:var(--acc);margin-top:6px}
-table.rec{border-collapse:collapse;margin:8px 0}
-table.rec th,table.rec td{border:1px solid var(--line);padding:4px 8px;font-size:14px}
-table.rec input{width:110px}
 /* ═══ LECTURE 4: VIEWS AND INSTRUMENTS ═══ */
-#app{grid-template-columns:392px minmax(0,1fr) 316px}
 #itPlot{grid-area:plot} #itBar{grid-area:bar} #itRo{grid-area:ro} #itTurn{grid-area:turn}
 #stage[data-view=d1]{grid-template:"plot" minmax(0,1fr) "ro" auto/minmax(0,1fr)}
 #stage[data-view=d2],#stage[data-view=d3],#stage[data-view=d4]{grid-template:"plot" minmax(0,1fr) "bar" 78px "ro" auto/minmax(0,1fr)}
 #stage[data-view=d5]{grid-template:"plot" minmax(0,1fr) "bar" 78px "turn" auto/minmax(0,1fr)}
 .chiprow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .chiprow .ro{font-weight:700;text-align:left}
-#strip{margin:6px 0 0;min-height:38px} #strip::before{content:"Live values"}
-.eqrow{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:6px} .eqrow .eq{margin:4px 0}
-.sl .eq{margin:4px 0} .sl .def{margin:5px 0;font-size:13px}
+#strip{margin:6px 0 0;min-height:38px}
+.eqrow{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:6px}
 .utab{border-collapse:collapse;width:100%;margin:6px 0;font-size:13.5px}
 .utab th,.utab td{border:1px solid var(--line);padding:3px 6px;text-align:center} .utab th{background:var(--inset)}
 .u1{color:#1c5fd6;font-weight:800} .u2{color:#b0127e;font-weight:800} .u3{color:#0f6e6c;font-weight:800}
 .crow.w{grid-template-columns:92px minmax(0,1fr) 26px 26px 78px}
-.grp{display:none} .grp.open{display:block}
 .grp .brow{display:none} .grp.open .brow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0}
 #callout.warn{background:#fff3d6;border-left-color:var(--warn);color:#6b4300}
 #callout.bad{background:#fde8e4;border-left-color:var(--err);color:#8a2315}
@@ -156,13 +123,12 @@ table.rec input{width:110px}
 #itTurn h2{text-transform:none;letter-spacing:0;font-size:14px;color:var(--txt)}
 .trow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0}
 .trow label{font-weight:700;font-size:14px;display:flex;align-items:center;gap:5px}
-.trow input[type=text]{width:66px;padding:4px 6px}
+.trow input[type=text]{font:15px var(--sans);border:1px solid var(--edge);border-radius:6px;padding:4px 6px;width:66px;color:var(--txt);background:var(--panel)}
 .trow input[aria-invalid="true"]{border:2px solid var(--err)}
 #turnMsg{font-weight:700;min-height:21px;margin:2px 0 0;font-size:13.5px}
 #turnMsg.bad{color:var(--err)} #turnMsg.good{color:var(--ok)} #turnMsg.mid{color:var(--warn)}
-#sol{font:600 12.5px var(--mono);background:var(--inset);border-radius:8px;padding:5px 10px;margin-top:4px;white-space:pre-wrap;display:grid;grid-template-columns:auto auto;gap:14px;font-size:11.5px}
+#sol{font:600 11.5px var(--mono);background:var(--inset);border-radius:8px;padding:5px 10px;margin-top:4px;white-space:pre-wrap;display:grid;grid-template-columns:auto auto;gap:14px}
 #sol[hidden]{display:none}
-#slidePanel{overflow-y:auto}
 /* ═══ NARROW OR SHORT WINDOWS: the page scrolls instead of squeezing ═══ */
 @media (max-width:1199px),(max-height:559px){
   html,body{height:auto} body{display:block;min-height:0}
@@ -176,7 +142,7 @@ table.rec input{width:110px}
 </head>
 <body>
 <header>
-  <h1>Load Sharing and Speed Droop</h1><span class="badge">ECE 3033 · Lecture 4 · v1.0.0</span>
+  <h1>Load Sharing and Speed Droop</h1><span class="badge">ECE 3033 · Lecture 4 · v1.0.1</span>
   <details id="model"><summary>Model</summary><div class="pop">
     <p>Three 100 MW units with 4 poles (shaft speed in r/min = 30 × frequency in Hz). G1: f<sub>nl</sub> = 61.0 Hz, SD = 3.0 %. G2: 61.5 Hz, 4.0 %. G3: 60.8 Hz, 2.5 %.</p>
     <p>Each governor follows a straight droop line: f<sub>fl</sub> = f<sub>nl</sub> / (1 + SD), s<sub>P</sub> = P<sub>fl</sub> / (f<sub>nl</sub> − f<sub>fl</sub>) with P<sub>fl</sub> = 100 MW, and P = s<sub>P</sub>(f<sub>nl</sub> − f<sub>sys</sub>). Units sharing a load run at one frequency, f<sub>sys</sub> = (Σ s<sub>Pk</sub> f<sub>nl,k</sub> − P<sub>load</sub>) / Σ s<sub>Pk</sub>. On the infinite bus f<sub>sys</sub> = 60.00 Hz whatever the unit does.</p>
@@ -296,6 +262,7 @@ const BASE = [                            // the lecture's units: no-load freque
   { name: 'G2', fnl: 61.5, sd: 4.0, col: '#b0127e' },
   { name: 'G3', fnl: 60.8, sd: 2.5, col: '#0f6e6c' }];
 const COL = { f: '#c25a00', ink: '#1a2328', mut: '#55636b', bad: '#c2412f', bus: '#d32f2f' };
+const BUS_W = 4, SIXTY_W = 1.5;           // stroke widths (viewBox units): the infinite-bus line and the plain 60 Hz reference line
 const F_LO = 58, F_HI = 62.2;             // Hz, frequency axis of the plot
 const P_AXIS = { 1: [0, 110], 2: [-30, 120], 3: [-20, 120], 4: [-20, 120], 5: [0, 110] };   // MW, power axis on each slide
 const BAR_MAX = { 2: 250, 3: 300, 4: 300, 5: 300 };   // MW at the right end of the load bar on each slide
@@ -445,7 +412,8 @@ function buildPlot(lo, hi) {
 function drawPlot(M) {
   const [lo, hi] = P_AXIS[S.slide]; if (PL.axis !== lo + ':' + hi) { PL.axis = lo + ':' + hi; buildPlot(lo, hi); }
   const one = M.units.length === 1, yf = Y(Math.max(F_LO, Math.min(F_HI, M.f))), inPlot = v => Math.max(xLo, Math.min(xHi, v));
-  at(PL.sixtyT, PX0 + 6, Y(F_BUS) + (M.bus || M.f < F_BUS ? -6 : 16), M.bus ? 'Infinite bus: 60.00 Hz' : '60 Hz');   // on the side of the 60 Hz line away from the f_sys line PL.sixty.setAttribute('stroke', M.bus ? COL.bus : COL.mut); PL.sixty.setAttribute('stroke-width', M.bus ? 4 : 1.5); PL.sixty.setAttribute('stroke-dasharray', M.bus ? 'none' : '6 5');
+  at(PL.sixtyT, PX0 + 6, Y(F_BUS) + (M.bus || M.f < F_BUS ? -6 : 16), M.bus ? 'Infinite bus: 60.00 Hz' : '60 Hz');   // on the side of the 60 Hz line away from the f_sys line
+  PL.sixty.setAttribute('stroke', M.bus ? COL.bus : COL.mut); PL.sixty.setAttribute('stroke-width', M.bus ? BUS_W : SIXTY_W); PL.sixty.setAttribute('stroke-dasharray', M.bus ? 'none' : '6 5');   // slide 2: the bus line is solid, thick and bus-red (v1.0.1)
   PL.fline.setAttribute('d', M.dots && !M.bus ? `M${PX0} ${yf.toFixed(1)}H${PX1}` : ''); at(PL.fT, PX1 - 4, yf - 7, M.dots && !M.bus ? 'f_sys = ' + f(M.f, 3) + ' Hz' : '');
   PL.gf.setAttribute('d', M.ghost ? `M${PX0} ${Y(M.ghost.f).toFixed(1)}H${PX1}` : '');
   const order = M.units.map((u, k) => k).sort((a, b) => M.units[a].P - M.units[b].P), row = {}; let lastX = -1e9, r = 0;   // P labels on rows so neighbours do not overlap
