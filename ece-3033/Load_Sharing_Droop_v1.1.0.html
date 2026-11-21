@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <!--
   Load Sharing and Speed Droop — ECE 3033 Lecture 4
-  Version: v1.0.1
-  Released: 2026-11-20
+  Version: v1.1.0
+  Released: 2026-11-21
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
-  DEMO RELEASE 2026-11-20 (principal ruling; gates pending)
-  Changelog: v1.0.1 — two fixes from the Director early read of v1.0.0 (briefing 2026-11-20 v1.0.1). F1: on slide 2 the
+  DEMO RELEASE 2026-11-21 (principal ruling; gates pending)
+  Changelog: v1.1.0 — format rework per principal 2026-11-21; Your-turn G3 droop 2.0 % (answer-leak fix); DEMO RELEASE
+  (slide spec v1.1.0: notes 15 px; no numbered cue rings, the Watch cues highlight the element itself; chips and the
+  "Live values" strip replaced by substituted readout lines; full-width sliders, set points by 0.001 Hz on − / +;
+  fixed axes 58–62 Hz; unit powers on slides 3 to 5 in a legend box, off the crossings.)
+  v1.0.1 — two fixes from the Director early read of v1.0.0 (briefing 2026-11-20 v1.0.1). F1: on slide 2 the
   infinite-bus line is drawn solid, thick and bus-red (its styling sat behind a comment and never ran). F2: style rules
   the tool does not use are removed and duplicate rules merged.
   v1.0.0 — first build (briefing 2026-11-20, slide spec v1.0.0). Five-slide interactive lecture on the
   Lecture 1 shell: the speed-droop line of one unit; the unit on the infinite bus; three units sharing a load, with a
   load step; moving a set point to bring the frequency back to 60 Hz; "your turn" at 240 MW. Lecture only.
   Model: three 100 MW, 4-pole units (r/min = 30 f). G1: f_nl = 61.0 Hz, SD = 3.0 %; G2: 61.5 Hz, 4.0 %; G3: 60.8 Hz,
-  2.5 %. Straight droop lines: f_fl = f_nl / (1 + SD), s_P = P_fl / (f_nl − f_fl), P = s_P (f_nl − f_sys);
+  2.5 % (2.0 % in the slide 5 problem). Straight droop lines: f_fl = f_nl / (1 + SD), s_P = P_fl / (f_nl − f_fl), P = s_P (f_nl − f_sys);
   units sharing a load: f_sys = (Σ s_Pk f_nl,k − P_load) / Σ s_Pk; on the infinite bus f_sys = 60.00 Hz.
   Steady state only: no governor or rotor dynamics, no losses, no reactive power. Lines are drawn past 100 MW and
   below 0 MW to show the trend; a unit there is flagged on screen.
@@ -20,10 +24,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Ot/otY+CwtAF2yTZqMm4FKgHZNtXbLb2Zm9LMrJCptM='; style-src 'sha256-DCO+9WGKiMCgmRDouZ4uIWQqnOU7Z1YcwNLbmxAHi3A='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-UQt1jpQomqUxIq89jCNmDtQepcfZHVBEfhyXVGxEpWM='; style-src 'sha256-lkxk/Z6zhWJK2qfCzDHAHUu+zuyYF/ti+kVarky30SI='; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v1.0.1">
-<title>Load Sharing and Speed Droop — ECE 3033 Lecture 4 v1.0.1</title>
+<meta name="version" content="v1.1.0">
+<title>Load Sharing and Speed Droop — ECE 3033 Lecture 4 v1.1.0</title>
 <style>
 /* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
 :root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
@@ -51,7 +55,7 @@ header h1{font-size:17px;margin:0;font-weight:800}
 #app{flex:1;min-height:0;display:grid;grid-template-columns:392px minmax(0,1fr) 316px;gap:8px;padding:8px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:0;min-width:0}
 .panel h2,.it h2{font-size:12px;margin:0 0 4px;color:var(--acc);text-transform:uppercase;letter-spacing:1px}
-.ro{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800;font-size:12.5px;background:var(--inset);border-radius:6px;padding:3px 6px;white-space:pre;text-align:right}
+.ro{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800;font-size:14px;background:var(--inset);border-radius:6px;padding:3px 6px;white-space:pre;text-align:right}
 .eq{background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin:4px 0}
 math{font-size:16px;math-style:normal}
 /* ═══ SLIDE PANEL ═══ */
@@ -61,8 +65,7 @@ math{font-size:16px;math-style:normal}
 .sl h2.st{font-size:20px;line-height:1.2;margin:4px 0 6px;color:var(--txt);text-transform:none;letter-spacing:0}
 .keyp{font-size:15.5px;font-weight:700;background:var(--soft);border-radius:8px;padding:7px 10px;margin:6px 0}
 .def{font-size:13px;margin:5px 0}
-.strip{font:600 12.5px var(--mono);background:#fff8e6;border:1px solid #ecd9a6;border-radius:8px;padding:6px 8px;margin:6px 0;white-space:pre-wrap}
-.strip::before{content:"Live values";display:block;font:700 10.5px var(--sans);color:var(--warn);letter-spacing:1px;text-transform:uppercase}
+.sl[data-n="1"] .def{line-height:1.3;margin:3px 0}   /* slide 1 fits 1366 x 657 without scrolling (spec A2) */
 .btns{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;align-items:center}
 .show{font-size:14px;padding:6px 10px}
 #toS1{min-height:24px;padding:1px 8px}
@@ -73,15 +76,17 @@ math{font-size:16px;math-style:normal}
 .it.on{display:flex}
 .it>svg{flex:1 1 0;min-height:0;width:100%}
 #notesBox{flex:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
-#slNotes{margin:2px 0 0;font-size:13px}
+#slNotes{margin:2px 0 0;font-size:15px;line-height:1.33}
 /* ═══ SIDEBAR ═══ */
 #side{display:flex;flex-direction:column;gap:6px;overflow:hidden}
 .grp{display:none;border-bottom:1px solid var(--line);padding-bottom:5px} .grp.open{display:block}
-.grp .crow{display:none} .grp.open .crow{display:grid}
-.crow{grid-template-columns:62px minmax(0,1fr) 26px 26px 80px;gap:4px;align-items:center;margin:4px 0}
-.crow .cl{font-weight:700;font-size:12.5px}
-.crow input[type=range]{width:100%;accent-color:var(--acc);height:24px;margin:0}
-.crow button.sm{padding:0;min-height:28px;font-size:15px}
+.ctl{margin:2px 0 8px}
+.chead{display:flex;justify-content:space-between;align-items:center;gap:4px}
+.cl{margin:4px 0 2px;font-weight:700;font-size:15px}
+.cbt{display:flex;gap:4px;align-items:center}
+.cbt button.sm{padding:0;min-height:28px;width:28px;font-size:16px}
+.cbt .ro{min-width:98px;text-align:right}
+.ctl input[type=range]{display:block;width:100%;accent-color:var(--acc);height:24px;margin:2px 0 0}
 #pin{margin-top:auto;border-top:2px solid var(--edge);padding-top:6px}
 #pin .btns{margin:0 0 5px;flex-wrap:nowrap;gap:4px}
 #pin .btns button{flex:1 1 auto;padding:3px 4px}
@@ -94,28 +99,22 @@ math{font-size:16px;math-style:normal}
 .watch b{color:var(--acc);text-transform:uppercase;letter-spacing:1px;font-size:11.5px;margin-right:2px}
 .watch button{min-height:24px;padding:1px 7px;font-size:12.5px;font-weight:600;border-color:var(--line)}
 .watch button[aria-current="true"]{border:2px solid var(--acc);background:var(--soft);font-weight:800}
-#cueLayer{position:fixed;inset:0;pointer-events:none;z-index:4}
-.cq{position:fixed;border:3px solid transparent;border-radius:9px}
-.cq.cur{border-color:var(--acc);box-shadow:0 0 0 3px rgba(15,110,108,.25);animation:cuePulse .9s ease-out 3}
-@keyframes cuePulse{0%{box-shadow:0 0 0 0 rgba(15,110,108,.7)}100%{box-shadow:0 0 0 14px rgba(15,110,108,0)}}
-.cb{position:absolute;top:-15px;left:-15px;width:22px;height:22px;border-radius:50%;background:var(--panel);border:2px solid var(--acc);color:var(--acc);font:800 12px/18px var(--sans);text-align:center}
-.cq.cur .cb{background:var(--acc);color:#fff}
-.it{transition:opacity .25s}
-.it.dim{opacity:.72}
-@media (prefers-reduced-motion:reduce){.cq.cur{animation:none}.it{transition:none}}
+svg .cue{filter:drop-shadow(0 0 3px #0f6e6c) drop-shadow(0 0 1px #0f6e6c)}
+svg text.cue{filter:none;text-decoration:underline}
+svg path.cue{stroke-width:5}
+svg circle.cue{stroke-width:4}
+.it.cue,#utab.cue{box-shadow:0 0 0 3px var(--acc)}
 /* ═══ LECTURE 4: VIEWS AND INSTRUMENTS ═══ */
 #itPlot{grid-area:plot} #itBar{grid-area:bar} #itRo{grid-area:ro} #itTurn{grid-area:turn}
 #stage[data-view=d1]{grid-template:"plot" minmax(0,1fr) "ro" auto/minmax(0,1fr)}
 #stage[data-view=d2],#stage[data-view=d3],#stage[data-view=d4]{grid-template:"plot" minmax(0,1fr) "bar" 78px "ro" auto/minmax(0,1fr)}
 #stage[data-view=d5]{grid-template:"plot" minmax(0,1fr) "bar" 78px "turn" auto/minmax(0,1fr)}
-.chiprow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.chiprow .ro{font-weight:700;text-align:left}
-#strip{margin:6px 0 0;min-height:38px}
+.it.rd{gap:4px}
+.vrl{margin:0;font:800 14px var(--mono);font-variant-numeric:tabular-nums;background:var(--inset);border-radius:6px;padding:3px 8px;white-space:pre}
 .eqrow{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:6px}
 .utab{border-collapse:collapse;width:100%;margin:6px 0;font-size:13.5px}
 .utab th,.utab td{border:1px solid var(--line);padding:3px 6px;text-align:center} .utab th{background:var(--inset)}
 .u1{color:#1c5fd6;font-weight:800} .u2{color:#b0127e;font-weight:800} .u3{color:#0f6e6c;font-weight:800}
-.crow.w{grid-template-columns:92px minmax(0,1fr) 26px 26px 78px}
 .grp .brow{display:none} .grp.open .brow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0}
 #callout.warn{background:#fff3d6;border-left-color:var(--warn);color:#6b4300}
 #callout.bad{background:#fde8e4;border-left-color:var(--err);color:#8a2315}
@@ -142,16 +141,15 @@ math{font-size:16px;math-style:normal}
 </head>
 <body>
 <header>
-  <h1>Load Sharing and Speed Droop</h1><span class="badge">ECE 3033 · Lecture 4 · v1.0.1</span>
+  <h1>Load Sharing and Speed Droop</h1><span class="badge">ECE 3033 · Lecture 4 · v1.1.0</span>
   <details id="model"><summary>Model</summary><div class="pop">
-    <p>Three 100 MW units with 4 poles (shaft speed in r/min = 30 × frequency in Hz). G1: f<sub>nl</sub> = 61.0 Hz, SD = 3.0 %. G2: 61.5 Hz, 4.0 %. G3: 60.8 Hz, 2.5 %.</p>
+    <p>Three 100 MW units with 4 poles (shaft speed in r/min = 30 × frequency in Hz). G1: f<sub>nl</sub> = 61.0 Hz, SD = 3.0 %. G2: 61.5 Hz, 4.0 %. G3: 60.8 Hz, 2.5 % (2.0 % in the slide 5 problem only).</p>
     <p>Each governor follows a straight droop line: f<sub>fl</sub> = f<sub>nl</sub> / (1 + SD), s<sub>P</sub> = P<sub>fl</sub> / (f<sub>nl</sub> − f<sub>fl</sub>) with P<sub>fl</sub> = 100 MW, and P = s<sub>P</sub>(f<sub>nl</sub> − f<sub>sys</sub>). Units sharing a load run at one frequency, f<sub>sys</sub> = (Σ s<sub>Pk</sub> f<sub>nl,k</sub> − P<sub>load</sub>) / Σ s<sub>Pk</sub>. On the infinite bus f<sub>sys</sub> = 60.00 Hz whatever the unit does.</p>
     <p>Moving a set point (slides 2 and 4) slides the droop line parallel to itself: the unit keeps the slope s<sub>P</sub> it has at its starting set point. On slide 1 the slope follows the f<sub>nl</sub> and SD sliders.</p>
     <p>Steady state only: the frequency and the powers jump to their new values; governor and rotor dynamics are not modelled. The lines are drawn past 100 MW and below 0 MW to show the trend; a unit there is flagged (above its rating, or motoring on reverse power). Losses and reactive power are left out.</p>
   </div></details>
 </header>
 
-<div id="cueLayer" aria-hidden="true"></div>
 <div id="app">
   <!-- ═══ SLIDE PANEL ═══ -->
   <div class="panel" id="slidePanel" aria-label="Lecture slide">
@@ -180,7 +178,8 @@ math{font-size:16px;math-style:normal}
   <section class="sl" data-n="5"><p class="kick">5 of 5 · Your turn</p><h2 class="st">Three units, 240 MW: find the frequency and each share.</h2>
     <p class="keyp">First the common frequency, then each unit from its own line.</p>
     <table class="utab" id="utab" aria-label="Unit data"><tr><th>Unit</th><th>f<sub>nl</sub> (Hz)</th><th>SD (%)</th><th>s<sub>P</sub> (MW/Hz)</th></tr>
-      <tr><td class="u1">G1</td><td>61.0</td><td>3.0</td><td>56.28</td></tr><tr><td class="u2">G2</td><td>61.5</td><td>4.0</td><td>42.28</td></tr><tr><td class="u3">G3</td><td>60.8</td><td>2.5</td><td>67.43</td></tr></table>
+      <tr><td class="u1">G1</td><td>61.0</td><td>3.0</td><td>56.28</td></tr><tr><td class="u2">G2</td><td>61.5</td><td>4.0</td><td>42.28</td></tr><tr><td class="u3">G3</td><td>60.8</td><td><b>2.0 (new)</b></td><td>83.88</td></tr></table>
+    <p class="def"><b>G3's droop is 2.0 % in this problem.</b></p>
     <div class="eqrow"><div class="eq" data-eq="sd"></div><div class="eq" data-eq="sp"></div></div>
     <div class="eq" data-eq="fsys"></div>
     <div class="eq" data-eq="p"></div>
@@ -196,10 +195,7 @@ math{font-size:16px;math-style:normal}
       <div class="it" id="itBar">
         <svg id="bar" viewBox="0 0 760 64" role="img" aria-label="The load as a bar, split into the share of each source."><g id="brG"></g></svg>
       </div>
-      <div class="it" id="itRo" role="status">
-        <div class="chiprow" id="chips"></div>
-        <p class="strip" id="strip"></p>
-      </div>
+      <div class="it rd" id="itRo" role="status"><p class="vrl" id="r1"></p><p class="vrl" id="r2"></p><p class="vrl" id="r3"></p><p class="vrl" id="r4"></p></div>
       <div class="it" id="itTurn"><h2>Your turn: the load is 240 MW. Find f<sub>sys</sub> and each unit's output.</h2>
         <div class="trow">
           <label><span>f<sub>sys</sub> (Hz)</span> <input type="text" id="inF" inputmode="decimal" maxlength="12" autocomplete="off" aria-describedby="turnMsg"></label>
@@ -218,26 +214,26 @@ math{font-size:16px;math-style:normal}
   <div class="panel" id="side" aria-label="Controls">
     <h2 id="sideH">Controls</h2>
     <div class="grp" data-g="1">
-      <div class="crow w" data-ctl="l1"><label class="cl" for="c_l1">Load</label><input type="range" id="c_l1"><button class="sm" aria-label="Lower the load by 1 megawatt">−</button><button class="sm" aria-label="Raise the load by 1 megawatt">+</button><span class="ro"></span></div>
-      <div class="crow w" data-ctl="n1"><label class="cl" for="c_n1">Set point f<sub>nl</sub></label><input type="range" id="c_n1"><button class="sm" aria-label="Lower the set point by 0.01 hertz">−</button><button class="sm" aria-label="Raise the set point by 0.01 hertz">+</button><span class="ro"></span></div>
-      <div class="crow w" data-ctl="d1"><label class="cl" for="c_d1">Speed droop SD</label><input type="range" id="c_d1"><button class="sm" aria-label="Lower the droop by 0.1 percent">−</button><button class="sm" aria-label="Raise the droop by 0.1 percent">+</button><span class="ro"></span></div>
+      <div class="ctl" data-ctl="l1"><div class="chead"><label class="cl" for="c_l1">Load</label><span class="cbt"><button class="sm" aria-label="Lower the load by 1 megawatt">−</button><button class="sm" aria-label="Raise the load by 1 megawatt">+</button><span class="ro"></span></span></div><input type="range" id="c_l1"></div>
+      <div class="ctl" data-ctl="n1"><div class="chead"><label class="cl" for="c_n1">Set point f<sub>nl</sub></label><span class="cbt"><button class="sm" aria-label="Lower the set point by 0.001 hertz">−</button><button class="sm" aria-label="Raise the set point by 0.001 hertz">+</button><span class="ro"></span></span></div><input type="range" id="c_n1"></div>
+      <div class="ctl" data-ctl="d1"><div class="chead"><label class="cl" for="c_d1">Speed droop SD</label><span class="cbt"><button class="sm" aria-label="Lower the droop by 0.1 percent">−</button><button class="sm" aria-label="Raise the droop by 0.1 percent">+</button><span class="ro"></span></span></div><input type="range" id="c_d1"></div>
       <div class="brow"><button class="pri show" data-show="1">▶ Show me: 0 → 100 MW</button></div>
     </div>
     <div class="grp" data-g="2">
-      <div class="crow w" data-ctl="n2"><label class="cl" for="c_n2">G1 set point f<sub>nl</sub></label><input type="range" id="c_n2"><button class="sm" aria-label="Lower the set point by 0.01 hertz">−</button><button class="sm" aria-label="Raise the set point by 0.01 hertz">+</button><span class="ro"></span></div>
-      <div class="crow w" data-ctl="a2"><label class="cl" for="c_a2">Area load</label><input type="range" id="c_a2"><button class="sm" aria-label="Lower the area load by 1 megawatt">−</button><button class="sm" aria-label="Raise the area load by 1 megawatt">+</button><span class="ro"></span></div>
+      <div class="ctl" data-ctl="n2"><div class="chead"><label class="cl" for="c_n2">G1 set point f<sub>nl</sub></label><span class="cbt"><button class="sm" aria-label="Lower the set point by 0.001 hertz">−</button><button class="sm" aria-label="Raise the set point by 0.001 hertz">+</button><span class="ro"></span></span></div><input type="range" id="c_n2"></div>
+      <div class="ctl" data-ctl="a2"><div class="chead"><label class="cl" for="c_a2">Area load</label><span class="cbt"><button class="sm" aria-label="Lower the area load by 1 megawatt">−</button><button class="sm" aria-label="Raise the area load by 1 megawatt">+</button><span class="ro"></span></span></div><input type="range" id="c_a2"></div>
       <div class="brow"><button class="pri show" data-show="2">▶ Show me: raise the set point</button></div>
     </div>
     <div class="grp" data-g="3">
-      <div class="crow w" data-ctl="l3"><label class="cl" for="c_l3">Load</label><input type="range" id="c_l3"><button class="sm" aria-label="Lower the load by 1 megawatt">−</button><button class="sm" aria-label="Raise the load by 1 megawatt">+</button><span class="ro"></span></div>
+      <div class="ctl" data-ctl="l3"><div class="chead"><label class="cl" for="c_l3">Load</label><span class="cbt"><button class="sm" aria-label="Lower the load by 1 megawatt">−</button><button class="sm" aria-label="Raise the load by 1 megawatt">+</button><span class="ro"></span></span></div><input type="range" id="c_l3"></div>
       <div class="brow"><button id="stepBtn">Step the load: +60 MW</button></div>
       <div class="brow"><button class="pri show" data-show="3">▶ Show me: 150 MW, then +60 MW</button></div>
     </div>
     <div class="grp" data-g="4">
-      <div class="crow w" data-ctl="l4"><label class="cl" for="c_l4">Load</label><input type="range" id="c_l4"><button class="sm" aria-label="Lower the load by 1 megawatt">−</button><button class="sm" aria-label="Raise the load by 1 megawatt">+</button><span class="ro"></span></div>
-      <div class="crow w" data-ctl="g1"><label class="cl u1" for="c_g1">G1 set point</label><input type="range" id="c_g1"><button class="sm" aria-label="Lower G1's set point by 0.01 hertz">−</button><button class="sm" aria-label="Raise G1's set point by 0.01 hertz">+</button><span class="ro"></span></div>
-      <div class="crow w" data-ctl="g2"><label class="cl u2" for="c_g2">G2 set point</label><input type="range" id="c_g2"><button class="sm" aria-label="Lower G2's set point by 0.01 hertz">−</button><button class="sm" aria-label="Raise G2's set point by 0.01 hertz">+</button><span class="ro"></span></div>
-      <div class="crow w" data-ctl="g3"><label class="cl u3" for="c_g3">G3 set point</label><input type="range" id="c_g3"><button class="sm" aria-label="Lower G3's set point by 0.01 hertz">−</button><button class="sm" aria-label="Raise G3's set point by 0.01 hertz">+</button><span class="ro"></span></div>
+      <div class="ctl" data-ctl="l4"><div class="chead"><label class="cl" for="c_l4">Load</label><span class="cbt"><button class="sm" aria-label="Lower the load by 1 megawatt">−</button><button class="sm" aria-label="Raise the load by 1 megawatt">+</button><span class="ro"></span></span></div><input type="range" id="c_l4"></div>
+      <div class="ctl" data-ctl="g1"><div class="chead"><label class="cl u1" for="c_g1">G1 set point</label><span class="cbt"><button class="sm" aria-label="Lower G1's set point by 0.001 hertz">−</button><button class="sm" aria-label="Raise G1's set point by 0.001 hertz">+</button><span class="ro"></span></span></div><input type="range" id="c_g1"></div>
+      <div class="ctl" data-ctl="g2"><div class="chead"><label class="cl u2" for="c_g2">G2 set point</label><span class="cbt"><button class="sm" aria-label="Lower G2's set point by 0.001 hertz">−</button><button class="sm" aria-label="Raise G2's set point by 0.001 hertz">+</button><span class="ro"></span></span></div><input type="range" id="c_g2"></div>
+      <div class="ctl" data-ctl="g3"><div class="chead"><label class="cl u3" for="c_g3">G3 set point</label><span class="cbt"><button class="sm" aria-label="Lower G3's set point by 0.001 hertz">−</button><button class="sm" aria-label="Raise G3's set point by 0.001 hertz">+</button><span class="ro"></span></span></div><input type="range" id="c_g3"></div>
       <div class="brow"><button class="pri show" data-show="4">▶ Show me: back to 60 Hz</button></div>
     </div>
     <div id="pin">
@@ -251,7 +247,7 @@ math{font-size:16px;math-style:normal}
 <script>
 /* ═══ CONTENTS ═══
    1. CONSTANTS   2. STATE   3. PHYSICS   4. FORMATTING AND EQUATIONS   5. DROOP PLOT   6. LOAD BAR
-   7. YOUR TURN   8. READOUTS AND STATUS   9. CONTROLS   10. SLIDES AND DEMOS   11. WATCH CUES   12. LOOP */
+   7. YOUR TURN   8. READOUTS AND STATUS   9. CONTROLS   10. SLIDES AND DEMOS   11. WATCH CUES (highlight the element)   12. LOOP */
 'use strict';
 /* ═══ 1. CONSTANTS ═══ */
 const P_FL = 100;                         // MW, rating of each unit (full load)
@@ -263,8 +259,8 @@ const BASE = [                            // the lecture's units: no-load freque
   { name: 'G3', fnl: 60.8, sd: 2.5, col: '#0f6e6c' }];
 const COL = { f: '#c25a00', ink: '#1a2328', mut: '#55636b', bad: '#c2412f', bus: '#d32f2f' };
 const BUS_W = 4, SIXTY_W = 1.5;           // stroke widths (viewBox units): the infinite-bus line and the plain 60 Hz reference line
-const F_LO = 58, F_HI = 62.2;             // Hz, frequency axis of the plot
-const P_AXIS = { 1: [0, 110], 2: [-30, 120], 3: [-20, 120], 4: [-20, 120], 5: [0, 110] };   // MW, power axis on each slide
+const F_LO = 58, F_HI = 62;               // Hz, frequency axis of the plot (fixed on every slide)
+const P_AXIS = { 1: [0, 120], 2: [-20, 120], 3: [-20, 120], 4: [-20, 120], 5: [0, 120] };   // MW, power axis on each slide (fixed)
 const BAR_MAX = { 2: 250, 3: 300, 4: 300, 5: 300 };   // MW at the right end of the load bar on each slide
 const F_WARN = 0.5;                       // Hz from 60 beyond which a set point must move
 const F_ALONE = 59.5;                     // Hz below which slide 1 says one unit alone cannot hold 60 Hz
@@ -274,6 +270,10 @@ const DEMO_HOLD_MS = 1500, DEMO_END_MS = 2500;   // ms a Show me rests on a cue
 const RAMP_MW_S = 25;                     // MW/s, slide-1 load ramp
 const RAMP_HZ_S = 0.12;                   // Hz/s, set-point ramps of slides 2 and 4
 const TOL_F = 0.01, TOL_P = 0.5;          // Hz and MW accepted either side of the answers
+const TURN_SD = [3.0, 4.0, 2.0];          // %, speed droop of G1, G2, G3 in the slide 5 problem (G3 differs from the slides: spec A4)
+const LEG = { x: 74, y: 4, w: 116, row: 17 };    // viewBox units: the unit-power legend box, upper left, above the plot area (slides 3 to 5)
+const SIXTY_LBL_W = 48;                   // viewBox units: width kept clear for the "60 Hz" label
+const F_LBL_W = 150;                      // viewBox units: width of the f_sys label
 const AT_60 = 0.005;                      // Hz: closer than this to 60 Hz counts as back at 60
 const TURN_MAX_CHARS = 12;                // longest accepted entry
 const NUMBER_FORM = /^[+\-−]?(\d+\.?\d*|\.\d+)$/;   // a plain decimal number, optional sign
@@ -298,11 +298,12 @@ function slope(fnl, sd) { return P_FL / (fnl - fFull(fnl, sd)); }
 /* A unit ready for the plot: its line and its power P = s_P (f_nl − f) at frequency f. On slide 1 the slope follows the two sliders
    (sp omitted); on the other slides a moved set point slides the line parallel to itself, so sp is the unit's base slope. */
 function unit(i, fnl, sd, f, sp = slope(fnl, sd)) { return { i, name: BASE[i].name, col: BASE[i].col, fnl, sd, sp, ffl: fnl - P_FL / sp, P: sp * (fnl - f) }; }
+const SD0 = BASE.map(u => u.sd);          // %, each unit's speed droop on slides 1 to 4
 const SP0 = BASE.map(u => slope(u.fnl, u.sd));   // MW/Hz, each unit's slope (fixed when its set point moves)
-/* Common frequency (Hz) of the units with set points fnls sharing a load L (MW): f_sys = (Σ s_P f_nl − L) / Σ s_P. */
-function fShared(fnls, L) { let a = 0, b = 0; fnls.forEach((fnl, i) => { a += SP0[i] * fnl; b += SP0[i]; }); return (a - L) / b; }
-/* The units on a load L with set points fnls: { f, units }. */
-function sharing(fnls, L) { const f = fShared(fnls, L); return { f, L, units: BASE.map((u, i) => unit(i, fnls[i], u.sd, f, SP0[i])) }; }
+/* Common frequency (Hz) of units with slopes sps (MW/Hz) and set points fnls sharing a load L (MW): f_sys = (Σ s_P f_nl − L) / Σ s_P. */
+function fShared(fnls, L, sps) { let a = 0, b = 0; fnls.forEach((fnl, i) => { a += sps[i] * fnl; b += sps[i]; }); return (a - L) / b; }
+/* The units on a load L with set points fnls and speed droops sds (%), slopes taken at the base set points: { f, units }. */
+function sharing(fnls, L, sds = SD0) { const sps = sds.map((sd, i) => slope(BASE[i].fnl, sd)), f = fShared(fnls, L, sps); return { f, L, units: BASE.map((u, i) => unit(i, fnls[i], sds[i], f, sps[i])) }; }
 const BASE_FNL = BASE.map(u => u.fnl);
 /* What the present slide shows: units with their powers, the frequency, the load, and which extras are drawn. */
 function model() {
@@ -311,13 +312,15 @@ function model() {
     case 2: { const u = unit(0, S.fnl2, BASE[0].sd, F_BUS, SP0[0]); return { f: F_BUS, L: S.area, units: [u], bus: true, dots: true }; }
     case 3: return Object.assign(sharing(BASE_FNL, S.L3), { dots: true, ghost: S.ghost });
     case 4: return Object.assign(sharing(S.fnl4, S.L4), { dots: true, old: true });
-    default: return Object.assign(sharing(BASE_FNL, TURN_MW), { dots: S.solved || S.shown });
+    default: return Object.assign(sharing(BASE_FNL, TURN_MW, TURN_SD), { dots: S.solved || S.shown });
   }
 }
 
 /* ═══ 4. FORMATTING AND EQUATIONS ═══ */
 /* Number with d decimals; a negative value is written with U+2212. */
 function f(x, d) { const t = x.toFixed(d); return (+t === 0 ? t.replace('-', '') : t.replace('-', MINUS)); }
+/* Number with d decimals and a comma between thousands (10,133.3). */
+function fk(x, d) { const [a, b] = f(x, d).split('.'); return a.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (b ? '.' + b : ''); }
 /* Signed number with + or −. */
 function sg(x, d) { return (x < 0 ? MINUS : '+') + Math.abs(x).toFixed(d); }
 /* Set an element's text only when it changes. */
@@ -377,7 +380,7 @@ function putEq(box, key) { const m = document.createElementNS(MMLNS, 'math'); m.
 
 /* ═══ 5. DROOP PLOT ═══ */
 const PG = document.getElementById('plG'), PL = { axis: '', u: [] };
-const PX0 = 70, PX1 = 690, PY0 = 320, PY1 = 30;   // plot area (viewBox units): left, right, bottom (F_LO), top (F_HI)
+const PX0 = 70, PX1 = 690, PY0 = 320, PY1 = 86;   // plot area (viewBox units): left, right, bottom (F_LO), top (F_HI); the legends sit above PY1
 let xLo = 0, xHi = 110;                   // MW at the left and right of the plot on the present slide
 const X = p => PX0 + (p - xLo) * (PX1 - PX0) / (xHi - xLo), Y = hz => PY0 - (hz - F_LO) * (PY0 - PY1) / (F_HI - F_LO);
 /* Build the plot's fixed parts for a power axis from lo to hi MW, then the parts that move. */
@@ -385,11 +388,11 @@ function buildPlot(lo, hi) {
   xLo = lo; xHi = hi; while (PG.firstChild) PG.removeChild(PG.firstChild);
   mk(PG, 'rect', { x: X(P_FL), y: PY1, width: PX1 - X(P_FL), height: PY0 - PY1, fill: '#fbeee0' });
   mk(PG, 'text', { x: (X(P_FL) + PX1) / 2, y: PY1 + 14, 'text-anchor': 'middle', 'font-size': 11.5, fill: COL.mut }, 'above rating');
-  if (lo < 0) { mk(PG, 'rect', { x: PX0, y: PY1, width: X(0) - PX0, height: PY0 - PY1, fill: '#fbe3df' }); mk(PG, 'text', { x: (PX0 + X(0)) / 2, y: PY1 + 14, 'text-anchor': 'middle', 'font-size': 11.5, fill: COL.bad }, 'reverse power'); }
+  PL.rev = lo < 0 ? [mk(PG, 'rect', { x: PX0, y: PY1, width: X(0) - PX0, height: PY0 - PY1, fill: '#fbe3df' }), mk(PG, 'text', { x: (PX0 + X(0)) / 2, y: PY1 + 14, 'text-anchor': 'middle', 'font-size': 11.5, fill: COL.bad }, 'reverse power')] : [];
   for (let hz = F_LO; hz <= F_HI + EPS; hz += 1) { mk(PG, 'path', { d: `M${PX0 - 4} ${Y(hz)}H${PX1}`, stroke: '#e3e8eb' }); mk(PG, 'text', { x: PX0 - 8, y: Y(hz) + 4, 'text-anchor': 'end', 'font-size': 13, fill: COL.mut }, String(hz)); }
-  for (let p = Math.ceil(lo / 20) * 20; p <= hi + EPS; p += 20) { mk(PG, 'path', { d: `M${X(p)} ${PY0}v5`, stroke: COL.mut }); mk(PG, 'text', { x: X(p), y: PY0 + 18, 'text-anchor': 'middle', 'font-size': 13, fill: COL.mut }, f(p, 0)); }
+  for (let p = Math.ceil(lo / 20) * 20; p <= hi + EPS; p += 20) { mk(PG, 'path', { d: `M${X(p)} ${PY0}v5`, stroke: COL.mut }); mk(PG, 'text', { x: X(p), y: PY0 + 20, 'text-anchor': 'middle', 'font-size': 13, fill: COL.mut }, f(p, 0)); }
   mk(PG, 'path', { d: `M${X(0)} ${PY1}V${PY0}M${PX0} ${PY0}H${PX1}`, stroke: COL.mut, 'stroke-width': 1.5, fill: 'none' });
-  mk(PG, 'text', { x: PX0 - 8, y: PY1 - 10, 'text-anchor': 'end', 'font-size': 13, 'font-weight': 700 }, 'f (Hz)'); mk(PG, 'text', { x: PX1, y: PY0 + 36, 'text-anchor': 'end', 'font-size': 13, 'font-weight': 700 }, 'power of each unit (MW)');
+  mk(PG, 'text', { x: PX0 - 8, y: PY1 - 14, 'text-anchor': 'end', 'font-size': 13, 'font-weight': 700 }, 'f (Hz)'); mk(PG, 'text', { x: PX1, y: PY0 + 36, 'text-anchor': 'end', 'font-size': 13, 'font-weight': 700 }, 'power of each unit (MW)');
   PL.sixty = mk(PG, 'path', { d: `M${PX0} ${Y(F_BUS)}H${PX1}`, stroke: COL.mut, 'stroke-width': 1.5, 'stroke-dasharray': '6 5' });
   PL.sixtyT = mk(PG, 'text', Object.assign({ x: PX0 + 6, y: Y(F_BUS) - 6, 'font-size': 13, 'font-weight': 700, fill: COL.mut }, HALO), '');
   PL.gf = mk(PG, 'path', { stroke: COL.f, 'stroke-width': 2, 'stroke-dasharray': '3 5', opacity: 0.6 });
@@ -401,20 +404,23 @@ function buildPlot(lo, hi) {
   PL.br = mk(PG, 'path', { stroke: COL.ink, 'stroke-width': 2, fill: 'none' }); PL.brT1 = mk(PG, 'text', Object.assign({ 'font-size': 13, 'font-weight': 700 }, HALO), ''); PL.brT2 = mk(PG, 'text', Object.assign({ 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, HALO), '');
   PL.u.forEach((U, i) => { const b = BASE[i]; U.dot = mk(PG, 'circle', { r: 7, fill: b.col, stroke: '#ffffff', 'stroke-width': 2 });
     U.pT = mk(PG, 'text', Object.assign({ 'text-anchor': 'middle', 'font-size': 13.5, 'font-weight': 800, fill: b.col }, HALO), ''); U.dT = mk(PG, 'text', Object.assign({ 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 800, fill: b.col }, HALO), '');
-    U.leg = mk(PG, 'text', Object.assign({ x: PX1 - 296, y: PY1 + 34 + 18 * i, 'font-size': 13, 'font-weight': 700, fill: b.col }, HALO), ''); });
+    U.leg = mk(PG, 'text', Object.assign({ x: LEG.x + LEG.w + 8, y: LEG.y + 15 + 19 * i, 'font-size': 12.5, 'font-weight': 700, fill: b.col }, HALO), ''); });   // unit data, right of the power legend, above the plot area
   PL.nlT = mk(PG, 'text', Object.assign({ 'font-size': 13.5, 'font-weight': 700 }, HALO), ''); PL.flT = mk(PG, 'text', Object.assign({ 'text-anchor': 'end', 'font-size': 13.5, 'font-weight': 700 }, HALO), '');
   PL.note = mk(PG, 'text', { x: (PX0 + PX1) / 2, y: PY0 - 14, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, fill: COL.mut }, '');
-  // unpainted boxes the Watch cues ring
-  PL.cNl = mk(PG, 'rect', { id: 'cueNl', width: 150, height: 44, fill: 'none' }); PL.cPt = mk(PG, 'rect', { id: 'cuePt', width: 150, height: 56, fill: 'none' }); PL.cFl = mk(PG, 'rect', { id: 'cueFl', width: 190, height: 70, fill: 'none' });
-  PL.cF = mk(PG, 'rect', { id: 'cueF', x: PX0, width: PX1 - PX0, height: 34, fill: 'none' }); PL.cRev = mk(PG, 'rect', { id: 'cueRev', x: PX0 + 16, y: PY1 + 34, width: Math.max(1, X(0) - PX0 - 22), height: PY0 - PY1 - 40, fill: 'none' });
+  PL.leg = mk(PG, 'g', {});   // unit powers on slides 3 to 5: one line per unit in its colour, off the crossings (spec A1.6)
+  PL.legBox = mk(PL.leg, 'rect', { x: LEG.x, y: LEG.y, width: LEG.w, height: 3 * LEG.row + 8, rx: 6, fill: '#ffffff', stroke: COL.mut, 'stroke-width': 1 });
+  PL.legT = BASE.map((b, i) => mk(PL.leg, 'text', { x: LEG.x + 8, y: LEG.y + 16 + LEG.row * i, 'font-size': 13.5, 'font-weight': 800, fill: b.col }, ''));
 }
 /* Draw the plot for the model M: droop lines, the frequency line, each unit's point, and the slide's extras. */
 function drawPlot(M) {
   const [lo, hi] = P_AXIS[S.slide]; if (PL.axis !== lo + ':' + hi) { PL.axis = lo + ':' + hi; buildPlot(lo, hi); }
   const one = M.units.length === 1, yf = Y(Math.max(F_LO, Math.min(F_HI, M.f))), inPlot = v => Math.max(xLo, Math.min(xHi, v));
-  at(PL.sixtyT, PX0 + 6, Y(F_BUS) + (M.bus || M.f < F_BUS ? -6 : 16), M.bus ? 'Infinite bus: 60.00 Hz' : '60 Hz');   // on the side of the 60 Hz line away from the f_sys line
+  const sixtyX = !M.bus && M.dots && M.units.some(u => X(inPlot(u.P)) < PX0 + 6 + SIXTY_LBL_W + 8) ? X(P_FL) + 6 : PX0 + 6;   // moves right if a unit's dot sits under it
+  at(PL.sixtyT, sixtyX, Y(F_BUS) + (M.bus || M.f < F_BUS ? -6 : 16), M.bus ? 'Infinite bus: 60.00 Hz' : '60 Hz');   // on the side of the 60 Hz line away from the f_sys line
   PL.sixty.setAttribute('stroke', M.bus ? COL.bus : COL.mut); PL.sixty.setAttribute('stroke-width', M.bus ? BUS_W : SIXTY_W); PL.sixty.setAttribute('stroke-dasharray', M.bus ? 'none' : '6 5');   // slide 2: the bus line is solid, thick and bus-red (v1.0.1)
-  PL.fline.setAttribute('d', M.dots && !M.bus ? `M${PX0} ${yf.toFixed(1)}H${PX1}` : ''); at(PL.fT, PX1 - 4, yf - 7, M.dots && !M.bus ? 'f_sys = ' + f(M.f, 3) + ' Hz' : '');
+  const fRight = !M.units.some(u => X(inPlot(u.P)) > PX1 - 4 - F_LBL_W - 10);   // the f_sys label sits at the right end unless a unit's dot is there
+  PL.fT.setAttribute('text-anchor', fRight ? 'end' : 'start');
+  PL.fline.setAttribute('d', M.dots && !M.bus ? `M${PX0} ${yf.toFixed(1)}H${PX1}` : ''); at(PL.fT, fRight ? PX1 - 4 : X(0) + 8 + SIXTY_LBL_W + 16, yf - 7, M.dots && !M.bus ? 'f_sys = ' + f(M.f, 3) + ' Hz' : '');
   PL.gf.setAttribute('d', M.ghost ? `M${PX0} ${Y(M.ghost.f).toFixed(1)}H${PX1}` : '');
   const order = M.units.map((u, k) => k).sort((a, b) => M.units[a].P - M.units[b].P), row = {}; let lastX = -1e9, r = 0;   // P labels on rows so neighbours do not overlap
   for (const k of order) { const x = X(inPlot(M.units[k].P)); r = x - lastX < 62 ? r + 1 : 0; row[k] = r; lastX = x; }
@@ -425,21 +431,21 @@ function drawPlot(M) {
     const px = X(inPlot(u.P)), show = M.dots ? 1 : 0;
     U.dot.setAttribute('cx', px.toFixed(1)); U.dot.setAttribute('cy', yf.toFixed(1)); U.dot.setAttribute('opacity', show);
     U.drop.setAttribute('d', show ? `M${px.toFixed(1)} ${yf.toFixed(1)}V${PY0}` : '');
-    at(U.pT, px, PY0 - 8 - 16 * row[k], show ? (one ? '' : u.name + ' ') + f(u.P, 1) + ' MW' : '');
-    subT(U.leg, u.name + ': f_nl ' + f(u.fnl, 2) + ' Hz, ' + (S.slide === 2 || S.slide === 4 ? '' : 'SD ' + f(u.sd, 1) + ' %, ') + 's_P ' + f(u.sp, 2) + ' MW/Hz');   // SD is quoted only where the set point is the base one
+    at(U.pT, px, PY0 - 8 - 16 * row[k], show && one ? f(u.P, 1) + ' MW' : '');   // several units: the powers go in the legend box
+    subT(PL.legT[i], show && !one ? u.name + '  ' + f(u.P, 1) + ' MW' : '');
+    subT(U.leg, u.name + ': f_nl ' + f(u.fnl, 2) + ' Hz · ' + (S.slide === 2 || S.slide === 4 ? '' : f(u.sd, 1) + ' % · ') + f(u.sp, 2) + ' MW/Hz');   // SD is quoted only where the set point is the base one
     const g = M.ghost ? M.ghost.units[k] : null, gx = g ? X(inPlot(g.P)) : 0, gy = g ? Y(M.ghost.f) : 0;
     U.gdot.setAttribute('cx', gx.toFixed(1)); U.gdot.setAttribute('cy', gy.toFixed(1)); U.gdot.setAttribute('opacity', g ? 1 : 0);
     U.conn.setAttribute('d', g ? `M${gx.toFixed(1)} ${gy.toFixed(1)}L${px.toFixed(1)} ${yf.toFixed(1)}` : ''); at(U.dT, (gx + px) / 2, Math.min(gy, yf) - 12 - 15 * row[k], g ? sg(u.P - g.P, 1) + ' MW' : '');
     U.nl.setAttribute('cx', X(0)); U.nl.setAttribute('cy', Y(u.fnl)); U.nl.setAttribute('opacity', S.slide === 1 ? 1 : 0); U.fl.setAttribute('cx', X(P_FL)); U.fl.setAttribute('cy', Y(u.ffl)); U.fl.setAttribute('opacity', S.slide === 1 ? 1 : 0); });
+  PL.leg.setAttribute('opacity', M.dots && !one ? 1 : 0);
   const u = M.units[0], s1 = S.slide === 1, key = S.cueMan || S.cueAuto;
   at(PL.nlT, X(0) + 10, Y(u.fnl) - 8, s1 ? 'no load: f_nl = ' + f(u.fnl, 2) + ' Hz' : ''); at(PL.flT, X(P_FL) - 8, Y(u.ffl) + 20, s1 ? 'full load: f_fl = ' + f(u.ffl, 2) + ' Hz' : '');
   PL.hdrop.setAttribute('d', s1 ? `M${X(0)} ${yf.toFixed(1)}H${X(inPlot(u.P)).toFixed(1)}` : '');
-  const br = s1 && key === 'fl', bx = X(P_FL) + 16, yn = Y(u.fnl), yl = Y(u.ffl);   // the slope bracket of cue ③: P_fl across, f_nl − f_fl down
+  const br = s1 && key === 'fl', bx = X(P_FL) + 16, yn = Y(u.fnl), yl = Y(u.ffl);   // the slope bracket of the full-load cue: P_fl across, f_nl − f_fl down
   PL.br.setAttribute('d', br ? `M${bx - 5} ${yn}h10M${bx} ${yn}V${yl}M${bx - 5} ${yl}h10M${X(0)} ${yl + 30}v10M${X(0)} ${yl + 35}H${X(P_FL)}M${X(P_FL)} ${yl + 30}v10` : '');
   at(PL.brT1, bx + 8, (yn + yl) / 2 + 4, br ? f(u.fnl - u.ffl, 3) + ' Hz' : ''); at(PL.brT2, (X(0) + X(P_FL)) / 2, yl + 52, br ? 'P_fl = 100 MW:  s_P = 100 / ' + f(u.fnl - u.ffl, 3) + ' = ' + f(u.sp, 2) + ' MW/Hz' : '');
   subT(PL.note, S.slide === 5 && !M.dots ? '240 MW: where does the frequency settle?' : '');
-  PL.cNl.setAttribute('x', X(0) - 12); PL.cNl.setAttribute('y', Y(u.fnl) - 30); PL.cPt.setAttribute('x', X(inPlot(u.P)) - 75); PL.cPt.setAttribute('y', yf - 16);
-  PL.cFl.setAttribute('x', X(P_FL) - 150); PL.cFl.setAttribute('y', yl - 16); PL.cF.setAttribute('y', (M.bus ? Y(F_BUS) : yf) - 26);
 }
 
 /* ═══ 6. LOAD BAR ═══ */
@@ -464,7 +470,7 @@ function drawBar(M) {
 }
 
 /* ═══ 7. YOUR TURN (slide 5) ═══ */
-const TURN = sharing(BASE_FNL, TURN_MW);
+const TURN = sharing(BASE_FNL, TURN_MW, TURN_SD);   // the slide 5 problem: G3 at 2.0 % droop
 const ANS = { f: +TURN.f.toFixed(3), P: TURN.units.map(u => +u.P.toFixed(1)) };   // the answers as printed
 const IN = ['inF', 'inP1', 'inP2', 'inP3'];
 /* Show a message under the answer boxes: kind 'good', 'bad' (refused or wrong) or 'mid' (hint). */
@@ -490,7 +496,7 @@ function checkAnswers() {
 /* Write the worked solution. */
 function showSolution() {
   const box = document.getElementById('sol'), U = TURN.units, sum = U.reduce((a, u) => a + u.sp, 0), sf = U.reduce((a, u) => a + u.sp * u.fnl, 0); S.shown = true;
-  const cols = ['Σ s_P = ' + f(sum, 2) + ' MW/Hz\nΣ s_P f_nl = ' + f(sf, 1) + ' MW\nf_sys = (' + f(sf, 1) + ' − 240)/' + f(sum, 2) + ' = ' + f(ANS.f, 3) + ' Hz',
+  const cols = ['s_P3 = 100 / (60.8 − 60.8/1.02) = ' + f(U[2].sp, 2) + ' MW/Hz\nΣ s_P = ' + f(sum, 2) + ' MW/Hz\nΣ s_P f_nl = ' + f(sf, 1) + ' MW\nf_sys = (' + f(sf, 1) + ' − 240)/' + f(sum, 2) + ' = ' + f(ANS.f, 3) + ' Hz',
     U.map(u => 'P_' + u.name.slice(1) + ' = ' + f(u.sp, 2) + ' × (' + f(u.fnl, 1) + ' − ' + f(ANS.f, 3) + ') = ' + f(u.P, 1) + ' MW').join('\n') + '\nSum = ' + f(U.reduce((a, u) => a + u.P, 0), 1) + ' MW'];
   while (box.firstChild) box.removeChild(box.firstChild);
   for (const t of cols) { const d = document.createElement('div'); richText(d, t); box.appendChild(d); }
@@ -498,7 +504,7 @@ function showSolution() {
 }
 document.getElementById('chkBtn').addEventListener('click', checkAnswers);
 IN.forEach(id => { const b = document.getElementById(id); b.addEventListener('keydown', e => { if (e.key === 'Enter') checkAnswers(); }); b.addEventListener('focus', () => readouts(true)); });
-document.getElementById('hintBtn').addEventListener('click', () => { S.tried = true; turnMsg('Hint: all three units run at one frequency. Find it first, f_sys = (Σ s_P f_nl − P_load) / Σ s_P, then each P = s_P (f_nl − f_sys).', 'mid'); readouts(true); });
+document.getElementById('hintBtn').addEventListener('click', () => { S.tried = true; turnMsg('Hint: G3\'s droop is 2.0 % here, so first s_P3 = 100 / (60.8 − 60.8/1.02). All three units run at one frequency: f_sys = (Σ s_P f_nl − P_load) / Σ s_P, then each P = s_P (f_nl − f_sys).', 'mid'); readouts(true); });
 document.getElementById('solBtn').addEventListener('click', showSolution);
 /* Clear the answer boxes, the message and the solution. */
 function resetTurn() { S.solved = false; S.shown = false; S.tried = false; IN.forEach(id => { const b = document.getElementById(id); b.value = ''; b.setAttribute('aria-invalid', 'false'); }); turnMsg('', ''); document.getElementById('sol').hidden = true; }
@@ -525,56 +531,51 @@ function status(M) {
     default: return S.solved ? ['Solved: ' + f(ANS.f, 3) + ' Hz.', 'good'] : ['Your turn: 240 MW on the three units.', ''];
   }
 }
-/* The readout chips of the slide. */
-function chips(M) {
+/* The readout lines of the slide: its equations with the numbers now on screen (spec A2), by element id; null hides a line. */
+function lines(M) {
   const u = M.units[0];
   switch (S.slide) {
-    case 1: return ['f_sys ' + f(M.f, 3) + ' Hz', 'shaft ' + f(M.f * RPM_PER_HZ, 0) + ' r/min', 'f_fl ' + f(u.ffl, 3) + ' Hz', 's_P ' + f(u.sp, 2) + ' MW/Hz'];
-    case 2: return ['f_sys 60.000 Hz (bus)', 'G1 ' + f(u.P, 1) + ' MW', 'bus ' + f(M.L - u.P, 1) + ' MW', 's_P ' + f(u.sp, 2) + ' MW/Hz'];
-    default: return ['f_sys ' + f(M.f, 3) + ' Hz'].concat(M.units.map(q => q.name + ' ' + f(q.P, 1) + ' MW'), ['sum ' + f(M.units.reduce((a, q) => a + q.P, 0), 1) + ' MW']);
-  }
-}
-/* The live strip of the slide: its equations with the numbers now on screen. */
-function strip(M) {
-  const u = M.units[0];
-  switch (S.slide) {
-    case 1: return 'f_fl = ' + f(u.fnl, 2) + ' / (1 + ' + f(u.sd / 100, 3) + ') = ' + f(u.ffl, 3) + ' Hz;  s_P = 100 / (' + f(u.fnl, 2) + ' − ' + f(u.ffl, 3) + ') = ' + f(u.sp, 2) + ' MW/Hz\nf_sys = ' + f(u.fnl, 2) + ' − ' + f(M.L, 0) + ' / ' + f(u.sp, 2) + ' = ' + f(M.f, 3) + ' Hz';
-    case 2: return 'P = ' + f(u.sp, 2) + ' × (' + f(u.fnl, 2) + ' − 60.00) = ' + f(u.P, 1) + ' MW;  P_bus = ' + f(M.L, 0) + ' − ' + f(u.P, 1) + ' = ' + f(M.L - u.P, 1) + ' MW';
-    default: { const sum = M.units.reduce((a, q) => a + q.sp, 0), sf = M.units.reduce((a, q) => a + q.sp * q.fnl, 0);
-      return 'f_sys = (' + f(sf, 1) + ' − ' + f(M.L, 0) + ') / ' + f(sum, 2) + ' = ' + f(M.f, 3) + ' Hz;  ' + M.units.map(q => f(q.P, 1)).join(' + ') + ' = ' + f(M.units.reduce((a, q) => a + q.P, 0), 1) + ' MW'
-        + (M.ghost ? '\nshares of the ' + sg(M.L - M.ghost.L, 0) + ' MW step, ∝ s_P: ' + M.units.map((q, k) => q.name + ' ' + f(100 * (q.P - M.ghost.units[k].P) / (M.L - M.ghost.L), 1) + ' %').join(', ') : ''); }
+    case 1: return { r1: 'f_fl = f_nl / (1 + SD) = ' + f(u.fnl, 2) + ' / ' + f(1 + u.sd / 100, 3) + ' = ' + f(u.ffl, 3) + ' Hz',
+      r2: 's_P = 100 / (' + f(u.fnl, 2) + ' − ' + f(u.ffl, 3) + ') = ' + f(u.sp, 2) + ' MW/Hz',
+      r3: 'f_sys = f_nl − P / s_P = ' + f(u.fnl, 2) + ' − ' + f(M.L, 0) + ' / ' + f(u.sp, 2) + ' = ' + f(M.f, 3) + ' Hz; shaft ' + fk(M.f * RPM_PER_HZ, 0) + ' r/min', r4: null };
+    case 2: return { r1: 'P_G1 = ' + f(u.sp, 2) + ' × (' + f(u.fnl, 2) + ' − 60.00) = ' + f(u.P, 1) + ' MW',
+      r2: 'P_bus = ' + f(M.L, 0) + ' − ' + f(u.P, 1) + ' = ' + f(M.L - u.P, 1) + ' MW', r3: 'f_sys = 60.000 Hz (held by the bus)', r4: null };
+    default: { const sum = M.units.reduce((a, q) => a + q.sp, 0), sf = M.units.reduce((a, q) => a + q.sp * q.fnl, 0), g = M.ghost;
+      return { r1: 'Σ s_P = ' + f(sum, 2) + ' MW/Hz',
+        r2: 'f_sys = (Σ s_P f_nl − P_load) / Σ s_P = (' + fk(sf, 1) + ' − ' + f(M.L, 0) + ') / ' + f(sum, 2) + ' = ' + f(M.f, 3) + ' Hz',
+        r3: 'P_k = s_Pk (f_nl,k − f_sys): ' + M.units.map(q => f(q.P, 1)).join(' / ') + ' MW; sum ' + f(M.units.reduce((a, q) => a + q.P, 0), 1) + ' MW',
+        r4: g ? 'ΔP_k = s_Pk ΔP / Σ s_P = s_Pk × ' + f(M.L - g.L, 0) + ' / ' + f(sum, 2) + ' = ' + M.units.map((q, k) => sg(q.P - g.units[k].P, 1)).join(' / ') + ' MW' : null }; }
   }
 }
 let lastTxt = -1e9;
-/* Update the sidebar readouts, the chips, the strip, the status line and the cues: at most 4 times a second (or at once when forced). */
+/* Update the sidebar readouts, the readout lines, the status line and the cues: at most 4 times a second (or at once when forced). */
 function readouts(force) {
   const now = performance.now(); if (!force && now - lastTxt < RO_MS) return; lastTxt = now;
-  const M = model(), box = document.getElementById('chips'), list = S.vis.has('ro') ? chips(M) : [];
-  while (box.children.length > list.length) box.removeChild(box.lastChild);
-  list.forEach((t, i) => { let c = box.children[i]; if (!c) { c = document.createElement('span'); c.className = 'ro'; box.appendChild(c); } putRich(c, t); });
-  if (S.vis.has('ro')) putRich(document.getElementById('strip'), strip(M));
+  const M = model();
+  if (S.vis.has('ro')) { const L = lines(M); for (const id in L) { const e = document.getElementById(id); e.hidden = L[id] === null; if (L[id] !== null) putRich(e, L[id]); } }
   const [txt, kind] = status(M), co = document.getElementById('callout'); putRich(co, txt); if (co.className !== kind) co.className = kind;
   for (const k in CTL) { const c = CTL[k], rowEl = c.row; if (rowEl.offsetParent !== null) { const v = c.get(), t = c.fmt(v); if (c.ro.textContent !== t) c.ro.textContent = t; if (document.activeElement !== c.inp) c.inp.value = v; c.inp.setAttribute('aria-valuetext', t); } }
   updateCues();
 }
 
 /* ═══ 9. CONTROLS ═══ */
-const MWT = v => f(v, 0) + ' MW', HZT = v => f(v, 2) + ' Hz';
-/* Each slider row: what it reads and sets, its range, its step and how its value is written. */
+const MWT = v => f(v, 0) + ' MW', HZT = v => f(v, 3) + ' Hz';
+/* Each slider: what it reads and sets, its range, the slider step, the − / + button step (bstep, default the slider step)
+   and how its value is written. Values are kept on the finer of the two steps. */
 const CTL = {
   l1: { get: () => S.L1, set: v => { S.L1 = v; }, min: 0, max: 110, step: 1, fmt: MWT },
-  n1: { get: () => S.fnl1, set: v => { S.fnl1 = v; }, min: 60.2, max: 62.0, step: 0.01, fmt: HZT },
+  n1: { get: () => S.fnl1, set: v => { S.fnl1 = v; }, min: 60.2, max: 62.0, step: 0.01, bstep: 0.001, fmt: HZT },
   d1: { get: () => S.sd1, set: v => { S.sd1 = v; }, min: 1.5, max: 5.0, step: 0.1, fmt: v => f(v, 1) + ' %' },
-  n2: { get: () => S.fnl2, set: v => { S.fnl2 = v; }, min: 59.6, max: 62.0, step: 0.01, fmt: HZT },
+  n2: { get: () => S.fnl2, set: v => { S.fnl2 = v; }, min: 59.6, max: 62.0, step: 0.01, bstep: 0.001, fmt: HZT },
   a2: { get: () => S.area, set: v => { S.area = v; }, min: 100, max: 250, step: 1, fmt: MWT },
   l3: { get: () => S.L3, set: v => { S.L3 = v; S.ghost = null; }, min: 60, max: 280, step: 1, fmt: MWT },
   l4: { get: () => S.L4, set: v => { S.L4 = v; }, min: 60, max: 280, step: 1, fmt: MWT },
-  g1: { get: () => S.fnl4[0], set: v => { S.fnl4[0] = v; }, min: 60.0, max: 62.0, step: 0.01, fmt: HZT },
-  g2: { get: () => S.fnl4[1], set: v => { S.fnl4[1] = v; }, min: 60.0, max: 62.0, step: 0.01, fmt: HZT },
-  g3: { get: () => S.fnl4[2], set: v => { S.fnl4[2] = v; }, min: 60.0, max: 62.0, step: 0.01, fmt: HZT }
+  g1: { get: () => S.fnl4[0], set: v => { S.fnl4[0] = v; }, min: 60.0, max: 62.0, step: 0.01, bstep: 0.001, fmt: HZT },
+  g2: { get: () => S.fnl4[1], set: v => { S.fnl4[1] = v; }, min: 60.0, max: 62.0, step: 0.01, bstep: 0.001, fmt: HZT },
+  g3: { get: () => S.fnl4[2], set: v => { S.fnl4[2] = v; }, min: 60.0, max: 62.0, step: 0.01, bstep: 0.001, fmt: HZT }
 };
-/* Set control k to v (kept in range and on its step) from the student. */
-function setCtl(k, v) { if (S.busy) return; const c = CTL[k], n = Math.round((Math.max(c.min, Math.min(c.max, v)) - c.min) / c.step); c.set(+(c.min + n * c.step).toFixed(4)); S.moved = true; readouts(true); }
+/* Set control k to v from the student: kept in range and snapped to the grid of size step. */
+function setCtl(k, v, step) { if (S.busy) return; const c = CTL[k], n = Math.round((Math.max(c.min, Math.min(c.max, v)) - c.min) / step); c.set(+(c.min + n * step).toFixed(4)); S.moved = true; readouts(true); }
 /* Run fn now, then repeat while the button is held (press and hold). Keyboard activation runs fn once. */
 function holdButton(b, fn) {
   let t1 = null, t2 = null; const stop = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; };
@@ -583,15 +584,15 @@ function holdButton(b, fn) {
   b.addEventListener('click', e => { if (e.detail === 0) fn(); });   // keyboard (Enter / Space)
 }
 /* Wire every slider row to its entry in CTL. */
-document.querySelectorAll('.crow[data-ctl]').forEach(row => { const k = row.dataset.ctl, c = CTL[k], btn = row.querySelectorAll('button');
+document.querySelectorAll('.ctl[data-ctl]').forEach(row => { const k = row.dataset.ctl, c = CTL[k], btn = row.querySelectorAll('button'), bs = c.bstep || c.step;
   c.row = row; c.inp = row.querySelector('input'); c.ro = row.querySelector('.ro'); c.inp.min = c.min; c.inp.max = c.max; c.inp.step = c.step; c.inp.value = c.get();
-  c.inp.addEventListener('input', () => setCtl(k, +c.inp.value)); holdButton(btn[0], () => setCtl(k, c.get() - c.step)); holdButton(btn[1], () => setCtl(k, c.get() + c.step)); });
+  c.inp.addEventListener('input', () => setCtl(k, +c.inp.value, c.step)); holdButton(btn[0], () => setCtl(k, c.get() - bs, bs)); holdButton(btn[1], () => setCtl(k, c.get() + bs, bs)); });
 document.getElementById('stepBtn').addEventListener('click', () => { if (S.busy) return; S.ghost = sharing(BASE_FNL, S.L3); S.L3 = Math.min(CTL.l3.max, S.L3 + STEP_MW); S.moved = true; readouts(true); });
 document.getElementById('resetBtn').addEventListener('click', () => goSlide(S.slide));
 document.getElementById('pauseBtn').addEventListener('click', () => { S.paused = !S.paused; syncButtons(); });
 /* Mirror the state on the buttons and lock the controls while a Show me runs. */
 function syncButtons() {
-  document.querySelectorAll('.crow[data-ctl] input, .crow[data-ctl] button, #stepBtn, button[data-show]').forEach(e => { e.disabled = S.busy; });
+  document.querySelectorAll('.ctl[data-ctl] input, .ctl[data-ctl] button, #stepBtn, button[data-show]').forEach(e => { e.disabled = S.busy; });
   document.getElementById('pauseBtn').setAttribute('aria-pressed', String(S.paused)); put('pauseBtn', S.paused ? '▶ Run' : '❚❚ Pause');
   document.getElementById('slNbtn').setAttribute('aria-pressed', String(S.notes));
 }
@@ -602,7 +603,7 @@ const NOTES = [
   'Now connect G1 to the infinite bus. The bus holds the frequency at 60 Hz, so G1 no longer slides along its line with the load: it sits where the line crosses 60 Hz. That crossing is its power, P = s_P (f_nl − 60). The governor still senses only speed, but the speed is now fixed by the grid, so the only way to change G1\'s power is to move the line. Press Show me: raising the set point from 61.0 to 61.42 Hz takes G1 from 56 to 80 MW, and the bus gives up exactly that much. Change the area load and G1 does not move; the bus takes the difference. Lower the set point below 60 Hz and the crossing goes left of zero: the bus drives G1 as a motor, and a reverse-power relay trips it.',
   'Take the bus away and let three units share one load. They are tied together electrically, so they turn at one frequency: one horizontal line across all three droop lines. Each crossing is that unit\'s power, and the frequency settles where the three powers add up to the load. Nobody sets that frequency; it falls out of the sum. Press Show me. At 150 MW the units settle at 60.14 Hz. Add 60 MW and the frequency drops until the units have picked up the extra between them. They do not pick it up equally: every unit sees the same fall in frequency, so each takes megawatts in proportion to its slope s_P. G3, with the smallest droop, takes most. G2, with the largest, takes least.',
   'After that step the frequency is 59.78 Hz, and the droop lines alone will never bring it back. An operator, or an automatic control, has to move a set point. Press Show me: G3\'s set point is raised from 60.8 to 61.34 Hz. Its line slides up, G3 takes more of the load, the other two give back what G3 picks up, and the frequency rises to 60 Hz. The load never changed. Try it yourself with the three set-point sliders: raise one and the frequency rises, lower one and it falls. Raising all three by the same amount restores the frequency without changing the shares much. Push one unit too far and it passes its rating, or another is driven below zero.',
-  'Your turn. The same three units, with their set points as given, carry 240 MW. Find the frequency first: every unit sees the same one, so add the slopes and use the sum formula. Then each unit\'s power comes from its own line. Check that the three powers add to the load. Type your four answers and press Check.'];
+  'Your turn. The same three units carry 240 MW, but in this problem G3\'s droop is 2.0 %, not 2.5 %, so its slope is 83.88 MW/Hz: work that out first. Then find the frequency: every unit sees the same one, so add the slopes and use the sum formula. Then each unit\'s power comes from its own line. Check that the three powers add to the load. Type your four answers and press Check.'];
 /* Each slide: the stage view (which instruments it shows). */
 const VIEW = { 1: ['plot', 'ro'], 2: ['plot', 'bar', 'ro'], 3: ['plot', 'bar', 'ro'], 4: ['plot', 'bar', 'ro'], 5: ['plot', 'bar', 'turn'] };
 const IT = { plot: 'itPlot', bar: 'itBar', ro: 'itRo', turn: 'itTurn' };
@@ -621,6 +622,7 @@ function goSlide(n) {
   S.L1 = L1_START; S.fnl1 = BASE[0].fnl; S.sd1 = BASE[0].sd; S.fnl2 = BASE[0].fnl; S.area = AREA_START; S.L3 = L3_START; S.ghost = null; S.L4 = L4_START; S.fnl4 = BASE.map(u => u.fnl);
   S.moved = false; S.cueMan = null; S.cueAuto = null; resetTurn();
   applyView(); put('slPos', S.slide + '/' + NSL); richText(document.getElementById('slNotes'), NOTES[S.slide - 1]);
+  drawPlot(model());   // the plot exists before the cues highlight its elements
   syncButtons(); readouts(true);
 }
 document.getElementById('slPrev').addEventListener('click', () => goSlide(S.slide - 1));
@@ -666,8 +668,8 @@ async function demo(key) {
 }
 document.querySelectorAll('button[data-show]').forEach(b => b.addEventListener('click', () => demo(b.dataset.show)));
 
-/* ═══ 11. WATCH CUES ═══ */
-/* Each slide's cues in order ①②③: [target key, label]. */
+/* ═══ 11. WATCH CUES (highlight the element) ═══ */
+/* Each slide's cues, in order: [target key, label]. */
 const CUES = {
   1: [['nl', 'No load: the set point f_nl'], ['pt', 'The point slides down: every MW of load costs 1/s_P Hz'], ['fl', 'Full load: f_fl and the slope']],
   2: [['bus', 'The fixed 60 Hz line'], ['cross', 'The crossing = G1\'s power'], ['rev', 'Set point below 60 Hz: reverse power']],
@@ -675,17 +677,18 @@ const CUES = {
   4: [['line', 'The moved line'], ['bar', 'Shares shift between units'], ['fsys', 'f_sys back to 60 Hz']],
   5: [['data', 'The unit data'], ['turn', 'Your four answers'], ['line', 'The solution on the plot']]
 };
-const CUE_NUM = ['①', '②', '③'];
-const CUE_PAD = 5;                        // px between a ringed instrument and its ring
-const CUE_SMALL = 44;                     // px: on a target shorter than this the badge sits above its left end, not on its corner
-const CUE_BADGE = 22;                     // px, badge diameter
-const CUE_BADGE_STEP = 24;                // px between two badges on the same instrument
-const cueLayer = document.getElementById('cueLayer');
-/* The element a cue key points at. */
-function cueTarget(key) {
-  const id = { nl: 'cueNl', pt: 'cuePt', fl: 'cueFl', bus: 'cueF', cross: 'cuePt', rev: 'cueRev', fline: 'cueF', fsys: 'cueF', bar: 'itBar', step: 'itPlot', line: 'itPlot', data: 'utab', turn: 'itTurn' }[key];
-  return document.getElementById(id);
-}
+const byId = id => document.getElementById(id);
+/* The unit lines a set-point cue points at: those moved from their base set point, else G3 (the unit the Show me moves). */
+const movedLines = () => { const m = PL.u.filter((U, i) => Math.abs(S.fnl4[i] - BASE[i].fnl) > EPS); return (m.length ? m : [PL.u[2]]).flatMap(U => [U.line, U.old]); };
+/* The elements each cue highlights (the elements themselves get the class "cue"). */
+const CUE_EL = {
+  nl: () => [PL.u[0].nl, PL.nlT], pt: () => [PL.u[0].dot, PL.hdrop, PL.u[0].drop], fl: () => [PL.u[0].fl, PL.flT, PL.br, PL.brT1, PL.brT2],
+  bus: () => [PL.sixty, PL.sixtyT], cross: () => [PL.u[0].dot, PL.u[0].drop, PL.u[0].pT], rev: () => PL.rev,
+  fline: () => [PL.fline, PL.fT], bar: () => [byId('itBar')], step: () => PL.u.flatMap(U => [U.conn, U.dT, U.gdot]).concat([PL.gf]),
+  line: () => S.slide === 5 ? [PL.fline, PL.fT, PL.legBox] : movedLines(), fsys: () => [PL.fline, PL.fT, PL.sixty, PL.sixtyT],
+  data: () => [byId('utab')], turn: () => [byId('itTurn')]
+};
+let cueOn = [];
 /* The cue the slide's present state calls for (a running Show me names its own). */
 function autoCue() {
   if (S.demoCue) return S.demoCue; const M = model();
@@ -700,31 +703,18 @@ function autoCue() {
 /* Write the "Watch" line under each slide's key point: one button per cue. */
 function buildWatch() {
   SLIDES.forEach(sl => { const p = document.createElement('p'); p.className = 'watch'; const b = document.createElement('b'); b.textContent = 'Watch'; p.appendChild(b);
-    CUES[+sl.dataset.n].forEach(([key, label], i) => { const bt = document.createElement('button'); bt.dataset.cue = key; richText(bt, CUE_NUM[i] + ' ' + label);
+    CUES[+sl.dataset.n].forEach(([key, label]) => { const bt = document.createElement('button'); bt.dataset.cue = key; richText(bt, label);
       bt.addEventListener('click', () => { S.cueMan = key; readouts(true); }); p.appendChild(bt); });
     sl.querySelector('.keyp').after(p); });
 }
-/* Place the numbered badges and the ring for the present cue, mark the cue in the Watch line, dim the other instruments.
+/* Highlight the elements of the present cue and mark it in the Watch line.
    A cue the student clicked stays until the slide's state calls for a different one. */
 function updateCues() {
-  const items = document.querySelectorAll('.it.on'), boxes = [], seen = new Map(); let ring = null;
   const auto = autoCue(); if (auto !== S.cueAuto) { S.cueAuto = auto; S.cueMan = null; }
-  const key = S.cueMan || auto;
-  CUES[S.slide].forEach(([k], i) => { const el = cueTarget(k); if (!el) return; const r = el.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return;
-    const dup = seen.get(el) || 0; seen.set(el, dup + 1); if (k === key) ring = el;
-    boxes.push([Math.round(r.left) - CUE_PAD, Math.round(r.top) - CUE_PAD, Math.round(r.width) + 2 * CUE_PAD, Math.round(r.height) + 2 * CUE_PAD, i + 1, k === key ? 1 : 0, dup]); });
+  const key = S.cueMan || auto, els = CUE_EL[key]();
   document.querySelectorAll('.sl.on .watch button').forEach(b => { if (b.dataset.cue === key) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
-  const inStage = ring && document.getElementById('stage').contains(ring);   // a cue on the slide panel dims nothing
-  items.forEach(it => it.classList.toggle('dim', !!inStage && !it.contains(ring)));
-  const sig = JSON.stringify(boxes); if (cueLayer.dataset.sig === sig) return; cueLayer.dataset.sig = sig;
-  while (cueLayer.firstChild) cueLayer.removeChild(cueLayer.firstChild);
-  for (const [x, y, w, h, num, cur, dup] of boxes) { const d = document.createElement('div'); d.className = cur ? 'cq cur' : 'cq';
-    d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.width = w + 'px'; d.style.height = h + 'px';
-    const bd = document.createElement('span'); bd.className = 'cb'; bd.textContent = String(num);
-    if (h < CUE_SMALL) { bd.style.left = (dup * CUE_BADGE_STEP + 8) + 'px'; bd.style.top = (1 - CUE_BADGE) + 'px'; } else bd.style.left = (dup * CUE_BADGE_STEP - 15) + 'px';
-    d.appendChild(bd); cueLayer.appendChild(d); }
+  cueOn.forEach(e => { if (!els.includes(e)) e.classList.remove('cue'); }); els.forEach(e => e.classList.add('cue')); cueOn = els;
 }
-addEventListener('resize', () => readouts(true)); addEventListener('scroll', () => readouts(true), true);
 
 /* ═══ 12. LOOP ═══ */
 let tPrev = performance.now();
