@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<!--
+  Voltage Regulation — ECE 3033 Lecture 3
+  Version: v1.2.0
+  Released: 2026-11-22
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  DEMO RELEASE 2026-11-22 (principal ruling; gates pending)
+  Changelog: v1.2.0 — per principal review 2026-11-22 (slide spec v1.2.0 rev 1): power factor 0.50 lag to 0.50 lead; slide 1
+  readout in the phasor card and a ×10 inset; slide 2 E_A tip circle, |V_φ| arc and stepped Show me; slide 3 is the problem
+  only, with δ. DEMO RELEASE
+  v1.1.0 — rework per principal review 2026-11-21 (slide spec v1.1.0); DEMO RELEASE
+  v1.0.1 — slide-2 slider no longer snaps onto the slide-3 problem; slide-3 curve axis to −30 %.
+  v1.0.0 — first build: three-slide interactive lecture on the Lecture 1 shell.
+  Model: three-phase, Y, 2.5 MVA, 4160 V, 60 Hz, R_A = 0.12 Ω, X_S = 6.2 Ω per phase; |V_φ| = 2,402 V at full load,
+  I_A = 347.0 A at rated S. E_A = V_φ + R_A I_A + jX_S I_A with V_φ as reference; the field and speed are fixed at the
+  full-load setting for the selected power factor (no AVR, no saturation, steady state), so V_nl = |E_A|.
+  VR = (|E_A| − |V_φ|) / |V_φ| × 100 %, always with the full-load |V_φ|.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-r+nnjWLQPIbzs0ugjVBm2WirJgeNmAUtjy/qF9RbMPc='; style-src 'sha256-eTZgbQ3fk5GU+XA0XBmD9zTG4e1uU52If4Eznb6qOso='; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v1.2.0">
+<title>Voltage Regulation — ECE 3033 Lecture 3 v1.2.0</title>
+<style>
+/* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
+:root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
+  --acc:#0f6e6c;--err:#c2412f;--warn:#8a5700;--ok:#18744a;
+  --sans:"Segoe UI","Helvetica Neue",Arial,sans-serif;--mono:Consolas,"Courier New",monospace}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:14px/1.4 var(--sans)}
+body{display:flex;flex-direction:column;min-height:560px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button{font:600 14px var(--sans);min-height:30px;padding:3px 9px;border-radius:6px;border:1px solid var(--edge);background:var(--panel);color:var(--txt);cursor:pointer;touch-action:manipulation;user-select:none}
+button:hover{background:var(--soft)}
+button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+button.danger{border-color:var(--err);color:var(--err)}
+button[aria-pressed="true"]{background:var(--acc);color:#fff;border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:not-allowed}
+/* ═══ HEADER ═══ */
+header{flex:none;position:relative;display:flex;align-items:center;gap:12px;padding:5px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:17px;margin:0;font-weight:800}
+.badge{font:12px var(--mono);color:var(--mut)}
+#model{margin-left:auto}
+#model summary{cursor:pointer;font-weight:700;color:var(--acc);font-size:13px}
+#model .pop{position:absolute;right:12px;top:100%;z-index:6;width:min(560px,92vw);background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:10px 14px;font-size:13px;box-shadow:0 6px 18px rgba(26,35,40,.18)}
+#model .pop p{margin:0 0 6px}
+/* ═══ APP GRID ═══ */
+#app{flex:1;min-height:0;display:grid;grid-template-columns:330px minmax(0,1fr) 290px;gap:8px;padding:8px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:0;min-width:0}
+.panel h2{font-size:12px;margin:0 0 4px;color:var(--acc);text-transform:uppercase;letter-spacing:1px}
+.ro{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800;font-size:14px;background:var(--inset);border-radius:6px;padding:3px 8px;white-space:pre}
+.eq{background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin:6px 0}
+math{font-size:16px;math-style:normal}
+/* ═══ SLIDE PANEL ═══ */
+#slidePanel{overflow:hidden}
+.sl{display:none} .sl.on{display:block}
+.kick{font:700 11.5px var(--mono);color:var(--acc);letter-spacing:1.5px;text-transform:uppercase;margin:0}
+.sl h2.st{font-size:20px;line-height:1.2;margin:4px 0 6px;color:var(--txt);text-transform:none;letter-spacing:0}
+.keyp{font-size:14px;font-weight:700;background:var(--soft);border-radius:8px;padding:7px 10px;margin:6px 0}
+.def{font-size:13.5px;margin:6px 0}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;align-items:center}
+/* ═══ MAIN: STAGE AND NOTES ═══ */
+#main{display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0}
+#stage{flex:1;min-height:0;display:grid;gap:8px;overflow:hidden}
+.it{display:none;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;overflow:hidden}
+.it.on{display:flex}
+.it>svg{flex:1 1 0;min-height:0;width:100%}
+.ron{font-variant-numeric:tabular-nums}
+#itCkt{grid-area:ckt} #itPh1{grid-area:ph1} #itPh2{grid-area:ph2} #itVrBar{grid-area:vrbar} #itRo2{grid-area:ro2} #itTurn{grid-area:turn}
+#stage[data-view=q1]{grid-template:"ckt" minmax(0,38fr) "ph1" minmax(0,62fr)/minmax(0,1fr)}
+#stage[data-view=q2]{grid-template:"ph2" minmax(0,1fr) "vrbar" 62px "ro2" auto/minmax(0,1fr)}
+#stage[data-view=q3]{grid-template:"turn" minmax(0,1fr)/minmax(0,1fr)}
+.it.rd{padding:6px 8px 6px 36px;gap:4px}
+.rrow{display:flex;gap:8px;flex-wrap:wrap}
+.vrl{margin:0;font:800 15px var(--mono);font-variant-numeric:tabular-nums;background:var(--inset);border-radius:6px;padding:4px 8px;white-space:pre}
+#negMsg{margin:0;min-height:20px;font-size:14px;font-weight:700;color:var(--warn)}
+#notesBox{flex:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+#slNotes{margin:2px 0 0;font-size:13px}
+/* ═══ SIDEBAR ═══ */
+#side{display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.grp{display:none;border-bottom:1px solid var(--line);padding-bottom:6px}
+.grp.open{display:block}
+.cl{display:block;margin:0;font-weight:700;font-size:15px}
+.clrow{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:6px 0 2px}
+.crow{display:grid;grid-template-columns:28px minmax(0,1fr) 28px;gap:6px;align-items:center;margin:4px 0}
+.crow input[type=range]{width:100%;accent-color:var(--acc);height:24px;margin:0}
+.crow button.sm{padding:0;min-height:28px;font-size:16px}
+.brow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.note{font-size:13px;color:var(--mut);margin:3px 0}
+#pin{margin-top:auto;border-top:2px solid var(--edge);padding-top:6px}
+#pin .btns{margin:0 0 5px;flex-wrap:nowrap;gap:4px}
+#pin .btns button{flex:1 1 auto;padding:3px 4px}
+#pager{display:flex;gap:6px;align-items:center}
+#pager .ro{min-width:44px;text-align:center}
+#pager #slNbtn{margin-left:auto}
+/* ═══ WATCH CUES ═══ */
+.watch{margin:6px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12.5px}
+.watch b{color:var(--acc);text-transform:uppercase;letter-spacing:1px;font-size:11.5px;margin-right:2px}
+.watch button{min-height:24px;padding:1px 7px;font-size:12.5px;font-weight:600;border-color:var(--line);text-align:left}
+.watch button[aria-current="true"]{border:2px solid var(--acc);background:var(--soft);font-weight:800}
+#cueLayer{position:fixed;inset:0;pointer-events:none;z-index:4}
+.cq{position:fixed;border:3px solid transparent;border-radius:9px}
+.cq.cur{border-color:var(--acc);box-shadow:0 0 0 3px rgba(15,110,108,.25);animation:cuePulse .9s ease-out 3}
+@keyframes cuePulse{0%{box-shadow:0 0 0 0 rgba(15,110,108,.7)}100%{box-shadow:0 0 0 14px rgba(15,110,108,0)}}
+.cb{position:absolute;top:-15px;left:-15px;width:22px;height:22px;border-radius:50%;background:var(--panel);border:2px solid var(--acc);color:var(--acc);font:800 12px/18px var(--sans);text-align:center}
+.cq.cur .cb{background:var(--acc);color:#fff}
+@media (prefers-reduced-motion:reduce){.cq.cur{animation:none}}
+/* ═══ YOUR TURN ═══ */
+#itTurn{padding:10px 14px 10px 36px}
+#itTurn p{margin:2px 0 8px;font-size:15px}
+#itTurn #turnProb{margin-bottom:20px}
+.trow{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap}
+.trow input{font:15px var(--sans);border:1px solid var(--edge);border-radius:6px;padding:5px 8px;width:86px;color:var(--txt);background:var(--panel);margin-right:8px}
+.trow input[aria-invalid="true"]{border:2px solid var(--err)}
+#itTurn #turnMsg{font-weight:700;font-size:14px;min-height:20px;margin:8px 0 6px;white-space:pre-line}
+#turnMsg.bad{color:var(--err)} #turnMsg.good{color:var(--ok)} #turnMsg.mid{color:var(--warn)}
+#solBox{flex:1 1 0;min-height:0;display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:10px;align-items:start}
+#sol{font:600 13px var(--mono);background:var(--inset);border-radius:8px;padding:6px 10px;white-space:pre-wrap}
+#solSvg{width:100%;height:100%;min-height:0;max-height:300px;border:1px solid var(--line);border-radius:8px}
+/* ═══ SHORT WINDOWS (1366×768 with browser bars, or 125 % zoom): tighter type so every slide fits without scrolling ═══ */
+@media (max-height:700px){
+  .sl h2.st{font-size:17px;margin:2px 0 4px}
+  .keyp{font-size:13px;padding:5px 8px;margin:4px 0}
+  .def{font-size:12.5px;margin:4px 0}
+  .eq{padding:1px 8px;margin:4px 0} math{font-size:14.5px}
+  .watch{margin:4px 0;gap:3px} .watch button{min-height:21px;font-size:12px;padding:0 6px}
+  #slNotes{font-size:12.5px;line-height:1.35}
+  .panel{padding:8px 10px}
+}
+@media (max-width:1250px){
+  #app{grid-template-columns:292px minmax(0,1fr) 222px}
+  .vrl{font-size:13px} .ro{font-size:13px}
+  #sol{font-size:12px;padding:6px 8px}
+  .cl{font-size:14px} #pin .btns button,#pager button{font-size:13px;padding:3px 5px}
+}
+/* ═══ NARROW OR VERY SHORT WINDOWS: the page scrolls instead of squeezing ═══ */
+@media (max-width:1079px),(max-height:599px){
+  html,body{height:auto} body{display:block;min-height:0}
+  #app{display:block}
+  #app>*{margin-bottom:8px}
+  #stage[data-view]{display:block;overflow:visible}
+  #stage .it{margin-bottom:8px}
+  #stage .it>svg{flex:none;height:auto}
+  #solBox{display:block} #solSvg{height:auto}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Voltage Regulation</h1><span class="badge">ECE 3033 · Lecture 3 · v1.2.0</span>
+  <details id="model"><summary>Model</summary><div class="pop">
+    <p>Three-phase, Y-connected synchronous generator: 2.5 MVA, 4160 V, 60 Hz, R<sub>A</sub> = 0.12 Ω and X<sub>S</sub> = 6.2 Ω per phase. Full load: |V<sub>φ</sub>| = 2,402 V and I<sub>A</sub> = 347.0 A at rated S.</p>
+    <p>E<sub>A</sub> = V<sub>φ</sub> + R<sub>A</sub>I<sub>A</sub> + jX<sub>S</sub>I<sub>A</sub>, with V<sub>φ</sub> as the reference. The field current and the speed are fixed at the full-load setting for the selected power factor, so |E<sub>A</sub>| does not change when the load is removed. At no load I<sub>A</sub> = 0 and V<sub>φ</sub> = E<sub>A</sub>.</p>
+    <p>VR = (|E<sub>A</sub>| − |V<sub>φ</sub>|) / |V<sub>φ</sub>| × 100 %, with the full-load |V<sub>φ</sub>|. First-order model: no voltage regulator, no saturation, steady state only. The phasor diagrams are to scale. The inset on slide 1 is the same diagram enlarged 10 times about the tip of V<sub>φ</sub>; the current dial on slide 2 shows the direction of I<sub>A</sub> only.</p>
+  </div></details>
+</header>
+
+<div id="cueLayer" aria-hidden="true"></div>
+<div id="app">
+  <!-- ═══ SLIDE PANEL ═══ -->
+  <div class="panel" id="slidePanel" aria-label="Lecture slide">
+  <section class="sl" data-n="1"><p class="kick">1 of 3 · Voltage regulation</p><h2 class="st">What voltage regulation measures</h2>
+    <p class="keyp">The voltage regulation of a synchronous generator is the rise in terminal voltage when full rated load at a specified power factor is removed, with rotor speed and field current held constant, as a percentage of the full-load voltage.</p>
+    <div class="eq" data-eq="vr"></div>
+    <p class="def">At no load I<sub>A</sub> = 0, so V<sub>nl</sub> = |E<sub>A</sub>|. At full load V<sub>fl</sub> = |V<sub>φ</sub>|.</p>
+    <div class="eq" data-eq="vr2"></div>
+    <p class="def">Find E<sub>A</sub> with phasors, magnitude and angle. VR then uses magnitudes only: δ drops out.</p>
+    <p class="def">VR is not the length of the drop: |jX<sub>S</sub>I<sub>A</sub>| = <span id="dropV"></span> V at every power factor.</p></section>
+  <section class="sl" data-n="2"><p class="kick">2 of 3 · Power factor</p><h2 class="st">Power factor decides the voltage regulation</h2>
+    <p class="keyp">Same load S, same |V<sub>φ</sub>|. A lagging load needs a longer E<sub>A</sub>; a leading load can need a shorter one, and VR turns negative. At each power factor the field is readjusted to hold |V<sub>φ</sub>| = 2,402 V at full load.</p>
+    <div class="eq" data-eq="kvl"></div>
+    <p class="def">jX<sub>S</sub>I<sub>A</sub> is always 90° ahead of I<sub>A</sub> (dial). Lagging I<sub>A</sub> points the drop up and outward, lengthening E<sub>A</sub>. Leading I<sub>A</sub> tips it back, shortening E<sub>A</sub>.</p>
+    <p class="def">|I<sub>A</sub>| is fixed, so the tip of E<sub>A</sub> stays on a circle about the tip of V<sub>φ</sub>. Outside the dashed |V<sub>φ</sub>| arc: VR &gt; 0. Inside: VR &lt; 0.</p>
+    <div class="eq" data-eq="vr2"></div></section>
+  <section class="sl" data-n="3"><p class="kick">3 of 3 · Your turn</p><h2 class="st">Find the voltage regulation</h2>
+    <p class="keyp">Build E<sub>A</sub> with phasors, then use magnitudes only for VR.</p>
+    <div class="eq" data-eq="kvl"></div>
+    <div class="eq" data-eq="vr2"></div>
+    <p class="def">3-φ, Y, 2.5 MVA, 4,160 V, R<sub>A</sub> = 0.12 Ω, X<sub>S</sub> = 6.2 Ω. Full load: |V<sub>φ</sub>| = 2,402 V, I<sub>A</sub> = 347.0 A.</p>
+    <div class="btns"><button id="toS1">◀ Back to slide 1</button></div></section>
+  </div>
+
+  <!-- ═══ MAIN AREA ═══ -->
+  <div id="main">
+    <div id="stage" data-view="q1">
+      <div class="it" id="itCkt">
+        <svg viewBox="0 0 700 168" role="img" aria-label="Schematic of the Y-connected generator: source E A with the field fixed, R A, j X S, the open terminal with V phi across it, the load breaker and the load."><g id="ckG"></g></svg>
+      </div>
+      <div class="it" id="itPh1">
+        <svg viewBox="0 0 600 246" role="img" aria-label="Phasor diagram at full load: V phi on the reference axis, the drop j X S I A from its tip, and E A from the origin, with the E A, V phi and voltage regulation readout above it. An inset enlarges the tip of V phi ten times to show R A I A along the current and j X S I A at a right angle to it. With the breaker open the drop disappears and V phi lies along E A."><g id="p1G"></g></svg>
+      </div>
+      <div class="it" id="itPh2">
+        <svg viewBox="0 0 760 348" role="img" aria-label="Phasor diagram, voltages only: V phi on the reference axis, the drop j X S I A, and E A. The tip of E A moves on a circle about the tip of V phi; a dashed arc of radius V phi about the origin marks where the voltage regulation is zero. Faint reference E A phasors at 0.5 lagging, unity and 0.5 leading. An inset dial shows the direction of the current I A."><g id="p2G"></g></svg>
+      </div>
+      <div class="it" id="itVrBar">
+        <svg viewBox="0 0 760 62" role="img" aria-label="Voltage regulation bar from minus 60 percent to plus 100 percent."><g id="vbG"></g></svg>
+      </div>
+      <div class="it rd" id="itRo2">
+        <div class="rrow"><span class="ro" id="r2a"></span><span class="ro" id="r2b"></span></div>
+        <p class="vrl" id="vr2"></p>
+        <p id="negMsg" role="status" aria-live="polite"></p>
+      </div>
+      <div class="it" id="itTurn">
+        <p id="turnProb"><b>Your turn:</b> the same generator at rated load, 0.92 lagging. Find |E<sub>A</sub>|, δ and VR.</p>
+        <div class="trow" id="turnRow"><label for="eIn"><b>|E<sub>A</sub>| (V)</b></label><input type="text" id="eIn" inputmode="decimal" maxlength="12" autocomplete="off" aria-describedby="turnMsg"><label for="dIn"><b>δ (°)</b></label><input type="text" id="dIn" inputmode="decimal" maxlength="12" autocomplete="off" aria-describedby="turnMsg"><label for="vrIn"><b>VR (%)</b></label><input type="text" id="vrIn" inputmode="decimal" maxlength="12" autocomplete="off" aria-describedby="turnMsg"><button id="chkBtn" class="pri">Check</button><button id="hintBtn">Hint</button><button id="solBtn">Show solution</button></div>
+        <p id="turnMsg" role="status" aria-live="polite"></p>
+        <div id="solBox" hidden><div id="sol"></div><svg id="solSvg" viewBox="0 0 340 200" role="img" aria-label="Solution phasor diagram, to scale: V phi on the reference axis, the drop j X S I A, E A from the origin and the angle delta between V phi and E A."><g id="soG"></g></svg></div>
+      </div>
+    </div>
+    <div id="notesBox" aria-live="polite"><p class="kick">Speaker notes</p><p id="slNotes"></p></div>
+  </div>
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <div class="panel" id="side" aria-label="Controls">
+    <h2 id="sideH">Controls</h2>
+    <div class="grp" data-g="1 2">
+      <div class="clrow"><label class="cl" for="pfS">Load power factor</label><span class="ro" id="pfO"></span></div>
+      <div class="crow"><button class="sm" id="pfM" aria-label="One position toward lagging">−</button><input type="range" id="pfS" min="0" step="1"><button class="sm" id="pfP" aria-label="One position toward leading">+</button></div>
+      <p class="note">0.50 lagging at the left, unity in the middle, 0.50 leading at the right.</p>
+      <div class="clrow"><p class="cl" id="sL">Load S</p><span class="ro" aria-labelledby="sL">2.5 MVA (rated)</span></div>
+    </div>
+    <div class="grp" data-g="1">
+      <div class="clrow"><p class="cl" id="brkL">Load breaker</p><span class="ro" id="brkO">closed</span></div>
+      <div class="brow" role="group" aria-labelledby="brkL"><button id="brkBtn" class="pri">Open the breaker</button></div>
+      <div class="brow"><button class="pri" data-show="1">▶ Show me: open the breaker</button></div>
+    </div>
+    <div class="grp" data-g="2">
+      <div class="brow"><button class="pri" data-show="2">▶ Show me: lag to lead</button></div>
+    </div>
+    <div id="pin">
+      <div class="btns" role="group" aria-label="Reset and pause"><button id="resetBtn" class="danger">↺ Reset</button><button id="pauseBtn" aria-pressed="false">❚❚ Pause</button></div>
+      <div id="pager"><button id="slPrev" aria-label="Previous slide">◀</button><span class="ro" id="slPos">1/3</span><button id="slNext" aria-label="Next slide">▶</button><button id="slNbtn" aria-pressed="true">Notes (N)</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══ CONTENTS ═══
+   1. CONSTANTS   2. STATE   3. PHYSICS   4. FORMATTING AND EQUATIONS   5. SLIDE 1: SCHEMATIC   6. PHASOR DIAGRAMS, INSET, DIAL AND VR BAR
+   7. SLIDE 3: YOUR TURN   8. READOUTS   9. CONTROLS   10. SLIDES AND DEMOS   11. WATCH CUES   12. START */
+'use strict';
+/* ═══ 1. CONSTANTS ═══ */
+const V_LL = 4160;                        // V line, rated
+const S_RATED = 2.5e6;                    // VA, rated; the load on every slide
+const ROUND_TENTH = x => Math.round(x * 10) / 10;   // the full-load values are used as the slides print them, to 0.1 V and 0.1 A
+const V_PH = ROUND_TENTH(V_LL / Math.sqrt(3));      // V per phase at full load, 2401.8 (Y-connected), the reference phasor
+const I_RATED = ROUND_TENTH(S_RATED / (Math.sqrt(3) * V_LL));   // A, armature current at rated S, 347.0
+const R_A = 0.12, X_S = 6.2;              // Ω per phase, armature resistance and synchronous reactance
+const PF_MIN_PCT = 50;                    // %, lowest power factor on the slider: 0.50 lagging at the left end, 0.50 leading at the right
+const PF_STEP_PCT = 5;                    // %, power factor change per slider position (0.05)
+const PF_START_PCT = 85;                  // %, power factor on entering a slide: 0.85 lagging
+const K_UNITY = (100 - PF_MIN_PCT) / PF_STEP_PCT;   // slider position of unity power factor (10)
+const K_MAX = 2 * K_UNITY;                // last slider position (0.50 leading); 21 positions in all
+const K_START = K_UNITY - (100 - PF_START_PCT) / PF_STEP_PCT;   // slider position of 0.85 lagging (7)
+const A_END = Math.acos(PF_MIN_PCT / 100);          // rad, current angle at each end of the slider (60°)
+const TURN_PF = 0.92;                     // power factor of the "your turn" problem (lagging); no slider position reaches it
+const A_TURN = -Math.acos(TURN_PF);       // rad, current angle of the problem
+const TURN_TOL_E = 20;                    // V accepted either side of |E_A|
+const TURN_TOL_D = 0.5;                   // degrees accepted either side of δ
+const TURN_TOL_VR = 1.0;                  // percentage points accepted either side of VR
+const NUMBER_FORM = /^[+\-−]?(\d{1,3}(,\d{3})+|\d+)(\.\d*)?$|^[+\-−]?\.\d+$/;   // a plain decimal, optional sign, optional thousands commas
+const DEG = 180 / Math.PI;
+const STEP_MS = 300;                      // ms, slide-2 Show me: time on each of the 21 slider positions
+const DEMO1_FULL_MS = 2200, DEMO1_OPEN_MS = 2800;   // ms, slide-1 Show me: hold at full load, hold with the breaker open
+const VR_LO = -60, VR_HI = 100, VR_TICK = 20;       // %, range and tick spacing of the VR bar
+const NEG = -0.0005;                      // VR (fraction) below which the value is shown as negative
+const BISECT_N = 40;                      // halvings when solving for the VR = 0 power factor
+const MINUS = '−';                        // U+2212
+const GAP = '\u00a0\u00a0\u00a0';         // three no-break spaces: a gap between two readouts on one line that the page does not collapse
+const SVGNS = 'http://www.w3.org/2000/svg', MMLNS = 'http://www.w3.org/1998/Math/MathML';
+const NSL = 3;                            // lecture slides
+const EPS = 1e-9;
+const COL = { v: '#d32f2f', e: '#1c5fd6', x: '#3a444b', i: '#18744a', mut: '#55636b', ink: '#1a2328', warn: '#8a5700', neg: '#b45309', card: '#eceef4' };
+const GHOST_OPACITY = 0.35;               // opacity of the faint reference phasors and of the E_A tip circle
+const HALO = { stroke: '#ffffff', 'stroke-width': 4, 'paint-order': 'stroke', 'stroke-linejoin': 'round' };   // keeps a label legible where a line crosses it
+
+/* ═══ 2. STATE ═══ */
+const S = { k: K_START, closed: true, moved: false,
+            slide: 1, notes: true, paused: false, busy: false, demoId: 0, demoCue: null, vis: new Set(), cueAuto: null, cueMan: null,
+            solved: false, shown: false, tried: false };
+
+/* ═══ 3. PHYSICS ═══ */
+/* Full-load operating point for a current angle a (rad; negative = lagging) with V_φ as reference:
+   E_A = V_φ + R_A I_A + jX_S I_A. Returns the phasor parts (V), |E_A|, δ (rad) and VR (fraction of the full-load |V_φ|). */
+function point(a) {
+  const ir = I_RATED * Math.cos(a), ii = I_RATED * Math.sin(a);
+  const rx = ir * R_A, ry = ii * R_A, xx = -ii * X_S, xy = ir * X_S;      // R_A I_A and jX_S I_A
+  const er = V_PH + rx + xx, ei = ry + xy, E = Math.hypot(er, ei);
+  return { a, rx, ry, er, ei, E, d: Math.atan2(ei, er), vr: (E - V_PH) / V_PH };
+}
+/* Power factor (%) of slider position k: 50 at either end, 100 in the middle. */
+function pfPct(k) { return 100 - PF_STEP_PCT * Math.abs(k - K_UNITY); }
+/* Current angle (rad) of slider position k: below K_UNITY lagging (negative), above it leading (positive). */
+function angleOf(k) { return Math.sign(k - K_UNITY) * Math.acos(pfPct(k) / 100); }
+/* Leading current angle (rad) at which |E_A| = |V_φ|, so VR = 0: bisection between unity (VR > 0) and the leading end of the slider (VR < 0). */
+function zeroVrAngle() {
+  let lo = 0, hi = A_END;
+  for (let n = 0; n < BISECT_N; n++) { const mid = (lo + hi) / 2; if (point(mid).vr > 0) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+const Z_DROP = I_RATED * Math.hypot(R_A, X_S);      // V, |Z_S I_A|: the distance from the tip of V_φ to the tip of E_A at every power factor
+const A_Z = Math.atan2(X_S, R_A);         // rad, angle of Z_S = R_A + jX_S
+
+/* ═══ 4. FORMATTING AND EQUATIONS ═══ */
+/* Whole number with a thousands comma: 4001.6 → "4,002". */
+function volts(x) { return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+/* Number with d decimals; a negative value is written with U+2212. */
+function f(x, d) { return x.toFixed(d).replace('-', MINUS); }
+/* Signed percentage with one decimal from a fraction: +66.6, −5.7. */
+function pct(v) { const t = (v * 100).toFixed(1); return (t.startsWith('-') ? MINUS + t.slice(1) : '+' + t); }
+/* Power factor of slider position k in words: "0.85 lag", "unity", "0.85 lead". */
+function pfName(k) { return k === K_UNITY ? 'unity' : (pfPct(k) / 100).toFixed(2) + (k < K_UNITY ? ' lag' : ' lead'); }
+/* The label for a current angle a (rad). */
+function thetaText(a) { return Math.abs(a) < EPS ? 'θ = 0° (in phase)' : 'θ = ' + f(Math.abs(a) * DEG, 1) + '° ' + (a < 0 ? 'lagging' : 'leading'); }
+const V_FL = volts(V_PH);                 // "2,402", the full-load |V_φ| as printed
+const X_DROP = volts(X_S * I_RATED);      // "2,151", |jX_S I_A| as printed
+/* Set an element's text only when it changes. */
+function put(id, t) { const e = document.getElementById(id); if (e.textContent !== t) e.textContent = t; }
+/* Write text into el, showing "x_ab" as x with subscript ab (text nodes and <sub> only, no markup parsed). */
+function richText(el, txt) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+  for (const part of String(txt).split(/(_[A-Za-zφ]+)/)) {
+    if (part.startsWith('_')) { const sb = document.createElement('sub'); sb.textContent = part.slice(1); el.appendChild(sb); }
+    else if (part) el.appendChild(document.createTextNode(part));
+  }
+}
+/* richText, skipped when the text has not changed. */
+function putRich(el, txt) { if (el.dataset.raw !== txt) { richText(el, txt); el.dataset.raw = txt; } }
+/* Create an SVG element in parent. */
+function mk(parent, tag, a, txt) { const e = document.createElementNS(SVGNS, tag); for (const k in a) e.setAttribute(k, a[k]); if (txt !== undefined) subT(e, txt); parent.appendChild(e); return e; }
+/* Write str into an SVG text element, drawing "x_ab" as x with a lowered, smaller ab (tspans). */
+function subT(el, str) {
+  if (el.dataset.raw === str) return; el.dataset.raw = str;
+  while (el.firstChild) el.removeChild(el.firstChild);
+  let low = false;
+  for (const part of String(str).split(/(_[A-Za-zφ]+)/)) { if (!part) continue;
+    const t = document.createElementNS(SVGNS, 'tspan'), sub = part.startsWith('_');
+    t.textContent = sub ? part.slice(1) : part; if (sub) { t.setAttribute('dy', '4'); t.setAttribute('font-size', '75%'); low = true; } else if (low) { t.setAttribute('dy', '-4'); low = false; }
+    el.appendChild(t); }
+}
+/* Place an SVG text element. */
+function at(t, x, y, str) { t.setAttribute('x', x.toFixed(1)); t.setAttribute('y', y.toFixed(1)); subT(t, str); }
+/* Equations as nested lists, built into MathML: a string is a number, an operator, text (contains a space) or an identifier;
+   ['sub', base, sub, 'b'?] (b = bold phasor), ['frac', num, den], ['row', …]. */
+const sub = (b, s, bold) => ['sub', b, s, bold];
+const EQ = {
+  vr: ['VR', '=', ['frac', ['row', sub('V', 'nl'), '−', sub('V', 'fl')], sub('V', 'fl')], '×', '100', ' %'],
+  vr2: ['VR', '=', ['frac', ['row', '|', sub('E', 'A', 'b'), '|', '−', '|', sub('V', 'φ', 'b'), '|'], ['row', '|', sub('V', 'φ', 'b'), '|']], '×', '100', ' %'],
+  kvl: [sub('E', 'A', 'b'), '=', sub('V', 'φ', 'b'), '+', sub('R', 'A'), sub('I', 'A', 'b'), '+', 'j', sub('X', 'S'), sub('I', 'A', 'b')]
+};
+/* Build one MathML node from an equation item. */
+function mnode(it) {
+  const el = (tag, t) => { const e = document.createElementNS(MMLNS, tag); if (t !== undefined) e.textContent = t; return e; };
+  if (Array.isArray(it)) {
+    if (it[0] === 'sub') { const e = el('msub'), b = el('mi', it[1]); if (it[3]) b.setAttribute('mathvariant', 'bold'); e.appendChild(b); e.appendChild(el('mi', it[2])); return e; }
+    if (it[0] === 'frac') { const e = el('mfrac'); e.appendChild(mnode(it[1])); e.appendChild(mnode(it[2])); return e; }
+    const e = el('mrow'); it.slice(it[0] === 'row' ? 1 : 0).forEach(x => e.appendChild(mnode(x))); return e;
+  }
+  if (/^[\d.]+$/.test(it)) return el('mn', it);
+  if (/^[=+−×|]$/.test(it)) return el('mo', it);
+  if (it.includes(' ')) return el('mtext', it);
+  return el('mi', it);
+}
+/* Fill an element with the equation named key. */
+function putEq(box, key) { const m = document.createElementNS(MMLNS, 'math'); m.setAttribute('display', 'block'); m.appendChild(mnode(EQ[key])); box.appendChild(m); }
+
+/* ═══ 5. SLIDE 1: SCHEMATIC ═══ */
+const CK = {};
+const CK_TOP = 40, CK_BOT = 140;          // y of the schematic's top and bottom rails (viewBox units)
+const CK_TERM_X = 430;                    // x of the two terminal dots
+const CK_BRK = [490, 550];                // x of the breaker's two contacts
+/* Build the generator schematic once: E_A, R_A, jX_S, the open terminal with V_φ across it, the breaker and the load. */
+function buildCircuit() {
+  const g = document.getElementById('ckG'), [b0, b1] = CK_BRK;
+  const wire = d => mk(g, 'path', { d, stroke: COL.ink, 'stroke-width': 3, fill: 'none', 'stroke-linejoin': 'round' });
+  wire(`M50 62V${CK_TOP}H140l7 -11l13 22l13 -22l13 22l13 -22l13 22l8 -11H270a12.5 13 0 0 1 25 0a12.5 13 0 0 1 25 0a12.5 13 0 0 1 25 0a12.5 13 0 0 1 25 0H${b0}`);
+  wire(`M${b1} ${CK_TOP}H640V50`); wire(`M640 130V${CK_BOT}H50V118`);
+  mk(g, 'circle', { cx: 50, cy: 90, r: 28, fill: '#eef4fe', stroke: COL.e, 'stroke-width': 3.5 });
+  mk(g, 'text', { x: 50, y: 96, 'text-anchor': 'middle', 'font-size': 18, 'font-weight': 800, fill: COL.e }, 'E_A');
+  mk(g, 'text', { x: 86, y: 95, 'font-size': 15, fill: COL.mut }, 'field fixed');
+  mk(g, 'text', { x: 180, y: 17, 'text-anchor': 'middle', 'font-size': 16, 'font-weight': 700 }, 'R_A = 0.12 Ω');
+  mk(g, 'text', { x: 320, y: 17, 'text-anchor': 'middle', 'font-size': 16, 'font-weight': 700 }, 'jX_S = j6.2 Ω');
+  for (const y of [CK_TOP, CK_BOT]) mk(g, 'circle', { cx: CK_TERM_X, cy: y, r: 6, fill: COL.v });
+  for (const [y, t, size] of [[70, '+', 20], [97, 'V_φ', 19], [124, MINUS, 20]]) mk(g, 'text', { x: CK_TERM_X, y, 'text-anchor': 'middle', 'font-size': size, 'font-weight': 800, fill: COL.v }, t);
+  mk(g, 'circle', { cx: b0, cy: CK_TOP, r: 5, fill: COL.ink }); mk(g, 'circle', { cx: b1, cy: CK_TOP, r: 5, fill: COL.ink });
+  CK.blade = mk(g, 'path', { stroke: COL.ink, 'stroke-width': 4.5, 'stroke-linecap': 'round' });
+  CK.brkTxt = mk(g, 'text', { x: (b0 + b1) / 2, y: 68, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700 }, '');
+  CK.load = mk(g, 'rect', { x: 585, y: 50, width: 110, height: 80, rx: 8, fill: COL.card, stroke: COL.ink, 'stroke-width': 3 });
+  mk(g, 'text', { x: 640, y: 73, 'text-anchor': 'middle', 'font-size': 16, 'font-weight': 800 }, 'Load');
+  mk(g, 'text', { x: 640, y: 96, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700 }, 'S = 2.5 MVA');
+  CK.pfTxt = mk(g, 'text', { x: 640, y: 118, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700 }, '');
+  mk(g, 'text', { x: 240, y: 162, 'text-anchor': 'middle', 'font-size': 14, fill: COL.mut }, 'Y-connected generator (schematic)');
+  mk(g, 'rect', { id: 'cueTerm', x: CK_TERM_X - 21, y: 28, width: 42, height: 124, fill: 'none' });   // unpainted box the Watch cue rings
+}
+/* Draw the schematic: breaker blade and label, the load box and its live power factor. */
+function drawCircuit() {
+  const [b0, b1] = CK_BRK;
+  CK.blade.setAttribute('d', S.closed ? `M${b0} ${CK_TOP}H${b1}` : `M${b0} ${CK_TOP}L${b1 - 8} 14`);
+  subT(CK.brkTxt, S.closed ? 'breaker closed' : 'breaker open');
+  CK.load.setAttribute('stroke-dasharray', S.closed ? 'none' : '7 6');
+  subT(CK.pfTxt, 'pf ' + pfName(S.k));
+}
+
+/* ═══ 6. PHASOR DIAGRAMS, INSET, DIAL AND VR BAR ═══ */
+const P1_O = { x: 150, y: 216 }, P1_PX_V = 0.058;   // slide 1: origin (viewBox units) and px per volt
+const P1_AXIS_END = 414;                  // x where the slide-1 reference axis ends
+const P1_RO = { x: 12, y: [19, 45, 73], size: 20 }; // slide-1 readout: left edge, the three baselines and the font size (≥ 16 px on screen)
+const P2_O = { x: 150, y: 250 }, P2_PX_V = 0.1;     // slide 2: origin and px per volt
+const P2_ARC_END = 58 / DEG;              // rad, where the dashed |V_φ| arc stops (just past the VR = 0 crossing)
+const HEAD = { 1: { v: 11, x: 10, e: 14, wx: 3.5, we: 6 }, 2: { v: 13, x: 12, e: 18, wx: 4, we: 7 } };   // px by slide: arrowhead lengths (V_φ, jX_S I_A, E_A), line widths (drop, E_A)
+const LABEL_OFF = 10, LABEL_HALF = 7;     // px: gap between the drop and its label, and half the label's height
+const HEAD_I = 9;                         // px, arrowhead length of the dial's I_A
+const DIAL = { x: 542, y: 302, r: 30, arc: 13 };    // slide-2 current dial: centre, radius and θ-arc radius (viewBox units)
+const TIE = 10;                           // px, side of the dashed box that marks what the slide-1 inset enlarges
+/* Slide-1 inset, the tip of V_φ enlarged: card (x, y, w, h), the tip (tx, ty), magnification, length of the jX_S I_A stub (solid, then dashed),
+   length of the dashed I_A line ahead of and behind the tip, θ-arc radius, length of the V_φ direction line, V_φ stub length,
+   label offsets, label widths used to keep them inside the card, and the card's inner margin (viewBox units). */
+const INSET = { x: 424, y: 88, w: 170, h: 152, tx: 484, ty: 160, mag: 10, stub: 13, stubDash: 8, ahead: 36, behind: 12, arc: 15, ref: 22, vStub: 50,
+                off: 17, offX: 8, wR: 46, wX: 64, pad: 4 };
+const SIDE_MIN = 0.35;                    // a label goes beside its line when the offset direction's x part exceeds this; otherwise it is centred
+let P1 = null, P2 = null;
+/* Create one arrow (line and head) in g. */
+function arrow(g, col, w) { return { l: mk(g, 'path', { stroke: col, 'stroke-width': w, fill: 'none', 'stroke-linecap': 'round' }), h: mk(g, 'polygon', { fill: col }) }; }
+/* Set an arrow from (x1,y1) to (x2,y2) with a head of length hl. */
+function setArrow(A, x1, y1, x2, y2, hl) {
+  const L = Math.hypot(x2 - x1, y2 - y1), ux = L > 0 ? (x2 - x1) / L : 1, uy = L > 0 ? (y2 - y1) / L : 0, h = Math.min(hl, L), bx = x2 - ux * h, by = y2 - uy * h, n = h * 0.42;
+  A.l.setAttribute('d', `M${x1.toFixed(1)} ${y1.toFixed(1)}L${bx.toFixed(1)} ${by.toFixed(1)}`);
+  A.h.setAttribute('points', `${x2.toFixed(1)},${y2.toFixed(1)} ${(bx - uy * n).toFixed(1)},${(by + ux * n).toFixed(1)} ${(bx + uy * n).toFixed(1)},${(by - ux * n).toFixed(1)}`);
+}
+/* Remove an arrow from the picture. */
+function hideArrow(A) { A.l.setAttribute('d', ''); A.h.setAttribute('points', ''); }
+/* SVG arc of radius r about (cx,cy) from angle a0 to a1 (rad, counter-clockwise positive, y up); the shorter way round. */
+function arcPath(cx, cy, r, a0, a1) {
+  const pt = a => `${(cx + r * Math.cos(a)).toFixed(1)} ${(cy - r * Math.sin(a)).toFixed(1)}`;
+  return `M${pt(a0)}A${r.toFixed(1)} ${r.toFixed(1)} 0 0 ${a1 > a0 ? 0 : 1} ${pt(a1)}`;
+}
+/* Create the phasors and labels of one diagram in g: jX_S I_A and R_A I_A (grey), E_A (blue, thick), V_φ (red). H holds the sizes. */
+function buildPhasorSet(g, H) {
+  const txt = (col, anchor) => mk(g, 'text', Object.assign({ fill: col, 'font-size': 15, 'text-anchor': anchor, 'font-weight': 700 }, HALO), '');
+  const P = { H, X: arrow(g, COL.x, H.wx), R: mk(g, 'path', { stroke: COL.x, 'stroke-width': H.wx, fill: 'none' }), E: arrow(g, COL.e, H.we), V: arrow(g, COL.v, H.wx) };
+  P.lV = txt(COL.v, 'middle'); P.lX = txt(COL.x, 'start'); P.lE = txt(COL.e, 'end');
+  return P;
+}
+/* Where the E_A label goes: beside the middle of E_A, on the side away from the drop. */
+function placeE(P, p, O, k, str) { at(P.lE, O.x + p.er * k / 2 - 11 * Math.sin(p.d) - 2, O.y - p.ei * k / 2 - 11 * Math.cos(p.d) - 2, str); }
+/* Draw the full-load diagram for point p: V_φ on the axis, R_A I_A and jX_S I_A tip to tail, E_A from the origin. dDec = decimals of δ in the label. */
+function drawPhasorSet(P, p, O, k, dDec) {
+  const vx = O.x + V_PH * k, rx = vx + p.rx * k, ry = O.y - p.ry * k, ex = O.x + p.er * k, ey = O.y - p.ei * k;
+  setArrow(P.V, O.x, O.y, vx, O.y, P.H.v);
+  P.R.setAttribute('d', `M${vx.toFixed(1)} ${O.y}L${rx.toFixed(1)} ${ry.toFixed(1)}`);
+  setArrow(P.X, rx, ry, ex, ey, P.H.x); setArrow(P.E, O.x, O.y, ex, ey, P.H.e);
+  const L = Math.hypot(ex - rx, ey - ry) || 1, nx = -(ey - ry) / L, ny = (ex - rx) / L, off = LABEL_OFF + LABEL_HALF * Math.abs(ny);   // unit normal on the outer side of the drop
+  at(P.lV, (O.x + vx) / 2, O.y + 19, 'V_φ = ' + V_FL + '∠0° V'); at(P.lX, (rx + ex) / 2 + off * nx, (ry + ey) / 2 + off * ny + 5, 'jX_S I_A');
+  P.lE.setAttribute('fill', COL.e); placeE(P, p, O, k, 'E_A = ' + volts(p.E) + '∠' + f(p.d * DEG, dDec) + '° V');
+}
+/* Build the slide-1 phasor card once: title, readout lines, axis, phasors, and the ×10 inset with its tie box and leader. */
+function buildPh1() {
+  const g = document.getElementById('p1G'), O = P1_O, N = INSET;
+  const small = (x, y, col, anchor, str) => mk(g, 'text', Object.assign({ x, y, fill: col, 'font-size': 12, 'font-weight': 700, 'text-anchor': anchor }, HALO), str);
+  mk(g, 'text', { x: 592, y: 16, 'text-anchor': 'end', 'font-size': 13, 'font-weight': 800 }, 'Phasor diagram (to scale)');
+  mk(g, 'path', { d: `M${O.x} ${O.y}H${P1_AXIS_END}`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
+  mk(g, 'rect', { id: 'insetCard', x: N.x, y: N.y, width: N.w, height: N.h, rx: 8, fill: COL.card });
+  mk(g, 'text', { x: N.x + 8, y: N.y + 15, 'font-size': 12.5, 'font-weight': 800 }, '×' + N.mag + ' at the tip of V_φ');
+  mk(g, 'path', { d: `M${N.tx - N.vStub} ${N.ty}H${N.tx}`, stroke: COL.v, 'stroke-width': 4 });
+  small(N.tx - N.vStub, N.ty - 7, COL.v, 'start', 'V_φ');
+  P1 = buildPhasorSet(g, HEAD[1]);
+  const ro = mk(g, 'g', { id: 'cueRo1' });   // the readout; the Watch cue rings the whole group
+  P1.ro = P1_RO.y.map((y, i) => mk(ro, 'text', { id: 'ro1' + i, class: 'ron', x: P1_RO.x, y, 'font-size': P1_RO.size, 'font-weight': 800, fill: COL.ink }, ''));
+  P1.cap = mk(g, 'text', { x: 12, y: 238, 'font-size': 13, fill: COL.mut }, '');
+  P1.tie = mk(g, 'rect', { width: TIE, height: TIE, fill: 'none', stroke: COL.ink, 'stroke-width': 1.2, 'stroke-dasharray': '3 2' });
+  P1.lead = mk(g, 'path', { stroke: COL.ink, 'stroke-width': 1.2, 'stroke-dasharray': '2 3', fill: 'none' });
+  P1.none = mk(g, 'text', { x: N.x + N.w / 2, y: N.ty + 34, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 800 }, '');
+  P1.live = mk(g, 'g', {});               // the inset's full-load drawing; hidden with the breaker open
+  const n = P1.live, line = (col, w, dash) => mk(n, 'path', Object.assign({ stroke: col, 'stroke-width': w, fill: 'none' }, dash ? { 'stroke-dasharray': dash } : {}));
+  mk(n, 'path', { d: `M${N.tx} ${N.ty}h${N.ref}`, stroke: COL.v, 'stroke-width': 1.2, 'stroke-dasharray': '3 2' });
+  P1.iArc = line(COL.i, 1.5); P1.iI = line(COL.i, 1.5, '5 3'); P1.iSq = line(COL.x, 1.2); P1.iX = line(COL.x, 3.5); P1.iXd = line(COL.x, 3.5, '3 3'); P1.iR = line(COL.x, 4);
+  g.appendChild(n);
+  const lab = (col, str) => { const t = small(0, 0, col, 'start', str); n.appendChild(t); return t; };
+  P1.iLI = lab(COL.i, 'I_A'); P1.iLR1 = lab(COL.x, 'R_A I_A'); P1.iLR2 = lab(COL.x, '∥ I_A'); P1.iLX = lab(COL.x, 'jX_S I_A ⟂');
+  mk(n, 'text', { x: N.x + 8, y: N.y + N.h - 21, 'font-size': 12, 'font-weight': 700, fill: COL.x }, 'R_A I_A = ' + f(R_A * I_RATED, 1) + ' V');
+  P1.iTh = mk(n, 'text', { x: N.x + 8, y: N.y + N.h - 6, 'font-size': 12, 'font-weight': 700, fill: COL.i }, '');
+  mk(g, 'circle', { cx: O.x, cy: O.y, r: 3.5, fill: COL.ink });
+}
+/* Place an inset label at (x, y): beside the point when the offset direction dx leans sideways, centred on it otherwise, and kept inside the card
+   (w = label width). Returns true when the label had to be moved to stay inside. */
+function insetLabel(t, x, y, dx, w, str) {
+  const N = INSET, mode = dx > SIDE_MIN ? 'start' : dx < -SIDE_MIN ? 'end' : 'middle';
+  const left = mode === 'start' ? x : mode === 'end' ? x - w : x - w / 2, shift = Math.max(N.x + N.pad - left, 0) + Math.min(N.x + N.w - N.pad - (left + w), 0);
+  t.setAttribute('text-anchor', mode); at(t, x + shift, y, str); return Math.abs(shift) > EPS;
+}
+/* Draw the ×10 inset for point p: the I_A direction (dashed) through the tip of V_φ with its θ arc, R_A I_A along it,
+   and the start of jX_S I_A at a right angle to it. Lengths are 10 times the main diagram's. */
+function drawInset(p) {
+  const N = INSET, L = Math.hypot(p.rx, p.ry) * P1_PX_V * N.mag;          // px, R_A I_A in the inset
+  const u = { x: Math.cos(p.a), y: -Math.sin(p.a) }, w = { x: -Math.sin(p.a), y: -Math.cos(p.a) };   // screen unit vectors: along I_A, and 90° ahead of it
+  const rx = N.tx + L * u.x, ry = N.ty + L * u.y, sx = rx + N.stub * w.x, sy = ry + N.stub * w.y, ex = sx + N.stubDash * w.x, ey = sy + N.stubDash * w.y;
+  const seg = (e, x1, y1, x2, y2) => e.setAttribute('d', `M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`), q = 6;   // q: px, side of the right-angle mark
+  seg(P1.iI, N.tx - N.behind * u.x, N.ty - N.behind * u.y, N.tx + N.ahead * u.x, N.ty + N.ahead * u.y);
+  seg(P1.iR, N.tx, N.ty, rx, ry); seg(P1.iX, rx, ry, sx, sy); seg(P1.iXd, sx, sy, ex, ey);
+  P1.iSq.setAttribute('d', `M${(rx - q * u.x).toFixed(1)} ${(ry - q * u.y).toFixed(1)}l${(q * w.x).toFixed(1)} ${(q * w.y).toFixed(1)}l${(q * u.x).toFixed(1)} ${(q * u.y).toFixed(1)}`);
+  P1.iArc.setAttribute('d', Math.abs(p.a) > EPS ? arcPath(N.tx, N.ty, N.arc, 0, p.a) : '');
+  insetLabel(P1.iLI, N.tx + (N.ahead + 9) * u.x, N.ty + (N.ahead + 9) * u.y + 4, 0, 0, 'I_A');
+  const mx = (N.tx + rx) / 2 - N.off * w.x, my = (N.ty + ry) / 2 - N.off * w.y;   // R_A I_A label: off the middle of the segment, on the side away from jX_S I_A
+  insetLabel(P1.iLR1, mx, my + 4, -w.x, N.wR, 'R_A I_A'); insetLabel(P1.iLR2, mx, my + 17, -w.x, N.wR, '∥ I_A');
+  const side = Math.abs(w.x) > SIDE_MIN, lx = ex + N.offX * w.x, ly = side ? ey + N.offX * w.y + 4 : ey - N.offX;
+  if (insetLabel(P1.iLX, lx, ly, w.x, N.wX, 'jX_S I_A ⟂')) P1.iLX.setAttribute('y', Math.min(ly, ey - N.offX).toFixed(1));   // moved over the stub: lift it clear
+  subT(P1.iTh, thetaText(p.a));
+}
+/* Draw the slide-1 diagram. Breaker closed: the full-load figure. Breaker open: I_A = 0, the drop is gone and V_φ lies along E_A.
+   The dashed tie box follows the tip of V_φ, and a leader joins it to the inset. */
+function drawPh1() {
+  const p = point(angleOf(S.k)), O = P1_O, k = P1_PX_V, N = INSET, ex = O.x + p.er * k, ey = O.y - p.ei * k;
+  const tx = S.closed ? O.x + V_PH * k : ex, ty = S.closed ? O.y : ey;   // tip of V_φ on screen
+  P1.tie.setAttribute('x', (tx - TIE / 2).toFixed(1)); P1.tie.setAttribute('y', (ty - TIE / 2).toFixed(1));
+  P1.lead.setAttribute('d', S.closed ? `M${(tx + TIE / 2).toFixed(1)} ${(ty + TIE / 2).toFixed(1)}L${N.x} ${N.y + N.h - 8}`
+    : `M${(tx + TIE / 2).toFixed(1)} ${ty.toFixed(1)}L${N.x} ${Math.max(N.y + 8, Math.min(N.y + N.h - 8, ty)).toFixed(1)}`);
+  P1.live.setAttribute('visibility', S.closed ? 'visible' : 'hidden'); subT(P1.none, S.closed ? '' : 'I_A = 0, no drop');
+  if (S.closed) { drawPhasorSet(P1, p, O, k, 1); drawInset(p); subT(P1.cap, ''); return; }
+  setArrow(P1.E, O.x, O.y, ex, ey, P1.H.e); setArrow(P1.V, O.x, O.y, ex, ey, P1.H.v); hideArrow(P1.X); P1.R.setAttribute('d', '');
+  subT(P1.lV, ''); subT(P1.lX, ''); P1.lE.setAttribute('fill', COL.ink); placeE(P1, p, O, k, 'V_φ = E_A = ' + volts(p.E) + ' V');
+  subT(P1.cap, 'Breaker open: V_φ (red) lies along E_A (blue).');
+}
+/* Build the slide-2 diagram once: axis, the E_A tip circle, the dashed |V_φ| arc with its VR = 0 mark, faint reference E_A phasors,
+   the live phasors and the current dial on its own card. */
+function buildPh2() {
+  const g = document.getElementById('p2G'), O = P2_O, k = P2_PX_V, vx = O.x + V_PH * k, a0 = zeroVrAngle(), z = point(a0), zx = O.x + z.er * k, zy = O.y - z.ei * k;
+  mk(g, 'text', { x: 752, y: 18, 'text-anchor': 'end', 'font-size': 14, 'font-weight': 800 }, 'Phasor diagram: voltages only (to scale)');
+  mk(g, 'path', { d: `M${O.x} ${O.y}H600`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
+  mk(g, 'path', { id: 'tipCircle', d: arcPath(vx, O.y, Z_DROP * k, A_Z - A_END, A_Z + A_END), stroke: COL.e, 'stroke-width': 2.5, fill: 'none', opacity: GHOST_OPACITY });
+  mk(g, 'text', { x: (vx + Z_DROP * k * Math.SQRT1_2 + 8).toFixed(1), y: (O.y - Z_DROP * k * Math.SQRT1_2 - 6).toFixed(1), 'font-size': 13, 'font-weight': 700, fill: COL.e }, 'E_A tip circle, r = |Z_S I_A|');
+  mk(g, 'path', { id: 'vArc', d: arcPath(O.x, O.y, V_PH * k, 0, P2_ARC_END), stroke: COL.v, 'stroke-width': 1.5, 'stroke-dasharray': '6 4', fill: 'none' });
+  mk(g, 'text', { x: vx + 8, y: O.y + 16, 'font-size': 13, 'font-weight': 700, fill: COL.v }, 'r = |V_φ|');
+  for (const [a, name, dx, dy] of [[-A_END, PF_MIN_PCT / 100 + ' lag', 12, -6], [0, 'unity', 12, -6], [A_END, PF_MIN_PCT / 100 + ' lead', -4, -24]]) {   // dx, dy: label offset from the tip; left of it when dx < 0
+    const q = point(a), x = O.x + q.er * k, y = O.y - q.ei * k;
+    mk(g, 'path', { d: `M${O.x} ${O.y}L${x.toFixed(1)} ${y.toFixed(1)}`, stroke: COL.e, 'stroke-width': 2.5, 'stroke-dasharray': '7 5', opacity: GHOST_OPACITY });
+    mk(g, 'text', { x: (x + dx).toFixed(1), y: (y + dy).toFixed(1), 'text-anchor': dx > 0 ? 'start' : 'end', 'font-size': 13, 'font-weight': 600, fill: COL.mut }, name);
+  }
+  mk(g, 'path', { d: `M${zx.toFixed(1)} ${(zy - 6).toFixed(1)}v-11`, stroke: COL.ink, 'stroke-width': 1.2 });
+  mk(g, 'text', Object.assign({ id: 'vr0Label', x: (zx + 30).toFixed(1), y: (zy - 22).toFixed(1), 'text-anchor': 'end', 'font-size': 13, 'font-weight': 800, fill: COL.ink }, HALO), 'VR = 0 (≈' + Math.cos(a0).toFixed(2) + ' lead)');
+  P2 = buildPhasorSet(g, HEAD[2]);
+  mk(g, 'circle', { id: 'vr0Dot', cx: zx.toFixed(1), cy: zy.toFixed(1), r: 5, fill: '#ffffff', stroke: COL.ink, 'stroke-width': 2 });
+  mk(g, 'circle', { cx: O.x, cy: O.y, r: 4, fill: COL.ink });
+  mk(g, 'text', { x: 16, y: 340, 'font-size': 13, fill: COL.mut }, 'Faint: E_A at 0.5 lag, unity, 0.5 lead.');
+  mk(g, 'rect', { id: 'cueDial', x: 500, y: DIAL.y - 40, width: 252, height: 80, rx: 8, fill: COL.card });
+  mk(g, 'circle', { cx: DIAL.x, cy: DIAL.y, r: DIAL.r, fill: '#ffffff', stroke: COL.mut, 'stroke-width': 1.5 });
+  mk(g, 'path', { d: `M${DIAL.x} ${DIAL.y}h${DIAL.r}`, stroke: COL.v, 'stroke-width': 2 });
+  P2.arc = mk(g, 'path', { stroke: COL.i, 'stroke-width': 1.5, fill: 'none' }); P2.I = arrow(g, COL.i, 3);
+  mk(g, 'text', { x: 584, y: DIAL.y - 17, 'font-size': 15, 'font-weight': 800, fill: COL.i }, 'current I_A');
+  P2.lT = mk(g, 'text', { x: 584, y: DIAL.y + 5, 'font-size': 15, 'font-weight': 800, fill: COL.ink }, '');
+  mk(g, 'text', { x: 584, y: DIAL.y + 27, 'font-size': 13, fill: COL.mut }, 'red line: direction of V_φ');
+}
+/* Draw the slide-2 diagram and the dial for the slider's power factor. I_A appears only in the dial. */
+function drawPh2() {
+  const p = point(angleOf(S.k)), L = DIAL.r - 2;
+  drawPhasorSet(P2, p, P2_O, P2_PX_V, 1);
+  setArrow(P2.I, DIAL.x, DIAL.y, DIAL.x + L * Math.cos(p.a), DIAL.y - L * Math.sin(p.a), HEAD_I);
+  P2.arc.setAttribute('d', Math.abs(p.a) > EPS ? arcPath(DIAL.x, DIAL.y, DIAL.arc, 0, p.a) : ''); subT(P2.lT, thetaText(p.a));
+}
+const VB = {};
+const VB_X0 = 110, VB_W = 600;            // VR bar: left edge and width of the scale (viewBox units)
+const BX = v => VB_X0 + (v - VR_LO) * VB_W / (VR_HI - VR_LO);   // VR bar: percent → x
+/* Build the VR bar once: −60 % to +100 % with a zero line. */
+function buildBar() {
+  const g = document.getElementById('vbG');
+  mk(g, 'text', { x: 16, y: 31, 'font-size': 16, 'font-weight': 800 }, 'VR');
+  mk(g, 'rect', { x: BX(VR_LO), y: 14, width: BX(VR_HI) - BX(VR_LO), height: 24, fill: '#f3f5f7', stroke: COL.mut });
+  for (let v = VR_LO; v <= VR_HI; v += VR_TICK) { mk(g, 'path', { d: `M${BX(v)} 38v5`, stroke: COL.mut }); mk(g, 'text', { x: BX(v), y: 57, 'text-anchor': 'middle', 'font-size': 13, fill: COL.mut }, f(v, 0) + ' %'); }
+  VB.bar = mk(g, 'rect', { y: 17, height: 18 }); mk(g, 'path', { d: `M${BX(0)} 10V42`, stroke: COL.ink, 'stroke-width': 2 });
+  VB.txt = mk(g, 'text', Object.assign({ y: 31, 'font-size': 15, 'font-weight': 800 }, HALO), '');
+}
+/* Draw the VR bar: blue to the right of zero, orange to the left. Every model value lies inside the scale. */
+function drawBar() {
+  const v = point(angleOf(S.k)).vr * 100, x0 = BX(0), x1 = BX(v), col = v < 0 ? COL.neg : COL.e;
+  VB.bar.setAttribute('x', Math.min(x0, x1).toFixed(1)); VB.bar.setAttribute('width', Math.abs(x1 - x0).toFixed(1)); VB.bar.setAttribute('fill', col);
+  VB.txt.setAttribute('fill', col); VB.txt.setAttribute('text-anchor', v < 0 ? 'end' : 'start');
+  at(VB.txt, v < 0 ? x1 - 8 : x1 + 8, 31, pct(v / 100) + ' %');
+}
+
+/* ═══ 7. SLIDE 3: YOUR TURN ═══ */
+const SOL_O = { x: 52, y: 172 }, SOL_PX_V = 0.07;   // solution diagram: origin (viewBox units) and px per volt
+const SOL_ARC = 46;                       // px, radius of the δ arc in the solution diagram
+/* The three answer boxes: id, name, the key as printed (from the model), tolerance, and the step a wrong answer points to. */
+const TURN = point(A_TURN);
+const FIELDS = [
+  { id: 'eIn', name: '|E_A|', key: Math.round(TURN.E), tol: TURN_TOL_E,
+    step: '|E_A|: check the sign of the current angle. The load is lagging, so I_A = ' + f(I_RATED, 1) + '∠−cos⁻¹(' + TURN_PF + ') A.' },
+  { id: 'dIn', name: 'δ', key: Math.round(TURN.d * DEG * 100) / 100, tol: TURN_TOL_D,
+    step: 'δ: give the angle of E_A, not the angle of I_A.' },
+  { id: 'vrIn', name: 'VR', key: Math.round(TURN.vr * 1000) / 10, tol: TURN_TOL_VR,
+    step: 'VR: use magnitudes only, (|E_A| − |V_φ|) divided by |V_φ| = ' + V_FL + ' V, times 100.' }];
+/* Show a message under the answer boxes: kind 'good', 'bad' (refused or wrong) or 'mid' (hint). */
+function turnMsg(t, kind) { const e = document.getElementById('turnMsg'); putRich(e, t); e.className = kind; }
+/* Read the answer boxes. Returns [|E_A|, δ, VR] as numbers, or null after naming each entry that was refused (nothing is checked then). */
+function readAnswers() {
+  const errs = [], vals = FIELDS.map(({ id, name }) => { const box = document.getElementById(id), raw = box.value.trim();
+    const why = raw === '' ? name + ': type a value.' : NUMBER_FORM.test(raw) ? '' : name + ': not a number (digits, with an optional sign, comma or decimal point).';
+    box.setAttribute('aria-invalid', String(why !== '')); if (why) errs.push(why);
+    return parseFloat(raw.replace(/,/g, '').replace(MINUS, '-')); });
+  if (errs.length) { turnMsg(errs.join('\n'), 'bad'); return null; }
+  return vals;
+}
+/* Check |E_A| (± 20 V), δ (± 0.5°) and VR (± 1.0 point) against the model values as printed; mark each ✓ or ✗ and name the step behind each ✗. */
+function checkAnswers() {
+  const v = readAnswers(); if (v === null) return;
+  const ok = FIELDS.map((fl, i) => Math.abs(v[i] - fl.key) <= fl.tol + EPS), head = FIELDS.map((fl, i) => fl.name + ' ' + (ok[i] ? '✓' : '✗')).join(GAP);
+  S.tried = true;
+  if (ok.every(Boolean)) { S.solved = true; turnMsg(head + '\nCorrect: E_A = ' + volts(TURN.E) + '∠' + f(TURN.d * DEG, 2) + '° V and VR = ' + pct(TURN.vr) + ' %.', 'good'); revealSolution(); }
+  else turnMsg(head + '\n' + FIELDS.filter((fl, i) => !ok[i]).map(fl => fl.step).join('\n'), 'bad');
+  render();
+}
+/* Draw the to-scale solution diagram in slide 2's style: V_φ, jX_S I_A and E_A, with the δ arc. Built only when the solution is revealed. */
+function drawSolution() {
+  const g = document.getElementById('soG'), O = SOL_O;
+  mk(g, 'text', { x: 12, y: 16, 'font-size': 13, 'font-weight': 800 }, 'Solution at ' + TURN_PF + ' lag (to scale)');
+  mk(g, 'path', { d: `M${O.x} ${O.y}H332`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
+  mk(g, 'path', { d: arcPath(O.x, O.y, SOL_ARC, 0, TURN.d), stroke: COL.ink, 'stroke-width': 1.5, fill: 'none' });
+  drawPhasorSet(buildPhasorSet(g, HEAD[1]), TURN, O, SOL_PX_V, 2);
+  mk(g, 'text', Object.assign({ x: O.x + SOL_ARC + 8, y: O.y - 9, 'font-size': 14, 'font-weight': 800, fill: COL.ink }, HALO), 'δ = ' + f(TURN.d * DEG, 2) + '°');
+  mk(g, 'circle', { cx: O.x, cy: O.y, r: 3.5, fill: COL.ink });
+}
+/* Reveal the worked steps and the solution phasor diagram (after a correct check or Show solution). */
+function revealSolution() {
+  const box = document.getElementById('solBox'), i = f(I_RATED, 1) + '∠' + f(TURN.a * DEG, 2) + '°', E = volts(TURN.E), d = f(TURN.d * DEG, 2) + '°';
+  if (!box.hidden) return;
+  richText(document.getElementById('sol'), 'I_A = ' + i + ' A\nE_A = ' + V_FL + '∠0°\n    + (' + i + ')(' + R_A + ' + j' + X_S + ')\n    = ' + E + '∠' + d + ' V\n|E_A| = ' + E + ' V\nδ = ' + d + ' (the angle of E_A)\nVR = (' + E + ' − ' + V_FL + ')/' + V_FL + ' × 100\n   = ' + pct(TURN.vr) + ' %');
+  drawSolution(); box.hidden = false;
+}
+/* Clear the answer boxes, the message, the worked steps and the solution diagram. */
+function resetTurn() {
+  const g = document.getElementById('soG'), sol = document.getElementById('sol');
+  S.solved = false; S.shown = false; S.tried = false; turnMsg('', ''); document.getElementById('solBox').hidden = true;
+  while (g.firstChild) g.removeChild(g.firstChild); while (sol.firstChild) sol.removeChild(sol.firstChild);
+  FIELDS.forEach(({ id }) => { const b = document.getElementById(id); b.value = ''; b.setAttribute('aria-invalid', 'false'); });
+}
+document.getElementById('chkBtn').addEventListener('click', checkAnswers);
+FIELDS.forEach(({ id }) => { const b = document.getElementById(id); b.addEventListener('keydown', e => { if (e.key === 'Enter') checkAnswers(); }); b.addEventListener('focus', () => render()); });
+document.getElementById('hintBtn').addEventListener('click', () => { S.tried = true; turnMsg('Hint: I_A = ' + f(I_RATED, 1) + '∠−cos⁻¹(' + TURN_PF + ') A, with V_φ = ' + V_FL + '∠0° V as the reference. Then E_A = V_φ + R_A I_A + jX_S I_A.', 'mid'); render(); });
+document.getElementById('solBtn').addEventListener('click', () => { S.shown = true; revealSolution(); render(); });
+
+/* ═══ 8. READOUTS ═══ */
+/* Write the readouts and the VR lines, then the cues. VR always uses the full-load |V_φ|, breaker open or closed. */
+function readouts() {
+  const p = point(angleOf(S.k)), E = volts(p.E), tail = '(' + E + ' − ' + V_FL + ')/' + V_FL + ' = ' + pct(p.vr) + ' %';
+  const rich = (id, t) => putRich(document.getElementById(id), t);
+  subT(P1.ro[0], S.closed ? '|E_A| = ' + E + ' V' + GAP + '|V_φ| = ' + V_FL + ' V' : 'V_nl = |E_A| = ' + E + ' V' + GAP + 'V_fl = ' + V_FL + ' V');
+  subT(P1.ro[1], S.closed ? '|jX_S I_A| = ' + X_DROP + ' V (every pf)' : '|jX_S I_A| = 0 V (breaker open, I_A = 0)');
+  subT(P1.ro[2], 'VR = ' + tail);
+  rich('r2a', '|E_A| = ' + E + ' V'); rich('r2b', '|V_φ| = ' + V_FL + ' V'); rich('vr2', 'VR = (|E_A| − ' + V_FL + ')/' + V_FL + ' = ' + tail);
+  put('negMsg', p.vr < NEG ? 'The voltage falls when the load is removed.' : '');
+  put('pfO', pfName(S.k)); put('brkO', S.closed ? 'closed' : 'open');
+  updateCues();
+}
+
+/* ═══ 9. CONTROLS ═══ */
+const pfS = document.getElementById('pfS');
+pfS.max = K_MAX;
+/* Mirror the state on buttons and the slider. */
+function sync() {
+  pfS.value = S.k; pfS.disabled = S.busy; pfS.setAttribute('aria-valuetext', pfName(S.k));
+  ['pfM', 'pfP', 'brkBtn'].forEach(id => { document.getElementById(id).disabled = S.busy; });
+  put('brkBtn', S.closed ? 'Open the breaker' : 'Close the breaker');
+  document.querySelectorAll('button[data-show]').forEach(b => { b.disabled = S.busy; });
+  document.getElementById('pauseBtn').setAttribute('aria-pressed', String(S.paused)); put('pauseBtn', S.paused ? '▶ Run' : '❚❚ Pause');
+  document.getElementById('slNbtn').setAttribute('aria-pressed', String(S.notes));
+}
+/* Redraw once: controls, the instruments on screen, then the numbers. */
+function render() {
+  sync();
+  if (S.vis.has('ckt')) { drawCircuit(); drawPh1(); }
+  if (S.vis.has('ph2')) { drawPh2(); drawBar(); }
+  readouts();
+}
+/* Move the power factor slider to position k. The breaker keeps its state: the field is set for full load at the new power factor,
+   so with the breaker open the diagram shows V_nl = |E_A| for that setting. */
+function setPos(k) {
+  if (S.busy) return; k = Math.max(0, Math.min(K_MAX, Math.round(k)));
+  if (k !== S.k) { S.k = k; S.moved = true; }
+  render();
+}
+/* Slide 1: open or close the load breaker. */
+function setBreaker(closed) { if (S.busy) return; S.closed = closed; render(); }
+pfS.addEventListener('input', () => setPos(+pfS.value));
+document.getElementById('pfM').addEventListener('click', () => setPos(S.k - 1));
+document.getElementById('pfP').addEventListener('click', () => setPos(S.k + 1));
+document.getElementById('brkBtn').addEventListener('click', () => setBreaker(!S.closed));
+document.getElementById('resetBtn').addEventListener('click', () => goSlide(S.slide));
+document.getElementById('pauseBtn').addEventListener('click', () => { S.paused = !S.paused; render(); });
+
+/* ═══ 10. SLIDES AND DEMOS ═══ */
+const NOTES = [
+  'Voltage regulation asks one question: full rated load at a stated power factor is removed and nobody touches the speed or the field, so how far does the terminal voltage rise? At full load the terminal voltage is V_φ, ' + V_FL + ' volts. Open the breaker: the current stops, nothing drops, and the terminal voltage becomes E_A. So find E_A with phasors, then compare magnitudes only; the angle δ drops out. The ×10 inset enlarges the tip of V_φ: the small R_A I_A step lies along the current, and jX_S I_A starts at a right angle to it. Move the power factor: the drop keeps its length, ' + X_DROP + ' volts, and only turns.',
+  'The load is still 2.5 MVA and the full-load terminal voltage still ' + V_FL + ' volts: at each power factor the field is readjusted to hold it. The current has a fixed size, so the drop has a fixed length and the tip of E_A rides on a circle about the tip of V_φ. Compare that tip with the dashed arc of radius |V_φ|. Outside the arc E_A is longer than V_φ and VR is positive. Inside it, with a leading enough load, VR is negative: the voltage falls when the load is removed. Press Show me to step from lagging to leading.',
+  'Your turn: the same generator at rated load and ' + TURN_PF + ' lagging. Write the current phasor, build E_A with phasors, and read off its magnitude and its angle δ. Then compute VR from the magnitudes only. Type the three values and press Check. Hint gives the first step; Show solution gives the worked steps and the phasor diagram.'];
+/* Each slide's stage view and the instruments it shows. */
+const VIEW = { 1: ['q1', ['ckt', 'ph1']], 2: ['q2', ['ph2', 'vrbar', 'ro2']], 3: ['q3', ['turn']] };
+const IT = { ckt: 'itCkt', ph1: 'itPh1', ph2: 'itPh2', vrbar: 'itVrBar', ro2: 'itRo2', turn: 'itTurn' };
+const SLIDES = document.querySelectorAll('.sl');
+/* Show the instruments and the sidebar controls of the present slide. */
+function applyView() {
+  const [view, list] = VIEW[S.slide], items = new Set(list); document.getElementById('stage').dataset.view = view; S.vis = items;
+  for (const key in IT) document.getElementById(IT[key]).classList.toggle('on', items.has(key));
+  document.querySelectorAll('.grp').forEach(g => g.classList.toggle('open', g.dataset.g.split(' ').includes(String(S.slide))));
+  document.getElementById('notesBox').hidden = !S.notes; put('sideH', S.slide === NSL ? 'No controls on this slide' : 'Controls');
+}
+/* Enter slide n (also Reset): show it and put it back in its starting state. */
+function goSlide(n) {
+  S.slide = Math.max(1, Math.min(NSL, n)); S.demoId++; S.busy = false; S.demoCue = null; S.paused = false;   // cancels a running demo
+  SLIDES.forEach(e => e.classList.toggle('on', +e.dataset.n === S.slide));
+  S.k = K_START; S.closed = true; S.moved = false; S.cueMan = null; S.cueAuto = null; resetTurn();
+  applyView(); put('slPos', S.slide + '/' + NSL); richText(document.getElementById('slNotes'), NOTES[S.slide - 1]);
+  render();
+}
+document.getElementById('slPrev').addEventListener('click', () => goSlide(S.slide - 1));
+document.getElementById('slNext').addEventListener('click', () => goSlide(S.slide + 1));
+document.getElementById('toS1').addEventListener('click', () => goSlide(1));
+/* Show or hide the speaker notes under the main area. */
+function toggleNotes() { S.notes = !S.notes; applyView(); render(); }
+document.getElementById('slNbtn').addEventListener('click', toggleNotes);
+addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target; if (t && t.closest && t.closest('input, textarea, select')) return;
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); goSlide(S.slide + 1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goSlide(S.slide - 1); }
+  else if (e.key === 'n' || e.key === 'N') toggleNotes();
+});
+/* Resolve after ms of running (unpaused) time, or with false if the demo was cancelled. */
+function wait(ms, id) {
+  let left = ms, last = performance.now();
+  return new Promise(res => { const tick = () => { if (S.demoId !== id) return res(false); const now = performance.now(); if (!S.paused) left -= now - last; last = now; if (left <= 0) return res(true); setTimeout(tick, 30); }; tick(); });
+}
+/* End a Show me: free the controls and leave cue key ringed. */
+function endDemo(key) { S.busy = false; S.demoCue = null; S.cueAuto = autoCue(); S.cueMan = key; render(); }
+/* Show me. Slide 1, at 0.85 lagging: cue ① at full load, open the breaker with cue ②, then cue ③ on the VR line.
+   Slide 2: step through the 21 slider positions from 0.50 lagging to 0.50 leading, about 0.3 s on each. */
+async function demo(key) {
+  if (S.busy) return; const id = ++S.demoId; S.busy = true; S.cueMan = null; S.paused = false;
+  if (key === '1') {
+    S.k = K_START; S.closed = true; S.demoCue = 'term'; render(); if (!await wait(DEMO1_FULL_MS, id)) return;
+    S.closed = false; S.demoCue = 'ph'; render(); if (!await wait(DEMO1_OPEN_MS, id)) return;
+    endDemo('vr');
+  } else {
+    S.moved = true;
+    for (let k = 0; k <= K_MAX; k++) { S.k = k; S.demoCue = k < K_MAX / 3 ? 'dial' : k < 2 * K_MAX / 3 ? 'drop' : 'bar'; render(); if (!await wait(STEP_MS, id)) return; }
+    endDemo('bar');
+  }
+}
+document.querySelectorAll('button[data-show]').forEach(b => b.addEventListener('click', () => demo(b.dataset.show)));
+
+/* ═══ 11. WATCH CUES ═══ */
+/* Each slide's cues in order ①②③: [target key, label]. */
+const CUES = {
+  1: [['term', 'The terminal voltage V_φ at full load'], ['ph', 'Open the breaker: V_φ becomes E_A'], ['vr', 'VR two ways, one number']],
+  2: [['dial', 'The I_A dial: lag or lead'], ['drop', 'jX_S I_A swings with I_A, 90° ahead'], ['bar', '|E_A| and the VR bar']],
+  3: [['prob', 'The problem: ' + TURN_PF + ' lagging'], ['turn', 'Your three answers'], ['sol', 'The worked solution']]
+};
+/* The elements each cue rings; the first carries the numbered badge. */
+const CUE_TARGETS = { term: ['cueTerm', 'cueRo1'], ph: ['itPh1'], vr: ['ro12'], dial: ['cueDial'], drop: ['itPh2'], bar: ['itVrBar', 'itRo2'], prob: ['turnProb'], turn: ['turnRow'], sol: ['solBox'] };
+const CUE_NUM = ['①', '②', '③'];
+const CUE_PAD = 5;                        // px between a ringed instrument and its ring
+const CUE_SMALL = 44;                     // px: on a target shorter than this the badge sits to the left of it, not on its corner
+const CUE_BADGE = 22;                     // px, badge diameter
+const cueLayer = document.getElementById('cueLayer');
+/* The cue the slide's present state calls for (a running Show me names its own). */
+function autoCue() {
+  if (S.demoCue) return S.demoCue;
+  if (S.slide === 1) return S.closed ? 'term' : 'ph';
+  if (S.slide === 2) return !S.moved ? 'dial' : point(angleOf(S.k)).vr < NEG ? 'bar' : 'drop';
+  return S.solved || S.shown ? 'sol' : S.tried || FIELDS.some(({ id }) => document.activeElement === document.getElementById(id)) ? 'turn' : 'prob';
+}
+/* Write the "Watch" line under each slide's key point: one button per cue. */
+function buildWatch() {
+  SLIDES.forEach(sl => { const p = document.createElement('p'); p.className = 'watch'; const b = document.createElement('b'); b.textContent = 'Watch'; p.appendChild(b);
+    CUES[+sl.dataset.n].forEach(([key, label], i) => { const bt = document.createElement('button'); bt.dataset.cue = key; richText(bt, CUE_NUM[i] + ' ' + label);
+      bt.addEventListener('click', () => { S.cueMan = key; render(); }); p.appendChild(bt); });
+    sl.querySelector('.keyp').after(p); });
+}
+/* Place the numbered badges and the ring for the present cue, and mark the cue in the Watch line.
+   A cue the student clicked stays until the slide's state calls for a different one. A target that is hidden gets no badge. */
+function updateCues() {
+  const boxes = [], auto = autoCue(); if (auto !== S.cueAuto) { S.cueAuto = auto; S.cueMan = null; }
+  const key = S.cueMan || auto;
+  CUES[S.slide].forEach(([k], i) => CUE_TARGETS[k].forEach((id, j) => { if (j > 0 && k !== key) return; const r = document.getElementById(id).getBoundingClientRect(); if (r.width < 1 || r.height < 1) return;
+    boxes.push([Math.round(r.left) - CUE_PAD, Math.round(r.top) - CUE_PAD, Math.round(r.width) + 2 * CUE_PAD, Math.round(r.height) + 2 * CUE_PAD, j > 0 ? 0 : i + 1, k === key ? 1 : 0]); }));
+  document.querySelectorAll('.sl.on .watch button').forEach(b => { if (b.dataset.cue === key) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
+  const sig = JSON.stringify(boxes); if (cueLayer.dataset.sig === sig) return; cueLayer.dataset.sig = sig;
+  while (cueLayer.firstChild) cueLayer.removeChild(cueLayer.firstChild);
+  for (const [x, y, w, h, num, cur] of boxes) { const d = document.createElement('div'); d.className = cur ? 'cq cur' : 'cq';
+    d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.width = w + 'px'; d.style.height = h + 'px';
+    if (num) { const bd = document.createElement('span'); bd.className = 'cb'; bd.textContent = String(num);
+      if (h < CUE_SMALL) { bd.style.left = -(CUE_BADGE + 7) + 'px'; bd.style.top = Math.round((h - CUE_BADGE) / 2 - 3) + 'px'; }
+      d.appendChild(bd); }
+    cueLayer.appendChild(d); }
+}
+addEventListener('resize', updateCues); addEventListener('scroll', updateCues, true);
+
+/* ═══ 12. START ═══ */
+document.querySelectorAll('[data-eq]').forEach(b => putEq(b, b.dataset.eq));
+put('dropV', X_DROP);
+buildCircuit(); buildPh1(); buildPh2(); buildBar(); buildWatch(); goSlide(1);
+</script>
+</body>
+</html>
