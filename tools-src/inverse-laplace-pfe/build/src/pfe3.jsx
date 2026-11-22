@@ -129,7 +129,7 @@ const LANG = {
   rail: ['STEP 1 · the form', 'STEP 2 · matrix for A, B, C', 'STEP 3a · complete the square', 'STEP 3b · split · invert'],
   card: {
     series: 'ECE 2003 · Inverse Laplace · 3 of 3',
-    title: 'Inverse Laplace — Complex Poles',
+    title: 'Lecture 7 · Inverse Laplace — Complex Poles',
     sentence: 'You’ll take F(s) = 60 / ((s+1)(s²+4s+13)), one real pole and a complex pair, back to f(t).',
     steps: [
       'Write the partial-fraction form: the quadratic stays whole, with Bs + C on top.',
@@ -531,7 +531,7 @@ function SceneBody({ lang, ui, sched, narration, urls }) {
         explore={explore} note={note} yt={yt} />
 
       <Captions sched={sched} lang={lang} text={shown >= 0 ? (hand >= 0 && (quad.b !== B0 || quad.c !== C0) ? ui.noteExplore : b.cap) : ''} />
-      <FinishStrip ui={ui} />
+      <SeriesFinish ui={ui} n={7} />
       <ProgressBar />
       <Stamp />
       <Narrator lines={narration} urls={urls} />

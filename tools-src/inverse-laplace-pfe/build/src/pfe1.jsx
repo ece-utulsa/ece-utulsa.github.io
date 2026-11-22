@@ -114,7 +114,7 @@ const LANG = {
   rail: ['STEP 1 · the form', 'STEP 2·A · residue', 'STEP 2·B · algebra', 'STEP 3 · invert'],
   card: {
     series: 'ECE 2003 · Inverse Laplace · 1 of 3',
-    title: 'Inverse Laplace — Simple Poles',
+    title: 'Lecture 5 · Inverse Laplace — Simple Poles',
     sentence: 'You’ll take F(s) = 10s / ((s+1)(s+2)(s+3)), three distinct real poles, back to f(t).',
     steps: [
       'Write the partial-fraction form: one term per pole.',
@@ -557,7 +557,7 @@ function SceneBody({ lang, ui, sched, narration, urls }) {
       <BottomBand ui={ui} bi={shown} goBeat={goBeat} explore={explore} note={note} yt={yt} />
 
       <Captions sched={sched} lang={lang} text={shown >= 0 ? b.cap : ''} />
-      <FinishStrip ui={ui} />
+      <SeriesFinish ui={ui} n={5} />
       <ProgressBar />
       <Stamp />
       <Narrator lines={narration} urls={urls} />

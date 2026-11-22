@@ -97,7 +97,7 @@ const LANG = {
   rail: ['STEP 1 \u00b7 transform', 'STEP 2 \u00b7 solve (algebra)', 'STEP 3 \u00b7 invert + check', 'THE UNIFICATION'],
   card: {
     series: 'ECE 2003 \u00b7 s-domain analysis \u00b7 capstone',
-    title: 'S-Domain Circuit Analysis',
+    title: 'Lecture 8 · S-Domain Circuit Analysis',
     sentence: 'You\u2019ll solve a series RL circuit, with the inductor already carrying current, entirely in the s-domain.',
     steps: [
       'Transform the circuit: impedances, with initial conditions as sources.',
@@ -722,7 +722,7 @@ function SceneBody({ lang, ui, sched, narration, urls }) {
       <BottomBand ui={ui} bi={shown} m={m} sol={sol} live={live} setM={setM} goBeat={goBeat} explore={explore} sliders={sliders} note={note} yt={yt} view={view} setView={pickView} />
 
       <CaptionLine sched={sched} text={shown >= 0 ? (live ? ui.noteExplore : b.cap) : ''} />
-      <FinishStrip ui={ui} />
+      <SeriesFinish ui={ui} n={8} />
       <ProgressBar />
       <Stamp />
       <Narrator lines={narration} urls={urls} />

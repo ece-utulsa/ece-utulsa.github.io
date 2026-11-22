@@ -141,7 +141,7 @@ const LANG = {
   rail: ['STEP 1 · the form', 'STEP 2·A · residue + d/ds', 'STEP 2·B · algebra + matrix', 'STEP 3 · invert'],
   card: {
     series: 'ECE 2003 · Inverse Laplace · 2 of 3',
-    title: 'Inverse Laplace — Repeated Poles',
+    title: 'Lecture 6 · Inverse Laplace — Repeated Poles',
     sentence: 'You’ll take F(s) = (s³+2s+6) / (s(s+1)²(s+3)), where the pole at s = −1 is repeated, back to f(t).',
     steps: [
       'Write the partial-fraction form: one term for every power of the repeated factor.',
@@ -496,7 +496,7 @@ function SceneBody({ lang, ui, sched, narration, urls }) {
       <BottomBand ui={ui} bi={shown} goBeat={goBeat} explore={explore} note={note} yt={yt} />
 
       <Captions sched={sched} lang={lang} text={shown >= 0 ? b.cap : ''} />
-      <FinishStrip ui={ui} />
+      <SeriesFinish ui={ui} n={6} />
       <ProgressBar />
       <Stamp />
       <Narrator lines={narration} urls={urls} />

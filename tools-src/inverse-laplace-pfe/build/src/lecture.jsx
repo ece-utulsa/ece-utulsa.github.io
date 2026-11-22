@@ -306,7 +306,7 @@ function LBand({ ui, bi, goBeat, yt, note, links, showLinks }) {
             {zoneHead(ui.linksHead, ACCENT)}
             {links.map((l) => (
               <div key={l.href} data-link="1" style={{ fontFamily: HEAD, fontSize: 14, color: INK, lineHeight: '21px', whiteSpace: 'nowrap' }}>
-                <span style={{ color: MUTE }}>{l.dir + ' '}</span><a href={l.href} style={{ color: ACCENT, fontWeight: 600 }}>{l.label}</a>
+                {l.dir ? <span style={{ color: MUTE }}>{l.dir + ' '}</span> : null}<a href={l.href} style={{ color: ACCENT, fontWeight: 600 }}>{l.label}</a>
               </div>
             ))}
           </React.Fragment>

@@ -2,7 +2,7 @@
 import { createRequire } from 'node:module'; import fs from 'node:fs'; import path from 'node:path';
 const require = createRequire(import.meta.url); const { chromium } = require('playwright');
 const [PG, outdir, W = '1366', H = '768', DPR = '1', RM = ''] = process.argv.slice(2);
-const NAME = { pfe1: 'Simple_Poles_v1.2.0', pfe2: 'Repeated_Poles_v1.2.0', pfe3: 'Complex_Poles_v1.2.0', fd: 'Factoring_the_Denominator_v1.1.0', sd3: 'S-Domain_Circuit_Analysis_v1.1.0', l9: 'Laplace_L9_Mesh_Analysis_s-Domain_v1.0.0', l10: 'Laplace_L10_Node_Analysis_s-Domain_v1.0.0' }[PG];
+const NAME = { pfe1: 'Simple_Poles_v1.2.1', pfe2: 'Repeated_Poles_v1.2.1', pfe3: 'Complex_Poles_v1.2.1', fd: 'Factoring_the_Denominator_v1.1.1', sd3: 'S-Domain_Circuit_Analysis_v1.1.1', l9: 'Laplace_L9_Mesh_Analysis_s-Domain_v1.0.1', l10: 'Laplace_L10_Node_Analysis_s-Domain_v1.0.1' }[PG];
 fs.mkdirSync(outdir, { recursive: true });
 const file = path.resolve('out_test', fs.readdirSync('out_test').find((f) => f.includes(NAME + '.html')));
 const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: +W, height: +H }, deviceScaleFactor: +DPR, reducedMotion: RM ? 'reduce' : 'no-preference' }); const p = await ctx.newPage();

@@ -77,7 +77,7 @@ const LANG = {
   rail: ['Δ decides', 'Δ > 0: simple', 'simple example', 'Δ = 0: repeated', 'repeated example', 'Δ < 0: complex', 'complex example', 'the fork', 'RLC rhyme'],
   card: {
     series: 'ECE 2003 · Inverse Laplace · before you start',
-    title: 'Factoring the Denominator',
+    title: 'Lecture 4 · Factoring the Denominator',
     sentence: 'You’ll see how one number, the discriminant, decides how a quadratic denominator factors.',
     steps: [
       'Compute Δ = b² − 4ac.',
@@ -103,9 +103,9 @@ const LANG = {
     tourTag: 'TOUR', exploreTag: 'EXPLORE',
     reset: 'reset',
     routes: [
-      { kind: 'simple', head: 'Δ > 0', text: 'Inverse Laplace · Simple Poles', href: 'Inverse_Laplace_Simple_Poles_v1.2.0.html', rhyme: 'overdamped' },
-      { kind: 'rep', head: 'Δ = 0', text: 'Inverse Laplace · Repeated Poles', href: 'Inverse_Laplace_Repeated_Poles_v1.2.0.html', rhyme: 'critically damped' },
-      { kind: 'cplx', head: 'Δ < 0', text: 'Inverse Laplace · Complex Poles', href: 'Inverse_Laplace_Complex_Poles_v1.2.0.html', rhyme: 'underdamped' },
+      { kind: 'simple', head: 'Δ > 0', text: 'Inverse Laplace · Simple Poles', href: 'Inverse_Laplace_Simple_Poles_v1.2.1.html', rhyme: 'overdamped' },
+      { kind: 'rep', head: 'Δ = 0', text: 'Inverse Laplace · Repeated Poles', href: 'Inverse_Laplace_Repeated_Poles_v1.2.1.html', rhyme: 'critically damped' },
+      { kind: 'cplx', head: 'Δ < 0', text: 'Inverse Laplace · Complex Poles', href: 'Inverse_Laplace_Complex_Poles_v1.2.1.html', rhyme: 'underdamped' },
     ],
     notes: [
       'the factors decide the method — so factor first',
@@ -555,7 +555,7 @@ function SceneBody({ lang, ui, sched, narration, urls }) {
       <BottomBand ui={ui} bi={shown} quad={quad} live={live} setQuad={setQuad} goBeat={goBeat} explore={explore} note={note} yt={yt} readout={readout} />
 
       <Captions sched={sched} lang={lang} text={shown >= 0 ? (live ? ui.noteExplore : b.cap) : ''} />
-      <FinishStrip ui={ui} />
+      <SeriesFinish ui={ui} n={4} />
       <ProgressBar />
       <Stamp />
       <Narrator lines={narration} urls={urls} />

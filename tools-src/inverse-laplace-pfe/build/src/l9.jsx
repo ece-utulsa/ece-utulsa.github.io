@@ -382,10 +382,7 @@ const sup = (t) => <sup style={{ fontSize: FS_MIN, lineHeight: 0 }}>{t}</sup>;
 const PAGE = {
   Circuit, Board, PlotPanel,
   circuitTag: (bi) => (bi > IX.tR ? 'S-DOMAIN' : bi >= IX.tr ? 'TRANSFORMING' : 'TIME DOMAIN'),
-  links: [
-    { dir: 'back:', href: 'S-Domain_Circuit_Analysis_v1.1.0.html', label: 'Lecture 8 · S-Domain Circuit Analysis' },
-    { dir: 'next:', href: 'Laplace_L10_Node_Analysis_s-Domain_v1.0.0.html', label: 'Lecture 10 · Node-Voltage Analysis in the s-Domain' },
-  ],
+  links: seriesLinks(9).map((l) => ({ dir: '', href: l.href, label: l.full })),
   yourTurn: {
     circuit: <MeshLadder parts={PARTS_YT} h={128} label="Two-mesh circuit: unit step source, 1 ohm resistor, 1 henry inductor shared by both meshes, 1 ohm resistor; both mesh currents clockwise" />,
     problem: 'A source u(t) V drives a 1 Ω resistor in mesh 1, a 1 H inductor shared by both meshes, and a 1 Ω resistor in mesh 2. Zero initial conditions; both mesh currents clockwise.',

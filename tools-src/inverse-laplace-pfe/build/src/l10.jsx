@@ -341,9 +341,7 @@ function PlotPanel({ bi, ytShown }) {
 const PAGE = {
   Circuit, Board, PlotPanel,
   circuitTag: (bi) => (bi > IX.tLs ? 'S-DOMAIN' : bi >= IX.tr ? 'TRANSFORMING' : bi >= IX.dc ? 'BEFORE t = 0' : 'TIME DOMAIN'),
-  links: [
-    { dir: 'back:', href: 'Laplace_L9_Mesh_Analysis_s-Domain_v1.0.0.html', label: 'Lecture 9 · Mesh Analysis in the s-Domain' },
-  ],
+  links: seriesLinks(10).map((l) => ({ dir: '', href: l.href, label: l.full })),
   yourTurn: {
     circuit: <NodeCircuit src="δ(t) A" h={132} label="The same circuit with an impulse source only: 1 ohm, 1 farad at node v C, series 1 ohm, 1 henry to ground" />,
     problem: 'Same circuit, but the source is i_s(t) = δ(t) A only, with zero initial conditions: nothing is stored before t = 0.',
