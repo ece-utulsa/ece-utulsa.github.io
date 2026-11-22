@@ -1,16 +1,19 @@
 <!DOCTYPE html>
 <!--
   Two Generators Sharing Real and Reactive Power — ECE 3033 Lecture 5
-  Version: v1.1.0
-  Released: 2026-11-21
+  Version: v1.2.0
+  Released: 2026-11-22
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
-  DEMO RELEASE 2026-11-21 (principal ruling; gates pending)
-  Changelog: v1.1.0 — rework per principal review 2026-11-21 (slide spec v1.1.0): new circuit slide 3, fields-share-Q moved to slide 4, house and set-point slides simplified; DEMO RELEASE
+  DEMO RELEASE 2026-11-22 (principal ruling; gates pending)
+  Changelog: v1.2.0 — per principal review 2026-11-22 (slide spec v1.2.0): slide 1 states the principle (set points: f and P;
+  fields: V and Q); slide 4 dashed lines labelled "fixed by P", slide arrows at the tips and the end-of-Show-me phasors;
+  display precision (MW, MVAR, A 0.1; Hz, pf 0.01; V 1; angles 0.1°); status callout removed; fits 125 % zoom. DEMO RELEASE
+  v1.1.0 — rework per principal review 2026-11-21 (slide spec v1.1.0): new circuit slide 3, fields-share-Q moved to slide 4, house and set-point slides simplified; DEMO RELEASE
   v1.0.1 — the "your turn" problem has its own load; f_sys tag and colour; Q equation off slide 1.
   v1.0.0 — first build: five-slide interactive lecture on the shared lecture shell.
-  Model: two identical units, 4 MVA, 4.16 kV, Y, V_φ = 2,401.8 V, Z_S = 0.2 + j4.5 Ω per phase; governors with
-  s_P = 2.2514 MW/Hz (3 % droop at f_nl = 61.0 Hz, 4 MW), kept constant when a set point moves. Load 5.0 MW at 0.80
-  lagging (Q_load = 3.75 MVAR, I_L = 867.4∠−36.87° A); slide 5 uses 5.6 MW at 0.85 lagging. P_k = s_P (f_nl,k − f_sys), P_1 + P_2 = P_load;
+  Model (unchanged from v1.1.0): two identical units, 4 MVA, 4.16 kV, Y, V_φ = 2,401.8 V, Z_S = 0.2 + j4.5 Ω per phase;
+  governors with s_P = 2.2514 MW/Hz (3 % droop at f_nl = 61.0 Hz, 4 MW; printed as 2.25), kept constant when a set point
+  moves. Load 5.0 MW at 0.80 lagging (Q_load = 3.75 MVAR, I_L = 867.4∠−36.87° A); slide 5 uses 5.6 MW at 0.85 lagging. P_k = s_P (f_nl,k − f_sys), P_1 + P_2 = P_load;
   I_Ak = (P_k − jQ_k) / 3V_φ with V_φ as reference, I_A1 + I_A2 = I_L, E_Ak = V_φ + I_Ak Z_S.
   Steady state only: no governor, rotor or regulator dynamics, no saturation; the field current is not computed.
   Currents and voltages are drawn on separate diagrams, each with one fixed scale.
@@ -18,10 +21,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-zJiZNtbIjqvfgHgEzeEVF1t9j4vh26IjOnT4e6eyGoc='; style-src 'sha256-+VBiD4Rj1D5lsa628l38zoF0bDGdnTT/G6yzRoPPk3I='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-0YrKLSd//b4YG8ss5mYx/8mb0HPbDpGoEgWnMahe/Jg='; style-src 'sha256-L3UJIuH50LwA4zm61YszXLsztmY8DvajjYOeMKxMFuc='; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v1.1.0">
-<title>Two Generators Sharing Real and Reactive Power — ECE 3033 Lecture 5 v1.1.0</title>
+<meta name="version" content="v1.2.0">
+<title>Two Generators Sharing Real and Reactive Power — ECE 3033 Lecture 5 v1.2.0</title>
 <style>
 /* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
 :root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
@@ -30,7 +33,7 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:14px/1.4 var(--sans)}
-body{display:flex;flex-direction:column;min-height:560px}
+body{display:flex;flex-direction:column;min-height:600px}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 button{font:600 14px var(--sans);min-height:30px;padding:3px 9px;border-radius:6px;border:1px solid var(--edge);background:var(--panel);color:var(--txt);cursor:pointer;touch-action:manipulation;user-select:none}
 button:hover{background:var(--soft)}
@@ -89,13 +92,13 @@ math{font-size:15px;math-style:normal}
 .brow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:5px 0}
 .frow{display:flex;justify-content:space-between;align-items:center;margin:5px 0}
 .side-t{font-size:15px;margin:6px 0}
+.eqnote{margin:4px 0;font-size:13.5px;font-weight:700;color:var(--mut)}
 #pin{margin-top:auto;border-top:2px solid var(--edge);padding-top:6px}
 #pin .btns{margin:0 0 5px;flex-wrap:nowrap;gap:4px}
 #pin .btns button{flex:1 1 auto;padding:3px 4px}
-#callout{height:68px;overflow:hidden;margin:0 0 5px;padding:4px 8px;border-radius:8px;background:var(--soft);border-left:5px solid var(--acc);font-size:13px;font-weight:700;line-height:1.35}
-#callout.bad{background:#fbe9e6;border-left-color:var(--err);color:#8f2a1d}
-#callout.good{background:#e3f3ea;border-left-color:var(--ok);color:#10512f}
-#callout.warn{background:#fff3d6;border-left-color:var(--warn);color:#6b4300}
+#warn{margin:0;padding:4px 8px;border-radius:8px;border-left:5px solid var(--warn);background:#fff3d6;color:#6b4300;font-size:13px;font-weight:700;line-height:1.35}
+#warn.bad{background:#fbe9e6;border-left-color:var(--err);color:#8f2a1d}
+#warn:empty{display:none}
 #pager{display:flex;gap:6px;align-items:center}
 #pager .ro{min-width:44px;text-align:center}
 #pager #slNbtn{margin-left:auto}
@@ -121,8 +124,27 @@ svg text.cue{filter:none;text-decoration:underline}
 #turnMsg{white-space:pre-wrap;font-weight:700;font-size:13.5px;min-height:19px;margin:4px 0 0}
 #turnMsg.bad{color:var(--err)} #turnMsg.good{color:var(--ok)} #turnMsg.mid{color:var(--warn)}
 #sol{font:600 12.5px var(--mono);background:var(--inset);border-radius:8px;padding:4px 8px;margin-top:3px;white-space:pre-wrap}
-/* ═══ NARROW OR SHORT WINDOWS: the page scrolls instead of squeezing ═══ */
-@media (max-width:1199px),(max-height:559px){
+/* ═══ SHORT WINDOWS (1366×768 with browser bars, or 125 % zoom): tighter type so every slide fits without scrolling ═══ */
+@media (max-height:700px){
+  .sl h2.st{font-size:17px;margin:2px 0 4px}
+  .keyp{font-size:13px;padding:5px 8px;margin:4px 0}
+  .def{font-size:12.5px;margin:4px 0}
+  .eq{padding:1px 8px;margin:4px 0} math{font-size:14.5px}
+  .eqnote{font-size:12.5px;margin:3px 0}
+  .watch{margin:4px 0;gap:3px} .watch button{min-height:21px;font-size:12px;padding:0 6px}
+  #slNotes{font-size:12.5px;line-height:1.3}
+  .panel{padding:8px 10px}
+  .ctl{margin:1px 0 5px} .brow{margin:4px 0}
+}
+@media (max-width:1250px){
+  #app{grid-template-columns:292px minmax(0,1fr) 222px}
+  .vrl{font-size:12px;padding:2px 6px} .ro{font-size:13px}
+  .cl{font-size:14px} .chead{flex-wrap:wrap} .cbt{margin-left:auto} .cbt .ro{min-width:76px} #pin .btns button,#pager button{font-size:13px;padding:3px 5px}
+  .trow{gap:4px 6px} .trow label{font-size:12.5px} .trow input{width:52px;font-size:13px;padding:3px 4px}
+  #turnMsg{font-size:12.5px} #sol{font-size:11px}
+}
+/* ═══ NARROW OR VERY SHORT WINDOWS: the page scrolls instead of squeezing ═══ */
+@media (max-width:1079px),(max-height:599px){
   html,body{height:auto} body{display:block;min-height:0}
   #app{display:block}
   #app>*{margin-bottom:8px}
@@ -134,11 +156,11 @@ svg text.cue{filter:none;text-decoration:underline}
 </head>
 <body>
 <header>
-  <h1>Two Generators Sharing Real and Reactive Power</h1><span class="badge">ECE 3033 · Lecture 5 · v1.1.0</span>
+  <h1>Two Generators Sharing Real and Reactive Power</h1><span class="badge">ECE 3033 · Lecture 5 · v1.2.0</span>
   <details id="model"><summary>Model</summary><div class="pop">
-    <p>Two identical three-phase, Y-connected units: 4 MVA, 4.16 kV, V<sub>φ</sub> = 2,401.8 V, rated I<sub>A</sub> = 555.1 A, Z<sub>S</sub> = 0.2 + j4.5 Ω per phase. Load on slides 1 to 4: 5.0 MW at 0.80 lagging, so Q<sub>load</sub> = 3.75 MVAR and I<sub>L</sub> = 867.4∠−36.87° A. Slide 5 has its own load, 5.6 MW at 0.85 lagging.</p>
-    <p>Governors (slides 1 and 2): straight droop lines with s<sub>P</sub> = 2.2514 MW/Hz (3 % speed droop at f<sub>nl</sub> = 61.0 Hz, 4 MW full load). P<sub>k</sub> = s<sub>P</sub>(f<sub>nl,k</sub> − f<sub>sys</sub>) and P<sub>1</sub> + P<sub>2</sub> = P<sub>load</sub>. Moving a set point slides the line parallel to itself; s<sub>P</sub> does not change.</p>
-    <p>Fields (slides 3 to 5): the terminal voltage is held at 4.16 kV and taken as the reference. Each unit's current is I<sub>Ak</sub> = (P<sub>k</sub> − jQ<sub>k</sub>) / 3V<sub>φ</sub>, the currents add to I<sub>L</sub>, and E<sub>Ak</sub> = V<sub>φ</sub> + I<sub>Ak</sub>Z<sub>S</sub>. No saturation; the field current is not computed, only the E<sub>A</sub> it must produce.</p>
+    <p>Two identical three-phase, Y-connected units: 4 MVA, 4.16 kV, V<sub>φ</sub> = 4,160/√3 = 2,402 V, rated I<sub>A</sub> = 555.1 A, Z<sub>S</sub> = 0.2 + j4.5 Ω in each phase. Load on slides 1 to 4: 5.0 MW at 0.80 lagging, so Q<sub>load</sub> = 3.75 MVAR and I<sub>L</sub> = 867.4∠−36.9° A. Slide 5 has its own load, 5.6 MW at 0.85 lagging.</p>
+    <p>Governors (slides 1 and 2): straight droop lines with s<sub>P</sub> = 2.25 MW/Hz (3 % speed droop at f<sub>nl</sub> = 61.00 Hz, 4 MW full load; 2.2514 before rounding). P<sub>k</sub> = s<sub>P</sub>(f<sub>nl,k</sub> − f<sub>sys</sub>) and P<sub>1</sub> + P<sub>2</sub> = P<sub>load</sub>. Moving a set point slides the line parallel to itself; s<sub>P</sub> does not change. Every result is computed with unrounded values and then rounded for display (MW, MVAR and A to 0.1; Hz and power factor to 0.01; V to 1; angles to 0.1°), so the last digit can differ by one from a hand calculation with the rounded numbers.</p>
+    <p>Fields (slides 3 to 5): the terminal voltage is held at 4.16 kV and taken as the reference. Each unit's current is I<sub>Ak</sub> = (P<sub>k</sub> − jQ<sub>k</sub>) / 3V<sub>φ</sub>, the currents add to I<sub>L</sub>, and E<sub>Ak</sub> = V<sub>φ</sub> + I<sub>Ak</sub>Z<sub>S</sub>. No saturation; the field current is not computed, only the E<sub>A</sub> it must produce. On slide 4 each dashed line is the exact path of that unit's E<sub>A</sub> tip while its P is fixed. Its height, E<sub>A</sub> sin δ, is ≈ fixed by P: with R<sub>A</sub> it changes by 4 to 6 % across the slider's range.</p>
     <p>Steady state only: no governor, rotor or voltage-regulator dynamics, no losses other than R<sub>A</sub> in E<sub>A</sub>. Currents and voltages are drawn on separate diagrams, each with one fixed scale. The circuit on slides 3 and 5 is a schematic.</p>
   </div></details>
 </header>
@@ -146,11 +168,12 @@ svg text.cue{filter:none;text-decoration:underline}
 <div id="app">
   <!-- ═══ SLIDE PANEL ═══ -->
   <div class="panel" id="slidePanel" aria-label="Lecture slide">
-  <section class="sl" data-n="1"><p class="kick">1 of 5 · Two units, one load</p><h2 class="st">Two units, one load, no infinite bus</h2>
-    <p class="keyp">Two identical units feed one load and nothing else. Nothing holds the frequency: it settles where the two powers add up to the load.</p>
+  <section class="sl" data-n="1"><p class="kick">1 of 5 · Two units, one load</p><h2 class="st">No infinite bus: the units set f and V themselves</h2>
+    <p class="keyp">The governor set points decide the frequency and the split of P. The field currents decide the terminal voltage and the split of Q.</p>
     <p class="def"><b>Set point f<sub>nl</sub>:</b> the frequency a unit runs at with no load. <b>Droop slope s<sub>P</sub>:</b> the extra power a unit gives for each hertz the frequency falls, 2.25 MW/Hz here.</p>
     <div class="eq" data-eq="pk"></div>
-    <div class="eq" data-eq="psum"></div></section>
+    <div class="eqrow"><div class="eq" data-eq="psum"></div><div class="eq" data-eq="qsum"></div></div>
+    <p class="eqnote">Slide 2: P. Slide 4: Q.</p></section>
   <section class="sl" data-n="2"><p class="kick">2 of 5 · Moving the set points</p><h2 class="st">Move one set point and both the split and the frequency move</h2>
     <p class="keyp">To change the split and keep 60 Hz, move both set points: raise one, lower the other by the same amount.</p>
     <div class="eq" data-eq="pk"></div>
@@ -162,15 +185,15 @@ svg text.cue{filter:none;text-decoration:underline}
     <div class="eq" data-eq="ea"></div>
     <p class="def">Both units: Z<sub>S</sub> = 0.2 + j4.5 Ω. Terminal voltage V<sub>φ</sub> = 2,402 V, the reference.</p></section>
   <section class="sl" data-n="4"><p class="kick">4 of 5 · The fields share Q</p><h2 class="st">The set points fix P; the fields share Q</h2>
-    <p class="keyp">Raise one field and lower the other: reactive power moves between the units while P and the terminal voltage stay put.</p>
-    <p class="def">The height of each E<sub>A</sub> tip is X<sub>S</sub>I<sub>A</sub> cos θ, set by that unit's P. With P fixed, a tip can only slide sideways: longer E<sub>A</sub>, more field current, more Q.</p>
-    <div class="eq" data-eq="qsum"></div>
+    <p class="keyp">Raise G1's field and lower G2's together: Q moves from G2 to G1, while P and the terminal voltage stay put.</p>
+    <p class="def">Each tip's height, E<sub>A</sub> sin δ, is fixed by that unit's P, so a tip can only slide sideways. Longer E<sub>A</sub>: more field current, more Q.</p>
+    <div class="eq" data-eq="q4"></div>
     <div class="eq" data-eq="ea"></div></section>
   <section class="sl" data-n="5"><p class="kick">5 of 5 · Your turn</p><h2 class="st">G1's share is given: find everything about G2</h2>
     <p class="keyp">New numbers: the load is 5.6 MW at 0.85 lagging, 4.16 kV. G1 carries 3.2 MW at 0.95 lagging. Find G2's P, Q, power factor, I<sub>A2</sub>, |E<sub>A2</sub>| and δ<sub>2</sub>.</p>
     <div class="eqrow"><div class="eq" data-eq="psum"></div><div class="eq" data-eq="qsum"></div></div>
     <div class="eqrow"><div class="eq" data-eq="kcl"></div><div class="eq" data-eq="ea"></div></div>
-    <p class="def">Both units: V<sub>φ</sub> = 2,401.8 V, Z<sub>S</sub> = 0.2 + j4.5 Ω.</p>
+    <p class="def">Both units: V<sub>φ</sub> = 2,402 V, Z<sub>S</sub> = 0.2 + j4.5 Ω.</p>
     <div class="btns"><button id="toS1">◀ Back to slide 1</button></div></section>
   </div>
 
@@ -182,7 +205,7 @@ svg text.cue{filter:none;text-decoration:underline}
       </div>
       <div class="it rd" id="itRoH"><p class="vrl" id="rh1"></p><p class="vrl" id="rh2"></p><p class="vrl" id="rh3"></p></div>
       <div class="it" id="itCkt">
-        <svg viewBox="0 0 700 118" role="img" aria-label="One phase of the system: source E A 1 with 0.2 ohm and j 4.5 ohm on the left, source E A 2 with the same impedance on the right, meeting at a node; the load hangs from the node with V phi across it."><g id="ckG"></g></svg>
+        <svg viewBox="0 0 700 118" role="img" aria-label="The circuit: source E A 1 with 0.2 ohm and j 4.5 ohm on the left, source E A 2 with the same impedance on the right, meeting at a node; the load hangs from the node with V phi across it."><g id="ckG"></g></svg>
       </div>
       <div class="it" id="itCur"><p class="dt">Currents: I<sub>A1</sub> + I<sub>A2</sub> = I<sub>L</sub></p>
         <svg viewBox="0 0 430 172" role="img" aria-label="Current phasors only: the load current from the origin, G1's current from the origin, and G2's current from the tip of G1's to the tip of the load current."><g id="ciG"></g></svg>
@@ -192,7 +215,7 @@ svg text.cue{filter:none;text-decoration:underline}
       </div>
       <div class="it rd" id="itRo3"><p class="vrl" id="r3a"></p><p class="vrl" id="r3b"></p><p class="vrl" id="r3c"></p><p class="vrl" id="r3d"></p></div>
       <div class="it" id="itD4">
-        <svg viewBox="0 0 700 300" role="img" aria-label="One voltage phasor diagram for both units: V phi, each unit's drop and E A, and the dashed line each E A tip stays on while its real power is fixed."><g id="d4G"></g></svg>
+        <svg viewBox="0 0 700 266" role="img" aria-label="One voltage phasor diagram for both units: V phi, each unit's drop and E A, the dashed line each E A tip stays on while its real power is fixed, a small arrow at each tip showing the way it slides when G1's reactive power rises, and faint phasors for the end of the Show me."><g id="d4G"></g></svg>
       </div>
       <div class="it" id="itQ">
         <svg viewBox="0 0 700 44" role="img" aria-label="Reactive power bar: the load's 3.75 megavars split between G1 and G2."><g id="qbG"></g></svg>
@@ -218,37 +241,37 @@ svg text.cue{filter:none;text-decoration:underline}
   <div class="panel" id="side" aria-label="Controls">
     <h2 id="sideH">Controls</h2>
     <div class="grp" data-g="1">
-      <div class="ctl" data-ctl="l1"><div class="chead"><label class="cl" for="c_l1">Load P<sub>load</sub></label><span class="cbt"><button class="sm" aria-label="Lower the load by 0.1 megawatt">−</button><button class="sm" aria-label="Raise the load by 0.1 megawatt">+</button><span class="ro"></span></span></div><input type="range" id="c_l1"></div>
+      <div class="ctl" data-ctl="l1"><div class="chead"><label class="cl" for="c_l1">Load P<sub>load</sub></label><span class="cbt"><button class="sm" aria-label="Lower the load by 0.2 megawatt">−</button><button class="sm" aria-label="Raise the load by 0.2 megawatt">+</button><span class="ro"></span></span></div><input type="range" id="c_l1"></div>
       <p class="note">at 0.80 lagging</p>
-      <div class="frow"><span class="cl u1">G1 set point</span><span class="ro">61.000 Hz</span></div>
-      <div class="frow"><span class="cl u2">G2 set point</span><span class="ro">61.000 Hz</span></div>
+      <div class="frow"><span class="cl u1">G1 set point</span><span class="ro">61.00 Hz</span></div>
+      <div class="frow"><span class="cl u2">G2 set point</span><span class="ro">61.00 Hz</span></div>
       <p class="note">Set points move on slide 2.</p>
     </div>
     <div class="grp" data-g="2">
-      <div class="ctl" data-ctl="n1"><div class="chead"><label class="cl u1" for="c_n1">G1 set point</label><span class="cbt"><button class="sm" aria-label="Lower G1's set point by 0.001 hertz">−</button><button class="sm" aria-label="Raise G1's set point by 0.001 hertz">+</button><span class="ro"></span></span></div><input type="range" id="c_n1"></div>
-      <div class="ctl" data-ctl="n2"><div class="chead"><label class="cl u2" for="c_n2">G2 set point</label><span class="cbt"><button class="sm" aria-label="Lower G2's set point by 0.001 hertz">−</button><button class="sm" aria-label="Raise G2's set point by 0.001 hertz">+</button><span class="ro"></span></span></div><input type="range" id="c_n2"></div>
-      <p class="note">Slider 0.01 Hz; − / + 0.001 Hz. Load fixed at 5.0 MW, 0.80 lag.</p>
+      <div class="ctl" data-ctl="n1"><div class="chead"><label class="cl u1" for="c_n1">G1 set point</label><span class="cbt"><button class="sm" aria-label="Lower G1's set point by 0.01 hertz">−</button><button class="sm" aria-label="Raise G1's set point by 0.01 hertz">+</button><span class="ro"></span></span></div><input type="range" id="c_n1"></div>
+      <div class="ctl" data-ctl="n2"><div class="chead"><label class="cl u2" for="c_n2">G2 set point</label><span class="cbt"><button class="sm" aria-label="Lower G2's set point by 0.01 hertz">−</button><button class="sm" aria-label="Raise G2's set point by 0.01 hertz">+</button><span class="ro"></span></span></div><input type="range" id="c_n2"></div>
+      <p class="note">Slider and − / + step 0.01 Hz. Load fixed at 5.0 MW, 0.80 lag.</p>
       <div class="brow"><button class="pri" data-show="2a">▶ Show me: raise G1 only</button></div>
       <div class="brow"><button class="pri" data-show="2b">▶ Show me: 2.8 / 2.2 MW at 60 Hz</button></div>
     </div>
     <div class="grp" data-g="3">
-      <div class="ctl" data-ctl="p3"><div class="chead"><label class="cl u1" for="c_p3">G1 power P<sub>1</sub></label><span class="cbt"><button class="sm" aria-label="Lower G1's power by 0.05 megawatt">−</button><button class="sm" aria-label="Raise G1's power by 0.05 megawatt">+</button><span class="ro"></span></span></div><input type="range" id="c_p3"></div>
+      <div class="ctl" data-ctl="p3"><div class="chead"><label class="cl u1" for="c_p3">G1 power P<sub>1</sub></label><span class="cbt"><button class="sm" aria-label="Lower G1's power by 0.1 megawatt">−</button><button class="sm" aria-label="Raise G1's power by 0.1 megawatt">+</button><span class="ro"></span></span></div><input type="range" id="c_p3"></div>
       <div class="ctl" data-ctl="f3"><div class="chead"><label class="cl u1" for="c_f3">G1 power factor</label><span class="cbt"><button class="sm" aria-label="Lower G1's power factor by 0.01">−</button><button class="sm" aria-label="Raise G1's power factor by 0.01">+</button><span class="ro"></span></span></div><input type="range" id="c_f3"></div>
       <p class="note">G2 follows by KCL: it supplies whatever G1 does not.</p>
       <div class="brow"><button class="pri" data-show="3">▶ Show me: build it step by step</button></div>
     </div>
     <div class="grp" data-g="4">
-      <div class="ctl" data-ctl="q4"><div class="chead"><label class="cl" for="c_q4">Move Q: G2 → G1</label><span class="cbt"><button class="sm" aria-label="Move 0.05 megavar from G1 to G2">−</button><button class="sm" aria-label="Move 0.05 megavar from G2 to G1">+</button><span class="ro"></span></span></div><input type="range" id="c_q4"></div>
+      <div class="ctl" data-ctl="q4"><div class="chead"><label class="cl" for="c_q4">Move Q: G2 → G1</label><span class="cbt"><button class="sm" aria-label="Move 0.1 megavar from G1 to G2">−</button><button class="sm" aria-label="Move 0.1 megavar from G2 to G1">+</button><span class="ro"></span></span></div><input type="range" id="c_q4"></div>
       <p class="note">Right: raise G1's field, lower G2's. Readout is Q<sub>1</sub>.</p>
       <div class="frow"><span class="cl">Real power (fixed)</span></div>
-      <div class="frow"><span class="ro">P₁ 2.80 · P₂ 2.20 MW</span></div>
+      <div class="frow"><span class="ro">P₁ 2.8 · P₂ 2.2 MW</span></div>
       <p class="note">Set points from slide 2.</p>
       <div class="brow"><button class="pri" data-show="4">▶ Show me: move Q to G1</button></div>
     </div>
     <div class="grp" data-g="5"><p class="side-t">G1's current and E<sub>A1</sub> are drawn. G2's appear when you solve the problem.</p></div>
+    <p id="warn" role="status" aria-live="polite"></p>
     <div id="pin">
       <div class="btns" role="group" aria-label="Reset and time"><button id="resetBtn" class="danger">↺ Reset</button><button id="pauseBtn" aria-pressed="false">❚❚ Pause</button></div>
-      <div id="callout" role="status" aria-live="polite"></div>
       <div id="pager"><button id="slPrev" aria-label="Previous slide">◀</button><span class="ro" id="slPos">1/5</span><button id="slNext" aria-label="Next slide">▶</button><button id="slNbtn" aria-pressed="true">Notes (N)</button></div>
     </div>
   </div>
@@ -257,7 +280,7 @@ svg text.cue{filter:none;text-decoration:underline}
 <script>
 /* ═══ CONTENTS ═══
    1. CONSTANTS   2. STATE   3. PHYSICS   4. FORMATTING AND EQUATIONS   5. HOUSE DIAGRAM   6. CIRCUIT   7. CURRENT AND VOLTAGE PANELS
-   8. FIELDS DIAGRAM AND Q BAR   9. YOUR TURN   10. READOUTS AND STATUS   11. CONTROLS   12. SLIDES AND DEMOS   13. WATCH CUES   14. LOOP */
+   8. FIELDS DIAGRAM AND Q BAR   9. YOUR TURN   10. READOUTS AND WARNINGS   11. CONTROLS   12. SLIDES AND DEMOS   13. WATCH CUES   14. LOOP */
 'use strict';
 /* ═══ 1. CONSTANTS ═══ */
 const V_LL = 4160;                        // V, line-to-line terminal voltage (held)
@@ -270,7 +293,6 @@ const P_LOAD = 5.0, PF_LOAD = 0.80;       // MW and lagging power factor of the 
 const Q_LOAD = P_LOAD * Math.tan(Math.acos(PF_LOAD));   // MVAR
 const F_60 = 60;                          // Hz, the target frequency
 const F_WARN = 0.5;                       // Hz from 60 beyond which slides 1 and 2 warn
-const AT_60 = 0.0005;                     // Hz: closer than this to 60 Hz counts as at 60
 const SET_A = [61.244, 60.977];           // Hz, the set points of slide 2's second Show me (2.8 / 2.2 MW at 60 Hz)
 const P1_OP = 2.8, PF1_OP = 0.90;         // MW and lagging power factor of G1 at the operating point of slides 3 and 4
 const Q1_OP = P1_OP * Math.tan(Math.acos(PF1_OP));   // MVAR, 1.356
@@ -284,6 +306,8 @@ const BUILD_STEP_MS = 1600;               // ms each step of slide 3's Show me i
 const RAMP_HZ_S = 0.1;                    // Hz/s, set-point ramps of slide 2
 const RAMP_Q_S = 0.4;                     // MVAR/s, the Q ramp of slide 4
 const TURN_MAX_CHARS = 12;                // longest accepted entry
+const ROUND_TIE = 1e-9;                   // added (away from zero) before rounding, so a value on a half step always rounds the same way
+const DP = { MW: 1, MVAR: 1, A: 1, HZ: 2, PF: 2, DEG: 1, MVA: 2, SP: 2 };   // decimals shown for each quantity (volts: whole)
 const NUMBER_FORM = /^[+\-−]?(\d+\.?\d*|\.\d+)$/;   // a plain decimal number, optional sign
 const DT_MAX = 0.1;                       // s, largest frame step
 const RO_MS = 250;                        // ms between numeric updates (4 per second)
@@ -324,18 +348,21 @@ function model() {
 }
 
 /* ═══ 4. FORMATTING AND EQUATIONS ═══ */
-/* Number with d decimals; a negative value is written with U+2212. */
-function f(x, d) { const t = x.toFixed(d); return (+t === 0 ? t.replace('-', '') : t.replace('-', MINUS)); }
+/* Number with d decimals, a half step rounded away from zero; a negative value is written with U+2212. */
+function f(x, d) { const t = (x + Math.sign(x) * ROUND_TIE).toFixed(d); return (+t === 0 ? t.replace('-', '') : t.replace('-', MINUS)); }
 /* Whole volts with a thousands comma. */
 function volts(x) { return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 /* A phasor as magnitude∠angle°: mag already formatted. */
-function pol(mag, angDeg) { return mag + '∠' + (angDeg === 0 ? '0' : f(angDeg, 2)) + '°'; }
+function pol(mag, angDeg) { return mag + '∠' + (angDeg === 0 ? '0' : f(angDeg, DP.DEG)) + '°'; }
 /* A current phasor in amperes, and an internal voltage in volts, as printed. */
-function polI(I) { return pol(f(I.mag, 1), I.ang) + ' A'; }
+function polI(I) { return pol(f(I.mag, DP.A), I.ang) + ' A'; }
 function polE(E) { return pol(volts(E.mag), E.ang) + ' V'; }
-/* A power factor in words, d decimals: 0.900 lag, unity. */
-function pfText(u, d) { return u.Q > 0.0005 ? f(u.pf, d) + ' lag' : u.Q < -0.0005 ? f(u.pf, d) + ' lead' : 'unity'; }
+/* A power factor in words: 0.90 lag, unity. */
+function pfText(u) { return u.Q > 0.0005 ? f(u.pf, DP.PF) + ' lag' : u.Q < -0.0005 ? f(u.pf, DP.PF) + ' lead' : 'unity'; }
+/* Megawatts, megavars and hertz as printed (number only). */
+const mw = x => f(x, DP.MW), mvar = x => f(x, DP.MVAR), hz = x => f(x, DP.HZ);
 const V_TXT = volts(V_PH);                // "2,402", the terminal phase voltage as printed
+const SP_TXT = f(S_P, DP.SP);             // "2.25", the droop slope as printed
 /* Set an element's text only when it changes. */
 function put(id, t) { const e = document.getElementById(id); if (e.textContent !== t) e.textContent = t; }
 const SUB_FORM = /(_[A-Za-z0-9φ]+(?:,[A-Za-z0-9]+)?)/;   // "x_ab" or "x_nl,1": the part after the underscore is a subscript
@@ -380,12 +407,13 @@ function arrow(p, x1, y1, x2, y2, show) {
 }
 /* Make an arrow path of one colour and width in parent. */
 function mkArrow(parent, col, w) { return mk(parent, 'path', { stroke: col, fill: col, 'stroke-width': w, 'stroke-linejoin': 'round' }); }
-/* Equations as nested lists, built into MathML: a string is a number, an operator, text (contains a space) or an identifier;
+/* Equations as nested lists, built into MathML: a string is a number, an operator, text (contains a space or a no-break space) or an identifier;
    ['sub', base, sub], ['frac', num, den], ['row', …]. */
 const sub = (b, s) => ['sub', b, s];
 const EQ = {
   psum: [sub('P', '1'), '+', sub('P', '2'), '=', sub('P', 'load')],
   qsum: [sub('Q', '1'), '+', sub('Q', '2'), '=', sub('Q', 'load')],
+  q4: [sub('Q', '1'), '+', sub('Q', '2'), '=', f(Q_LOAD, 2), '\u00a0MVAR'],
   pk: [sub('P', 'k'), '=', sub('s', 'P'), '(', sub('f', 'nl,k'), '−', sub('f', 'sys'), ')'],
   rule: [sub('f', 'nl,1'), '+', sub('f', 'nl,2'), '=', '120', '+', ['frac', sub('P', 'load'), sub('s', 'P')]],
   kcl: [sub('I', 'A1'), '+', sub('I', 'A2'), '=', sub('I', 'L')],
@@ -401,7 +429,7 @@ function mnode(it) {
   }
   if (/^[\d.]+$/.test(it)) return el('mn', it);
   if (/^[=+−×()]$/.test(it)) return el('mo', it);
-  if (it.includes(' ')) return el('mtext', it);
+  if (/\s/.test(it)) return el('mtext', it);
   return el('mi', it);
 }
 /* Fill an element with the equation named key. */
@@ -454,26 +482,26 @@ function drawHouse(H) {
   HS.ticksR.forEach(t => t.setAttribute('x', (xr + 9).toFixed(1)));
   HS.g2T.setAttribute('x', xr.toFixed(1));
   HS.span.setAttribute('d', `M${HX0 + 4} 32H${(xr - 4).toFixed(1)}M${HX0 + 10} 28l-6 4l6 4M${(xr - 10).toFixed(1)} 28l6 4l-6 4`);
-  at(HS.spanT, (HX0 + xr) / 2, 20, 'walls ' + f(H.L, 1) + ' MW apart');
+  at(HS.spanT, (HX0 + xr) / 2, 20, 'walls ' + mw(H.L) + ' MW apart');
   [0, 1].forEach(i => {
     HS.line[i].setAttribute('d', seg(S.fn[i], i === 0));
     HS.old[i].setAttribute('d', Math.abs(S.fn[i] - F_NL0) > EPS ? seg(F_NL0, i === 0) : '');
     HS.set[i].setAttribute('cx', (i ? xr : HX0).toFixed(1)); HS.set[i].setAttribute('cy', HY(S.fn[i]).toFixed(1));
-    at(HS.setT[i], i ? xr - 10 : HX0 + 10, HY(S.fn[i]) - 9, f(S.fn[i], 3) + ' Hz');
-    at(HS.pT[i], i ? xr : HX0, FLOOR_Y + FLOOR_H + 19 + 20 * i, '← P_' + (i + 1) + ' = ' + f(H.P[i], 2) + ' MW →');
+    at(HS.setT[i], i ? xr - 10 : HX0 + 10, HY(S.fn[i]) - 9, hz(S.fn[i]) + ' Hz');
+    at(HS.pT[i], i ? xr : HX0, FLOOR_Y + FLOOR_H + 19 + 20 * i, '← P_' + (i + 1) + ' = ' + mw(H.P[i]) + ' MW →');
   });
   HS.fline.setAttribute('d', `M${HX0} ${yf.toFixed(1)}H${xr.toFixed(1)}`); HS.drop.setAttribute('d', `M${xc.toFixed(1)} ${yf.toFixed(1)}V${FLOOR_Y}`);
   HS.dot.setAttribute('cx', xc.toFixed(1)); HS.dot.setAttribute('cy', yf.toFixed(1));
-  at(HS.fT, xr + 34, yf + 5, 'f_sys ' + f(H.f, 3) + ' Hz');
+  at(HS.fT, xr + 34, yf + 5, 'f_sys ' + hz(H.f) + ' Hz');
   HS.seg[0].setAttribute('x', HX0); HS.seg[0].setAttribute('width', (xc - HX0).toFixed(1));
   HS.seg[1].setAttribute('x', xc.toFixed(1)); HS.seg[1].setAttribute('width', (xr - xc).toFixed(1));
 }
 
-/* ═══ 6. CIRCUIT (slides 3 and 5; a schematic of one phase) ═══ */
+/* ═══ 6. CIRCUIT (slides 3 and 5; a schematic) ═══ */
 const CK = {};
 const CK_TOP = 32, CK_BOT = 94;          // viewBox y of the top rail and the common return rail
 const CK_NODE = 350;                      // viewBox x of the node where the two units meet the load
-/* Build the per-phase circuit once: E_A1 and its Z_S from the left, E_A2 and its Z_S from the right, the load hanging from the node. */
+/* Build the circuit once: E_A1 and its Z_S from the left, E_A2 and its Z_S from the right, the load hanging from the node. */
 function buildCircuit() {
   const g = document.getElementById('ckG'), T = CK_TOP, B = CK_BOT, N = CK_NODE;
   const wire = (d, col) => mk(g, 'path', { d, stroke: col || COL.ink, 'stroke-width': 2.5, fill: 'none', 'stroke-linejoin': 'round' });
@@ -488,12 +516,12 @@ function buildCircuit() {
   [[50, '+', 16], [68, 'V_φ', 16], [89, MINUS, 16]].forEach(([y, t, size]) => text(g, N + 92, y, size, 800, COL.v, 'middle', t));
   CK.i1 = text(g, 310, 24, 16, 800, COL.g1, 'middle', 'I_A1 →'); CK.i2 = text(g, 392, 24, 16, 800, COL.g2, 'middle'); CK.iL = text(g, N - 8, 47, 14.5, 800, COL.load, 'end', 'I_L ↓');
   CK.u1 = text(g, 168, 68, 15, 700, COL.g1, 'middle'); CK.u2 = text(g, 544, 68, 15, 700, COL.g2, 'middle');
-  text(g, N, 111, 13.5, 400, COL.mut, 'middle', 'one phase · KCL at the node: I_A1 + I_A2 = I_L');
+  text(g, N, 111, 13.5, 400, COL.mut, 'middle', 'KCL at the node: I_A1 + I_A2 = I_L');
 }
 /* Label the circuit for the units M; with hide, G2's side shows "?" (slide 5 before it is solved). */
 function drawCircuit(M, hide) {
-  const u = M.u, lab = k => 'G' + (k + 1) + ': ' + f(u[k].P, 2) + ' MW, ' + pfText(u[k], 2);
-  subT(CK.loadT, f(M.PL, 1) + ' MW, ' + f(M.pfL, 2) + ' lag'); subT(CK.u1, lab(0)); subT(CK.u2, hide ? 'G2: ?' : lab(1)); subT(CK.i2, hide ? '← I_A2 ?' : '← I_A2');
+  const u = M.u, lab = k => 'G' + (k + 1) + ': ' + mw(u[k].P) + ' MW, ' + pfText(u[k]);
+  subT(CK.loadT, mw(M.PL) + ' MW, ' + f(M.pfL, DP.PF) + ' lag'); subT(CK.u1, lab(0)); subT(CK.u2, hide ? 'G2: ?' : lab(1)); subT(CK.i2, hide ? '← I_A2 ?' : '← I_A2');
 }
 
 /* ═══ 7. CURRENT AND VOLTAGE PANELS (slides 3 and 5; never on one diagram) ═══ */
@@ -537,30 +565,42 @@ function drawVoltages(M, step, hide) {
 
 /* ═══ 8. FIELDS DIAGRAM AND Q BAR (slide 4) ═══ */
 const D4 = {}, QB = {};
-const D4_O = { x: 30, y: 268 }, D4_PX_V = 0.125;    // origin (viewBox units) and scale, px per volt (E_A reaches 4,510 V on this slide)
+const D4_O = { x: 30, y: 226 }, D4_PX_V = 0.1;      // origin (viewBox units) and scale, px per volt (E_A reaches 4,480 V on this slide)
 const P_FIX = [P1_OP, P_LOAD - P1_OP];              // MW, each unit's fixed real power on slide 4
+const SLIDE_DIR = [1, -1];                          // the way each tip moves along its line when Q_1 rises: G1 right, G2 left
+const SLIDE_GAP = 8, SLIDE_LEN = 24, SLIDE_UP = 9;  // viewBox units: a slide arrow starts this far from the tip, is this long and sits this far above the line
+const GHOST_OPACITY = 0.3;                          // the faint phasors of the end of the Show me
 const QB_X0 = 70, QB_PX = 144;                      // Q bar: left end (viewBox x) and px per MVAR
 /* Tip of E_A on the slide-4 diagram for a unit at P (MW), Q (MVAR). */
 function tip4(P, Q) { const E = internal(current(P, Q)); return [D4_O.x + E.re * D4_PX_V, D4_O.y - E.im * D4_PX_V]; }
-/* Build the slide-4 diagram once: V_φ, and each unit's constant-P line, the exact locus of its E_A tip as Q goes from 0 to the load's Q.
-   R_A is included, so the lines tilt slightly. */
+/* Build the slide-4 diagram once: V_φ, each unit's dashed line (the exact locus of its E_A tip at its fixed P as Q goes from 0 to
+   the load's Q; R_A is included, so the lines tilt slightly) labelled at its right end, and the faint phasors of the end of the Show me. */
 function buildFields() {
   const g = document.getElementById('d4G'), O = D4_O, vx = O.x + V_PH * D4_PX_V, cols = [COL.g1, COL.g2];
-  mk(g, 'path', { d: `M${vx.toFixed(1)} ${O.y}H670`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
-  D4.pl = cols.map((c, k) => { const [xa, ya] = tip4(P_FIX[k], 0), [xb, yb] = tip4(P_FIX[k], Q_LOAD); return mk(g, 'path', { d: `M${xa.toFixed(1)} ${ya.toFixed(1)}L${xb.toFixed(1)} ${yb.toFixed(1)}`, stroke: c, 'stroke-width': 2, 'stroke-dasharray': '7 5' }); });
-  D4.plT = cols.map((c, k) => { const [xb, yb] = tip4(P_FIX[k], Q_LOAD); return mk(g, 'text', Object.assign({ x: xb.toFixed(1), y: (yb - 8).toFixed(1), 'font-size': 14, 'font-weight': 800, fill: c, 'text-anchor': 'end' }, HALO), 'P_' + (k + 1) + ' = ' + f(P_FIX[k], 2) + ' MW line'); });
+  const ends = P_FIX.map(p => [tip4(p, 0), tip4(p, Q_LOAD)]), xEnd = ends[0][1][0];
+  mk(g, 'path', { d: `M${vx.toFixed(1)} ${O.y}H${xEnd.toFixed(1)}`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
+  D4.slope = ends.map(([a, b]) => (b[1] - a[1]) / (b[0] - a[0]));   // viewBox dy/dx of each dashed line
+  D4.pl = cols.map((c, k) => { const [[xa, ya], [xb, yb]] = ends[k]; return mk(g, 'path', { d: `M${xa.toFixed(1)} ${ya.toFixed(1)}L${xb.toFixed(1)} ${yb.toFixed(1)}`, stroke: c, 'stroke-width': 2, 'stroke-dasharray': '7 5' }); });
+  D4.plT = cols.map((c, k) => { const [xb, yb] = ends[k][1];
+    return [text(g, xb + 14, yb - 4, 13.5, 800, c, 'start', 'E_A' + (k + 1) + ' sin δ'), text(g, xb + 14, yb + 14, 13.5, 800, c, 'start', 'fixed by P_' + (k + 1) + ' ' + mw(P_FIX[k]) + ' MW')]; });
+  const ghost = split(P1_OP, Q_DEMO[1]);
+  ghost.u.forEach((u, k) => arrow(mk(g, 'path', { stroke: cols[k], fill: cols[k], 'stroke-width': 3, 'stroke-linejoin': 'round', opacity: GHOST_OPACITY }), O.x, O.y, O.x + u.E.re * D4_PX_V, O.y - u.E.im * D4_PX_V));
   D4.drop = cols.map(c => mk(g, 'path', { stroke: c, 'stroke-width': 1.5, fill: 'none' }));
   D4.E = cols.map(c => mkArrow(g, c, 4)); D4.V = mkArrow(g, COL.v, 4); arrow(D4.V, O.x, O.y, vx, O.y);
+  D4.sl = cols.map(c => mkArrow(g, c, 2.5));
   text(g, (O.x + vx) / 2, O.y + 20, 14.5, 800, COL.v, 'middle', 'V_φ = ' + V_TXT + ' V (held)');
-  D4.t = cols.map(c => label(g, 14.5, c, 'end')); D4.lg = cols.map((c, k) => text(g, O.x, 24 + 22 * k, 15, 800, c, 'start'));
+  D4.t = cols.map((c, k) => label(g, 14.5, c, k ? 'start' : 'end')); D4.lg = cols.map((c, k) => text(g, O.x, 22 + 21 * k, 15, 800, c, 'start'));
+  text(g, vx + 22, O.y + 17, 12.5, 700, COL.mut, 'start', 'Faint: the end of the Show me (Q_1 ' + mvar(Q_DEMO[1]) + ' MVAR).');
+  text(g, vx + 22, O.y + 33, 12.5, 700, COL.mut, 'start', 'Small arrows: the way each tip slides when Q_1 rises.');
   mk(g, 'circle', { cx: O.x, cy: O.y, r: 4, fill: COL.ink });
 }
-/* Draw both units of M on the one diagram: E_A, its drop and its label. */
+/* Draw both units of M on the one diagram: E_A, its drop, its label and the slide arrow beside its tip. */
 function drawFields(M) {
   const O = D4_O, s = D4_PX_V, vx = O.x + V_PH * s;
-  M.u.forEach((u, k) => { const x = O.x + u.E.re * s, y = O.y - u.E.im * s;
+  M.u.forEach((u, k) => { const x = O.x + u.E.re * s, y = O.y - u.E.im * s, d = SLIDE_DIR[k], xa = x + d * SLIDE_GAP, xb = xa + d * SLIDE_LEN;
     arrow(D4.E[k], O.x, O.y, x, y); D4.drop[k].setAttribute('d', `M${vx.toFixed(1)} ${O.y}L${x.toFixed(1)} ${y.toFixed(1)}`);
-    at(D4.t[k], x - 14, y + 24, 'E_A' + (k + 1)); subT(D4.lg[k], 'E_A' + (k + 1) + ' = ' + polE(u.E)); });
+    arrow(D4.sl[k], xa, y - SLIDE_UP + (xa - x) * D4.slope[k], xb, y - SLIDE_UP + (xb - x) * D4.slope[k]);
+    at(D4.t[k], k ? x + 10 : x - 8, k ? y + 17 : y - 9, 'E_A' + (k + 1)); subT(D4.lg[k], 'E_A' + (k + 1) + ' = ' + polE(u.E) + ', pf ' + pfText(u)); });
 }
 /* Build the Q bar once: one bar, the load's reactive power, split G1 / G2. */
 function buildQbar() {
@@ -575,13 +615,14 @@ function buildQbar() {
 function drawQbar(M) {
   const xm = QB_X0 + M.u[0].Q * QB_PX, xe = QB_X0 + Q_LOAD * QB_PX;
   QB.seg[0].setAttribute('x', QB_X0); QB.seg[0].setAttribute('width', (xm - QB_X0).toFixed(1)); QB.seg[1].setAttribute('x', xm.toFixed(1)); QB.seg[1].setAttribute('width', (xe - xm).toFixed(1));
-  at(QB.t[0], (QB_X0 + xm) / 2, 27, 'G1 ' + f(M.u[0].Q, 2)); at(QB.t[1], (xm + xe) / 2, 27, 'G2 ' + f(M.u[1].Q, 2));
+  at(QB.t[0], (QB_X0 + xm) / 2, 27, 'G1 ' + mvar(M.u[0].Q)); at(QB.t[1], (xm + xe) / 2, 27, 'G2 ' + mvar(M.u[1].Q));
 }
 
 /* ═══ 9. YOUR TURN (slide 5) ═══ */
 const TURN = split(TURN_P1, TURN_P1 * Math.tan(Math.acos(TURN_PF1)), TURN_PL, TURN_QL);
 const T2 = TURN.u[1];
-/* The six answers: box id, name, the printed answer, the accepted error either side, and the step to check when it is wrong. */
+/* The six answers: box id, name, the model's answer, the accepted error either side, and the step to check when it is wrong.
+   Every tolerance is wider than the display rounding, so a value typed as it is printed in the solution is accepted. */
 const ANSWERS = [
   { id: 'inP', name: 'P_2', val: +T2.P.toFixed(3), tol: 0.02, fix: 'P_2 = P_load − P_1.' },
   { id: 'inQ', name: 'Q_2', val: +T2.Q.toFixed(3), tol: 0.05, fix: 'Q_2 = Q_load − Q_1, with Q_load = 5.6 tan(cos⁻¹ 0.85) and Q_1 = 3.2 tan(cos⁻¹ 0.95).' },
@@ -601,7 +642,7 @@ function readAnswers() {
     box.setAttribute('aria-invalid', String(!ok));
     vals.push(ok ? parseFloat(raw.replace(MINUS, '-')) : NaN);
   });
-  if (empty.length || bad.length) { turnMsg((empty.length ? 'Fill in ' + empty.join(', ') + '. ' : '') + (bad.length ? 'Not a number: ' + bad.join(', ') + '. Type a value such as 2.15 or 480.' : ''), 'bad'); return null; }
+  if (empty.length || bad.length) { turnMsg((empty.length ? 'Fill in ' + empty.join(', ') + '. ' : '') + (bad.length ? 'Not a number: ' + bad.join(', ') + '. Type a value such as 2.1 or 480.' : ''), 'bad'); return null; }
   return vals;
 }
 /* Check the six answers against the model, each within its own tolerance. */
@@ -610,7 +651,7 @@ function checkAnswers() {
   if (v === null) return;
   S.tried = true;
   const ok = ANSWERS.map((a, i) => Math.abs(v[i] - a.val) <= a.tol + EPS), first = ok.indexOf(false);
-  if (first < 0) { S.solved = true; turnMsg('Correct: P_2 = ' + f(T2.P, 3) + ' MW, Q_2 = ' + f(T2.Q, 3) + ' MVAR, pf_2 = ' + f(T2.pf, 3) + ' lagging, I_A2 = ' + f(T2.I.mag, 1) + ' A, E_A2 = ' + polE(T2.E) + '.', 'good'); showSolution(); }
+  if (first < 0) { S.solved = true; turnMsg('Correct: P_2 = ' + mw(T2.P) + ' MW, Q_2 = ' + mvar(T2.Q) + ' MVAR, pf_2 = ' + f(T2.pf, DP.PF) + ' lagging, I_A2 = ' + polI(T2.I) + ', |E_A2| = ' + volts(T2.E.mag) + ' V, δ_2 = ' + f(T2.E.ang, DP.DEG) + '°.', 'good'); showSolution(); }
   else turnMsg(ANSWERS.map((a, i) => a.name + ' ' + (ok[i] ? '✓' : '✗')).join('   ') + '.  ' + ANSWERS[first].fix, 'bad');
   readouts(true);
 }
@@ -618,9 +659,9 @@ function checkAnswers() {
 function showSolution() {
   const box = document.getElementById('sol'), I1 = TURN.u[0].I, I2 = T2.I;
   S.shown = true;
-  richText(box, 'I_L = ' + polI(TURN.IL) + ';  I_A1 = 3.2 MW / (3 × 2,401.8 V × 0.95) = ' + polI(I1) + '\n'
-    + 'I_A2 = I_L − I_A1 = ' + polI(I2) + ';  S_2 = 3 V_φ I_A2* = ' + f(T2.P, 3) + ' MW + j' + f(T2.Q, 3) + ' MVAR\n'
-    + 'pf_2 = ' + f(T2.pf, 3) + ' lag;  E_A2 = ' + pol(V_TXT, 0) + ' + (' + pol(f(I2.mag, 1), I2.ang) + ')(0.2 + j4.5) = ' + polE(T2.E));
+  richText(box, 'I_L = ' + polI(TURN.IL) + ';  I_A1 = ' + mw(TURN_P1) + ' MW / (3 × ' + V_TXT + ' V × ' + f(TURN_PF1, DP.PF) + ') = ' + polI(I1) + '\n'
+    + 'I_A2 = I_L − I_A1 = ' + polI(I2) + ';  S_2 = 3 V_φ I_A2* = ' + mw(T2.P) + ' MW + j' + mvar(T2.Q) + ' MVAR\n'
+    + 'pf_2 = ' + f(T2.pf, DP.PF) + ' lag;  E_A2 = ' + pol(V_TXT, 0) + ' + (' + pol(f(I2.mag, DP.A), I2.ang) + ')(0.2 + j4.5) = ' + polE(T2.E) + ', so δ_2 = ' + f(T2.E.ang, DP.DEG) + '°');
   box.hidden = false;
   readouts(true);
 }
@@ -635,65 +676,52 @@ function resetTurn() {
   turnMsg('', ''); document.getElementById('sol').hidden = true;
 }
 
-/* ═══ 10. READOUTS AND STATUS ═══ */
-/* Warnings for the model M, most serious first: [text, kind] or null. */
+/* ═══ 10. READOUTS AND WARNINGS ═══ */
+/* The warning for the model M, most serious first: [text, kind] ('bad' or 'warn'), or null when there is none. */
 function warning(M) {
   if (M.house) {
     const H = M.house, neg = H.P.findIndex(p => p < -0.005), over = H.P.findIndex(p => p > S_RATED + 0.005);
     if (neg >= 0) return ['G' + (neg + 1) + ' is below 0 MW: it would motor (reverse power).', 'bad'];
     if (over >= 0) return ['G' + (over + 1) + ' is above its 4 MVA rating.', 'warn'];
-    if (Math.abs(H.f - F_60) > F_WARN) return ['f_sys is ' + f(Math.abs(H.f - F_60), 2) + ' Hz from 60 Hz: the set points must move' + (S.slide === 1 ? ' (slide 2).' : '.'), 'warn'];
+    if (Math.abs(H.f - F_60) > F_WARN) return ['f_sys is ' + hz(Math.abs(H.f - F_60)) + ' Hz from 60 Hz: the set points must move' + (S.slide === 1 ? ' (slide 2).' : '.'), 'warn'];
     return null;
   }
   if (M.hide || S.kstep) return null;
   const over = M.pq.u.findIndex(u => u.S > S_RATED + 0.0005), neg = M.pq.u.findIndex(u => u.P < -0.005);
   if (neg >= 0) return ['G' + (neg + 1) + ' is below 0 MW: it would motor (reverse power).', 'bad'];
-  if (over >= 0) return ['G' + (over + 1) + ' is at ' + f(M.pq.u[over].S, 2) + ' MVA, above its 4 MVA rating.', 'warn'];
+  if (over >= 0) return ['G' + (over + 1) + ' is at ' + f(M.pq.u[over].S, DP.MVA) + ' MVA, above its 4 MVA rating.', 'warn'];
   return null;
 }
-const BUILD_SAYS = ['The load fixes I_L.', 'G1\'s current follows from its power and power factor.', 'G2 supplies the rest: I_A2 = I_L − I_A1.', 'Each unit needs its own E_A = V_φ + I_A Z_S.'];   // slide 3 Show me, steps 1 to 4
-/* The status line: a warning if there is one, else what the slide shows. */
-function status(M) {
-  const w = warning(M);
-  if (w) return w;
-  if (M.house) {
-    const H = M.house;
-    if (S.slide === 2 && Math.abs(H.f - F_60) < AT_60) return ['f_sys is at 60.000 Hz with ' + f(H.P[0], 2) + ' / ' + f(H.P[1], 2) + ' MW.', 'good'];
-    return ['The units share ' + f(H.L, 1) + ' MW at ' + f(H.f, 3) + ' Hz: ' + f(H.P[0], 2) + ' / ' + f(H.P[1], 2) + ' MW.', ''];
-  }
-  const u = M.pq.u, big = u[0].E.mag >= u[1].E.mag ? 0 : 1;
-  if (S.slide === 5) return S.solved ? ['Solved: E_A2 = ' + polE(T2.E) + '.', 'good'] : ['Your turn: find G2\'s six values.', ''];
-  if (S.kstep) return [BUILD_SAYS[S.kstep - 1], ''];
-  return ['G' + (big + 1) + ' has the longer E_A: ' + volts(u[big].E.mag) + ' V against ' + volts(u[1 - big].E.mag) + ' V. It supplies ' + f(u[big].Q, 2) + ' of the ' + f(Q_LOAD, 2) + ' MVAR.', ''];
-}
-/* The readout lines of the slide: its equations with the numbers now on screen, by element id. */
+/* The readout lines of the slide: its equations with the numbers now on screen, by element id (null hides a line). */
 function lines(M) {
   if (M.house) {
-    const H = M.house, sp = f(S_P, 4), need = 2 * F_60 + H.L / S_P, sum = S.fn[0] + S.fn[1];
-    return { rh1: 'f_sys = (' + sp + ' × ' + f(S.fn[0], 3) + ' + ' + sp + ' × ' + f(S.fn[1], 3) + ' − ' + f(H.L, 1) + ')/(2 × ' + sp + ') = ' + f(H.f, 3) + ' Hz',
-      rh2: 'P_1 = ' + sp + ' × (' + f(S.fn[0], 3) + ' − ' + f(H.f, 3) + ') = ' + f(H.P[0], 2) + ' MW;  P_2 = ' + f(H.P[1], 2) + ' MW;  sum = ' + f(H.P[0] + H.P[1], 2) + ' MW',
-      rh3: S.slide === 2 ? 'f_nl,1 + f_nl,2 = ' + f(sum, 3) + ' Hz (60 Hz needs ' + f(need, 3) + ')' + (Math.abs(H.f - F_60) < AT_60 ? '  ✓ at 60 Hz' : '') : null };
+    const H = M.house, need = 2 * F_60 + H.L / S_P, sum = S.fn[0] + S.fn[1];
+    if (S.slide === 1) return { rh1: 'f_sys = ' + hz(S.fn[0]) + ' − ' + mw(H.P[0]) + '/' + SP_TXT + ' = ' + hz(H.f) + ' Hz',
+      rh2: 'P_1 + P_2 = ' + mw(H.P[0]) + ' + ' + mw(H.P[1]) + ' = ' + mw(H.L) + ' MW', rh3: null };
+    return { rh1: 'f_sys = (' + SP_TXT + ' × ' + hz(S.fn[0]) + ' + ' + SP_TXT + ' × ' + hz(S.fn[1]) + ' − ' + mw(H.L) + ')/(2 × ' + SP_TXT + ') = ' + hz(H.f) + ' Hz',
+      rh2: 'P_1 = ' + SP_TXT + ' × (' + hz(S.fn[0]) + ' − ' + hz(H.f) + ') = ' + mw(H.P[0]) + ' MW;  P_2 = ' + mw(H.P[1]) + ' MW;  sum = ' + mw(H.L) + ' MW',
+      rh3: 'f_nl,1 + f_nl,2 = ' + hz(sum) + ' Hz (60 Hz needs ' + hz(need) + ')' + (hz(sum) === hz(need) ? '  ✓ at 60 Hz' : '') };
   }
   const u = M.pq.u, k = S.kstep || 4;
-  if (S.slide === 3) return { r3a: 'I_L = ' + f(P_LOAD, 1) + ' MW / (3 × ' + V_TXT + ' V × ' + f(PF_LOAD, 2) + ') = ' + polI(M.pq.IL),
-    r3b: k >= 2 ? 'I_A1 = P_1 / (3 × ' + V_TXT + ' V × pf_1) = ' + f(u[0].P, 2) + ' MW / (3 × ' + V_TXT + ' V × ' + f(u[0].pf, 2) + ') = ' + polI(u[0].I) : 'I_A1 = P_1 / (3 × ' + V_TXT + ' V × pf_1)',
+  if (S.slide === 3) return { r3a: 'I_L = ' + mw(P_LOAD) + ' MW / (3 × ' + V_TXT + ' V × ' + f(PF_LOAD, DP.PF) + ') = ' + polI(M.pq.IL),
+    r3b: k >= 2 ? 'I_A1 = ' + mw(u[0].P) + ' MW / (3 × ' + V_TXT + ' V × ' + f(u[0].pf, DP.PF) + ') = ' + polI(u[0].I) : 'I_A1 = P_1 / (3 × ' + V_TXT + ' V × pf_1)',
     r3c: 'I_A2 = I_L − I_A1' + (k >= 3 ? ' = ' + polI(u[1].I) : ''),
     r3d: k >= 4 ? 'E_A1 = ' + V_TXT + ' + I_A1(0.2 + j4.5) = ' + polE(u[0].E) + ';  E_A2 = ' + polE(u[1].E) : 'E_Ak = ' + V_TXT + ' + I_Ak(0.2 + j4.5)' };
-  return { r4a: 'Q_1 + Q_2 = ' + f(u[0].Q, 3) + ' + ' + f(u[1].Q, 3) + ' = ' + f(u[0].Q + u[1].Q, 2) + ' MVAR (the load decides the total)',
-    r4b: '|E_A1| = ' + volts(u[0].E.mag) + ' V (pf_1 ' + pfText(u[0], 3) + ');  |E_A2| = ' + volts(u[1].E.mag) + ' V (pf_2 ' + pfText(u[1], 3) + ')',
-    r4c: 'Heights: E_A1 ' + volts(u[0].E.im) + ' V, E_A2 ' + volts(u[1].E.im) + ' V — set by P, almost unchanged by the fields' };
+  return { r4a: 'Q_1 + Q_2 = ' + f(Q_LOAD, 2) + ' MVAR, set by the load:  Q_1 ≈ ' + mvar(u[0].Q) + ' MVAR,  Q_2 ≈ ' + mvar(u[1].Q) + ' MVAR',
+    r4b: 'I_A1 = ' + polI(u[0].I) + ';  I_A2 = ' + polI(u[1].I),
+    r4c: 'Heights: E_A1 sin δ_1 = ' + volts(u[0].E.im) + ' V,  E_A2 sin δ_2 = ' + volts(u[1].E.im) + ' V  (≈ fixed by P)' };
 }
 let lastTxt = -1e9;
-/* Update the sidebar readouts, the readout lines, the status line and the cues: at most 4 times a second (or at once when forced). */
+/* Update the sidebar readouts, the readout lines, the warning and the cues: at most 4 times a second (or at once when forced). */
 function readouts(force) {
   const now = performance.now();
   if (!force && now - lastTxt < RO_MS) return;
   lastTxt = now;
   const M = model();
   if (S.slide < 5) { const L = lines(M); for (const id in L) { const e = document.getElementById(id); e.hidden = L[id] === null; if (L[id] !== null) putRich(e, L[id]); } }
-  const [txt, kind] = status(M), co = document.getElementById('callout');
-  putRich(co, txt);
-  if (co.className !== kind) co.className = kind;
+  const w = warning(M), wb = document.getElementById('warn'), kind = w && w[1] === 'bad' ? 'bad' : '';
+  putRich(wb, w ? w[0] : '');
+  if (wb.className !== kind) wb.className = kind;
   for (const k in CTL) {
     const c = CTL[k];
     if (c.row.offsetParent === null) continue;
@@ -706,22 +734,22 @@ function readouts(force) {
 }
 
 /* ═══ 11. CONTROLS ═══ */
-const HZT = v => f(v, 3) + ' Hz';
-/* Each slider: what it reads and sets, its range, the slider step, the − / + button step (bstep, default the slider step)
-   and how its value is written. Values are kept on the finer of the two steps. */
+const HZT = v => hz(v) + ' Hz';
+/* Each slider: what it reads and sets, its range, its step (the − / + buttons use the same step) and how its value is written.
+   Every step equals the precision the value is shown with. */
 const CTL = {
-  l1: { get: () => S.L, set: v => { S.L = v; }, min: 3, max: 7, step: 0.1, fmt: v => f(v, 1) + ' MW' },
-  n1: { get: () => S.fn[0], set: v => { S.fn[0] = v; S.last = 0; }, min: 60.5, max: 61.8, step: 0.01, bstep: 0.001, fmt: HZT },
-  n2: { get: () => S.fn[1], set: v => { S.fn[1] = v; S.last = 1; }, min: 60.5, max: 61.8, step: 0.01, bstep: 0.001, fmt: HZT },
-  p3: { get: () => S.p1, set: v => { S.p1 = v; }, min: 2.0, max: 3.5, step: 0.05, fmt: v => f(v, 2) + ' MW' },
-  f3: { get: () => S.pf1, set: v => { S.pf1 = v; }, min: 0.80, max: 1.00, step: 0.01, fmt: v => v > 0.9995 ? 'unity' : f(v, 2) + ' lag' },
-  q4: { get: () => S.q1, set: v => { S.q1 = v; }, min: 0.5, max: 3.25, step: 0.05, fmt: v => f(v, 3) + ' MVAR' }
+  l1: { get: () => S.L, set: v => { S.L = v; }, min: 3, max: 7, step: 0.2, fmt: v => mw(v) + ' MW' },
+  n1: { get: () => S.fn[0], set: v => { S.fn[0] = v; S.last = 0; }, min: 60.5, max: 61.8, step: 0.01, fmt: HZT },
+  n2: { get: () => S.fn[1], set: v => { S.fn[1] = v; S.last = 1; }, min: 60.5, max: 61.8, step: 0.01, fmt: HZT },
+  p3: { get: () => S.p1, set: v => { S.p1 = v; }, min: 2.0, max: 3.5, step: 0.1, fmt: v => mw(v) + ' MW' },
+  f3: { get: () => S.pf1, set: v => { S.pf1 = v; }, min: 0.80, max: 1.00, step: 0.01, fmt: v => v > 0.9995 ? 'unity' : f(v, DP.PF) + ' lag' },
+  q4: { get: () => S.q1, set: v => { S.q1 = v; }, min: 0.5, max: 3.2, step: 0.1, fmt: v => mvar(v) + ' MVAR' }
 };
-/* Set control k to v from the student: kept in range and snapped to the grid of size step. */
-function setCtl(k, v, step) {
+/* Set control k to v from the student: kept in range and snapped to the control's step. */
+function setCtl(k, v) {
   if (S.busy) return;
-  const c = CTL[k], n = Math.round((Math.max(c.min, Math.min(c.max, v)) - c.min) / step);
-  c.set(+(c.min + n * step).toFixed(4));
+  const c = CTL[k], n = Math.round((Math.max(c.min, Math.min(c.max, v)) - c.min) / c.step + ROUND_TIE);
+  c.set(+(c.min + n * c.step).toFixed(4));
   S.moved = true; S.endCue = null;
   readouts(true);
 }
@@ -733,14 +761,14 @@ function holdButton(b, fn) {
   ['pointerup', 'pointerleave', 'pointercancel', 'blur'].forEach(ev => b.addEventListener(ev, stop));
   b.addEventListener('click', e => { if (e.detail === 0) fn(); });
 }
-/* Wire every slider to its entry in CTL: the slider moves on its own step, the buttons on theirs. */
+/* Wire every slider and its − / + buttons to its entry in CTL. */
 document.querySelectorAll('.ctl[data-ctl]').forEach(row => {
-  const k = row.dataset.ctl, c = CTL[k], btn = row.querySelectorAll('button'), bs = c.bstep || c.step;
+  const k = row.dataset.ctl, c = CTL[k], btn = row.querySelectorAll('button');
   c.row = row; c.inp = row.querySelector('input'); c.ro = row.querySelector('.ro');
   c.inp.min = c.min; c.inp.max = c.max; c.inp.step = c.step; c.inp.value = c.get();
-  c.inp.addEventListener('input', () => setCtl(k, +c.inp.value, c.step));
-  holdButton(btn[0], () => setCtl(k, c.get() - bs, bs));
-  holdButton(btn[1], () => setCtl(k, c.get() + bs, bs));
+  c.inp.addEventListener('input', () => setCtl(k, +c.inp.value));
+  holdButton(btn[0], () => setCtl(k, c.get() - c.step));
+  holdButton(btn[1], () => setCtl(k, c.get() + c.step));
 });
 document.getElementById('resetBtn').addEventListener('click', () => goSlide(S.slide));
 document.getElementById('pauseBtn').addEventListener('click', () => { S.paused = !S.paused; syncButtons(); });
@@ -754,10 +782,10 @@ function syncButtons() {
 
 /* ═══ 12. SLIDES AND DEMOS ═══ */
 const NOTES = [
-  'Two identical units feed one load, and there is no infinite bus. Each unit has a droop line: the lower the frequency, the more power it gives. Draw G1\'s line from the left wall and G2\'s mirrored from the right, with the walls one load apart. Where the lines cross, both units run at one frequency and their powers fill the floor exactly. Move the load: the right wall moves, the lines meet lower, and each unit picks up half the change.',
-  'Now the set points. Press the first Show me: only G1\'s set point is raised. Its line slides up, so the crossing moves to the right and up. G1 takes more, G2 takes less, and the frequency rises to 60.01 Hz. One knob moved two things. If we want a particular split at exactly 60 Hz we need both knobs. Press the second Show me: G1 goes up to 61.244 Hz and G2 comes down a little to 60.977 Hz. Now G1 carries 2.8 MW, G2 carries 2.2 MW, and the frequency is 60 Hz. That is how operators move load from one unit to another without disturbing the frequency. The rule underneath: with the load fixed, the frequency is 60 hertz whenever the two set points add up to 122.221 hertz. Raise one and lower the other by the same amount and the split changes while the frequency stays put.',
-  'Here is one phase of the system. The two units meet the load at a single node, so Kirchhoff\'s current law applies there: the two unit currents add to the load current. The load fixes its own current, 867 amps at 36.9 degrees lagging. G1\'s current follows from its power and power factor. G2 has no choice: its current is whatever is left, drawn tip to tail. Each unit then needs its own internal voltage, the terminal voltage plus its own current times its synchronous impedance. Press Show me to build it in order, then move G1\'s power factor and watch G2\'s current and E_A swing.',
-  'The set points have done their work: G1 carries 2.8 MW and G2 carries 2.2 MW, and those do not change on this slide. The reactive power is a separate decision, made by the field currents. The load needs 3.75 MVAR in total. Press Show me. We raise G1\'s field and lower G2\'s together: reactive power moves from G2 to G1, and the terminal voltage stays at 4.16 kV. Look at the phasor diagram: each E_A tip slides along its own dashed line. The height is the power, which the set points fixed; the fields can only slide the tip sideways. The unit that takes more reactive power needs a longer E_A, which is more field current. If we raised only one field the terminal voltage would rise as well; moving both in opposite directions keeps it where it was.',
+  'Two identical units feed one load, and there is no infinite bus, so the units set the frequency and the terminal voltage themselves. The governor set points decide the frequency and how the real power is split. The field currents decide the terminal voltage and how the reactive power is split. Either way the two shares add up to what the load takes. Start with real power. Each unit has a droop line: the lower the frequency, the more power it gives. G1\'s line starts at the left wall and G2\'s, mirrored, at the right, with the walls one load apart. Where the lines cross, both units run at one frequency and their powers fill the floor exactly. Move the load: the right wall moves, the lines meet lower, and each unit picks up half the change. Slide 2 moves the set points; slide 4 moves the fields.',
+  'Now the set points. Press the first Show me: only G1\'s set point is raised. Its line slides up, so the crossing moves to the right and up. G1 takes more, G2 takes less, and the frequency rises to 60.01 Hz. One knob moved two things. If we want a particular split at exactly 60 Hz we need both knobs. Press the second Show me: G1 goes up to 61.24 Hz and G2 comes down a little to 60.98 Hz. Now G1 carries 2.8 MW, G2 carries 2.2 MW, and the frequency is 60 Hz. That is how operators move load from one unit to another without disturbing the frequency. The rule underneath: with the load fixed, the frequency is 60 hertz whenever the two set points add up to 122.22 hertz. Raise one and lower the other by the same amount and the split changes while the frequency stays put.',
+  'Here is the system. The two units meet the load at a single node, so Kirchhoff\'s current law applies there: the two unit currents add to the load current. The load fixes its own current, 867 amps at 36.9 degrees lagging. G1\'s current follows from its power and power factor. G2 has no choice: its current is whatever is left, drawn tip to tail. Each unit then needs its own internal voltage, the terminal voltage plus its own current times its synchronous impedance. Press Show me to build it in order, then move G1\'s power factor and watch G2\'s current and E_A swing.',
+  'The set points have done their work: G1 carries 2.8 MW and G2 carries 2.2 MW, and those do not change on this slide. Reactive power is a separate decision, made by the field currents. The load needs 3.75 MVAR in total. Press Show me: we raise G1\'s field and lower G2\'s together, reactive power moves from G2 to G1, and the terminal voltage stays at 4.16 kV. Each E_A tip slides along its own dashed line, the way its small arrow points, to the faint phasor. A tip\'s height, E_A sin δ, is fixed by that unit\'s power, so the fields can only slide it sideways. The unit that takes more reactive power needs a longer E_A, which is more field current. Raising only one field would raise the terminal voltage as well; moving both in opposite directions keeps it where it was.',
   'Your turn. New numbers: the load is now 5.6 MW at 0.85 lagging, and G1 carries 3.2 MW at 0.95 lagging. Start with the totals: G2\'s real and reactive power are what is left. From those get its power factor and its current, or subtract the current phasors. Then build E_A2 from the terminal voltage and G2\'s own drop. Type the six values and press Check; each box is marked separately.'];
 /* Each slide: the stage view (which instruments it shows). */
 const VIEW = { 1: ['house', 'roh'], 2: ['house', 'roh'], 3: ['ckt', 'cur', 'volt', 'ro3'], 4: ['d4', 'qbar', 'ro4'], 5: ['ckt', 'cur', 'volt', 'turn'] };
@@ -860,7 +888,7 @@ const CUES = {
   1: [['walls', 'The walls: one load apart'], ['cross', 'The crossing: f_sys and the split'], ['floor', 'The floor: P_1 and P_2']],
   2: [['line', 'The moved line'], ['split', 'The split shifts'], ['fsys', 'f_sys and 60 Hz']],
   3: [['il', 'The load current I_L'], ['kcl', 'I_A2 = I_L − I_A1'], ['ea', 'E_A1 and E_A2']],
-  4: [['plines', 'Constant-P lines'], ['tips', 'The tips slide'], ['q', 'The Q split']],
+  4: [['plines', 'The dashed lines: fixed by P'], ['tips', 'The tips slide'], ['q', 'The Q split']],
   5: [['given', 'What is given: I_L and I_A1'], ['turn', 'Your six answers'], ['g2', 'G2\'s current and E_A2']]
 };
 /* The elements each cue highlights (the elements themselves get the class "cue"). */
@@ -868,7 +896,7 @@ const CUE_EL = {
   walls: () => [HS.wall[0], HS.wall[1], HS.span, HS.spanT], cross: () => [HS.dot, HS.fline, HS.fT], floor: () => [HS.seg[0], HS.seg[1], HS.pT[0], HS.pT[1]],
   line: () => [HS.line[S.last], HS.set[S.last], HS.setT[S.last]], split: () => [HS.seg[0], HS.seg[1], HS.pT[0], HS.pT[1]], fsys: () => [HS.fline, HS.dot, HS.fT, HS.sixty],
   il: () => [CP.IL, CP.tL, CP.lg[0], CK.iL], i1: () => [CP.I1, CP.t1, CP.lg[1], CK.i1], kcl: () => [CP.I2, CP.t2, CP.lg[2], CK.i2, CK.node], ea: () => [VP.E[0], VP.E[1], VP.lg[0], VP.lg[1]],
-  plines: () => [D4.pl[0], D4.pl[1], D4.plT[0], D4.plT[1]], tips: () => [D4.E[0], D4.E[1], D4.t[0], D4.t[1]], q: () => [QB.seg[0], QB.seg[1]],
+  plines: () => [D4.pl[0], D4.pl[1], ...D4.plT[0], ...D4.plT[1]], tips: () => [D4.E[0], D4.E[1], D4.t[0], D4.t[1], D4.sl[0], D4.sl[1]], q: () => [QB.seg[0], QB.seg[1]],
   given: () => [CP.IL, CP.I1, CP.lg[0], CP.lg[1]], turn: () => [document.getElementById('itTurn')], g2: () => [CP.I2, CP.lg[2], VP.E[1], VP.lg[1]]
 };
 let cueOn = [];
@@ -878,7 +906,7 @@ function autoCue() {
   if (S.endCue) return S.endCue;
   switch (S.slide) {
     case 1: return S.moved ? 'cross' : 'walls';
-    case 2: return !S.moved ? 'line' : Math.abs(model().house.f - F_60) < AT_60 ? 'fsys' : 'split';
+    case 2: return !S.moved ? 'line' : hz(model().house.f) === hz(F_60) ? 'fsys' : 'split';
     case 3: return S.moved ? 'kcl' : 'il';
     case 4: return S.moved ? 'tips' : 'plines';
     default: return S.solved || S.shown ? 'g2' : S.tried || ANSWERS.some(a => document.activeElement === document.getElementById(a.id)) ? 'turn' : 'given';
