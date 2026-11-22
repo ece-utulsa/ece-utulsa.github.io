@@ -658,6 +658,9 @@ select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(
      polarity-dependent step (1, 2, 4, 6, 8, 10, 12) follows the supply polarity
      (S.pol) and is redrawn when either Reverse button is pressed, so an open step
      never contradicts the RIGHT NOW card, the drawings or the TORQUE readout.
+     rev 1: DEFECT-COM-014 (2026-11-21) — applyTour() resets S.pol to normal before
+     showTour() picks the step text, so a step entered by Start, Next or Back after
+     Reverse shows the normal-polarity text that matches the polarity in force.
    v3.2.1 (2026-11-19): PPR-COM-001 — machine ③ RIGHT NOW card states the
      conductor marks under each pole from the supply polarity (S.pol).
    Conventions (end view, looking along the shaft from the brush end):
@@ -1741,9 +1744,10 @@ function showTour() {
   $('tourNext').textContent = i === TOUR.length - 1 ? 'Finish ✓' : 'Next ▶';
 }
 function applyTour(i) {
-  S.tour = i; showTour(); if (i < 0) return;
+  S.tour = i;
+  if (i >= 0) { S.pol = 1; syncPol(); }   // DEFECT-COM-014: entering a step forces normal polarity BEFORE its text is chosen
+  showTour(); if (i < 0) return;
   const t = TOUR[i];
-  S.pol = 1; syncPol();
   setMode(t.mode, true);
   if (t.follow != null) { S.follow = t.follow; $('follow').value = t.follow; }
   if (t.view) setView(t.view);
