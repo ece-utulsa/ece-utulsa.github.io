@@ -1,0 +1,72 @@
+{
+ "slug": "laplaceL1",
+ "lang": "en",
+ "voice": "en-GB-SoniaNeural",
+ "rate": "-4%",
+ "lines": [
+  {
+   "name": "laplaceL1_line1.mp3",
+   "spoken": "In this lecture we see what the Laplace transform does for circuits, and find three transforms straight from the definition. Then you'll try one yourself."
+  },
+  {
+   "name": "laplaceL1_line2.mp3",
+   "spoken": "A capacitor or an inductor gives us a differential equation."
+  },
+  {
+   "name": "laplaceL1_line3.mp3",
+   "spoken": "The transform turns each derivative into multiplication by s."
+  },
+  {
+   "name": "laplaceL1_line4.mp3",
+   "spoken": "So the differential equation becomes algebra, and the initial condition comes along for free."
+  },
+  {
+   "name": "laplaceL1_line5.mp3",
+   "spoken": "Here is the definition. Multiply f of t by e to the minus s t, and integrate. s is complex: sigma plus j omega."
+  },
+  {
+   "name": "laplaceL1_line6.mp3",
+   "spoken": "We start the integral at zero minus, just before t equals zero. That captures an impulse at t equals zero, and the energy already stored in the circuit."
+  },
+  {
+   "name": "laplaceL1_line7.mp3",
+   "spoken": "First, the unit step. It equals one for positive t, so only the exponential is left."
+  },
+  {
+   "name": "laplaceL1_line8.mp3",
+   "spoken": "Integrate, then evaluate between the two limits."
+  },
+  {
+   "name": "laplaceL1_line9.mp3",
+   "spoken": "At the upper limit the exponential goes to zero, if the real part of s is positive."
+  },
+  {
+   "name": "laplaceL1_line10.mp3",
+   "spoken": "At the lower limit the exponential is one, which leaves one over s."
+  },
+  {
+   "name": "laplaceL1_line11.mp3",
+   "spoken": "Next, e to the minus a t. The two exponents add, to s plus a."
+  },
+  {
+   "name": "laplaceL1_line12.mp3",
+   "spoken": "The same steps give one over s plus a, if the real part of s is greater than minus a."
+  },
+  {
+   "name": "laplaceL1_line13.mp3",
+   "spoken": "Last, the impulse. Zero minus keeps it inside the limits, and it sifts out the exponential at t equals zero."
+  },
+  {
+   "name": "laplaceL1_line14.mp3",
+   "spoken": "e to the zero is one, so the impulse transforms to one."
+  },
+  {
+   "name": "laplaceL1_line15.mp3",
+   "spoken": "Three integrals give three pairs. From here on, we read transforms from the table."
+  },
+  {
+   "name": "laplaceL1_line16.mp3",
+   "spoken": "Your turn. On paper, find the transform of cosine omega t. Hint: use Euler's formula."
+  }
+ ]
+}
