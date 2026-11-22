@@ -51,7 +51,7 @@ const run = async (pg) => {
   if (speak) fails.push('speechSynthesis.speak called ' + speak);
   if (log.some((l) => l.ev === 'csp')) fails.push('CSP violation ' + JSON.stringify(log.filter((l) => l.ev === 'csp')));
   // timeline: start of each clip (s after Start) and its duration; schedule = LEAD 1.0 + sum(dur + GAP 1.2)
-  const GAPK = kind === 'Simple' ? 1.5 : 1.2; let exp = 1.0; const timeline = plays.map((pl, i) => { const d = ended[i] ? ended[i].dur : NaN; const row = { clip: pl.clip, dur: +d.toFixed(3), start: +(pl.t - tStart).toFixed(2), sched: +exp.toFixed(2) }; exp += d + GAPK; return row; });
+  const GAPK = 1.5; let exp = 1.0; const timeline = plays.map((pl, i) => { const d = ended[i] ? ended[i].dur : NaN; const row = { clip: pl.clip, dur: +d.toFixed(3), start: +(pl.t - tStart).toFixed(2), sched: +exp.toFixed(2) }; exp += d + GAPK; return row; });
   const total = exp - GAPK + 3.0; const drift = Math.max(...timeline.map((r) => Math.abs(r.start - r.sched)));
   if (drift > 0.5) fails.push('clip start drift ' + drift.toFixed(2) + ' s');
   // Your turn at the end
@@ -61,11 +61,11 @@ const run = async (pg) => {
   if (!answer) fails.push('Space on Show solution did not show it');
   const replayStill = !!(await p.$('[data-gate="replay"]')); if (!replayStill) fails.push('Space on a button also toggled playback');
   // band controls
-  await p.click(kind === 'Simple' ? '[aria-label="previous line"]' : '[aria-label="previous step"]'); await p.waitForTimeout(100);
-  const stepTxt = await p.textContent('[data-step]'); if (stepTxt !== (kind === 'Simple' ? 'line 26 of 27' : 'step 2 of 3')) fails.push('previous step -> ' + stepTxt);
+  await p.click('[aria-label="previous line"]'); await p.waitForTimeout(100);
+  const stepTxt = await p.textContent('[data-step]'); const mm = /^line (\d+) of (\d+)$/.exec(stepTxt); if (!mm || +mm[1] !== +mm[2] - 1) fails.push('previous line -> ' + stepTxt);
   if (await p.$('[data-card="yourturn"]')) fails.push('card stays over the work zone after a band control');
-  await p.click(kind === 'Simple' ? '[aria-label="next line"]' : '[aria-label="next step"]'); await p.waitForTimeout(100);
-  if ((await p.textContent('[data-step]')) !== (kind === 'Simple' ? 'line 27 of 27' : 'step 3 of 3')) fails.push('next step');
+  await p.click('[aria-label="next line"]'); await p.waitForTimeout(100);
+  const st2 = await p.textContent('[data-step]'); const m2 = /^line (\d+) of (\d+)$/.exec(st2); if (!m2 || m2[1] !== m2[2]) fails.push('next line -> ' + st2);
   let extra = {};
   if (kind !== 'Complex') {
     await p.click('button:has-text("A · residue")'); await p.waitForTimeout(100);
@@ -89,7 +89,7 @@ const run = async (pg) => {
       for (const s of [0.3, 1.7, -0.4]) { const lhs = 60 / ((s + 1) * (s * s + bq * s + cq)), rhs = A / (s + 1) + (B * s + C) / (s * s + bq * s + cq); worst = Math.max(worst, Math.abs(lhs - rhs) / Math.max(1, Math.abs(lhs))); }
       if (bq * bq < 4 * cq) { nC++; const al = val(tape['α']), be = val(tape['β']), A1 = val(tape['A₁']), B1 = val(tape['B₁']);
         worst = Math.max(worst, Math.abs(al - bq / 2), Math.abs(be - Math.sqrt(cq - bq * bq / 4)), Math.abs(A1 - B) , Math.abs((A1 * al + B1 * be) - C) / Math.max(1, Math.abs(C)), Math.abs(A + A1) /* f(0) = 0 */);
-      } else { nR++; if (tape['α'] !== '—') odd.push('b=' + bq + ' c=' + cq + ' shows alpha for real roots'); }
+      } else { nR++; if (tape['\u03b1'] !== '\u2013') odd.push('b=' + bq + ' c=' + cq + ' shows alpha for real roots'); }
     }
     extra = { sweep: { points: 60, complex: nC, real: nR, worstIdentityError: +worst.toExponential(2), odd } };
     if (worst > 5e-3) fails.push('identity error ' + worst);

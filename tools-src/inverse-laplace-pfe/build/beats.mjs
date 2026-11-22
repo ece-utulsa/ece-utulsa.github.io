@@ -1,21 +1,38 @@
 // Screenshot every beat of Simple Poles (test build) and check the focus rules: node beats.mjs <outdir> <w> <h> <dpr>
 import { createRequire } from 'node:module'; import fs from 'node:fs'; import path from 'node:path';
 const require = createRequire(import.meta.url); const { chromium } = require('playwright');
-const [outdir, W = '1366', H = '768', DPR = '1', RM = ''] = process.argv.slice(2);
+const [PG, outdir, W = '1366', H = '768', DPR = '1', RM = ''] = process.argv.slice(2);
+const NAME = { pfe1: 'Simple', pfe2: 'Repeated', pfe3: 'Complex' }[PG];
 fs.mkdirSync(outdir, { recursive: true });
-const file = path.resolve('out_test', fs.readdirSync('out_test').find((f) => /Simple_Poles_v1\.2\.0\.html$/.test(f)));
+const file = path.resolve('out_test', fs.readdirSync('out_test').find((f) => f.includes(NAME + '_Poles_v1.2.0.html')));
 const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: +W, height: +H }, deviceScaleFactor: +DPR, reducedMotion: RM ? 'reduce' : 'no-preference' }); const p = await ctx.newPage();
 const errs = []; p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); p.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message));
 await p.goto('file://' + file); await p.waitForTimeout(900);
 const beats = await p.evaluate(() => window.__PFE_TEST.beats());
 // value -> first beat index at which it may be visible (R4)
 const ix = Object.fromEntries(beats.map((x, i) => [x.id, i]));
-const RULES = [
-  [/(?<![\d(])−5(?![\de])/, ix['A-val'], 'A value'], [/(?<![\d.])20(?![\de])/, ix['B-val'], 'B value'], [/−15(?!e)/, ix['C-val'], 'C value'],
-  [/−5e/, ix.t1, 'term 1'], [/20e/, ix.t2, 'term 2'], [/−15e/, ix.t3, 'term 3'], [/f\(t\) = \(/, ix.ft, 'f(t)'],
-  [/A \+ B \+ C = 0/, ix.eq2, 'equation s2'], [/5A \+ 4B/, ix.eq1, 'equation s1'], [/6A \+ 3B/, ix.eq0, 'equation s0'],
-  [/s²\+5s\+6/, ix.expand, 'expanded identity'], [/A\(s\+2\)\(s\+3\)/, ix.ident, 'identity'],
-];
+const RULESETS = {
+  pfe1: [
+    [/(?<![\d(])−5(?![\de])/, 'A-val', 'A value'], [/(?<![\d.])20(?![\de])/, 'B-val', 'B value'], [/−15(?!e)/, 'C-val', 'C value'],
+    [/−5e/, 't1', 'term 1'], [/20e/, 't2', 'term 2'], [/−15e/, 't3', 'term 3'], [/f\(t\) = \(/, 'ft', 'f(t)'],
+    [/A \+ B \+ C = 0/, 'eq2', 'equation s2'], [/5A \+ 4B/, 'eq1', 'equation s1'], [/6A \+ 3B/, 'eq0', 'equation s0'],
+    [/s²\+5s\+6/, 'expand', 'expanded identity'], [/A\(s\+2\)\(s\+3\)/, 'ident', 'identity'],
+  ],
+  pfe2: [
+    [/= 2(?![.\d])/, 'A-val', 'A value'], [/−1\.5(?!·)/, 'B-val', 'B value'], [/−3\.25(?!e)/, 'C-val', 'C value'], [/2\.25(?!e)/, 'D-val', 'D value'],
+    [/1\.5·t e/, 't2', 'term 2'], [/3\.25e/, 't3', 'term 3'], [/2\.25e/, 't4', 'term 4'], [/f\(t\) = \(/, 'ft', 'f(t)'], [/d\/ds/, 'C-dds', 'derivative'],
+    [/A \+ C \+ D = 1/, 'eq3', 'equation s3'], [/5A \+ B/, 'eq2', 'equation s2'], [/7A \+ 3B/, 'eq1', 'equation s1'], [/3A = 6/, 'eq0', 'equation s0'],
+    [/5s²\+7s/, 'expand', 'expanded identity'], [/A\(s\+1\)²\(s\+3\)/, 'ident', 'identity'], [/\[1 0 1 1/, 'mat4', 'matrix row'],
+  ],
+  pfe3: [
+    [/A = 6|(?<![\d(])6(?=\/\(s\+1\))/, 'A-val', 'A value'], [/B = −6/, 'B-val', 'B value'], [/−18(?!\d)/, 'C-val', 'C value'],
+    [/\(s ?\+ ?2\)²/, 'sq-done', 'completed square'], [/α = (4\/2 = )?2/, 'al-val', 'alpha'], [/β = (√9 = )?3/, 'be-val', 'beta'],
+    [/A₁ = −6/, 'A1-val', 'A1'], [/B₁ = −2/, 'B1-val', 'B1'],
+    [/6e⁻ᵗ/, 't1', 'term 1'], [/cos 3t/, 't2', 'term 2'], [/sin 3t/, 't3', 'term 3'], [/f\(t\) = \(/, 'ft', 'f(t)'],
+    [/A \+ B = 0/, 'eq2', 'equation s2'], [/4A \+ B \+ C/, 'eq1', 'equation s1'], [/13A \+ C/, 'eq0', 'equation s0'], [/60 = A\(/, 'ident', 'identity'],
+  ],
+};
+const RULES = RULESETS[PG].map(([re, id, name]) => [re, ix[id], name]);
 const rows = []; let bad = 0;
 for (let i = 0; i < beats.length; i++) {
   for (const [tag, dt] of [['a', 0.05], ['b', 0.75]]) {

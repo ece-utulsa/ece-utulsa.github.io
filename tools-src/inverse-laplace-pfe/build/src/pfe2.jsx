@@ -4,14 +4,12 @@
      2  WORKED EXAMPLE        F(s) = (s³+2s+6)/(s(s+1)²(s+3)), sympy-verified by Director
      3  YOUR TURN             F(s) = (s+3)/(s(s+1)²), spec v1.1.0 key
      4  LANGUAGE PACK         narration text, captions, UI strings
-     5  PANELS                WorkZone, Tape, FtZone, BottomBand
-     6  TOUR                  narration line -> what is shown
+     5  BEATS                 one line of math at a time (focus rules R1–R7, briefing addendum 2)
+     6  PANELS                WorkZone, Tape, FtZone, BottomBand
      7  SCENE                 */
 
 /* ═══ 1 CONSTANTS + COLOUR ROLES ══════════════════════════════════════════ */
-const ALL4 = ['A', 'B', 'C', 'D'];   // the four coefficients
-const EASY3 = ['A', 'B', 'D'];       // found by plain cover-up
-const DETAIL_MAX = 4;      // work-zone rows revealed in full
+const LINE_HOLD = 1.5;     // s: pause after each clip before the next line replaces it (focus rule R6)
 const TAPE_H = 140;        // px: coefficient tape height
 const C_FS = TEAL;         // F(s) and the expansion form
 const C_K = AMBER;         // coefficients A, B, C, D
@@ -101,6 +99,7 @@ const YT = {
 // `durs` are fallbacks (s); the schedule re-measures every embedded clip at load.
 const LANG = {
   code: 'en-GB',
+  gap: LINE_HOLD,
   clips: Array.from({ length: 16 }, (_, i) => 'pfe2_line' + (i + 1) + '.mp3'),
   durs: [17.16, 16.536, 7.584, 12.24, 13.656, 12.648, 7.416, 9.0, 7.752, 9.072, 10.704, 15.048, 11.64, 7.896, 11.544, 15.6],
   text: [
@@ -183,7 +182,7 @@ const LANG = {
       'the simple poles and the top power come free',
       'cover-up fails on the lower power — it blows up',
       'differentiate once, then evaluate at the pole',
-      'a quotient rule, and C lands at −3.25',
+      'a quotient rule, then evaluate at the pole',
       'clear the denominator — no fractions left',
       'four powers → four equations',
       'a 4×4 instead of a derivative',
@@ -200,226 +199,250 @@ const LANG = {
   },
 };
 
-/* ═══ 5 PANELS ════════════════════════════════════════════════════════════ */
-// WorkZone: the worked example, by residue with the derivative (method 0) or by algebra (method 1)
-function WorkZone({ ui, method, showForm, detail }) {
+/* ═══ 5 BEATS — one line of math at a time (focus rules R1–R7) ═══════════════ */
+// Each beat is one thing the voice says. `line` is the narration line (1-based), `from` the fraction of
+// that clip at which the beat starts (estimated from the script; the clips are not shortened or moved).
+//   rail    skeleton step: 0 form, 1 residue + d/ds, 2 algebra, 3 invert
+//   method  0 residue, 1 algebra
+//   cover   index of the covered factor of F(s) [s, (s+1)², (s+3)], or -1
+//   land    coefficient that lands in the tape on this beat, or ''
+//   power   power of s being matched (3..0) or -1;  mrows: matrix rows built so far
+//   terms   f(t) terms spoken so far;  ft: the whole f(t) has been spoken
+const P_COLOR = [POW0, POW1, POW2, POW3];           // colour of s⁰ … s³ (index = power)
+const FACTORS = ['s', '(s+1)²', '(s+3)'];      // denominator factors of F(s)
+const BEATS = [
+  { id: 'intro', line: 1, from: 0.27, rail: 0, method: 0, cap: 'F(s) = (s³+2s+6)/(s(s+1)²(s+3)) — the factor (s+1) appears twice' },
+  { id: 'proper', line: 1, from: 0.34, rail: 0, method: 0, cap: 'proper: degree 3 over degree 4' },
+  { id: 'form', line: 2, from: 0, rail: 0, method: 0, cap: 'STEP 1 one term for every power of the repeated factor' },
+  { id: 'two', line: 3, from: 0, rail: 1, method: 0, cap: 'STEP 2 the same two ways: residue · algebra' },
+  { id: 'A-cover', line: 4, from: 0, rail: 1, method: 0, cover: 0, cap: 'Residue: cover the factor, set s to the pole' },
+  { id: 'A-val', line: 4, from: 0.6, rail: 1, method: 0, cover: 0, land: 'A', cap: 'A = 2' },
+  { id: 'B-val', line: 4, from: 0.73, rail: 1, method: 0, cover: 1, land: 'B', cap: 'B = −1.5' },
+  { id: 'D-val', line: 4, from: 0.88, rail: 1, method: 0, cover: 2, land: 'D', cap: 'D = 2.25' },
+  { id: 'catch', line: 5, from: 0, rail: 1, method: 0, cap: 'THE CATCH: C cannot come from cover-up — it blows up at s = −1' },
+  { id: 'diff', line: 5, from: 0.72, rail: 1, method: 0, cap: 'for the lower powers, differentiate first' },
+  { id: 'C-cover', line: 6, from: 0.08, rail: 1, method: 0, cover: 1, cap: 'multiply F by the repeated factor squared …' },
+  { id: 'C-dds', line: 6, from: 0.36, rail: 1, method: 0, cover: 1, cap: '… differentiate once with respect to s …' },
+  { id: 'C-at', line: 6, from: 0.55, rail: 1, method: 0, cover: 1, cap: '… then evaluate at the pole, s = −1' },
+  { id: 'C-quot', line: 7, from: 0, rail: 1, method: 0, cover: 1, cap: 'the derivative, by the quotient rule' },
+  { id: 'C-eval', line: 7, from: 0.5, rail: 1, method: 0, cover: 1, cap: 'evaluate at s = −1' },
+  { id: 'C-val', line: 7, from: 0.8, rail: 1, method: 0, cover: 1, land: 'C', cap: 'C = −3.25' },
+  { id: 'ident', line: 8, from: 0, rail: 2, method: 1, cap: 'Algebra: multiply both sides by the whole denominator' },
+  { id: 'expand', line: 9, from: 0, rail: 2, method: 1, cap: 'Match powers on both sides' },
+  { id: 'eq3', line: 9, from: 0.3, rail: 2, method: 1, power: 3, cap: 'match the s³ terms' },
+  { id: 'eq2', line: 9, from: 0.42, rail: 2, method: 1, power: 2, cap: 'match the s² terms' },
+  { id: 'eq1', line: 9, from: 0.52, rail: 2, method: 1, power: 1, cap: 'match the s terms' },
+  { id: 'eq0', line: 9, from: 0.62, rail: 2, method: 1, power: 0, cap: 'match the constants — four equations, four unknowns' },
+  { id: 'mat1', line: 10, from: 0, rail: 2, method: 1, mrows: 1, cap: 'Stack them as a matrix …' },
+  { id: 'mat2', line: 10, from: 0.2, rail: 2, method: 1, mrows: 2, cap: '… the four-by-four coefficient matrix …' },
+  { id: 'mat3', line: 10, from: 0.45, rail: 2, method: 1, mrows: 3, cap: '… times the column A, B, C, D …' },
+  { id: 'mat4', line: 10, from: 0.7, rail: 2, method: 1, mrows: 4, cap: '… equals the right-hand-side column' },
+  { id: 'solved', line: 11, from: 0, rail: 2, method: 1, cap: 'Solve → the same four numbers' },
+  { id: 'noderiv', line: 11, from: 0.4, rail: 2, method: 1, cap: 'the algebra route never needed a derivative' },
+  { id: 'pair1', line: 12, from: 0.1, rail: 3, method: 1, cap: 'STEP 3 simple terms: K/(s+p) ⟺ K·e⁻ᵖᵗ' },
+  { id: 'pair2', line: 12, from: 0.45, rail: 3, method: 1, cap: 'the repeated factor: B/(s+1)² ⟺ B·t e⁻ᵗ' },
+  { id: 't1', line: 13, from: 0.12, rail: 3, method: 1, terms: 1, cap: '2/s ⟺ 2' },
+  { id: 't2', line: 13, from: 0.3, rail: 3, method: 1, terms: 2, cap: '−1.5/(s+1)² ⟺ −1.5·t e⁻ᵗ' },
+  { id: 't3', line: 13, from: 0.55, rail: 3, method: 1, terms: 3, cap: '−3.25/(s+1) ⟺ −3.25e⁻ᵗ' },
+  { id: 't4', line: 13, from: 0.78, rail: 3, method: 1, terms: 4, cap: '2.25/(s+3) ⟺ 2.25e⁻³ᵗ' },
+  { id: 'ft', line: 14, from: 0, rail: 3, method: 1, terms: 4, ft: true, through: true, cap: 't·e⁻ᵖᵗ = repeated-pole fingerprint = the critically damped shape' },
+  { id: 'trade', line: 15, from: 0, rail: 3, method: 1, terms: 4, ft: true, through: true, cap: 'residue → a derivative per lower power · algebra → a larger matrix' },
+  { id: 'yt', line: 16, from: 0, rail: 3, method: 1, terms: 4, ft: true, through: true, cap: 'Your turn — on paper: expand F(s) = (s+3)/(s(s+1)²), invert, then press Show solution.' },
+];
+const IX = Object.fromEntries(BEATS.map((b, i) => [b.id, i]));
+const LAST = IX.trade;                                                // last derivation line (the Your-turn line is not one)
+const LAND_AT = { A: IX['A-val'], B: IX['B-val'], C: IX['C-val'], D: IX['D-val'] };   // beat at which each coefficient is first spoken
+const FIRST_OF_METHOD = [IX['A-cover'], IX.ident];                    // where each method's derivation starts
+const VAL = { A: '2', B: '−1.5', C: '−3.25', D: '2.25' };
+
+// start time (s) of beat i on the measured timeline
+const beatStart = (TL, i) => TL.L[BEATS[i].line - 1] + BEATS[i].from * TL.durs[BEATS[i].line - 1];
+// beat on screen at `time` (-1 before the first beat)
+function beatAt(TL, time) {
+  let k = -1;
+  for (let i = 0; i < BEATS.length; i++) if (time >= beatStart(TL, i)) k = i;
+  return k;
+}
+// coefficients the voice has given by beat i
+const foundAt = (i) => ['A', 'B', 'C', 'D'].filter((k) => i >= LAND_AT[k]);
+
+/* ═══ 6 PANELS ════════════════════════════════════════════════════════════ */
+// identity with each bracket expanded; [text, power] tokens can be highlighted by power (focus rule R3)
+const EXPANDED = [['s³', 3], '+', ['2s', 1], '+', ['6', 0], ' = A(', ['s³', 3], '+', ['5s²', 2], '+', ['7s', 1], '+', ['3', 0], ') + B(', ['s²', 2], '+', ['3s', 1],
+  ') + C(', ['s³', 3], '+', ['4s²', 2], '+', ['3s', 1], ') + D(', ['s³', 3], '+', ['2s²', 2], '+', ['s', 1], ')'];
+const SURVIVOR = '(s³+2s+6) / (s(s+3))';       // (s+1)²·F(s)
+const SOLVED = 'A = 2, B = \u22121.5, C = \u22123.25, D = 2.25';   // compact form for the finished rows
+const MINUS1 = '−1';
+
+// focus content for beat b: the one line the voice is speaking
+function focusOf(b) {
+  const at = (v) => <KAt v={v} color={C_A} />;
+  const prose = (t, color) => <span style={{ fontFamily: HEAD, color: color || INK }}>{t}</span>;
+  switch (b.id) {
+    case 'intro': return <span>{'F(s) = (s³+2s+6) / (s(s+1)²(s+3))'}</span>;
+    case 'proper': return prose('proper: degree 3 over degree 4');
+    case 'form': return <Eq text={'F(s) = ' + EX.form} />;
+    case 'two': return prose('Find A, B, C, D two ways: residue, then algebra');
+    case 'A-cover': return <span><KUnk k="A" />{' = s·F(s) | s = '}{at('0')}</span>;
+    case 'A-val': return <span><KUnk k="A" />{' = s·F(s) | s = '}{at('0')}<KValue k="A" text={VAL.A} /></span>;
+    case 'B-val': return <span><KUnk k="B" />{' = (s+1)²F(s) | s = '}{at(MINUS1)}<KValue k="B" text={VAL.B} /></span>;
+    case 'D-val': return <span><KUnk k="D" />{' = (s+3)F(s) | s = '}{at('−3')}<KValue k="D" text={VAL.D} /></span>;
+    case 'catch': return <span style={{ color: C_D }}><KUnk k="C" />{'/(s+1): cover-up blows up at s = −1'}</span>;
+    case 'diff': return prose('lower power → differentiate first', C_D);
+    case 'C-cover': return <span>{'(s+1)²F(s) = ' + SURVIVOR}</span>;
+    case 'C-dds': return <span><KUnk k="C" />{' = d/ds [ ' + SURVIVOR + ' ]'}</span>;
+    case 'C-at': return <span><KUnk k="C" />{' = d/ds[' + SURVIVOR.replace(/ /g, '') + '] | s = '}{at(MINUS1)}</span>;
+    case 'C-quot': return <span><KUnk k="C" />{' = [(3s²+2)(s²+3s) − (s³+2s+6)(2s+3)]'}<br />{'  / (s²+3s)² | s = '}{at(MINUS1)}</span>;
+    case 'C-eval': return <span><KUnk k="C" />{' = [(5)(−2) − (3)(1)] / (−2)²'}</span>;
+    case 'C-val': return <span><KUnk k="C" />{' = [(5)(−2) − (3)(1)] / (−2)²'}<KValue k="C" text={VAL.C} /></span>;
+    case 'ident': return <span><Eq text={'s³+2s+6 = A(s+1)²(s+3) + Bs(s+3)'} /><br /><Eq text={'  + Cs(s+1)(s+3) + Ds(s+1)²'} /></span>;
+    case 'expand': return <span><KPower tokens={EXPANDED.slice(0, 17).concat([')'])} power={-1} colors={P_COLOR} /><br />{'\u2003\u2003'}<KPower tokens={['+ C('].concat(EXPANDED.slice(18))} power={-1} colors={P_COLOR} /></span>;
+    case 'eq3': case 'eq2': case 'eq1': case 'eq0': {
+      const row = EX.system[3 - b.power];
+      return <span style={{ color: P_COLOR[b.power], fontWeight: 600 }}>{row[0] + ': '}<Eq text={row[1]} /></span>;
+    }
+    case 'mat1': case 'mat2': case 'mat3': case 'mat4':
+      return <KMatrix rows={EX.matrix.rows} unk={EX.matrix.unk} rhs={EX.matrix.rhs} tags={EX.matrix.tags} shown={b.mrows} colors={[POW3, POW2, POW1, POW0]} rowH={30} />;
+    case 'solved': return <span style={{ color: AMBER, fontWeight: 600 }}>{'A = 2, B = −1.5, C = −3.25, D = 2.25'}</span>;
+    case 'noderiv': return prose(EX.noDeriv, C_B);
+    case 'pair1': return <span>{'K/(s+p) ⟺ K·e⁻ᵖᵗ'}</span>;
+    case 'pair2': return <span><KUnk k="B" />{'/(s+1)² ⟺ '}<KUnk k="B" /><span style={{ color: C_D, fontWeight: 600 }}>{'·t e⁻ᵗ'}</span></span>;
+    case 't1': case 't2': case 't3': case 't4': {
+      const t = EX.terms[b.terms - 1];
+      return <span><span style={{ color: C_FS }}>{t[0]}</span>{' ⟺ '}<span style={{ color: t[2] ? C_D : C_FT, fontWeight: 600 }}>{t[1]}</span></span>;
+    }
+    case 'trade': return prose('residue: a derivative per lower power · algebra: a larger matrix');
+    default: return <span style={{ color: C_FT, fontWeight: 600 }}>{'f(t) = ( 2 − 1.5·t e⁻ᵗ − 3.25e⁻ᵗ'}<br />{'  + 2.25e⁻³ᵗ ) u(t)'}</span>;
+  }
+}
+
+// finished lines for beat index i: one compact row each, oldest first (focus rule R1)
+function doneRows(i) {
+  const rows = [], add = (key, node, color, size) => rows.push({ key, node, color, size });
+  if (i > IX.form) add('form', <Eq text={'F(s) = ' + EX.form} />);
+  if (i < IX.ident) {
+    if (i > IX['A-val']) add('rA', <Eq text={'A = s·F(s)|s=0 = 2'} />);
+    if (i > IX['B-val']) add('rB', <Eq text={'B = (s+1)²F(s)|s=−1 = −1.5'} />);
+    if (i > IX['D-val']) add('rD', <Eq text={'D = (s+3)F(s)|s=−3 = 2.25'} />);
+    if (i > IX.diff && i <= IX['C-val']) add('catch', <Eq text={'C: cover-up fails at s = −1 → differentiate first'} />, C_D);
+    if (i > IX['C-cover'] && i <= IX['C-val']) add('surv', <span>{'(s+1)²F(s) = ' + SURVIVOR}</span>);
+    if (i > IX['C-at'] && i <= IX['C-val']) add('dds', <Eq text={'C = d/ds[(s+1)²F(s)] |s=−1'} />);
+    if (i > IX['C-val']) add('rC', <Eq text={'C = d/ds[(s+1)²F(s)]|s=−1 = −3.25 (one derivative)'} />);
+  } else {
+    add('res', <span>{'by residue (one d/ds):\u2002'}<Eq text={SOLVED} /></span>);
+    if (i < IX.pair1) {
+      if (i > IX.ident) add('ident', <Eq text={EX.identity} />, null, 15);
+      if (i > IX.expand && i <= IX.eq0) add('expand', <KPower tokens={EXPANDED} power={BEATS[i].power} colors={P_COLOR} />, null, 15);
+      [3, 2, 1, 0].forEach((pw) => { if (i > IX['eq' + pw]) add('eq' + pw, <span>{EX.system[3 - pw][0] + ': '}<Eq text={EX.system[3 - pw][1]} /></span>, P_COLOR[pw]); });
+      if (i > IX.mat4) add('matrix', <Eq text={'[1 0 1 1; 5 1 4 2; 7 3 3 1; 3 0 0 0]·[A; B; C; D] = [1; 0; 2; 6]'} />, null, 15);
+      if (i > IX.solved) add('solved', <Eq text={'solve \u2192 ' + SOLVED} />);
+    } else {
+      add('alg', <span>{'by algebra (no d/ds):\u2002'}<Eq text={SOLVED} /></span>);
+      if (i > IX.pair1) add('pair1', <span>{'K/(s+p) ⟺ K·e⁻ᵖᵗ'}</span>);
+      if (i > IX.pair2) add('pair2', <span>{'K/(s+p)² ⟺ K·t e⁻ᵖᵗ'}</span>, C_D);
+      EX.terms.forEach((t, j) => { if (i > IX['t' + (j + 1)]) add('t' + j, <span>{t[0] + ' ⟺ ' + t[1]}</span>); });
+      if (i > IX.ft) add('ftrow', <span>{'f(t) = ' + EX.ft}</span>, C_FT, 15);
+    }
+  }
+  return rows;
+}
+
+// WorkZone: F(s) (with the cover), the finished lines, and the one focus line
+function WorkZone({ ui, bi }) {
   const time = useTime(); const TL = useTL();
-  const on = clamp((time - TL.FS_ON) / 0.6, 0, 1);
-  if (on <= 0.01) return null;
-  const tint = method === 0 ? C_A : C_B;
+  if (bi < 0) return null;
+  const b = BEATS[bi], tint = b.method === 0 ? C_A : C_B;
+  const cover = b.cover != null ? b.cover : -1;
+  const bar = b.rail === 0 ? C_FS : b.rail === 3 ? C_FT : (b.id === 'catch' || b.id === 'diff') ? C_D : tint;
   return (
-    <div data-gate="work" style={panel({ left: WORK_X, top: PANEL_TOP, width: WORK_W, height: PANEL_H, opacity: on,
-      display: 'flex', flexDirection: 'column', gap: 7 })}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        {zoneHead(ui.workHead, ACCENT)}
-        <span style={{ fontFamily: MONO, fontSize: FS_MIN, fontWeight: 600, letterSpacing: '0.06em', color: tint,
-          border: `1px solid ${tint}`, borderRadius: 4, padding: '1px 7px' }}>{ui.methodLong[method]}</span>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontFamily: MONO, fontSize: 19, color: MUTE }}>F(s) =</span>
-        <Frac num={EX.Fnum} den={EX.Fden} size={19} color={C_FS} />
-      </div>
-
-      <div className={up(showForm)} style={{ borderTop: `1px solid ${LINE}`, paddingTop: 5 }}>
-        {smallLabel(ui.formLabel)}
-        <div style={{ fontFamily: MONO, fontSize: 15.5, fontWeight: 600, color: C_FS, marginTop: 2 }}><Eq text={'F(s) = ' + EX.form} /></div>
-      </div>
-
-      <div className={up(detail > 0)} style={{ borderTop: `1px solid ${LINE}`, paddingTop: 6, flex: 1, minHeight: 0,
-        display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ fontFamily: MONO, fontSize: FS_MIN, color: tint, textWrap: 'pretty', lineHeight: 1.3 }}>
-          {method === 0 ? EX.ruleA : EX.ruleB}
-        </div>
-
-        {method === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div className={up(detail >= 1)} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {smallLabel(ui.easyLabel)}
-              {EX.easy.map((r) => (
-                <div key={r.k} style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-                  <span data-unk="1" style={{ fontFamily: MONO, fontSize: 14, fontWeight: 600, color: C_K, width: 16, flexShrink: 0 }}>{r.k}</span>
-                  <span style={{ fontFamily: MONO, fontSize: FS_MIN, color: MUTE, width: 176, flexShrink: 0, whiteSpace: 'nowrap' }}>{r.expr}</span>
-                  <span style={{ fontFamily: MONO, fontSize: 14, fontWeight: 600, color: C_K, whiteSpace: 'nowrap' }}>= {r.val}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className={up(detail >= 2)} style={{ border: `1px solid ${C_D}`, borderRadius: 8, padding: '5px 10px',
-              background: detail >= 2 ? 'rgba(0,0,0,0.02)' : 'transparent', display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontFamily: MONO, fontSize: FS_MIN, fontWeight: 600, letterSpacing: '0.06em', color: C_D }}>{ui.catchLabel}</span>
-              <div style={{ fontFamily: MONO, fontSize: FS_MIN, color: C_D, whiteSpace: 'nowrap' }}><Eq text={EX.warn} /></div>
-              <div className={up(detail >= 3)} style={{ fontFamily: MONO, fontSize: FS_MIN, color: INK, whiteSpace: 'nowrap' }}>{EX.derivRule}</div>
-              <div className={up(detail >= 3)} style={{ fontFamily: MONO, fontSize: FS_MIN, color: MUTE, whiteSpace: 'nowrap' }}><Eq text={EX.derivHere} /></div>
-              <div className={up(detail >= DETAIL_MAX)} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontFamily: MONO, fontSize: 15, fontWeight: 600, color: C_K }}>C = {EX.derivVal}</span>
-                <span style={{ fontFamily: HEAD, fontSize: FS_MIN, color: C_D }}>one derivative per step down in power</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <div className={up(detail >= 1)} style={{ fontFamily: MONO, fontSize: FS_MIN, color: INK, whiteSpace: 'nowrap' }}><Eq text={EX.identity} /></div>
-            <div style={{ display: 'flex', gap: 16 }}>
-              <div className={up(detail >= 2)} style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {EX.system.map((row) => (
-                  <div key={row[0]} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                    <span style={{ fontFamily: MONO, fontSize: FS_MIN, color: MUTE, width: 20, flexShrink: 0 }}>{row[0]}</span>
-                    <span style={{ fontFamily: MONO, fontSize: 13.5, color: tint, whiteSpace: 'nowrap' }}><Eq text={row[1]} /></span>
-                  </div>
-                ))}
-              </div>
-              <div className={up(detail >= 3)} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4,
-                borderLeft: `1px solid ${LINE}`, paddingLeft: 16 }}>
-                {smallLabel(ui.matrixLabel)}
-                <Matrix rows={EX.matrix.rows} unk={EX.matrix.unk} rhs={EX.matrix.rhs} tags={EX.matrix.tags} tint={tint} />
-              </div>
-            </div>
-            <div className={up(detail >= DETAIL_MAX)} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 600, color: C_K }}>{'→  ' + EX.solved}</div>
-              <div style={{ fontFamily: HEAD, fontSize: FS_MIN, color: tint }}>{EX.noDeriv}</div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    <KWork head={ui.workHead} badge={b.rail >= 1 && b.rail <= 2 ? ui.methodLong[b.method] : ''} badgeColor={tint}
+      fs={<KFs num={EX.Fnum} factors={FACTORS} cover={cover} coverNote={cover >= 0 ? '← cover the factor ' + FACTORS[cover] : ''} />}
+      rows={doneRows(bi)} focusId={b.id} bar={bar} opacity={bi >= 1 ? 1 : clamp((time - beatStart(TL, 0)) / 0.6, 0, 1)}>
+      {focusOf(b)}
+    </KWork>
   );
 }
 
-// Tape: the coefficients found so far; C is marked d/ds when it came from the derivative
-function Tape({ ui, method, found }) {
-  const time = useTime(); const TL = useTL();
-  const on = clamp((time - TL.L[1]) / 0.6, 0, 1);
-  if (on <= 0.01) return null;
-  const tint = method === 0 ? C_A : C_B;
+// Tape: a slot reads "?" until the voice has said its value (R4); C is marked d/ds when it came from the derivative
+function Tape({ ui, bi, reduced }) {
+  if (bi < IX.form) return null;
+  const b = BEATS[bi], found = foundAt(bi), tint = b.method === 0 ? C_A : C_B;
   return (
-    <div data-gate="tape" style={panel({ left: SIDE_X, top: PANEL_TOP, width: SIDE_W, height: TAPE_H, opacity: on,
+    <div data-gate="tape" style={panel({ left: SIDE_X, top: PANEL_TOP, width: SIDE_W, height: TAPE_H,
       display: 'flex', flexDirection: 'column', gap: 6 })}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {zoneHead(ui.tapeHead, C_K)}
-        <span style={{ fontFamily: MONO, fontSize: FS_MIN, color: tint }}>{ui.methodTag[method]}</span>
+        <span style={{ fontFamily: MONO, fontSize: FS_MIN, color: tint }}>{b.rail >= 1 ? ui.methodTag[b.method] : ''}</span>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         {EX.coeffs.map((r) => {
-          const got = found.indexOf(r.k) >= 0;
-          const mark = got && r.deriv && method === 0;
-          return (
-            <div key={r.k} style={{ flex: 1, border: `1px solid ${mark ? C_D : got ? C_K : LINE}`, borderRadius: 8,
-              padding: '4px 4px', textAlign: 'center', background: got ? 'rgba(0,0,0,0.02)' : 'transparent' }}>
-              <div data-unk="1" style={{ fontFamily: MONO, fontSize: FS_MIN, color: C_K, fontWeight: 600, lineHeight: 1.2 }}>{r.k}</div>
-              <div data-tape={r.k} style={{ fontFamily: MONO, fontSize: 19, fontWeight: 600, color: got ? INK : UPCOMING,
-                fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>{got ? r.val : '—'}</div>
-              <div style={{ fontFamily: MONO, fontSize: FS_MIN, color: mark ? C_D : MUTE, lineHeight: 1.2 }}>{mark ? ui.derivBadge : r.pole}</div>
-            </div>
-          );
+          const got = found.indexOf(r.k) >= 0, mark = got && r.deriv && b.method === 0;
+          return <KSlot key={r.k} k={r.k} value={r.val} sub={mark ? ui.derivBadge : r.pole} subColor={mark ? C_D : MUTE}
+            got={got} landing={b.land === r.k || b.id === 'solved'} reduced={reduced} tint={C_K} />;
         })}
       </div>
-      <div style={{ fontFamily: HEAD, fontSize: FS_MIN, color: found.length >= ALL4.length ? tint : UPCOMING, textAlign: 'center' }}>
-        {found.length >= ALL4.length ? ui.sameNote : '…'}
-      </div>
+      <div style={{ fontFamily: HEAD, fontSize: FS_MIN, color: tint, textAlign: 'center', minHeight: 17 }}>{bi >= IX.solved ? ui.sameNote : ''}</div>
     </div>
   );
 }
 
-// FtZone: transform pairs, f(t) and its plot — for the worked example, or for the Your-turn solution when shown
-function FtZone({ ui, showPairs, showFt, yourTurn }) {
-  const time = useTime(); const TL = useTL();
-  const on = clamp((time - TL.L[1] - 0.2) / 0.6, 0, 1);
-  if (on <= 0.01) return null;
-  const src = yourTurn ? YT : EX;
+// FtZone: a term appears when the voice says it; f(t) and its curve once the whole of f(t) has been spoken (R4).
+// When the Your-turn solution is shown the panel holds that solution instead.
+function FtZone({ ui, bi, yourTurn }) {
+  if (bi < IX.form) return null;
+  const b = BEATS[bi], src = yourTurn ? YT : EX;
+  const nTerms = yourTurn ? YT.terms.length : (b.terms || 0), showFt = yourTurn || !!b.ft;
   const top = PANEL_TOP + TAPE_H + 10, h = PANEL_H - TAPE_H - 10;
   return (
-    <div data-gate="ft" data-ft-source={yourTurn ? 'yourturn' : 'example'} style={panel({ left: SIDE_X, top, width: SIDE_W, height: h, opacity: on,
+    <div data-gate="ft" data-ft-source={yourTurn ? 'yourturn' : 'example'} style={panel({ left: SIDE_X, top, width: SIDE_W, height: h,
       display: 'flex', flexDirection: 'column', gap: 5 })}>
       {zoneHead(yourTurn ? ui.ftHeadYT : ui.ftHead, yourTurn ? ACCENT : C_FT)}
-      <div className={up(showPairs)} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-        {src.terms.map((t) => (
-          <div key={t[0]} style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontFamily: MONO, fontSize: FS_MIN, lineHeight: '18px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: 4 * 18 }}>
+        {src.terms.slice(0, nTerms).map((t) => (
+          <div key={t[0]} data-term="1" style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontFamily: MONO, fontSize: FS_MIN, lineHeight: '18px' }}>
             <span style={{ color: C_FS, width: 112, flexShrink: 0, textAlign: 'right' }}>{t[0]}</span>
             <span style={{ color: MUTE }}>{'⟺'}</span>
             <span style={{ color: t[2] ? C_D : C_FT, fontWeight: 600 }}>{t[1]}</span>
           </div>
         ))}
       </div>
-      <div data-ft-text="1" style={{ fontFamily: MONO, fontSize: FS_MIN, fontWeight: 600, color: showFt ? C_FT : UPCOMING, lineHeight: 1.35 }}>
-        {showFt ? 'f(t) = ' + src.ft : 'f(t) = —'}
+      <div data-ft-text="1" style={{ fontFamily: MONO, fontSize: FS_MIN, fontWeight: 600, color: C_FT, lineHeight: '18px', minHeight: 36 }}>
+        {showFt ? 'f(t) = ' + src.ft : ''}
       </div>
-      <FtPlot f={src.f} tmax={src.tmax} width={SIDE_W - 26} height={h - 20 - 20 - src.terms.length * 18 - 54} shown={showFt} color={C_FT} />
+      <FtPlot f={src.f} tmax={src.tmax} width={SIDE_W - 26} height={h - 20 - 20 - 4 * 18 - 36 - 18} shown={showFt} color={C_FT} />
     </div>
   );
 }
 
-// BottomBand: method toggle, step-back / step-forward, and the through-line (spec V5: no second step rail)
-function BottomBand({ ui, step, method, setStep, setMethod, explore, onGrab, note, showThrough, yt }) {
-  const go = (n) => { onGrab(); setStep(n); };
+// BottomBand: method buttons, one-line-back / one-line-forward, and the through-line
+function BottomBand({ ui, bi, goBeat, explore, note, yt }) {
+  const b = BEATS[Math.max(0, bi)], inMethod = b.rail >= 1 && b.rail <= 2;
   return (
     <div data-gate="band" style={panel({ left: RAIL_X, top: BAND_TOP, width: STAGE_W - 2 * RAIL_X, height: BAND_H,
       display: 'flex', gap: 18, padding: '9px 16px', alignItems: 'stretch' })}>
       <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {zoneHead(ui.methodHead)}
-          <span data-mode="1" style={{ fontFamily: MONO, fontSize: FS_MIN, fontWeight: 600, letterSpacing: '0.06em',
-            color: explore ? ACCENT : MUTE, border: `1px solid ${explore ? ACCENT : MUTE}`, borderRadius: 4, padding: '0 6px' }}>
-            {explore ? ui.exploreTag : ui.tourTag}
-          </span>
+          {zoneHead(ui.methodHead)}<KMode explore={explore} ui={ui} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {ui.methodBtn.map((mt, i) => (
-            <button key={mt} type="button" aria-pressed={method === i} onClick={() => { onGrab(); setMethod(i); setStep(Math.max(2, step)); }}
-              style={Object.assign(btnStyle(method === i, i === 0 ? C_A : C_B), { flex: 1, fontSize: 14, padding: '6px 10px' })}>{mt}</button>
+            <button key={mt} type="button" aria-pressed={inMethod && b.method === i} onClick={() => goBeat(FIRST_OF_METHOD[i])}
+              style={Object.assign(btnStyle(inMethod && b.method === i, i === 0 ? C_A : C_B), { flex: 1, fontSize: 14, padding: '6px 10px' })}>{mt}</button>
           ))}
         </div>
-        <div style={{ fontFamily: MONO, fontSize: FS_MIN, color: method === 0 ? C_D : MUTE, whiteSpace: 'nowrap' }}>
-          {method === 0 ? 'lower power costs a derivative' : 'no derivative needed'}
+        <div style={{ fontFamily: MONO, fontSize: FS_MIN, color: MUTE, whiteSpace: 'nowrap' }}>
+          {'A: one derivative · B: a larger matrix'}
         </div>
       </div>
-
       <div style={{ width: 1, background: LINE }} />
-
-      <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button type="button" onClick={() => go(Math.max(1, step - 1))} style={Object.assign(btnStyle(false), { fontSize: 14, padding: '4px 14px' })} aria-label="previous step">{'◀'}</button>
-          <button type="button" onClick={() => go(Math.min(3, step + 1))} style={Object.assign(btnStyle(false), { fontSize: 14, padding: '4px 14px' })} aria-label="next step">{'▶'}</button>
-          <span data-step="1" style={{ fontFamily: MONO, fontSize: FS_MIN, color: MUTE }}>{step >= 1 ? 'step ' + step + ' of 3' : 'before step 1'}</span>
-          {yt.reached && !yt.open
-            ? <button type="button" onClick={yt.reopen} style={Object.assign(btnStyle(true, ACCENT), { marginLeft: 'auto' })}>Your turn</button> : null}
-        </div>
-        <div data-note="1" style={{ fontFamily: HEAD, fontSize: 13.5, color: INK, textWrap: 'pretty', lineHeight: 1.35 }}><Eq text={note} /></div>
-      </div>
-
+      <KNav cur={clamp(bi, 0, LAST)} total={LAST + 1} goBeat={goBeat} yt={yt} note={note} width={300} />
       <div style={{ width: 1, background: LINE }} />
-
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
         {smallLabel(ui.throughHead)}
-        <div className={up(showThrough)} style={{ fontFamily: MONO, fontSize: FS_MIN, fontWeight: 600, color: C_D, textWrap: 'pretty', lineHeight: 1.35 }}>{EX.through}</div>
-        <div style={{ fontFamily: MONO, fontSize: FS_MIN, color: MUTE, textWrap: 'pretty', lineHeight: 1.35 }}>{EX.tradeoff}</div>
+        <div data-through="1" style={{ fontFamily: MONO, fontSize: FS_MIN, fontWeight: 600, color: C_D, textWrap: 'pretty', lineHeight: 1.35, minHeight: 18 }}>{b.through ? EX.through : ''}</div>
       </div>
     </div>
   );
-}
-
-/* ═══ 6 TOUR ══════════════════════════════════════════════════════════════ */
-// what is shown at `time`: narration line n starts at TL.L[n-1]
-function tourState(TL, time) {
-  const L = TL.L;
-  const at = (n) => time >= L[n - 1];
-  const frac = (n) => clamp((time - L[n - 1]) / TL.durs[n - 1], 0, 1);
-  let step = 0, method = 0, detail = 0, found = [], form = false, pairs = false, ft = false, through = false;
-  if (at(2)) { step = 1; form = true; }
-  if (at(3)) { step = 2; }
-  if (at(4)) { step = 2; method = 0; detail = 1; found = frac(4) > 0.45 ? EASY3 : []; }
-  if (at(5)) { detail = 2; found = EASY3; }
-  if (at(6)) { detail = 3; }
-  if (at(7)) { detail = frac(7) > 0.4 ? DETAIL_MAX : 3; found = frac(7) > 0.4 ? ALL4 : EASY3; }
-  if (at(8)) { method = 1; detail = 1; found = ALL4; }
-  if (at(9)) { detail = 2; }
-  if (at(10)) { detail = 3; }
-  if (at(11)) { detail = frac(11) > 0.35 ? DETAIL_MAX : 3; }
-  if (at(12)) { step = 3; detail = DETAIL_MAX; pairs = frac(12) > 0.35; }
-  if (at(13)) { pairs = true; ft = frac(13) > 0.25; }
-  if (at(14)) { pairs = true; ft = true; through = frac(14) > 0.2; }
-  if (at(15)) { pairs = true; ft = true; through = true; }
-  return { step, method, detail, found, form, pairs, ft, through };
 }
 
 /* ═══ 7 SCENE ═════════════════════════════════════════════════════════════ */
@@ -438,59 +461,52 @@ function Scene() {
   );
 }
 
-// SceneBody: tour state, explore state and the layout
+// SceneBody: which beat is on screen (from the playhead, or from the learner's ◀ ▶), and the layout
 function SceneBody({ lang, ui, sched, narration, urls }) {
   const { time, playing, setPlaying } = useTimeline();
   const TL = useTL();
   const yt = useYourTurn();
-  const [grabbed, setGrabbed] = useState(false);
-  const [st, setSt] = useState({ step: 0, method: 0, detail: 0, found: [], form: false, pairs: false, ft: false, through: false });
-  const explore = time >= TL.EXPLORE || grabbed;
-  const grab = useCallback(() => { setGrabbed(true); yt.close(); if (playing) setPlaying(false); }, [playing]);
-  useEffect(() => { if (playing) setGrabbed(false); }, [playing]);
+  const reduced = useReducedMotion();
+  const [hand, setHand] = useState(-1);          // beat chosen by hand; -1 while the tour drives
+  useEffect(() => { if (playing) setHand(-1); }, [playing]);
+  const shown = hand >= 0 ? hand : beatAt(TL, Math.min(time, TL.REVERT));
+  const explore = hand >= 0 || time >= TL.EXPLORE;
+  const goBeat = useCallback((i) => { setHand(i); yt.close(); if (playing) setPlaying(false); }, [playing]);
 
-  const apply = useCallback((s) => setSt((p) =>
-    (p.step === s.step && p.method === s.method && p.detail === s.detail && p.found.length === s.found.length
-      && p.form === s.form && p.pairs === s.pairs && p.ft === s.ft && p.through === s.through) ? p : s), []);
-  const setStep = (n) => setSt((p) => Object.assign({}, p, { step: n, form: n >= 1, found: n >= 2 ? ALL4 : [], pairs: n >= 3, ft: n >= 3, detail: n >= 2 ? DETAIL_MAX : 0 }));
-  const setMethod = (m) => setSt((p) => Object.assign({}, p, { method: m }));
-
-  const step = explore ? Math.max(1, st.step) : st.step;
-  const active = step >= 3 ? 3 : step === 2 ? (st.method === 0 ? 1 : 2) : 0;
-  const lit = [step >= 1, step >= 2, st.method === 1 || step >= 3, step >= 3];
-  const noteIdx = clamp(idxAt(sched, time), 0, ui.notes.length - 1);
-  const note = (explore && !yt.open) ? ui.noteExplore : ui.notes[noteIdx];
-  const detail = explore ? Math.max(st.detail, step >= 2 ? DETAIL_MAX : 0) : st.detail;
-  const found = explore ? (step >= 2 ? ALL4 : []) : st.found;
-  const ytShown = yt.shown;
+  const b = BEATS[Math.max(0, shown)];
+  const lit = [shown >= IX.form, shown >= IX['A-cover'], shown >= IX.ident, shown >= IX.pair1];
+  const note = hand >= 0 ? ui.noteExplore : ui.notes[clamp(b.line - 1, 0, ui.notes.length - 1)];
+  // landing: the dot moves for LAND_MOVE s after the value beat starts; by hand the finished path is shown
+  const landing = shown >= 0 && b.land && !yt.open ? b.land : '';
+  const landProg = hand >= 0 ? null : (time - beatStart(TL, Math.max(0, shown))) / LAND_MOVE;
+  const sr = foundAt(shown);
 
   return (
     <React.Fragment>
       <TitleCard ui={ui} />
       <Header head={ui.header} sub={ui.headerSub} keyPoint={ui.keyPoint} />
 
-      <Rail items={lang.rail} head={ui.railHead} active={active} lit={lit} tints={[C_FS, C_A, C_B, C_FT]}
+      <Rail items={lang.rail} head={ui.railHead} active={b.rail} lit={lit} tints={[C_FS, C_A, C_B, C_FT]}
         footer={<React.Fragment>{smallLabel(ui.pairLabel)}<div style={{ fontFamily: MONO, fontSize: FS_MIN, color: C_FT, fontWeight: 600, lineHeight: 1.45 }}>{EX.pair}</div></React.Fragment>} />
-      <WorkZone ui={ui} method={st.method} showForm={explore || st.form} detail={detail} />
+      <WorkZone ui={ui} bi={shown} />
       {yt.open ? <YourTurnCard yt={YT} shown={yt.shown} onToggle={yt.toggle} onClose={yt.close} /> : null}
-      <Tape ui={ui} method={st.method} found={found} />
-      <FtZone ui={ui} yourTurn={ytShown} showPairs={ytShown || (explore ? step >= 3 : st.pairs)} showFt={ytShown || (explore ? step >= 3 : st.ft)} />
-      <BottomBand ui={ui} step={step} method={st.method} setStep={setStep} setMethod={setMethod}
-        explore={explore} onGrab={grab} note={note} showThrough={explore || st.through} yt={yt} />
+      <Tape ui={ui} bi={shown} reduced={reduced} />
+      <FtZone ui={ui} bi={shown} yourTurn={yt.shown} />
+      {landing && !reduced ? <Landing fromSel={'[data-landing-from="' + landing + '"]'} toSel={'[data-slot="' + landing + '"]'} progress={landProg} /> : null}
+      <BottomBand ui={ui} bi={shown} goBeat={goBeat} explore={explore} note={note} yt={yt} />
 
-      <Captions sched={sched} lang={lang} />
+      <Captions sched={sched} lang={lang} text={shown >= 0 ? b.cap : ''} />
       <FinishStrip ui={ui} />
       <ProgressBar />
       <Stamp />
       <Narrator lines={narration} urls={urls} />
-      <TourDriver apply={apply} grabbed={grabbed} tourState={tourState} />
       <SoundToggle />
       <ReplayPill />
       <OpeningCard card={lang.card} />
-      <SrSummary text={ui.srSummary + 'F of s = (s cubed + 2 s + 6) over s (s+1) squared (s+3). Step ' + Math.max(1, step) + ' of 3, method ' +
-        ui.methodTag[st.method] + '. Form ' + EX.form + '. Coefficients A = 2, B = minus 1.5, C = minus 3.25 by one derivative, D = 2.25. f of t = ' + EX.say +
-        '. The t e to the minus t term is the repeated-pole fingerprint.' +
-        (yt.open ? ' Your turn: F of s = (s + 3) over s (s+1) squared.' + (yt.shown ? ' Solution: f of t = ' + YT.say + '.' : '') : '')} />
+      <SrSummary text={ui.srSummary + 'F of s = (s cubed + 2 s + 6) over s (s+1) squared (s+3). ' + b.cap + '. ' +
+        (sr.length ? 'Coefficients so far: ' + sr.map((k) => k + ' = ' + VAL[k]).join(', ') + '. ' : '') +
+        (b.ft ? 'f of t = ' + EX.say + '. ' : '') +
+        (yt.open ? 'Your turn: F of s = (s + 3) over s (s+1) squared.' + (yt.shown ? ' Solution: f of t = ' + YT.say + '.' : '') : '')} />
       {/*#GATE*/}
     </React.Fragment>
   );

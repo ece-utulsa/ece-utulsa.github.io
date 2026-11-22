@@ -11,8 +11,10 @@ const HERE = path.dirname(new URL(import.meta.url).pathname);
 const PAGES = [
   { id: 'pfe1', u: 'u1', n: 14, name: 'Simple Poles', version: 'v1.2.0', of: '1 of 3',
     changelog: '  Changelog: v1.2.0 \u2014 focus rules R1\u2013R7 (briefing addendum 2, principal-approved 2026-11-22): one line of math at a\n  time at 24 px with a method-colour bar; lines not yet reached are not drawn; finished lines collapse to compact rows;\n  the cover-up box on F(s); powers of s colour-coded through the identity, equations and matrix; no value before the\n  voice says it (tape slots read "?"); each value lands in its tape slot; 1.5 s hold between lines; reduced-motion\n  fallback. The step buttons now move one line at a time. Numbers and narration unchanged.\n' },
-  { id: 'pfe2', u: 'u2', n: 16, name: 'Repeated Poles', version: 'v1.1.0', of: '2 of 3' },
-  { id: 'pfe3', u: 'u3', n: 15, name: 'Complex Poles', version: 'v1.1.0', of: '3 of 3' },
+  { id: 'pfe2', u: 'u2', n: 16, name: 'Repeated Poles', version: 'v1.2.0', of: '2 of 3', focusKit: true,
+    changelog: '  Changelog: v1.2.0 \u2014 focus rules R1\u2013R7 (briefing addendum 2, principal-approved 2026-11-22): one line of math at a\n  time at 24 px with a method-colour bar; lines not yet reached are not drawn; finished lines collapse to compact rows;\n  the cover-up box on F(s); powers of s colour-coded through the identity, equations and matrix; no value before the\n  voice says it (tape slots read "?"); each value lands in its tape slot; 1.5 s hold between lines; reduced-motion\n  fallback. The step buttons now move one line at a time. Numbers and narration unchanged.\n' },
+  { id: 'pfe3', u: 'u3', n: 15, name: 'Complex Poles', version: 'v1.2.0', of: '3 of 3', focusKit: true,
+    changelog: '  Changelog: v1.2.0 \u2014 focus rules R1\u2013R7 (briefing addendum 2, principal-approved 2026-11-22): one line of math at a\n  time at 24 px with a method-colour bar; lines not yet reached are not drawn; finished lines collapse to compact rows;\n  the cover-up box on F(s); powers of s colour-coded through the identity, equations and matrix; no value before the\n  voice says it (tape slots read "?"); each value lands in its tape slot; 1.5 s hold between lines; reduced-motion\n  fallback. The step buttons now move one line at a time. Numbers and narration unchanged.\n' },
 ];
 const sha = (s) => "'sha256-" + crypto.createHash('sha256').update(s, 'utf8').digest('base64') + "'";
 const read = (p) => fs.readFileSync(path.join(HERE, p), 'utf8');
@@ -49,7 +51,7 @@ for (const pg of PAGES) {
   if (!fs.existsSync(path.join(HERE, 'src/' + pg.id + '.jsx'))) continue;
   if (ONLY && ONLY !== pg.id) continue;
   const VERSION = pg.version; pg.file = 'Inverse_Laplace_' + pg.name.replace(' ', '_') + '_' + VERSION + '.html';
-  let src = read('src/kit.jsx') + '\n' + (TEST ? read('src/gate.jsx') + '\n' : '') + read('src/' + pg.id + '.jsx')
+  let src = read('src/kit.jsx') + '\n' + (pg.focusKit ? read('src/focus.jsx') + '\n' : '') + (TEST ? read('src/gate.jsx') + '\n' : '') + read('src/' + pg.id + '.jsx')
     + '\n/* ═══ MOUNT ═══ */\nReactDOM.createRoot(document.getElementById(\'root\')).render(<Scene />);\n';
   src = src.replace('{/*#GATE*/}', TEST ? '<OverlapGate sched={sched} />' : '');
   if (!src.includes("'__VERSION__'")) throw new Error('version token missing'); src = src.replace("'__VERSION__'", "'" + VERSION + "'");

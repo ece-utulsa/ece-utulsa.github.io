@@ -53,7 +53,7 @@ const audit = () => {
   for (let i = 0; i < svgT.length; i++) for (let j = i + 1; j < svgT.length; j++) {
     const a = svgT[i].r, c = svgT[j].r; if (Math.min(a.right, c.right) - Math.max(a.left, c.left) > 0.5 && Math.min(a.bottom, c.bottom) - Math.max(a.top, c.top) > 0.5) out.overlap.push('plot labels "' + svgT[i].s + '" x "' + svgT[j].s + '"');
   }
-  document.querySelectorAll('[data-unk]').forEach((u) => { if (!u.closest('.up')) { const c = rgb(getComputedStyle(u).color); out.unk.push(u.textContent + ':' + c.join(',')); } });
+  document.querySelectorAll('[data-unk]').forEach((u) => { if (!u.closest('.up') && /^[ABCD]$/.test(u.textContent)) { const c = rgb(getComputedStyle(u).color); out.unk.push(u.textContent + ':' + c.join(',')); } });
   return out;
 };
 let bad = 0; const report = [];
