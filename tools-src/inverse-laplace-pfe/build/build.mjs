@@ -15,6 +15,12 @@ const PAGES = [
     changelog: '  Changelog: v1.2.0 \u2014 focus rules R1\u2013R7 (briefing addendum 2, principal-approved 2026-11-22): one line of math at a\n  time at 24 px with a method-colour bar; lines not yet reached are not drawn; finished lines collapse to compact rows;\n  the cover-up box on F(s); powers of s colour-coded through the identity, equations and matrix; no value before the\n  voice says it (tape slots read "?"); each value lands in its tape slot; 1.5 s hold between lines; reduced-motion\n  fallback. The step buttons now move one line at a time. Numbers and narration unchanged.\n' },
   { id: 'pfe3', u: 'u3', n: 15, name: 'Complex Poles', version: 'v1.2.0', of: '3 of 3', focusKit: true,
     changelog: '  Changelog: v1.2.0 \u2014 focus rules R1\u2013R7 (briefing addendum 2, principal-approved 2026-11-22): one line of math at a\n  time at 24 px with a method-colour bar; lines not yet reached are not drawn; finished lines collapse to compact rows;\n  the cover-up box on F(s); powers of s colour-coded through the identity, equations and matrix; no value before the\n  voice says it (tape slots read "?"); each value lands in its tape slot; 1.5 s hold between lines; reduced-motion\n  fallback. The step buttons now move one line at a time. Numbers and narration unchanged.\n' },
+  { id: 'fd', u: 'u4', n: 11, name: 'Factoring the Denominator', title: 'Factoring the Denominator', fileBase: 'Factoring_the_Denominator', version: 'v1.1.0',
+    of: 'before you start', focusKit: true, ownChangelog: true,
+    clipMap: { 'sd2a_line1.mp3': 'old:sd2a_line1.mp3', 'sd2a_line2.mp3': 'old:sd2a_line2.mp3', 'sd2a_line3.mp3': 'old:sd2a_line3.mp3', 'sd2a_line4.mp3': 'old:sd2a_line4.mp3',
+      'sd2a_line5.mp3': 'old:sd2a_line5.mp3', 'sd2a_line6.mp3': 'file:clips_fd/sd2a_line6.mp3', 'sd2a_line7.mp3': 'old:sd2a_line6.mp3', 'sd2a_line8.mp3': 'old:sd2a_line7.mp3',
+      'sd2a_line9.mp3': 'old:sd2a_line8.mp3', 'sd2a_line10.mp3': 'old:sd2a_line9.mp3', 'sd2a_line11.mp3': 'file:clips_fd/sd2a_line11.mp3' },
+    changelog: '  Changelog: v1.1.0 \u2014 rebuilt from the Design bundle as one precompiled file (Factoring the Denominator spec v1.1.0, items 1\u20135;\n  Inverse Laplace spec v1.1.0 G1\u2013G6, V1\u2013V6; focus rules R1\u2013R7): no in-browser compiler and no bundle loader; opening\n  summary card; key-point line; one line of math at a time; the discriminant computed step by step and landing in its\n  slot; completing the square in separate lines; a new worked example for a zero discriminant (new clip, line 6);\n  links to the three Inverse Laplace pages; Your-turn problems with Show solution (new clip, line 11); the live\n  readout only in Explore. The worked examples and their numbers are unchanged.\n' },
 ];
 const sha = (s) => "'sha256-" + crypto.createHash('sha256').update(s, 'utf8').digest('base64') + "'";
 const read = (p) => fs.readFileSync(path.join(HERE, p), 'utf8');
@@ -45,23 +51,37 @@ function fontCss(u, used, report) {    // keep only the woff2 subsets whose unic
   return css;
 }
 
+const BASELOG = `  v1.1.0 \u2014 rebuilt from the Design bundle as one precompiled file (spec v1.1.0, items G1\u2013G6, V1\u2013V7):
+  no in-browser compiler and no bundle loader; opening summary card; key-point line; F(s) and f(t) on all three pages;
+  Your-turn problem with Show solution; unknowns in amber; contrast and 13 px minimum text; one playback bar;
+  numbered f(t) axes; heading "Inverse Laplace"; new narration clips for the changed lines. The worked example and its
+  numbers are unchanged.
+`;
 fs.mkdirSync(path.join(HERE, TEST ? 'out_test' : 'out'), { recursive: true });
 const summary = [];
 for (const pg of PAGES) {
   if (!fs.existsSync(path.join(HERE, 'src/' + pg.id + '.jsx'))) continue;
   if (ONLY && ONLY !== pg.id) continue;
-  const VERSION = pg.version; pg.file = 'Inverse_Laplace_' + pg.name.replace(' ', '_') + '_' + VERSION + '.html';
+  const VERSION = pg.version; pg.file = (pg.fileBase || 'Inverse_Laplace_' + pg.name.replace(' ', '_')) + '_' + VERSION + '.html';
+  const FULL = pg.title || 'Inverse Laplace \u2014 ' + pg.name;
   let src = read('src/kit.jsx') + '\n' + (pg.focusKit ? read('src/focus.jsx') + '\n' : '') + (TEST ? read('src/gate.jsx') + '\n' : '') + read('src/' + pg.id + '.jsx')
     + '\n/* ═══ MOUNT ═══ */\nReactDOM.createRoot(document.getElementById(\'root\')).render(<Scene />);\n';
   src = src.replace('{/*#GATE*/}', TEST ? '<OverlapGate sched={sched} />' : '');
   if (!src.includes("'__VERSION__'")) throw new Error('version token missing'); src = src.replace("'__VERSION__'", "'" + VERSION + "'");
   if (!TEST && /OverlapGate|__PFE_TEST/.test(src)) throw new Error('test code in ship build');
   const js = ts.transpileModule(src, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2020, removeComments: false, newLine: ts.NewLineKind.LineFeed } }).outputText;
-  const app = `/* Inverse Laplace — ${pg.name} ${VERSION} — application script (precompiled from JSX; no in-browser compiler) */\n(function () {\n'use strict';\n${js}\n})();\n`;
+  const app = `/* ${FULL} ${VERSION} — application script (precompiled from JSX; no in-browser compiler) */\n(function () {\n'use strict';\n${js}\n})();\n`;
   if (app.includes('</script')) throw new Error('script terminator in app');
 
   // clips: old embedded set, with any delivered v1.1.0 clip merged over the clip of the same name
-  const clips = parseClips(read('../' + pg.u + '/audio.js'));
+  let clips = parseClips(read('../' + pg.u + '/audio.js'));
+  if (pg.clipMap) {                  // renumber the old clips and add newly rendered ones: { newName: 'old:<name>' | 'file:<mp3 path>' }
+    const old = clips; clips = {};
+    for (const [k, v] of Object.entries(pg.clipMap)) {
+      if (v.startsWith('old:')) { if (!(v.slice(4) in old)) throw new Error('no old clip ' + v); clips[k] = old[v.slice(4)]; }
+      else clips[k] = 'data:audio/mpeg;base64,' + fs.readFileSync(path.join(HERE, v.slice(5))).toString('base64');
+    }
+  }
   if (Object.keys(clips).length !== pg.n) throw new Error(pg.id + ': expected ' + pg.n + ' clips, found ' + Object.keys(clips).length);
   const newFile = path.join(HERE, '../clips_new/' + pg.id + '_clips_v1.1.0.js'); const merged = [];
   if (fs.existsSync(newFile)) for (const [k, v] of Object.entries(parseClips(fs.readFileSync(newFile, 'utf8')))) {
@@ -87,21 +107,16 @@ button:focus-visible,[role="slider"]:focus-visible,input:focus-visible{outline:3
 .up .bar{background:#858A94 !important}
 noscript{position:fixed;left:12px;bottom:12px;font:14px/1.4 system-ui,sans-serif;color:#23262E}
 `;
-  const title = `Inverse Laplace — ${pg.name} ${VERSION}`;
+  const title = `${FULL} ${VERSION}`;
   const csp = `default-src 'none'; script-src ${sha(react)} ${sha(reactDom)} ${sha(app)}; style-src ${sha(css)}; font-src data:; media-src blob:; base-uri 'none'; form-action 'none'`;
   const html = `<!DOCTYPE html>
 <!--
-  Inverse Laplace — ${pg.name} (ECE 2003, Inverse Laplace ${pg.of})
+  ${FULL} (ECE 2003, Inverse Laplace ${pg.of})
   Version: ${VERSION}${TEST ? ' TEST BUILD — not for publication' : ''}
   Released: ${RELEASED}
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
   DEMO RELEASE 2026-11-22 (principal-directed; gates pending)
-${pg.changelog || ''}  v1.1.0 \u2014 rebuilt from the Design bundle as one precompiled file (spec v1.1.0, items G1\u2013G6, V1\u2013V7):
-  no in-browser compiler and no bundle loader; opening summary card; key-point line; F(s) and f(t) on all three pages;
-  Your-turn problem with Show solution; unknowns in amber; contrast and 13 px minimum text; one playback bar;
-  numbered f(t) axes; heading "Inverse Laplace"; new narration clips for the changed lines. The worked example and its
-  numbers are unchanged.
-  Third-party: React 18.3.1 and ReactDOM 18.3.1 (MIT, production builds, inlined); IBM Plex Sans and IBM Plex Mono
+${pg.changelog || ''}${pg.ownChangelog ? '' : BASELOG}  Third-party: React 18.3.1 and ReactDOM 18.3.1 (MIT, production builds, inlined); IBM Plex Sans and IBM Plex Mono
   (SIL OFL 1.1, subsets inlined). Narration: pre-rendered en-GB clips, embedded.
 -->
 <html lang="en">

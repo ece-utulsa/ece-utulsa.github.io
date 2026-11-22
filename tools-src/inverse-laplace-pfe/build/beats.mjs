@@ -2,9 +2,9 @@
 import { createRequire } from 'node:module'; import fs from 'node:fs'; import path from 'node:path';
 const require = createRequire(import.meta.url); const { chromium } = require('playwright');
 const [PG, outdir, W = '1366', H = '768', DPR = '1', RM = ''] = process.argv.slice(2);
-const NAME = { pfe1: 'Simple', pfe2: 'Repeated', pfe3: 'Complex' }[PG];
+const NAME = { pfe1: 'Simple_Poles_v1.2.0', pfe2: 'Repeated_Poles_v1.2.0', pfe3: 'Complex_Poles_v1.2.0', fd: 'Factoring_the_Denominator_v1.1.0' }[PG];
 fs.mkdirSync(outdir, { recursive: true });
-const file = path.resolve('out_test', fs.readdirSync('out_test').find((f) => f.includes(NAME + '_Poles_v1.2.0.html')));
+const file = path.resolve('out_test', fs.readdirSync('out_test').find((f) => f.includes(NAME + '.html')));
 const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: +W, height: +H }, deviceScaleFactor: +DPR, reducedMotion: RM ? 'reduce' : 'no-preference' }); const p = await ctx.newPage();
 const errs = []; p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); p.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message));
 await p.goto('file://' + file); await p.waitForTimeout(900);
@@ -23,6 +23,13 @@ const RULESETS = {
     [/1\.5·t e/, 't2', 'term 2'], [/3\.25e/, 't3', 'term 3'], [/2\.25e/, 't4', 'term 4'], [/f\(t\) = \(/, 'ft', 'f(t)'], [/d\/ds/, 'C-dds', 'derivative'],
     [/A \+ C \+ D = 1/, 'eq3', 'equation s3'], [/5A \+ B/, 'eq2', 'equation s2'], [/7A \+ 3B/, 'eq1', 'equation s1'], [/3A = 6/, 'eq0', 'equation s0'],
     [/5s²\+7s/, 'expand', 'expanded identity'], [/A\(s\+1\)²\(s\+3\)/, 'ident', 'identity'], [/\[1 0 1 1/, 'mat4', 'matrix row'],
+  ],
+  fd: [
+    [/Δ = 5²/, 'd1b', 'example 1 numbers'], [/(?<!a )= 1(?![\d.])/, 'd1c', 'disc 1'], [/\(s \+ 2\)\(s \+ 3\)/, 'f1', 'factored form 1'], [/−3/, 'p1b', 'pole -3'],
+    [/s² \+ 4s \+ 4/, 'ex2', 'example 2'], [/\(s \+ 2\)²(?! [−+])/, 'f2', 'squared factor'], [/×2/, 'p2', 'double marker'],
+    [/s² \+ 4s \+ 13/, 'ex3', 'example 3'], [/−36/, 'd3b', 'disc 3'], [/\(s \+ 2\)² \+ 9/, 'sq3', 'completed square'],
+    [/α = (b\/2 = )?2/, 'al', 'alpha'], [/β = (√9 = )?3/, 'be', 'beta'],
+    [/Simple Poles/, 'route', 'route links'], [/overdamped/, 'rhyme', 'RLC rhyme'], [/pole type/, 'yt', 'live readout'],
   ],
   pfe3: [
     [/A = 6|(?<![\d(])6(?=\/\(s\+1\))/, 'A-val', 'A value'], [/B = −6/, 'B-val', 'B value'], [/−18(?!\d)/, 'C-val', 'C value'],
