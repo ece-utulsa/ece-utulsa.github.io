@@ -90,7 +90,7 @@ const YT = {
 const LANG = {
   code: 'en-GB',
   clips: Array.from({ length: 15 }, (_, i) => 'pfe3_line' + (i + 1) + '.mp3'),
-  durs: [13.656, 13.152, 12.024, 7.488, 8.64, 11.784, 12.504, 9.096, 11.688, 11.04, 10.848, 9.696, 13.008, 11.52, 7.44],
+  durs: [17.784, 13.152, 12.024, 7.488, 8.64, 11.784, 12.504, 9.096, 11.688, 11.04, 10.848, 9.696, 13.008, 11.52, 15.504],
   text: [
     'This denominator has a complex pair — the quadratic s-squared plus 4s plus 13 has no real roots. It’s proper: degree zero over degree three. We won’t force complex numbers. There’s a cleaner path: keep the quadratic whole, and complete the square.',
     'Step one, the form. The real pole gets its usual fraction. The complex pair stays together as the irreducible quadratic — and its numerator is linear, B s plus C, not just a constant.',

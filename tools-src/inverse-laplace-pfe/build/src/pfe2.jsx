@@ -102,7 +102,7 @@ const YT = {
 const LANG = {
   code: 'en-GB',
   clips: Array.from({ length: 16 }, (_, i) => 'pfe2_line' + (i + 1) + '.mp3'),
-  durs: [13.224, 16.536, 7.584, 12.24, 13.656, 12.096, 7.416, 9.0, 7.752, 9.072, 10.704, 15.048, 11.232, 7.896, 11.544, 7.728],
+  durs: [17.16, 16.536, 7.584, 12.24, 13.656, 12.648, 7.416, 9.0, 7.752, 9.072, 10.704, 15.048, 11.64, 7.896, 11.544, 15.6],
   text: [
     'Here’s a repeated pole: the factor s plus one appears twice. It’s proper: degree three over degree four. The skeleton is the same — write the form, find the coefficients, invert — but repeated poles add one real wrinkle, and it’s worth seeing clearly.',
     'Step one, the form. A repeated factor needs one term for every power it appears in. So s plus one, squared, gives two terms — B over the square, and C over the first power — alongside the simple terms, A over s and D over s plus three.',

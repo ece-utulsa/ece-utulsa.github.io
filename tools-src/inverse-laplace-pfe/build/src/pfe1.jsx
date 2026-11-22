@@ -78,7 +78,7 @@ const YT = {
 const LANG = {
   code: 'en-GB',
   clips: Array.from({ length: 14 }, (_, i) => 'pfe1_line' + (i + 1) + '.mp3'),
-  durs: [12.984, 12.864, 9.84, 14.04, 5.232, 8.376, 10.464, 9.696, 10.104, 9.864, 11.472, 8.976, 8.856, 7.128],
+  durs: [19.68, 12.864, 9.84, 14.04, 5.232, 8.376, 10.464, 9.696, 10.104, 9.864, 11.472, 8.976, 8.856, 13.296],
   text: [
     'We begin with F-of-s already factored, with three distinct real poles. It’s proper: the top is degree one, the bottom degree three, so we can expand it directly. Our goal is to recover f-of-t, and the procedure is always the same: write the form, find the coefficients, and invert.',
     'Step one: write the expansion form. Each distinct pole contributes one fraction with a single unknown constant on top — so here, three fractions, three unknowns: A, B, and C.',

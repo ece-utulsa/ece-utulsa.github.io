@@ -88,10 +88,12 @@ noscript{position:fixed;left:12px;bottom:12px;font:14px/1.4 system-ui,sans-serif
   Version: ${VERSION}${TEST ? ' TEST BUILD — not for publication' : ''}
   Released: ${RELEASED}
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  DEMO RELEASE 2026-11-22 (principal-directed; gates pending)
   Changelog: ${VERSION} — rebuilt from the Design bundle as one precompiled file (spec v1.1.0, items G1–G6, V1–V7):
   no in-browser compiler and no bundle loader; opening summary card; key-point line; F(s) and f(t) on all three pages;
   Your-turn problem with Show solution; unknowns in amber; contrast and 13 px minimum text; one playback bar;
-  numbered f(t) axes; heading "Inverse Laplace". The worked example and its numbers are unchanged.
+  numbered f(t) axes; heading "Inverse Laplace". New narration clips for the changed lines (first and last line of
+  each page; Repeated Poles lines 6 and 13). The worked example and its numbers are unchanged.
   Third-party: React 18.3.1 and ReactDOM 18.3.1 (MIT, production builds, inlined); IBM Plex Sans and IBM Plex Mono
   (SIL OFL 1.1, subsets inlined). Narration: pre-rendered en-GB clips, embedded.
 -->
