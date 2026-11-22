@@ -1,0 +1,93 @@
+{
+ "u": [
+  true,
+  0.0
+ ],
+ "exp": [
+  true,
+  2.7755575615628914e-17
+ ],
+ "t": [
+  true,
+  0.0
+ ],
+ "t^n": [
+  true,
+  0.0
+ ],
+ "t exp": [
+  true,
+  0.0
+ ],
+ "t^n exp": [
+  true,
+  1.1102230246251565e-16
+ ],
+ "sin": [
+  true,
+  5.551115123125783e-17
+ ],
+ "cos": [
+  true,
+  1.3877787807814457e-17
+ ],
+ "sin+th": [
+  true,
+  5.551115123125783e-17
+ ],
+ "cos+th": [
+  true,
+  2.42861286636753e-17
+ ],
+ "exp sin": [
+  true,
+  5.551115123125783e-17
+ ],
+ "exp cos": [
+  true,
+  2.7755575615628914e-17
+ ],
+ "linearity (2t+4)u": [
+  true,
+  4.440892098500626e-16
+ ],
+ "2t": [
+  true,
+  0.0
+ ],
+ "4u": [
+  true,
+  0.0
+ ],
+ "sin 4t": [
+  true,
+  0.0
+ ],
+ "e^-2t sin 4t": [
+  true,
+  2.7755575615628914e-17
+ ],
+ "your turn": [
+  true,
+  2.220446049250313e-16
+ ],
+ "your turn expanded": [
+  true,
+  2.220446049250313e-16
+ ],
+ "time shift": [
+  true,
+  true
+ ],
+ "properties": {
+  "scaling": true,
+  "time differentiation": true,
+  "time integration": true,
+  "frequency differentiation": true,
+  "initial value": true,
+  "final value": true,
+  "convolution": true,
+  "frequency integration": true,
+  "time periodicity": true
+ }
+}

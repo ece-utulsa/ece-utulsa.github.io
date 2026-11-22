@@ -1,0 +1,13 @@
+[
+ {"spoken":"This lecture turns the table into a tool."},
+ {"spoken":"Here is the table: time functions on the left, transforms on the right. Every pair holds for t greater than or equal to zero."},
+ {"spoken":"Circuits use seven of these pairs: the impulse, the step, the ramp, the exponential, t times the exponential, the damped sine, and the damped cosine."},
+ {"spoken":"Three properties stretch them: linearity, frequency shift, and time shift. The rest is for reference."},
+ {"spoken":"Linearity: a sum transforms one term at a time. Take two t plus four, times the unit step. The ramp gives two over s squared. The step gives four over s. Together: four s plus two, over s squared."},
+ {"spoken":"The frequency shift: multiplying by e to the minus A t replaces s with s plus A. Sine of four t transforms to four over s squared plus sixteen. Multiply by e to the minus two t, and every s becomes s plus two."},
+ {"spoken":"The time shift: a function delayed by A, and switched on at A, has its transform multiplied by e to the minus A s."},
+ {"spoken":"Here is a switched source: three for the first second, minus two for the next, and zero after that."},
+ {"spoken":"Write it as steps: three u of t, minus five u of t minus one, plus two u of t minus two. Term by term: three over s, minus five e to the minus s over s, plus two e to the minus two s over s."},
+ {"spoken":"Seven pairs plus linearity, frequency shift and time shift cover every source in this course."},
+ {"spoken":"Your turn. On paper, find the transform of ten e to the minus three t, cosine four t. Then press Show solution, and go on to lecture three."}
+]
