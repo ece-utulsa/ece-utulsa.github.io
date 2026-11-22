@@ -2,7 +2,7 @@
 import { createRequire } from 'node:module'; import fs from 'node:fs'; import path from 'node:path';
 const require = createRequire(import.meta.url); const { chromium } = require('playwright');
 const [PG, outdir, W = '1366', H = '768', DPR = '1', RM = ''] = process.argv.slice(2);
-const NAME = { pfe1: 'Simple_Poles_v1.2.0', pfe2: 'Repeated_Poles_v1.2.0', pfe3: 'Complex_Poles_v1.2.0', fd: 'Factoring_the_Denominator_v1.1.0' }[PG];
+const NAME = { pfe1: 'Simple_Poles_v1.2.0', pfe2: 'Repeated_Poles_v1.2.0', pfe3: 'Complex_Poles_v1.2.0', fd: 'Factoring_the_Denominator_v1.1.0', sd3: 'S-Domain_Circuit_Analysis_v1.1.0' }[PG];
 fs.mkdirSync(outdir, { recursive: true });
 const file = path.resolve('out_test', fs.readdirSync('out_test').find((f) => f.includes(NAME + '.html')));
 const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: +W, height: +H }, deviceScaleFactor: +DPR, reducedMotion: RM ? 'reduce' : 'no-preference' }); const p = await ctx.newPage();
@@ -31,6 +31,13 @@ const RULESETS = {
     [/α = (b\/2 = )?2/, 'al', 'alpha'], [/β = (√9 = )?3/, 'be', 'beta'],
     [/Simple Poles/, 'route', 'route links'], [/overdamped/, 'rhyme', 'RLC rhyme'], [/pole type/, 'yt', 'live readout'],
   ],
+  sd3: [
+    [/R = 2 Ω/, 'ex', 'R value'], [/10 V/, 'ex2', 'source value'], [/I₀ = 3 A/, 'ex2', 'I0 value'], [/10\/s/, 'tV', '10/s'], [/3 V/, 'tIC', 'IC source value'],
+    [/I\(s\)\(2 \+ s\)/, 'kvl', 'KVL'], [/3s \+ 10/, 'Is', 'I(s)'], [/A\/s \+ B/, 'form', 'PFE form'], [/5\/s/, 'A', 'A value'], [/− 2\/\(s \+ 2\)/, 'B', 'B value'],
+    [/i\(t\) = 5/, 'it', 'i(t)'], [/i\(0\)/, 'chk0', 'check 0'], [/i\(∞\)/, 'chkInf', 'check inf'], [/pole −2/, 'one', 'pole check'],
+    [/L is a short/, 'dc', 'DC row'], [/0\.98/, 'ac', 'AC row'], [/full s:/, 'full', 'full row'], [/Z = R/, 'mR', 'R model'], [/Z = sL/, 'mL', 'L model'], [/Z = 1\/\(sC\)/, 'mC', 'C model'],
+    [/V_S\/s/, 'src', 'source rule'], [/L·I_L\(0⁻\)/, 'icL1', 'L IC'], [/V_C\(0⁻\)\/s/, 'icC', 'C IC'], [/came from d\/dt/, 'arc', 'arc note'], [/3e⁻ᵗ/, 'yt', 'your-turn answer'],
+  ],
   pfe3: [
     [/A = 6|(?<![\d(])6(?=\/\(s\+1\))/, 'A-val', 'A value'], [/B = −6/, 'B-val', 'B value'], [/−18(?!\d)/, 'C-val', 'C value'],
     [/\(s ?\+ ?2\)²/, 'sq-done', 'completed square'], [/α = (4\/2 = )?2/, 'al-val', 'alpha'], [/β = (√9 = )?3/, 'be-val', 'beta'],
@@ -47,7 +54,7 @@ for (let i = 0; i < beats.length; i++) {
     await p.waitForTimeout(140);
     const st = await p.evaluate(() => {
       const stage = document.getElementById('stage'); const clone = stage.cloneNode(true); clone.querySelectorAll('.sr-only,[data-card="yourturn"]').forEach((e) => e.remove());
-      const vis = Array.from(stage.querySelectorAll('[data-gate="work"],[data-gate="tape"],[data-gate="ft"],[data-gate="caption"],[data-gate="band"]')).filter((e) => !e.closest('[data-card]') && e.dataset.card !== 'yourturn').map((e) => e.innerText).join('\n');
+      const vis = Array.from(stage.querySelectorAll('[data-gate="work"],[data-gate="tape"],[data-gate="ft"],[data-gate="caption"],[data-gate="band"],[data-gate="circuit"],[data-gate="models"],[data-gate="out"],[data-gate="rail"]')).filter((e) => !e.closest('[data-card]') && e.dataset.card !== 'yourturn').map((e) => e.innerText + '\n' + Array.from(e.querySelectorAll('svg text')).map((t) => t.textContent).join('\n')).join('\n');
       const focus = Array.from(document.querySelectorAll('[data-focus]')); const f = focus[0];
       const big = []; const tw = document.createTreeWalker(stage, NodeFilter.SHOW_TEXT); let n;
       while ((n = tw.nextNode())) { const el = n.parentElement; if (!n.textContent.trim() || el.closest('.sr-only')) continue; const fs = parseFloat(getComputedStyle(el).fontSize); const inFocus = !!el.closest('[data-focus]'); const zone = el.closest('[data-gate="work"],[data-gate="tape"],[data-gate="ft"]'); if (zone && !inFocus && fs > 16.01 && !el.closest('[data-card="yourturn"]')) big.push(fs + ':' + n.textContent.trim().slice(0, 20)); if (inFocus && fs < 23.99 && !el.closest('[data-unk]') && el.dataset.unk == null) { const sm = el.closest('[data-focus] div[style*="font-size: 16px"]'); if (!sm) big.push('focus small ' + fs + ':' + n.textContent.trim().slice(0, 20)); } }

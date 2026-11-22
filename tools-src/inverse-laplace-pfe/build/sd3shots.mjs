@@ -1,0 +1,11 @@
+import { createRequire } from 'node:module'; import path from 'node:path';
+const require = createRequire(import.meta.url); const { chromium } = require('playwright');
+const b = await chromium.launch(); const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
+await p.goto('file://' + path.resolve('out_test', 'S-Domain_Circuit_Analysis_v1.1.0.html')); await p.waitForTimeout(900);
+await p.screenshot({ path: 'bs_100/x_card.png' });
+await p.evaluate(() => { const T = window.__PFE_TEST, s = T.sched(); T.setTime(s.starts[15] + 0.9 * s.durs[15]); }); await p.waitForTimeout(150);
+await p.click('text=Show solution'); await p.waitForTimeout(150); await p.screenshot({ path: 'bs_100/x_yt.png' });
+await p.click('text=back to the worked example'); await p.evaluate(() => window.__PFE_TEST.setTime(window.__PFE_TEST.sched().total)); await p.waitForTimeout(200);
+const setR = (label, x) => p.evaluate(([label, x]) => { const el = document.querySelector('input[aria-label="' + label + '"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, String(x)); el.dispatchEvent(new Event('input', { bubbles: true })); }, [label, x]);
+await setR('source voltage', 23); await setR('resistance', 1.5); await setR('inductance', 0.75); await p.waitForTimeout(150); await p.screenshot({ path: 'bs_100/x_explore.png' });
+await b.close();

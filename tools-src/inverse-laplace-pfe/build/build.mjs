@@ -21,6 +21,10 @@ const PAGES = [
       'sd2a_line5.mp3': 'old:sd2a_line5.mp3', 'sd2a_line6.mp3': 'file:clips_fd/sd2a_line6.mp3', 'sd2a_line7.mp3': 'old:sd2a_line6.mp3', 'sd2a_line8.mp3': 'old:sd2a_line7.mp3',
       'sd2a_line9.mp3': 'old:sd2a_line8.mp3', 'sd2a_line10.mp3': 'old:sd2a_line9.mp3', 'sd2a_line11.mp3': 'file:clips_fd/sd2a_line11.mp3' },
     changelog: '  Changelog: v1.1.0 \u2014 rebuilt from the Design bundle as one precompiled file (Factoring the Denominator spec v1.1.0, items 1\u20135;\n  Inverse Laplace spec v1.1.0 G1\u2013G6, V1\u2013V6; focus rules R1\u2013R7): no in-browser compiler and no bundle loader; opening\n  summary card; key-point line; one line of math at a time; the discriminant computed step by step and landing in its\n  slot; completing the square in separate lines; a new worked example for a zero discriminant (new clip, line 6);\n  links to the three Inverse Laplace pages; Your-turn problems with Show solution (new clip, line 11); the live\n  readout only in Explore. The worked examples and their numbers are unchanged.\n' },
+  { id: 'sd3', u: 'u5', n: 16, name: 'S-Domain Circuit Analysis', title: 'S-Domain Circuit Analysis', fileBase: 'S-Domain_Circuit_Analysis', version: 'v1.1.0',
+    of: 'capstone', context: 's-domain analysis, capstone', focusKit: true, ownChangelog: true,
+    clipMap: { 'sd3_line1.mp3': 'old:sd3_line1.mp3', 'sd3_line2.mp3': 'old:sd3_line2.mp3', 'sd3_line3.mp3': 'old:sd3_line3.mp3', 'sd3_line4.mp3': 'old:sd3_line4.mp3', 'sd3_line5.mp3': 'old:sd3_line5.mp3', 'sd3_line6.mp3': 'old:sd3_line6.mp3', 'sd3_line7.mp3': 'old:sd3_line7.mp3', 'sd3_line8.mp3': 'old:sd3_line8.mp3', 'sd3_line9.mp3': 'old:sd3_line9.mp3', 'sd3_line10.mp3': 'old:sd3_line10.mp3', 'sd3_line11.mp3': 'old:sd3_line11.mp3', 'sd3_line12.mp3': 'old:sd3_line12.mp3', 'sd3_line13.mp3': 'old:sd3_line13.mp3', 'sd3_line14.mp3': 'old:sd3_line14.mp3', 'sd3_line15.mp3': 'old:sd3_line15.mp3', 'sd3_line16.mp3': 'file:clips_sd3/sd3_line16.mp3' },
+    changelog: '  Changelog: v1.1.0 — rebuilt from the Design bundle as one precompiled file (S-Domain Circuit Analysis spec v1.1.0, items 1–6;\n  focus rules R1–R7): no in-browser compiler and no bundle loader; opening summary card; key-point line; one line of math\n  at a time; the s-domain circuit built element by element with each value landing; the charged-capacitor model drawn;\n  i(t) plot, checks and unification table shown only when spoken; sliders only in Explore; Your turn (series RC) with a\n  new line-16 clip. Clips 1–15 unchanged.\n' },
 ];
 const sha = (s) => "'sha256-" + crypto.createHash('sha256').update(s, 'utf8').digest('base64') + "'";
 const read = (p) => fs.readFileSync(path.join(HERE, p), 'utf8');
@@ -111,7 +115,7 @@ noscript{position:fixed;left:12px;bottom:12px;font:14px/1.4 system-ui,sans-serif
   const csp = `default-src 'none'; script-src ${sha(react)} ${sha(reactDom)} ${sha(app)}; style-src ${sha(css)}; font-src data:; media-src blob:; base-uri 'none'; form-action 'none'`;
   const html = `<!DOCTYPE html>
 <!--
-  ${FULL} (ECE 2003, Inverse Laplace ${pg.of})
+  ${FULL} (ECE 2003, ${pg.context || 'Inverse Laplace ' + pg.of})
   Version: ${VERSION}${TEST ? ' TEST BUILD — not for publication' : ''}
   Released: ${RELEASED}
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
