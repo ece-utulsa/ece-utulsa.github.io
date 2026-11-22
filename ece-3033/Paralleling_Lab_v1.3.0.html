@@ -1,11 +1,15 @@
 <!DOCTYPE html>
 <!--
   Paralleling a Synchronous Generator — ECE 3033 Lab
-  Version: v1.2.2
-  Released: 2026-11-20
+  Version: v1.3.0
+  Released: 2026-11-21
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
-  DEMO RELEASE 2026-11-20 (principal ruling; gates pending)
-  Changelog: v1.2.2 — Watch cues (briefing 2026-11-20 v1.2.2): each Lecture slide lists two or three numbered things to
+  DEMO RELEASE 2026-11-21 (principal ruling; gates pending)
+  Changelog: v1.3.0 — format rework per principal 2026-11-21 (spec v1.3.0); DEMO RELEASE
+  (speaker notes 15 px; no numbered cue rings or badges, the Watch buttons highlight the element itself; the "From the
+  lab" strips become full-width substituted readout lines under the main area; slide 1 chips become one readout line;
+  full-width sliders with the label above. Content, physics and terminology unchanged.)
+  v1.2.2 — Watch cues (briefing 2026-11-20 v1.2.2): each Lecture slide lists two or three numbered things to
   watch; the matching instruments carry the same numbers, the current one is ringed and the others dim; the ring
   follows a close (lamps, breaker, surge meter, result). Slide 7 starts with two leads swapped. The surge meter marks
   a jolt in amber. Slide 6 shows the synchroscope in place of the waveforms. Stale sentence removed from Experiment 2.
@@ -29,10 +33,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CTmukdwfb+AOcWnr5ILYnelfpSjxgYDgTEfsfgSd2gI='; style-src 'sha256-9tMMjY7gPyFCAswbG37GvXWtUEI9xLY5NtSuyZthDaQ='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ijki6tSekHIS8kPFw6MKhQ10Pv2GWENc5j1/1gYZWVw='; style-src 'sha256-NTawNNhwHmQOKWEoc0OPLK3W/XXHE4/Rm5fAnyQQcKw='; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v1.2.2">
-<title>Paralleling a Synchronous Generator — ECE 3033 Lab v1.2.2</title>
+<meta name="version" content="v1.3.0">
+<title>Paralleling a Synchronous Generator — ECE 3033 Lab v1.3.0</title>
 <style>
 /* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
 :root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
@@ -78,8 +82,6 @@ mn.lv{font-family:var(--mono);white-space:pre}
 .sl h2.st{font-size:20px;line-height:1.2;margin:4px 0 6px;color:var(--txt);text-transform:none;letter-spacing:0}
 .keyp{font-size:15.5px;font-weight:700;background:var(--soft);border-radius:8px;padding:7px 10px;margin:6px 0}
 .def{font-size:13.5px;margin:7px 0}
-.strip{font:600 12.5px var(--mono);background:#fff8e6;border:1px solid #ecd9a6;border-radius:8px;padding:6px 8px;margin:6px 0;white-space:pre-wrap}
-.strip::before{content:"From the lab";display:block;font:700 10.5px var(--sans);color:var(--warn);letter-spacing:1px;text-transform:uppercase}
 .btns{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;align-items:center}
 .show{font-size:14px;padding:6px 10px}
 .steps{list-style:none;margin:6px 0;padding:0;font-size:13.5px}
@@ -88,7 +90,10 @@ mn.lv{font-family:var(--mono);white-space:pre}
 .steps li.ok .mark{color:var(--ok)}
 .kgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
 .kgrid .eq{margin:0;padding:1px 4px} .kgrid math{font-size:12.5px}
-#sumBox .eq{margin:4px 0} #sumBox .strip{margin:4px 0} #sumBox .def{margin:4px 0} #toS1{min-height:24px;padding:1px 8px}
+#sumBox .eq{margin:4px 0} #sumBox .def{margin:4px 0} #toS1{min-height:24px;padding:1px 8px}
+@media (max-height:700px){   /* slide 7 with its summary fits 1366 x 657 without scrolling (spec A1.1: slide body down to 13 px) */
+  .sl[data-n="7"] .keyp,.sl[data-n="7"] .def{font-size:13px} .sl[data-n="7"] .keyp{padding:5px 10px} .sl[data-n="7"] .steps{font-size:13px;line-height:1.25} .sl[data-n="7"] .steps li{padding:1px 0}
+}
 /* ═══ MAIN: STAGE AND NOTES ═══ */
 #main{display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0}
 #stage{position:relative;flex:1;min-height:0;display:grid;gap:8px;overflow:hidden}
@@ -97,21 +102,20 @@ mn.lv{font-family:var(--mono);white-space:pre}
 .it.on{display:flex}
 .it>svg{flex:1 1 0;min-height:0;width:100%}
 #itDay{grid-area:day} #itDayRo{grid-area:dayro} #itScene{grid-area:scene} #itWave{grid-area:wave} #itPhasors{grid-area:phasors}
-#itScope{grid-area:scope} #itMeters{grid-area:meters} #itChk{grid-area:chk} #itWhy{grid-area:why} #itResult{grid-area:result}
+#itScope{grid-area:scope} #itMeters{grid-area:meters} #itChk{grid-area:chk} #itWhy{grid-area:why} #itResult{grid-area:result} #itRl{grid-area:rl}
 #stage[data-view=v1]{grid-template:"day" minmax(0,1fr) "dayro" auto/minmax(0,1fr)}
-#stage[data-view=v2]{grid-template:"scene" minmax(0,1fr) "meters" auto/minmax(0,1fr)}
-#stage[data-view=v3]{grid-template:"scene scene" minmax(0,58fr) "meters result" minmax(0,42fr)/280px minmax(0,1fr)}
-#stage[data-view=v4]{grid-template:"scene" minmax(0,40fr) "result" 104px "phasors" minmax(0,31fr)/minmax(0,1fr)}
-#stage[data-view=v5]{grid-template:"scene scene" minmax(0,58fr) "scope result" minmax(0,42fr)/200px minmax(0,1fr)}
-#stage[data-view=v6]{grid-template:"scene scene" minmax(0,58fr) "scope result" minmax(0,42fr)/200px minmax(0,1fr)}
-#stage[data-view=v7]{grid-template:"scene scene scene" minmax(0,54fr) "scope chk result" minmax(0,46fr)/130px 258px minmax(0,1fr)}
+#stage[data-view=v2]{grid-template:"scene" minmax(0,1fr) "meters" auto "rl" auto/minmax(0,1fr)}
+#stage[data-view=v3]{grid-template:"scene scene" minmax(0,58fr) "meters result" minmax(0,42fr) "rl rl" auto/280px minmax(0,1fr)}
+#stage[data-view=v4]{grid-template:"scene" minmax(0,40fr) "result" 104px "phasors" minmax(0,31fr) "rl" auto/minmax(0,1fr)}
+#stage[data-view=v5]{grid-template:"scene scene" minmax(0,58fr) "scope result" minmax(0,42fr) "rl rl" auto/200px minmax(0,1fr)}
+#stage[data-view=v6]{grid-template:"scene scene" minmax(0,58fr) "scope result" minmax(0,42fr) "rl rl" auto/200px minmax(0,1fr)}
+#stage[data-view=v7]{grid-template:"scene scene scene" minmax(0,54fr) "scope chk result" minmax(0,46fr) "rl rl rl" auto/130px 258px minmax(0,1fr)}
 #stage[data-view=lab]{grid-template:"a b" minmax(0,1fr)/minmax(0,1fr) 400px}
 #stage[data-view=lab] #colA{display:flex;flex-direction:column;gap:8px;grid-area:a;min-height:0;min-width:0}
 #stage[data-view=lab] #colB{display:grid;gap:8px;grid-area:b;min-height:0;min-width:0;grid-template:"scope meters" 150px "chk chk" auto "why why" auto/150px minmax(0,1fr);align-content:start}
 #stage[data-view=lab] #itScene{flex:40 1 0} #stage[data-view=lab] #itWave{flex:25 1 0} #stage[data-view=lab] #itPhasors{flex:30 1 0} #stage[data-view=lab] #itResult{flex:0 0 148px}
 #stage[data-view=lab] #result{font-size:12px}
-#itDayRo{flex-direction:row;flex-wrap:wrap;gap:6px;align-items:center}
-#itDayRo .ro{font-weight:600;text-align:left} #itDayRo b{font-weight:800}
+.vrl{margin:0;font:800 14px var(--mono);font-variant-numeric:tabular-nums;background:var(--inset);border-radius:6px;padding:3px 8px;white-space:pre-wrap}
 #itDay.zoom{display:flex;position:absolute;inset:0;grid-area:auto;z-index:3;transform-origin:81% 51%;animation:zoomG3 1.6s ease-in forwards}
 @keyframes zoomG3{0%,30%{transform:scale(1);opacity:1}100%{transform:scale(4.5);opacity:0}}
 .wrow{display:flex;gap:8px;align-items:center;flex:none}
@@ -137,19 +141,23 @@ mn.lv{font-family:var(--mono);white-space:pre}
 #result .verdict{font-weight:800;font-size:14px}
 #result .verdict.bad{color:var(--err)} #result .verdict.good{color:var(--ok)} #result .verdict.mid{color:var(--warn)}
 #notesBox{flex:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
-#slNotes{margin:2px 0 0;font-size:13px}
+#slNotes{margin:2px 0 0;font-size:15px;line-height:1.33}
 /* ═══ SIDEBAR ═══ */
 #side{display:flex;flex-direction:column;gap:6px;overflow:hidden}
 .grp{border-bottom:1px solid var(--line);padding-bottom:5px}
 .grp.off{display:none}
-.grp .crow{display:none} .grp.open .crow{display:grid}
-.grp .c1{display:none;margin:0;font-size:12.5px} .grp.min .c1{display:block}
-.c1 b{display:inline-block;min-width:66px}
-.crow{grid-template-columns:62px minmax(0,1fr) 26px 26px 80px;gap:4px;align-items:center;margin:4px 0}
-.crow.b{grid-template-columns:62px auto auto minmax(0,1fr)}
-.crow .cl{font-weight:700;font-size:12.5px}
-.crow input[type=range]{width:100%;accent-color:var(--acc);height:24px;margin:0}
-.crow button.sm{padding:0;min-height:28px;font-size:15px}
+.grp .crow,.grp .ctl{display:none} .grp.open .crow{display:grid} .grp.open .ctl{display:block}
+.grp .c1{display:none;margin:0;font-size:14px} .grp.min .c1{display:block}
+.c1 b{display:inline-block;min-width:76px;font-size:15px}
+#side .ro{font-size:14px}
+.crow{grid-template-columns:66px auto auto minmax(0,1fr);gap:4px;align-items:center;margin:4px 0}
+.cl{font-weight:700;font-size:15px}
+.ctl{margin:4px 0 6px}
+.chead{display:flex;justify-content:space-between;align-items:center;gap:4px}
+.cbt{display:flex;gap:4px;align-items:center}
+.cbt button.sm{padding:0;min-height:28px;width:28px;font-size:16px}
+.cbt .ro{min-width:88px}
+.ctl input[type=range]{display:block;width:100%;accent-color:var(--acc);height:24px;margin:2px 0 0}
 #pin{margin-top:auto;border-top:2px solid var(--edge);padding-top:6px}
 #pin .btns{margin:0 0 5px;flex-wrap:nowrap;gap:4px}
 #pin .btns button{flex:1 1 auto;padding:3px 4px}
@@ -164,15 +172,14 @@ mn.lv{font-family:var(--mono);white-space:pre}
 .watch b{color:var(--acc);text-transform:uppercase;letter-spacing:1px;font-size:11.5px;margin-right:2px}
 .watch button{min-height:24px;padding:1px 7px;font-size:12.5px;font-weight:600;border-color:var(--line)}
 .watch button[aria-current="true"]{border:2px solid var(--acc);background:var(--soft);font-weight:800}
-#cueLayer{position:fixed;inset:0;pointer-events:none;z-index:4}
-.cq{position:fixed;border:3px solid transparent;border-radius:9px}
-.cq.cur{border-color:var(--acc);box-shadow:0 0 0 3px rgba(15,110,108,.25);animation:cuePulse .9s ease-out 3}
-@keyframes cuePulse{0%{box-shadow:0 0 0 0 rgba(15,110,108,.7)}100%{box-shadow:0 0 0 14px rgba(15,110,108,0)}}
-.cb{position:absolute;top:-15px;left:-15px;width:22px;height:22px;border-radius:50%;background:var(--panel);border:2px solid var(--acc);color:var(--acc);font:800 12px/18px var(--sans);text-align:center}
-.cq.cur .cb{background:var(--acc);color:#fff}
-.it{transition:opacity .25s}
-.it.dim{opacity:.72}
-@media (prefers-reduced-motion:reduce){.cq.cur{animation:none}.it{transition:none}}
+.cue{outline:3px solid var(--acc);outline-offset:1px;border-radius:4px}
+.it.cue{outline:none;box-shadow:0 0 0 3px var(--acc)}
+svg .cue{outline:none;filter:drop-shadow(0 0 3px #0f6e6c) drop-shadow(0 0 1px #0f6e6c)}
+svg text.cue{filter:none;fill:#0f6e6c;text-decoration:underline}
+svg path.cue,svg polyline.cue{stroke-width:6}
+svg circle.cue{stroke-width:6}
+#phases circle.cue{stroke:#0f6e6c;stroke-width:8}
+svg rect.cue{stroke:#0f6e6c;stroke-width:3}
 /* ═══ EXPERIMENTS WORKSHEET (a document: this page scrolls) ═══ */
 #page-exp{flex:1;min-height:0;overflow:auto;padding:10px}
 .doc{max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 24px}
@@ -207,7 +214,7 @@ table.rec input{width:110px}
 </head>
 <body>
 <header>
-  <h1>Paralleling a Synchronous Generator</h1><span class="badge">ECE 3033 · v1.2.2</span>
+  <h1>Paralleling a Synchronous Generator</h1><span class="badge">ECE 3033 · v1.3.0</span>
   <details id="model"><summary>Model</summary><div class="pop">
     <p>Incoming machine G3: 25 MVA, 13.8 kV, 4 poles, X<sub>S</sub> = 1.0 pu = 7.62 Ω, rated current 1046 A. The bus is infinite: 13.8 kV, 60.00 Hz, sequence ABC. V<sub>g</sub> ∝ I<sub>F</sub> × speed (open circuit, no saturation).</p>
     <p>Surge at the close ≈ |ΔV|/X<sub>S</sub> on the worst breaker pole, using the steady-state X<sub>S</sub>; the real first-cycle surge is larger (subtransient reactance X″<sub>d</sub>). Up to 0.20 × rated: smooth. Up to 0.60 × rated: a jolt. Above that, or wrong sequence, or |slip| &gt; 0.5 Hz (cannot pull into step): a trip.</p>
@@ -221,7 +228,6 @@ table.rec input{width:110px}
   </nav>
 </header>
 
-<div id="cueLayer" aria-hidden="true"></div>
 <div id="app">
   <!-- ═══ SLIDE PANEL (Lecture) ═══ -->
   <div class="panel" id="slidePanel" aria-label="Lecture slide">
@@ -234,32 +240,27 @@ table.rec input{width:110px}
     <p class="keyp">The governor sets the frequency; the field current sets the voltage.</p>
     <div class="eq"><math display="block"><msub><mi>f</mi><mi>e</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>n</mi><mi>m</mi></msub><mi>P</mi></mrow><mn>120</mn></mfrac></math></div>
     <div class="eq"><math display="block"><msub><mi>V</mi><mi>g</mi></msub><mo>∝</mo><msub><mi>I</mi><mi>F</mi></msub><msub><mi>n</mi><mi>m</mi></msub></math></div>
-    <p class="strip" data-strip="2"></p>
     <p class="def">Press <b>Run up</b>, then <b>Excite</b>, then raise V<sub>g</sub> to the bus voltage, 13.80 kV. G3 has P = 4 poles.</p></section>
   <section class="sl" data-n="3"><p class="kick">3 of 7 · Condition 1: voltage</p><h2 class="st">Unequal voltages: the lamps never go fully dark.</h2>
     <p class="keyp">Closing with V<sub>g</sub> ≠ V<sub>bus</sub> drives a reactive current through the machine.</p>
     <div class="eq"><math display="block"><mi>I</mi><mo>≈</mo><mfrac><mrow><mo>|</mo><msub><mi mathvariant="bold">V</mi><mi>bus</mi></msub><mo>−</mo><msub><mi mathvariant="bold">V</mi><mi>g</mi></msub><mo>|</mo></mrow><msub><mi>X</mi><mi>S</mi></msub></mfrac></math></div>
     <div class="eq"><math display="block"><mi>Q</mi><mo>≈</mo><mfrac><mrow><mn>3</mn><msub><mi>V</mi><mi>bus</mi></msub><mo>(</mo><msub><mi>V</mi><mi>g</mi></msub><mo>−</mo><msub><mi>V</mi><mi>bus</mi></msub><mo>)</mo></mrow><msub><mi>X</mi><mi>S</mi></msub></mfrac></math></div>
-    <p class="strip" data-strip="3"></p>
     <p class="def">V<sub>g</sub> = 0.85 V<sub>bus</sub> here; the other three conditions are met.</p>
     <div class="btns"><button class="pri show" data-show="3">▶ Show me: close</button></div></section>
   <section class="sl" data-n="4"><p class="kick">4 of 7 · Condition 2: phase sequence</p><h2 class="st">Wrong sequence: the lamps take turns, and closing is a short circuit.</h2>
     <p class="keyp">Swapping any two leads reverses the sequence; never close until the lamps blink together.</p>
     <div class="eq"><math display="block"><msub><mi>V</mi><mrow><mi>pole</mi><mo>,</mo><mi>B</mi></mrow></msub><mo>=</mo><msub><mi>V</mi><mrow><mi>pole</mi><mo>,</mo><mi>C</mi></mrow></msub><mo>=</mo><msqrt><mn>3</mn></msqrt><mi>V</mi></math></div>
     <p class="def">across breaker poles B and C when lamp A is dark (sequence ACB); V = 7.97 kV per phase.</p>
-    <p class="strip" data-strip="4"></p>
     <p class="def"><b>Cross-connected lamps</b> (sidebar): with the right sequence the light rotates; close when lamp A is dark.</p>
     <div class="btns"><button class="pri show" data-show="4">▶ Show me: close in ACB</button></div></section>
   <section class="sl" data-n="5"><p class="kick">5 of 7 · Condition 3: phase angle</p><h2 class="st">Out of phase: the voltage across the breaker drives a surge.</h2>
     <p class="keyp">Close only at Δθ ≈ 0: lamps dark, synchroscope pointer at 12 o'clock.</p>
     <div class="eq"><math display="block"><mo>|</mo><mi>Δ</mi><mi>V</mi><mo>|</mo><mo>=</mo><mn>2</mn><mi>V</mi><mi>sin</mi><mo>(</mo><mfrac><mrow><mi>Δ</mi><mi>θ</mi></mrow><mn>2</mn></mfrac><mo>)</mo></math></div>
-    <p class="strip" data-strip="5"></p>
     <p class="def">Voltage, sequence and frequency are right; only the closing angle is wrong.</p>
     <div class="btns"><button class="pri show" data-show="5a">▶ Show me: close at 90°</button><button class="pri show" data-show="5b">▶ Show me: close at 180°</button></div></section>
   <section class="sl" data-n="6"><p class="kick">6 of 7 · Condition 4: frequency</p><h2 class="st">The lamps blink at the frequency difference; close slightly fast.</h2>
     <p class="keyp">Slightly fast: it picks up load. Slow: it motors. Far off: it trips.</p>
     <div class="eq"><math display="block"><mtext>blinks/s</mtext><mo>=</mo><mo>|</mo><msub><mi>f</mi><mi>g</mi></msub><mo>−</mo><msub><mi>f</mi><mi>bus</mi></msub><mo>|</mo></math></div>
-    <p class="strip" data-strip="6"></p>
     <p class="def">Move the governor and count the dark moments. Each demo closes in phase.</p>
     <div class="btns"><button class="pri show" data-show="6s">▶ Show me: slow (59.95 Hz)</button><button class="pri show" data-show="6f">▶ Show me: fast (60.10 Hz)</button><button class="pri show" data-show="6x">▶ Show me: +1 Hz</button></div></section>
   <section class="sl" data-n="7"><p class="kick">7 of 7 · Your turn</p><h2 class="st">Bring G3 onto the bus yourself: five steps, then close.</h2>
@@ -272,7 +273,6 @@ table.rec input{width:110px}
       <li id="st5"><span class="mark">○</span><span>5 Close when lamps are dark (condition 3).</span></li></ol>
     <div id="sumBox" hidden>
       <div class="eq"><math display="block"><mi>P</mi><mo>=</mo><msub><mi>s</mi><mi>P</mi></msub><mo>(</mo><msub><mi>f</mi><mi>nl</mi></msub><mo>−</mo><msub><mi>f</mi><mi>sys</mi></msub><mo>)</mo></math></div>
-      <p class="strip" data-strip="7"></p>
       <p class="def">G3 now carries load like the units on slide 1; raise the governor for more. <button id="toS1">◀ Slide 1</button></p>
       <p class="kick">Key equations</p>
       <div class="kgrid">
@@ -294,7 +294,7 @@ table.rec input{width:110px}
           <svg id="day" viewBox="0 0 760 392" role="img" aria-label="Left: plant load over 24 hours with the online capacity staircase. Right: units G1 to G5, each through its breaker to the infinite bus."><g id="dayG"></g></svg>
         </div>
         <div class="it" id="itDayRo" role="status">
-          <span class="ro">Plant load <b id="dL">0</b> MW</span><span class="ro">Units online <b id="dN">1</b> of 5</span><span class="ro" id="dV">Bus voltage <b>13.80 kV</b></span><span class="ro" id="dF">Bus frequency <b>60.00 Hz</b> (constant)</span><span class="ro">Switching events so far today: <b id="dK">0</b> of <b id="dKN">0</b></span>
+          <p class="vrl">Plant load <span id="dL">0</span> MW · units online <span id="dN">1</span> of 5 · <span id="dBus">bus 13.80 kV, 60.00 Hz (constant)</span> · switching events so far today <span id="dK">0</span> of <span id="dKN">0</span></p>
         </div>
         <div class="it" id="itScene">
           <svg id="scene" viewBox="0 0 900 400" role="img" aria-label="Infinite bus at left, three-pole breaker with lamps A, B and C across its poles in the middle, incoming generator G3 and its prime mover at right">
@@ -332,6 +332,7 @@ table.rec input{width:110px}
           </svg>
           <div id="result" role="status" aria-live="polite"></div>
         </div>
+        <div class="it" id="itRl" role="status"><p class="vrl" id="rl"></p></div>
       </div>
       <div id="colB">
         <div class="it" id="itScope">
@@ -374,29 +375,29 @@ table.rec input{width:110px}
   <div class="panel" id="side" aria-label="Controls">
     <h2 id="sideH">G3 controls</h2>
     <div class="grp" data-g="day">
-      <div class="crow b"><span class="cl">Day</span><button id="dayRun" class="pri">▶ Run a day</button><span></span><span class="ro" id="dayO">02:00</span></div>
-      <div class="crow"><label class="cl" for="dayS">Time</label><input type="range" id="dayS" min="0" max="24" step="0.05" value="2"><button class="sm" id="dm" aria-label="Back 15 minutes">−</button><button class="sm" id="dp" aria-label="Forward 15 minutes">+</button><span class="ro" id="dayO2">02:00</span></div>
+      <div class="crow"><span class="cl">Day</span><button id="dayRun" class="pri">▶ Run a day</button><span></span><span class="ro" id="dayO">02:00</span></div>
+      <div class="ctl"><div class="chead"><label class="cl" for="dayS">Time</label><span class="cbt"><button class="sm" id="dm" aria-label="Back 15 minutes">−</button><button class="sm" id="dp" aria-label="Forward 15 minutes">+</button><span class="ro" id="dayO2">02:00</span></span></div><input type="range" id="dayS" min="0" max="24" step="0.05" value="2"></div>
     </div>
     <div class="grp" data-g="gov">
-      <div class="crow b"><span class="cl">Speed</span><button id="runUp" class="pri" aria-label="Run up to speed">⏵ Run up</button><button id="stopBtn">Stop</button><span class="ro" id="nO">   0 r/min</span></div>
-      <div class="crow"><label class="cl" for="fgS">Governor</label><input type="range" id="fgS" min="59" max="61" step="0.01" value="60"><button class="sm" id="fm2" aria-label="Lower 0.01 hertz">−</button><button class="sm" id="fp2" aria-label="Raise 0.01 hertz">+</button><span class="ro" id="fgO"> 0.00 Hz</span></div>
+      <div class="crow"><span class="cl">Speed</span><button id="runUp" class="pri" aria-label="Run up to speed">⏵ Run up</button><button id="stopBtn">Stop</button><span class="ro" id="nO">   0 r/min</span></div>
+      <div class="ctl"><div class="chead"><label class="cl" for="fgS">Governor</label><span class="cbt"><button class="sm" id="fm2" aria-label="Lower 0.01 hertz">−</button><button class="sm" id="fp2" aria-label="Raise 0.01 hertz">+</button><span class="ro" id="fgO"> 0.00 Hz</span></span></div><input type="range" id="fgS" min="59" max="61" step="0.01" value="60"></div>
       <p class="c1"><b>Governor</b> f<sub>g</sub> <span id="govR"></span></p>
     </div>
     <div class="grp" data-g="field">
-      <div class="crow b"><span class="cl">Field</span><button id="excite" class="pri" aria-label="Excite field">⚡ Excite</button><button id="fieldOff" aria-label="Field off">Off</button><span class="ro" id="ifO">0.000 A</span></div>
-      <div class="crow"><label class="cl" for="vgS">V<sub>g</sub></label><input type="range" id="vgS" min="12.42" max="15.18" step="0.01" value="13.8"><button class="sm" id="vm2" aria-label="Lower 0.01 kilovolt">−</button><button class="sm" id="vp2" aria-label="Raise 0.01 kilovolt">+</button><span class="ro" id="vgO"> 0.00 kV</span></div>
+      <div class="crow"><span class="cl">Field</span><button id="excite" class="pri" aria-label="Excite field">⚡ Excite</button><button id="fieldOff" aria-label="Field off">Off</button><span class="ro" id="ifO">0.000 A</span></div>
+      <div class="ctl"><div class="chead"><label class="cl" for="vgS">V<sub>g</sub></label><span class="cbt"><button class="sm" id="vm2" aria-label="Lower 0.01 kilovolt">−</button><button class="sm" id="vp2" aria-label="Raise 0.01 kilovolt">+</button><span class="ro" id="vgO"> 0.00 kV</span></span></div><input type="range" id="vgS" min="12.42" max="15.18" step="0.01" value="13.8"></div>
       <p class="c1"><b>Field</b> V<sub>g</sub> <span id="fieldR"></span> · I<sub>F</sub> <span id="fieldR2"></span></p>
     </div>
     <div class="grp" data-g="leads">
-      <div class="crow b"><span class="cl">Leads</span><button id="swapBtn">⇄ Swap two leads (b↔c)</button><span></span><span class="ro" id="seqO">ABC</span></div>
+      <div class="crow"><span class="cl">Leads</span><button id="swapBtn">⇄ Swap two leads (b↔c)</button><span></span><span class="ro" id="seqO">ABC</span></div>
       <p class="c1"><b>Leads</b> <span id="leadsR"></span></p>
     </div>
     <div class="grp" data-g="lamps">
-      <div class="crow b"><span class="cl">Lamps</span><button id="xbtn" aria-pressed="false">Cross-connected</button><span></span><span class="ro" id="lampO">straight</span></div>
+      <div class="crow"><span class="cl">Lamps</span><button id="xbtn" aria-pressed="false">Cross-connected</button><span></span><span class="ro" id="lampO">straight</span></div>
       <p class="c1"><b>Lamps</b> <span id="lampsR"></span></p>
     </div>
     <div class="grp" data-g="view">
-      <div class="crow b"><span class="cl">View</span><button id="phBtn" aria-pressed="false">Phasors in place of waveforms</button><span></span><span></span></div>
+      <div class="crow"><span class="cl">View</span><button id="phBtn" aria-pressed="false">Phasors in place of waveforms</button><span></span><span></span></div>
     </div>
     <div id="pin">
       <div class="btns" role="group" aria-label="Breaker and time"><button id="closeBtn" class="pri">Close</button><button id="openBtn">Open</button><button id="resetBtn" class="danger">↺ Reset</button><button id="pauseBtn" aria-pressed="false">❚❚ Pause</button></div>
@@ -464,7 +465,7 @@ table.rec input{width:110px}
 <script>
 /* ═══ CONTENTS ═══
    1. CONSTANTS   2. STATE   3. PHYSICS   4. FORMATTING   5. SCENE AND WAVEFORMS   6. CHECKLIST, CALLOUT, READOUTS
-   7. BREAKER     8. CONTROLS   9. LECTURE (slides, views, demos, watch cues)   10. PHASOR VIEW   11. SLIDE 1: PLANT DAY   12. WORKSHEET   13. LOOP */
+   7. BREAKER     8. CONTROLS   9. LECTURE (slides, views, demos, readout line, watch cues)   10. PHASOR VIEW   11. SLIDE 1: PLANT DAY   12. WORKSHEET   13. LOOP */
 'use strict';
 /* ═══ 1. CONSTANTS ═══ */
 const POLES = 4;                          // poles of the incoming machine
@@ -592,17 +593,14 @@ function buildScene() {
     const ly = y - LAMP_UP;   // lamp centre
     mk(ph, 'path', { d: `M330 ${y}V${ly}H360M420 ${ly}H450V${y}`, stroke: '#55636b', 'stroke-width': 2, fill: 'none' });   // lamp across the pole
     const glow = mk(ph, 'circle', { cx: 390, cy: ly, r: 46, fill: '#f2a900', 'fill-opacity': 0 });
-    mk(ph, 'circle', { cx: 390, cy: ly, r: LAMP_R, fill: '#7d868b', stroke: '#1a2328', 'stroke-width': 3 });   // unlit lamp: grey
+    const body = mk(ph, 'circle', { cx: 390, cy: ly, r: LAMP_R, fill: '#7d868b', stroke: '#1a2328', 'stroke-width': 3 });   // unlit lamp: grey
     const core = mk(ph, 'circle', { cx: 390, cy: ly, r: LAMP_R - 3, fill: '#ffc400', 'fill-opacity': 0 });
     mk(ph, 'path', { d: `M370 ${ly - 20}l40 40M410 ${ly - 20}l-40 40`, stroke: '#1a2328', 'stroke-width': 2.5 });
     const name = mk(ph, 'text', { x: 322, y: ly + 6, 'text-anchor': 'end', 'font-size': 16, 'font-weight': 800 }, 'Lamp ' + p);
     const lbl = mk(ph, 'text', { x: 460, y: ly + 6, 'font-size': 15, 'font-family': 'Consolas, monospace', 'font-weight': 700 }, '0.00 kV');
-    LAMP.push({ glow, core, lbl, blade, y, name });
+    LAMP.push({ glow, core, lbl, blade, y, name, body });
   });
   mk(ph, 'text', { x: 372, y: 18, 'font-size': 15, 'font-weight': 700 }, 'BREAKER + LAMPS');
-  // unpainted boxes the Watch cues ring: the three lamps with their readings, the pole readings of B and C, the breaker blades
-  mk(ph, 'rect', { id: 'cueLamps', x: 350, y: 26, width: 188, height: 268, fill: 'none' }); mk(ph, 'rect', { id: 'cuePoles', x: 454, y: 144, width: 84, height: 132, fill: 'none' });
-  mk(ph, 'rect', { id: 'cueBreaker', x: 320, y: 86, width: 140, height: 244, fill: 'none' });
 }
 /* Draw lamps (instantaneous, never averaged), breaker blades and the synchroscope pointer. */
 function drawScene(lamps) {
@@ -711,11 +709,13 @@ function readouts(force) {
   const lamps = lampKV(S.th);
   put('q_vgen', fx(S.closed ? 0 : lamps[0], 2, 5));
   LAMP.forEach((L, k) => { const t = fx(S.closed ? 0 : lamps[k], 2, 5) + ' kV'; if (L.lbl.textContent !== t) L.lbl.textContent = t; });
-  if (S.mode === 'lec') { const st = document.querySelector('.sl.on .strip'); if (st) putRich(st, strip(c)); }
   // slide 7: the five steps tick live; the summary appears after a clean close
   const clean = S.joined && S.tag === 'instep';
   [S.fg >= F_MIN - EPS && S.fgT === null, c.v, c.s && S.fg >= 1, c.f, clean].forEach((met, i) => { const ok = met || clean; const li = document.getElementById('st' + (i + 1)); li.classList.toggle('ok', ok); const m = li.querySelector('.mark'), t = ok ? '✓' : '○'; if (m.textContent !== t) m.textContent = t; });
   document.getElementById('sumBox').hidden = !clean;
+  // readout line under the main area: slides 2-6 always, slide 7 after a clean close (with the summary)
+  const rlOn = S.mode === 'lec' && S.slide >= 2 && (S.slide < NSL || clean);
+  document.getElementById('itRl').classList.toggle('on', rlOn); if (rlOn) putRich(document.getElementById('rl'), readoutLine(c));
   put('phTxt', 'Bus a → b → c, generator ' + (S.seq === 'ABC' ? 'a → b → c: same order; the gap vectors (lamp voltages) shrink together.' : 'a → c → b: reversed; the gap vectors never shrink together.') + ' Shown at 1/240 speed.');
   const sl = S.closed ? 0 : c.slip;
   updateCues(c);
@@ -874,9 +874,9 @@ const SL = {
   7: { view: 'v7', grp: ['gov', 'field', 'leads', 'lamps'], preset: { fg: 0, iF: 0, seq: 'ACB', th0: 0 } }   // two leads swapped: the student must find and fix it
 };
 /* Instruments on the stage for each view. */
-const VIEW = { v1: ['day', 'dayro'], v2: ['scene', 'meters'], v3: ['scene', 'meters', 'result'], v4: ['scene', 'result', 'phasors'], v5: ['scene', 'scope', 'result'],
-               v6: ['scene', 'scope', 'result'], v7: ['scene', 'scope', 'chk', 'result'], lab: ['scene', 'wave', 'scope', 'meters', 'chk', 'why', 'result'] };
-const IT = { day: 'itDay', dayro: 'itDayRo', scene: 'itScene', wave: 'itWave', phasors: 'itPhasors', scope: 'itScope', meters: 'itMeters', chk: 'itChk', why: 'itWhy', result: 'itResult' };
+const VIEW = { v1: ['day', 'dayro'], v2: ['scene', 'meters', 'rl'], v3: ['scene', 'meters', 'result', 'rl'], v4: ['scene', 'result', 'phasors', 'rl'], v5: ['scene', 'scope', 'result', 'rl'],
+               v6: ['scene', 'scope', 'result', 'rl'], v7: ['scene', 'scope', 'chk', 'result'], lab: ['scene', 'wave', 'scope', 'meters', 'chk', 'why', 'result'] };   // slide 7 adds 'rl' after a clean close (readouts)
+const IT = { day: 'itDay', dayro: 'itDayRo', scene: 'itScene', wave: 'itWave', phasors: 'itPhasors', scope: 'itScope', meters: 'itMeters', chk: 'itChk', why: 'itWhy', result: 'itResult', rl: 'itRl' };
 const LAB_GRP = ['gov', 'field', 'leads', 'lamps', 'view'];
 const SLIDES = document.querySelectorAll('.sl');
 /* Show the instruments and sidebar controls of the present slide (Lecture) or all of them (Lab). */
@@ -949,8 +949,8 @@ async function demo(key) {
   if (S.demoId === id) { S.busy = false; if (ok) closeBreaker(); syncButtons(); readouts(true); }
 }
 document.querySelectorAll('button[data-show]').forEach(b => b.addEventListener('click', () => demo(b.dataset.show)));
-/* The live "From the lab" strip for the slide on screen: the slide's equation with the numbers now on screen. */
-function strip(c) {
+/* The readout line for the slide on screen: the slide's equation with the numbers now on screen substituted. */
+function readoutLine(c) {
   const vb = V_PH, vgp = c.vg / Math.sqrt(3), poles = poleKV(S.th), f2 = x => x.toFixed(2);
   const sl = Math.abs(c.slip), every = sl >= 0.005 ? 'one dark moment every ' + (1 / sl).toFixed(1) + ' s' : 'no blinking';
   if (S.slide === 7) return 'P = 10.4 × (' + f2(S.fg) + ' − 60.00) = ' + sg2(S_P * (S.fg - F_BUS)) + ' MW';
@@ -958,14 +958,14 @@ function strip(c) {
   if (S.joined) return 'Breaker closed: G3 is on the bus.';
   switch (S.slide) {
     case 3: return 'darkest lamp = |V_bus − V_g| = ' + f2(vb) + ' − ' + f2(vgp) + ' = ' + f2(Math.abs(vb - vgp)) + ' kV per phase' + (c.v && Math.abs(vb - vgp) < 0.005 ? '' : ': never 0');
-    case 4: return 'breaker poles now: A ' + f2(poles[0]) + ', B ' + f2(poles[1]) + ', C ' + f2(poles[2]) + ' kV\n' + (S.seq === 'ACB' ? 'ACB: never all zero together' : 'ABC: all three reach zero together');
+    case 4: return 'breaker poles now: A ' + f2(poles[0]) + ', B ' + f2(poles[1]) + ', C ' + f2(poles[2]) + ' kV · ' + (S.seq === 'ACB' ? 'ACB: never all zero together' : 'ABC: all three reach zero together');
     case 5: return 'Δθ = ' + sx(c.dth, 0, 3) + '°:  |ΔV| = 2(' + f2(vb) + ') sin(' + Math.abs(c.dth / 2).toFixed(0) + '°) = ' + f2(2 * vb * Math.abs(Math.sin(c.dth / 2 / DEG))) + ' kV';
-    default: return '|f_g − f_bus| = |' + f2(S.fg) + ' − 60.00| = ' + f2(sl) + ' blinks/s:\n' + every;
+    default: return '|f_g − f_bus| = |' + f2(S.fg) + ' − 60.00| = ' + f2(sl) + ' blinks/s: ' + every;
   }
 }
 
-/* ═══ 9b. WATCH CUES (Lecture only) ═══ */
-/* Each slide's cues in order ①②③: [target key, label]. */
+/* ═══ 9b. WATCH CUES (Lecture only; highlight the element itself) ═══ */
+/* Each slide's cues, in order: [target key, label]. */
 const CUES = {
   1: [['chart', 'Load crossing a capacity line'], ['fleet', 'The amber unit'], ['bus', 'Bus V and f not moving']],
   2: [['fg', 'f_g and r/min climbing'], ['vg', 'V_g climbing'], ['vgset', 'V_g reaching 13.80 kV']],
@@ -975,28 +975,23 @@ const CUES = {
   6: [['lamps', 'Blink count'], ['scope', 'Synchroscope direction'], ['result', 'P after the close']],
   7: [['chk', 'Checklist'], ['lamps', 'Lamps dark'], ['result', 'P picking up']]
 };
-const CUE_HOLD_MS = 1500;                 // ms the ring stays on the surge meter after a close before it moves to the result
+const CUE_HOLD_MS = 1500;                 // ms the highlight stays on the surge meter after a close before it moves to the result
 const CUE_FIRST_S = 6;                    // s the first cue of slide 4 is held before the lamps take over
 const CUE_BLINK_S = 12;                   // s slide 6 stays on the blink count (one blink at 0.10 Hz takes 10 s) before the synchroscope
-const CUE_PAD = 5;                        // px between a ringed instrument and its ring
-const CUE_SMALL = 44;                     // px: on a target shorter than this the badge sits above its left end, not on its corner
-const CUE_BADGE = 22;                     // px, badge diameter
-const CUE_BADGE_STEP = 24;                // px between two badges on the same instrument
-const cueLayer = document.getElementById('cueLayer');
-/* The elements a cue key points at (may be empty or hidden). */
+/* The elements a cue key highlights (each gets the class "cue"). */
 function cueTargets(key) {
   const el = id => document.getElementById(id);
   switch (key) {
-    case 'chart': return [el('cueChart')];
-    case 'fleet': { const i = fleet(S.dayH).u.findIndex(u => u.s === 'sync' || u.s === 'unload'); return [i < 0 ? el('cueFleet') : DAY.units[i].box]; }
-    case 'bus': return [el('dV'), el('dF')];
+    case 'chart': return [DAY.load, DAY.stair];
+    case 'fleet': { const i = fleet(S.dayH).u.findIndex(u => u.s === 'sync' || u.s === 'unload'); return i < 0 ? DAY.units.map(U => U.body) : [DAY.units[i].body, DAY.units[i].blade]; }
+    case 'bus': return [el('dBus')];
     case 'fg': return [el('mFg'), el('nO')];
     case 'vg': return [el('mVg')];
     case 'vgset': return [el('mVg'), el('vgO')];
-    case 'lamps': return [el('cueLamps')];
-    case 'poles': return [el('cuePoles')];
-    case 'breaker': return [el('cueBreaker')];
-    case 'rot': return [el('cueRot')];
+    case 'lamps': return LAMP.map(L => L.body);
+    case 'poles': return [LAMP[1].lbl, LAMP[2].lbl];
+    case 'breaker': return LAMP.map(L => L.blade);
+    case 'rot': return [PHV.meterC, PHV.motorC];
     case 'surge': return [el('surgeSvg')];
     case 'result': return [el('result')];
     case 'scope': return [el('itScope')];
@@ -1021,38 +1016,23 @@ function autoCue(c) {
 /* Write the "Watch" line under each slide's key point: one button per cue. */
 function buildWatch() {
   SLIDES.forEach(sl => { const p = document.createElement('p'); p.className = 'watch'; const b = document.createElement('b'); b.textContent = 'Watch'; p.appendChild(b);
-    CUES[+sl.dataset.n].forEach(([key, label], i) => { const bt = document.createElement('button'); bt.dataset.cue = key; richText(bt, CUE_NUM[i] + ' ' + label);
+    CUES[+sl.dataset.n].forEach(([key, label]) => { const bt = document.createElement('button'); bt.dataset.cue = key; richText(bt, label);
       bt.addEventListener('click', () => { S.cueMan = key; readouts(true); }); p.appendChild(bt); });
     sl.querySelector('.keyp').after(p); });
 }
-const CUE_NUM = ['①', '②', '③'];
-/* Place the numbered badges and the ring for the present cue, mark the cue in the Watch line, dim the other instruments.
+let cueOn = [];
+/* Highlight the elements of the present cue and mark it in the Watch line.
    A cue the student clicked stays until the slide's state calls for a different one. */
 function updateCues(c) {
   const on = S.mode === 'lec' && !document.getElementById('app').hidden && !document.getElementById('itDay').classList.contains('zoom');
-  const items = document.querySelectorAll('.it.on'), boxes = [], ring = [];
+  let els = [];
   if (on) {
     const auto = autoCue(c); if (auto !== S.cueAuto) { S.cueAuto = auto; S.cueMan = null; }
-    const key = S.cueMan || auto, list = CUES[S.slide], seen = new Map();
-    const add = (k, num, cur) => cueTargets(k).forEach(el => { if (!el) return; const r = el.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return;
-      const dup = seen.get(el) || 0; seen.set(el, dup + 1); if (cur) ring.push(el);
-      boxes.push([Math.round(r.left) - CUE_PAD, Math.round(r.top) - CUE_PAD, Math.round(r.width) + 2 * CUE_PAD, Math.round(r.height) + 2 * CUE_PAD, num, cur ? 1 : 0, dup, k === 'result' || k === 'poles' ? 1 : 0]); });
-    list.forEach(([k], i) => add(k, i + 1, k === key));
-    if (!list.some(([k]) => k === key)) add(key, 0, true);   // an event outside the numbered cues (the breaker; the result on some slides)
+    const key = S.cueMan || auto; els = cueTargets(key).filter(Boolean);
     document.querySelectorAll('.sl.on .watch button').forEach(b => { if (b.dataset.cue === key) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
   }
-  items.forEach(it => it.classList.toggle('dim', ring.length > 0 && !ring.some(el => it.contains(el))));
-  const sig = JSON.stringify(boxes); if (cueLayer.dataset.sig === sig) return; cueLayer.dataset.sig = sig;
-  while (cueLayer.firstChild) cueLayer.removeChild(cueLayer.firstChild);
-  for (const [x, y, w, h, num, cur, dup, right] of boxes) { const d = document.createElement('div'); d.className = cur ? 'cq cur' : 'cq';
-    d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.width = w + 'px'; d.style.height = h + 'px';
-    if (num) { const bd = document.createElement('span'); bd.className = 'cb'; bd.textContent = String(num); if (right) bd.style.left = (w - CUE_BADGE + 9) + 'px';                                     // result and pole readings: badge on the right corner, clear of the surge meter and the lamps
-      else if (h < CUE_SMALL) { bd.style.left = (dup * CUE_BADGE_STEP + 8) + 'px'; bd.style.top = (4 - CUE_BADGE - 3) + 'px'; }
-      else bd.style.left = (dup * CUE_BADGE_STEP - 15) + 'px';
-      d.appendChild(bd); }
-    cueLayer.appendChild(d); }
+  cueOn.forEach(e => { if (!els.includes(e)) e.classList.remove('cue'); }); els.forEach(e => e.classList.add('cue')); cueOn = els;
 }
-addEventListener('resize', () => readouts(true)); addEventListener('scroll', () => readouts(true), true);
 
 /* ═══ 10. PHASOR VIEW, ROTATION METER, TEST MOTOR ═══ */
 const phG = document.getElementById('phG'), PHV = {};
@@ -1063,13 +1043,12 @@ function buildPhasors() {
   const arm = (col, w) => { const l = mk(phG, 'line', { x1: 0, y1: 0, x2: 0, y2: 0, stroke: col, 'stroke-width': w, 'stroke-linecap': 'round' }); const t = mk(phG, 'text', { 'font-size': 16, 'font-weight': 800, fill: col }, ''); return { l, t }; };
   PHV.bus = [0, 1, 2].map(() => arm('#d32f2f', 4)); PHV.gen = [0, 1, 2].map(() => arm('#1c5fd6', 4));
   PHV.bus2 = [0, 1, 2].map(() => arm('#d32f2f', 3)); PHV.gen2 = [0, 1, 2].map(() => arm('#1c5fd6', 3)); PHV.gap = [0, 1, 2].map(() => arm('#8a5700', 5));
-  mk(phG, 'circle', { cx: 770, cy: 62, r: 44, fill: '#eceef4', stroke: '#55636b', 'stroke-width': 2 });
+  PHV.meterC = mk(phG, 'circle', { cx: 770, cy: 62, r: 44, fill: '#eceef4', stroke: '#55636b', 'stroke-width': 2 });
   mk(phG, 'text', { x: 770, y: 126, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700 }, 'rotation meter');
   PHV.meter = mk(phG, 'text', { x: 770, y: 70, 'text-anchor': 'middle', 'font-size': 21, 'font-weight': 800 }, '');
-  mk(phG, 'circle', { cx: 770, cy: 186, r: 36, fill: '#eef4fe', stroke: '#1c5fd6', 'stroke-width': 2 });
+  PHV.motorC = mk(phG, 'circle', { cx: 770, cy: 186, r: 36, fill: '#eef4fe', stroke: '#1c5fd6', 'stroke-width': 2 });
   PHV.rotor = mk(phG, 'line', { x1: 770, y1: 156, x2: 770, y2: 216, stroke: '#1a2328', 'stroke-width': 7, 'stroke-linecap': 'round' });
   PHV.motor = mk(phG, 'text', { x: 770, y: 246, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 700 }, '');
-  mk(phG, 'rect', { id: 'cueRot', x: 668, y: 10, width: 204, height: 244, fill: 'none' });   // unpainted box the Watch cue rings
 }
 let phT = 0, motT = 0;
 /* Draw the phasors (bus at ωt − k·120°; generator at ωt + Δθ ∓ k·120°), the gap vectors, the meter and the motor. */
@@ -1134,9 +1113,9 @@ function buildDay() {
   for (let h = 0; h <= 24; h += 4) { mk(DG, 'path', { d: `M${DX(h)} ${DY(0)}v5`, stroke: '#55636b' }); mk(DG, 'text', { x: DX(h), y: DY(0) + 19, 'text-anchor': 'middle', 'font-size': 13, fill: '#55636b' }, String(h)); }
   mk(DG, 'text', { x: DX(24), y: 366, 'text-anchor': 'end', 'font-size': 13, fill: '#55636b' }, 'time of day (h)');
   let st = `M${DX(0)} ${DY(unitsNeeded(0) * UNIT_MW)}`; DAY_EV.forEach(e => { st += `H${DX(e.t).toFixed(1)}V${DY(e.n * UNIT_MW)}`; }); st += `H${DX(24)}`;
-  mk(DG, 'path', { d: st, fill: 'none', stroke: '#0f6e6c', 'stroke-width': 2.5 });
+  DAY.stair = mk(DG, 'path', { d: st, fill: 'none', stroke: '#0f6e6c', 'stroke-width': 2.5 });
   const pts = []; for (let h = 0; h <= 24; h++) pts.push(DX(h) + ',' + DY(loadMW(h)).toFixed(1));
-  mk(DG, 'polyline', { points: pts.join(' '), fill: 'none', stroke: '#1a2328', 'stroke-width': 2.5 });
+  DAY.load = mk(DG, 'polyline', { points: pts.join(' '), fill: 'none', stroke: '#1a2328', 'stroke-width': 2.5 });
   DAY_EV.forEach(e => mk(DG, 'circle', { cx: DX(e.t).toFixed(1), cy: DY(e.mw), r: 4.5, fill: '#ffffff', stroke: '#8a5700', 'stroke-width': 2 }));
   mk(DG, 'path', { d: 'M56 382h22', stroke: '#1a2328', 'stroke-width': 2.5 }); mk(DG, 'text', { x: 83, y: 386, 'font-size': 13 }, 'load');
   mk(DG, 'path', { d: 'M126 382h22', stroke: '#0f6e6c', 'stroke-width': 2.5 }); mk(DG, 'text', { x: 153, y: 386, 'font-size': 13 }, 'online capacity');
@@ -1153,9 +1132,7 @@ function buildDay() {
     const body = mk(DG, 'circle', { cx: 498, cy: y, r: 23, 'stroke-width': 3 });
     const name = mk(DG, 'text', { x: 498, y: y + 6, 'text-anchor': 'middle', 'font-size': 16, 'font-weight': 800 }, 'G' + (i + 1));
     const lbl = mk(DG, 'text', { x: 611, y: y + 24, 'text-anchor': 'middle', 'font-size': 13.5, 'font-weight': 700 }, '');
-    const box = mk(DG, 'rect', { x: 470, y: y - 28, width: 228, height: 58, fill: 'none' });   // unpainted box the Watch cue rings
-    DAY.units.push({ y, wire, c1, c2, blade, body, name, lbl, box }); }
-  mk(DG, 'rect', { id: 'cueChart', x: 14, y: 6, width: 452, height: 384, fill: 'none' }); mk(DG, 'rect', { id: 'cueFleet', x: 470, y: 44, width: 228, height: 310, fill: 'none' });
+    DAY.units.push({ y, wire, c1, c2, blade, body, name, lbl }); }
 }
 /* Draw the day at S.dayH: chart cursor, each unit's colour, breaker and label, and the readouts. Redrawn only when the hour changes (or forced). */
 function drawDay(force) {
@@ -1203,7 +1180,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   try { localStorage.removeItem(SHEET_KEY); sheetMsg('Answers cleared.', false); } catch (e) { sheetMsg('Could not clear the stored copy in this browser.', true); }
 });
 document.getElementById('exportBtn').addEventListener('click', () => {
-  const lines = ['Paralleling a Synchronous Generator — ECE 3033 Lab v1.2.2', 'Name: ' + (SHEET.name || ''), 'Section: ' + (SHEET.section || ''), 'Date: ' + (SHEET.date || ''), ''];
+  const lines = ['Paralleling a Synchronous Generator — ECE 3033 Lab v1.3.0', 'Name: ' + (SHEET.name || ''), 'Section: ' + (SHEET.section || ''), 'Date: ' + (SHEET.date || ''), ''];
   document.querySelectorAll('#sheet [data-k]').forEach(e => { if (['name', 'section', 'date'].includes(e.dataset.k)) return;
     const lab = e.getAttribute('aria-label') || (e.closest('li') ? e.closest('li').firstChild.textContent.trim() : e.dataset.k);
     lines.push('[' + e.dataset.k + '] ' + lab, '  ' + (SHEET[e.dataset.k] || '(blank)')); });
