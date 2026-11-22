@@ -15,7 +15,7 @@
 const { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } = React;
 
 /* ═══ 1 CONSTANTS ═════════════════════════════════════════════════════════ */
-const VERSION = 'v1.1.0';
+const VERSION = '__VERSION__';   // set by the build script
 const STAGE_W = 1280, STAGE_H = 720;        // stage size, px
 const MIN_SCALE = 0.05;                     // lower bound for the fit scale
 const LEAD = 1.00, GAP = 1.20, TAIL = 3.0;  // s: before line 1, between lines, after the last line
@@ -32,6 +32,8 @@ const START_EPS = 0.1;                      // s: playhead counts as "at the sta
 const CLIP_RESYNC = 0.3;                    // s: audio is re-seeked when it drifts this far from the playhead
 const CLIP_END_EPS = 0.05;                  // s: within this of a clip's end the clip is treated as finished
 const HALF_MIN = 30;                        // s: running time is shown to the nearest half minute
+const LAND_MOVE = 0.4;                       // s: a value's move into its tape slot (focus rule R5)
+const FOCUS_FS = 24, VALUE_FS = 30, SMALL_FS = 16;   // px: focus line, landing value, everything else (focus rule R2)
 const PLOT_TICKS = 4;                       // target number of y-axis intervals
 
 /* ═══ 2 PALETTE ═══════════════════════════════════════════════════════════ */
@@ -50,6 +52,9 @@ const GREEN = 'oklch(0.50 0.11 150)';
 const TEAL = 'oklch(0.50 0.11 190)';
 const BLUE = 'oklch(0.50 0.11 255)';
 const PURPLE = 'oklch(0.50 0.11 300)';
+// powers of s when equating coefficients (focus rule R3): one colour each
+const POW2 = 'oklch(0.50 0.13 350)', POW1 = 'oklch(0.50 0.11 110)', POW0 = 'oklch(0.50 0.11 225)';
+const COVER_FILL = '#FAC775', COVER_STROKE = '#BA7517';   // cover-up box (focus rule R3)
 const HEAD = "'IBM Plex Sans', system-ui, sans-serif";
 const MONO = "'IBM Plex Mono', ui-monospace, monospace";
 
@@ -171,8 +176,9 @@ function buildSchedule(lang, measured) {
     return (m != null && isFinite(m) && m > 0) ? m : lang.durs[i];
   });
   const starts = []; let t = LEAD;
-  for (let i = 0; i < durs.length; i++) { starts[i] = t; t += durs[i] + GAP; }
-  return { starts, durs, total: t - GAP + TAIL };
+  const gap = lang.gap != null ? lang.gap : GAP;   // s: a page may hold longer between lines
+  for (let i = 0; i < durs.length; i++) { starts[i] = t; t += durs[i] + gap; }
+  return { starts, durs, total: t - gap + TAIL };
 }
 
 // index of the line the playhead is in (-1 before line 1)
@@ -560,7 +566,7 @@ function FinishStrip({ ui }) {
 }
 
 // Captions: the on-screen line for the current narration clip
-function Captions({ sched, lang }) {
+function Captions({ sched, lang, text }) {
   const time = useTime(); const TL = useTL();
   const i = idxAt(sched, time);
   if (i < 0 || time >= TL.FINISH) return null;
@@ -570,7 +576,7 @@ function Captions({ sched, lang }) {
       <div data-gate="caption" style={{ maxWidth: 1040, margin: '0 20px', background: CARD,
         border: `1px solid ${LINE}`, borderRadius: 8, boxShadow: SHADOW, padding: '8px 18px', opacity: appear,
         fontFamily: MONO, fontSize: 15, lineHeight: 1.4, color: INK, textWrap: 'pretty' }}>
-        <Eq text={lang.caps[i]} />
+        <Eq text={text != null ? text : lang.caps[i]} />
       </div>
     </div>
   );
@@ -631,6 +637,44 @@ function Stamp() {
     <div data-gate="stamp" data-version-badge="1" style={{ position: 'absolute', left: 20, bottom: 22, fontFamily: MONO, fontSize: 14, color: MUTE }}>
       {'ECE 2003 · ' + VERSION}
     </div>
+  );
+}
+
+// true when the learner asks for reduced motion (focus rule R7)
+function useReducedMotion() {
+  const [rm, setRm] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const on = () => setRm(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return rm;
+}
+
+// Landing (focus rule R5): a dashed path from the value in the focus area to its tape slot, with a dot that
+// travels along it in LAND_MOVE s. `progress` is 0..1; null draws the finished path (paused / stepping by hand).
+// Positions are read from the two marked elements and converted to stage px.
+function Landing({ fromSel, toSel, progress }) {
+  const [pts, setPts] = useState(null);
+  useEffect(() => {
+    const stage = document.getElementById('stage'), a = document.querySelector(fromSel), b = document.querySelector(toSel);
+    if (!stage || !a || !b) { setPts(null); return; }
+    const s = stage.getBoundingClientRect(), k = STAGE_W / s.width, ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    const p = [(ra.right - s.left) * k + 6, (ra.top + ra.height / 2 - s.top) * k, (rb.left + rb.width / 2 - s.left) * k, (rb.bottom - s.top) * k + 4];
+    setPts((o) => (o && o.every((v, i) => Math.abs(v - p[i]) < 0.5) ? o : p));
+  });
+  if (!pts) return null;
+  const [x0, y0, x1, y1] = pts, f = progress == null ? 1 : clamp(progress, 0, 1);
+  // path: right from the value, then up/down into the slot's lower edge
+  const d = `M${x0} ${y0} L${x1} ${y0} L${x1} ${y1}`;
+  const len1 = Math.abs(x1 - x0), len2 = Math.abs(y1 - y0), at = f * (len1 + len2);
+  const dot = at <= len1 ? [x0 + Math.sign(x1 - x0) * at, y0] : [x1, y0 + Math.sign(y1 - y0) * (at - len1)];
+  return (
+    <svg data-landing="1" width={STAGE_W} height={STAGE_H} aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, zIndex: 6, pointerEvents: 'none' }}>
+      <path d={d} fill="none" stroke={AMBER} strokeWidth="2" strokeDasharray="6 5" />
+      <circle cx={dot[0]} cy={dot[1]} r="5" fill={AMBER} />
+    </svg>
   );
 }
 

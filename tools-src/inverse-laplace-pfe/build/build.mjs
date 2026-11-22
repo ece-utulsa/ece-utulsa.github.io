@@ -5,12 +5,14 @@ import fs from 'node:fs'; import path from 'node:path'; import crypto from 'node
 const require = createRequire(import.meta.url);
 const ts = require('/opt/node22/lib/node_modules/typescript');
 const TEST = process.argv.includes('--test');
-const VERSION = 'v1.1.0', RELEASED = '2026-11-22';
+const RELEASED = '2026-11-22';
+const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);   // e.g. --only=pfe1
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const PAGES = [
-  { id: 'pfe1', u: 'u1', n: 14, name: 'Simple Poles', file: 'Inverse_Laplace_Simple_Poles_' + VERSION + '.html', of: '1 of 3' },
-  { id: 'pfe2', u: 'u2', n: 16, name: 'Repeated Poles', file: 'Inverse_Laplace_Repeated_Poles_' + VERSION + '.html', of: '2 of 3' },
-  { id: 'pfe3', u: 'u3', n: 15, name: 'Complex Poles', file: 'Inverse_Laplace_Complex_Poles_' + VERSION + '.html', of: '3 of 3' },
+  { id: 'pfe1', u: 'u1', n: 14, name: 'Simple Poles', version: 'v1.2.0', of: '1 of 3',
+    changelog: '  Changelog: v1.2.0 \u2014 focus rules R1\u2013R7 (briefing addendum 2, principal-approved 2026-11-22): one line of math at a\n  time at 24 px with a method-colour bar; lines not yet reached are not drawn; finished lines collapse to compact rows;\n  the cover-up box on F(s); powers of s colour-coded through the identity, equations and matrix; no value before the\n  voice says it (tape slots read "?"); each value lands in its tape slot; 1.5 s hold between lines; reduced-motion\n  fallback. The step buttons now move one line at a time. Numbers and narration unchanged.\n' },
+  { id: 'pfe2', u: 'u2', n: 16, name: 'Repeated Poles', version: 'v1.1.0', of: '2 of 3' },
+  { id: 'pfe3', u: 'u3', n: 15, name: 'Complex Poles', version: 'v1.1.0', of: '3 of 3' },
 ];
 const sha = (s) => "'sha256-" + crypto.createHash('sha256').update(s, 'utf8').digest('base64') + "'";
 const read = (p) => fs.readFileSync(path.join(HERE, p), 'utf8');
@@ -45,9 +47,12 @@ fs.mkdirSync(path.join(HERE, TEST ? 'out_test' : 'out'), { recursive: true });
 const summary = [];
 for (const pg of PAGES) {
   if (!fs.existsSync(path.join(HERE, 'src/' + pg.id + '.jsx'))) continue;
+  if (ONLY && ONLY !== pg.id) continue;
+  const VERSION = pg.version; pg.file = 'Inverse_Laplace_' + pg.name.replace(' ', '_') + '_' + VERSION + '.html';
   let src = read('src/kit.jsx') + '\n' + (TEST ? read('src/gate.jsx') + '\n' : '') + read('src/' + pg.id + '.jsx')
     + '\n/* ═══ MOUNT ═══ */\nReactDOM.createRoot(document.getElementById(\'root\')).render(<Scene />);\n';
   src = src.replace('{/*#GATE*/}', TEST ? '<OverlapGate sched={sched} />' : '');
+  if (!src.includes("'__VERSION__'")) throw new Error('version token missing'); src = src.replace("'__VERSION__'", "'" + VERSION + "'");
   if (!TEST && /OverlapGate|__PFE_TEST/.test(src)) throw new Error('test code in ship build');
   const js = ts.transpileModule(src, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2020, removeComments: false, newLine: ts.NewLineKind.LineFeed } }).outputText;
   const app = `/* Inverse Laplace — ${pg.name} ${VERSION} — application script (precompiled from JSX; no in-browser compiler) */\n(function () {\n'use strict';\n${js}\n})();\n`;
@@ -56,7 +61,7 @@ for (const pg of PAGES) {
   // clips: old embedded set, with any delivered v1.1.0 clip merged over the clip of the same name
   const clips = parseClips(read('../' + pg.u + '/audio.js'));
   if (Object.keys(clips).length !== pg.n) throw new Error(pg.id + ': expected ' + pg.n + ' clips, found ' + Object.keys(clips).length);
-  const newFile = path.join(HERE, '../clips_new/' + pg.id + '_clips_' + VERSION + '.js'); const merged = [];
+  const newFile = path.join(HERE, '../clips_new/' + pg.id + '_clips_v1.1.0.js'); const merged = [];
   if (fs.existsSync(newFile)) for (const [k, v] of Object.entries(parseClips(fs.readFileSync(newFile, 'utf8')))) {
     if (!(k in clips)) throw new Error('unknown clip ' + k); clips[k] = v; merged.push(k);
   }
@@ -89,11 +94,11 @@ noscript{position:fixed;left:12px;bottom:12px;font:14px/1.4 system-ui,sans-serif
   Released: ${RELEASED}
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
   DEMO RELEASE 2026-11-22 (principal-directed; gates pending)
-  Changelog: ${VERSION} — rebuilt from the Design bundle as one precompiled file (spec v1.1.0, items G1–G6, V1–V7):
+${pg.changelog || ''}  v1.1.0 \u2014 rebuilt from the Design bundle as one precompiled file (spec v1.1.0, items G1\u2013G6, V1\u2013V7):
   no in-browser compiler and no bundle loader; opening summary card; key-point line; F(s) and f(t) on all three pages;
   Your-turn problem with Show solution; unknowns in amber; contrast and 13 px minimum text; one playback bar;
-  numbered f(t) axes; heading "Inverse Laplace". New narration clips for the changed lines (first and last line of
-  each page; Repeated Poles lines 6 and 13). The worked example and its numbers are unchanged.
+  numbered f(t) axes; heading "Inverse Laplace"; new narration clips for the changed lines. The worked example and its
+  numbers are unchanged.
   Third-party: React 18.3.1 and ReactDOM 18.3.1 (MIT, production builds, inlined); IBM Plex Sans and IBM Plex Mono
   (SIL OFL 1.1, subsets inlined). Narration: pre-rendered en-GB clips, embedded.
 -->

@@ -51,8 +51,8 @@ const run = async (pg) => {
   if (speak) fails.push('speechSynthesis.speak called ' + speak);
   if (log.some((l) => l.ev === 'csp')) fails.push('CSP violation ' + JSON.stringify(log.filter((l) => l.ev === 'csp')));
   // timeline: start of each clip (s after Start) and its duration; schedule = LEAD 1.0 + sum(dur + GAP 1.2)
-  let exp = 1.0; const timeline = plays.map((pl, i) => { const d = ended[i] ? ended[i].dur : NaN; const row = { clip: pl.clip, dur: +d.toFixed(3), start: +(pl.t - tStart).toFixed(2), sched: +exp.toFixed(2) }; exp += d + 1.2; return row; });
-  const total = exp - 1.2 + 3.0; const drift = Math.max(...timeline.map((r) => Math.abs(r.start - r.sched)));
+  const GAPK = kind === 'Simple' ? 1.5 : 1.2; let exp = 1.0; const timeline = plays.map((pl, i) => { const d = ended[i] ? ended[i].dur : NaN; const row = { clip: pl.clip, dur: +d.toFixed(3), start: +(pl.t - tStart).toFixed(2), sched: +exp.toFixed(2) }; exp += d + GAPK; return row; });
+  const total = exp - GAPK + 3.0; const drift = Math.max(...timeline.map((r) => Math.abs(r.start - r.sched)));
   if (drift > 0.5) fails.push('clip start drift ' + drift.toFixed(2) + ' s');
   // Your turn at the end
   if (!(await p.$('[data-card="yourturn"]'))) fails.push('no Your-turn card at the end');
@@ -61,11 +61,11 @@ const run = async (pg) => {
   if (!answer) fails.push('Space on Show solution did not show it');
   const replayStill = !!(await p.$('[data-gate="replay"]')); if (!replayStill) fails.push('Space on a button also toggled playback');
   // band controls
-  await p.click('[aria-label="previous step"]'); await p.waitForTimeout(100);
-  const stepTxt = await p.textContent('[data-step]'); if (stepTxt !== 'step 2 of 3') fails.push('previous step -> ' + stepTxt);
+  await p.click(kind === 'Simple' ? '[aria-label="previous line"]' : '[aria-label="previous step"]'); await p.waitForTimeout(100);
+  const stepTxt = await p.textContent('[data-step]'); if (stepTxt !== (kind === 'Simple' ? 'line 26 of 27' : 'step 2 of 3')) fails.push('previous step -> ' + stepTxt);
   if (await p.$('[data-card="yourturn"]')) fails.push('card stays over the work zone after a band control');
-  await p.click('[aria-label="next step"]'); await p.waitForTimeout(100);
-  if ((await p.textContent('[data-step]')) !== 'step 3 of 3') fails.push('next step');
+  await p.click(kind === 'Simple' ? '[aria-label="next line"]' : '[aria-label="next step"]'); await p.waitForTimeout(100);
+  if ((await p.textContent('[data-step]')) !== (kind === 'Simple' ? 'line 27 of 27' : 'step 3 of 3')) fails.push('next step');
   let extra = {};
   if (kind !== 'Complex') {
     await p.click('button:has-text("A · residue")'); await p.waitForTimeout(100);

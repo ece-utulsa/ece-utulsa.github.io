@@ -37,6 +37,7 @@ function OverlapGate({ sched }) {
       getTime: () => live.current.time,
       sched: () => live.current.sched,
       TL: () => live.current.TL,
+      beats: () => (typeof BEATS === 'undefined' ? [] : BEATS.map((b, i) => ({ id: b.id, line: b.line, start: beatStart(live.current.TL, i) }))),
     };
     return () => { delete window.__PFE_TEST; };
   }, []);
