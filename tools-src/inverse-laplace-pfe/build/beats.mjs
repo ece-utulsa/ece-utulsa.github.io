@@ -2,7 +2,7 @@
 import { createRequire } from 'node:module'; import fs from 'node:fs'; import path from 'node:path';
 const require = createRequire(import.meta.url); const { chromium } = require('playwright');
 const [PG, outdir, W = '1366', H = '768', DPR = '1', RM = ''] = process.argv.slice(2);
-const NAME = { pfe1: 'Simple_Poles_v1.2.0', pfe2: 'Repeated_Poles_v1.2.0', pfe3: 'Complex_Poles_v1.2.0', fd: 'Factoring_the_Denominator_v1.1.0', sd3: 'S-Domain_Circuit_Analysis_v1.1.0' }[PG];
+const NAME = { pfe1: 'Simple_Poles_v1.2.0', pfe2: 'Repeated_Poles_v1.2.0', pfe3: 'Complex_Poles_v1.2.0', fd: 'Factoring_the_Denominator_v1.1.0', sd3: 'S-Domain_Circuit_Analysis_v1.1.0', l9: 'Laplace_L9_Mesh_Analysis_s-Domain_v1.0.0', l10: 'Laplace_L10_Node_Analysis_s-Domain_v1.0.0' }[PG];
 fs.mkdirSync(outdir, { recursive: true });
 const file = path.resolve('out_test', fs.readdirSync('out_test').find((f) => f.includes(NAME + '.html')));
 const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: +W, height: +H }, deviceScaleFactor: +DPR, reducedMotion: RM ? 'reduce' : 'no-preference' }); const p = await ctx.newPage();
@@ -38,6 +38,17 @@ const RULESETS = {
     [/L is a short/, 'dc', 'DC row'], [/0\.98/, 'ac', 'AC row'], [/full s:/, 'full', 'full row'], [/Z = R/, 'mR', 'R model'], [/Z = sL/, 'mL', 'L model'], [/Z = 1\/\(sC\)/, 'mC', 'C model'],
     [/V_S\/s/, 'src', 'source rule'], [/L·I_L\(0⁻\)/, 'icL1', 'L IC'], [/V_C\(0⁻\)\/s/, 'icC', 'C IC'], [/came from d\/dt/, 'arc', 'arc note'], [/3e⁻ᵗ/, 'yt', 'your-turn answer'],
   ],
+  l9: [
+    [/4\/\(s\+2\)/, 'tVL', 'left source in s'], [/2\/\(s\+1\)/, 'tVR', 'right source in s'], [/3\/s/, 'tC', '3/s'], [/4s/, 'tL', '4s'],
+    [/I₁\(3\/s \+ 10\)/, 'k1d', 'mesh 1 collected'], [/I₂\(10 \+ 4s\)/, 'k2d', 'mesh 2 collected'], [/40s²/, 'dB', 'delta'], [/16s \+ 40/, 'i1B', 'delta 1'], [/16s³/, 'i1C', 'I1'],
+    [/20s \+ 6/, 'i2B', 'delta 2'], [/60s²/, 'i2C', 'I2'], [/0\.853/, 'p2', 'complex pair'], [/0\.841/, 'c11', 'c11'], [/0\.198/, 'c12', 'c12'], [/0\.345/, 'c13', 'c13'], [/0\.096/, 'c14', 'c14'],
+    [/0\.723/, 'c21', 'c21'], [/0\.473/, 'c22', 'c22'], [/0\.241/, 'c23', 'c23'], [/0\.482/, 'c24', 'c24'], [/16\/40/, 'v1a', 'IVT'], [/0\.400/, 'v1b', 'sum check'], [/Lecture 10 ·/, 'yt', 'links'], [/0\.5e/, 'yt', 'your-turn answer'],
+  ],
+  l10: [
+    [/1\/s/, 'tC', '1/s'], [/i_L\(0⁻\) = 1 A/, 'icL', 'iL(0-)'], [/v_C\(0⁻\) = 1 V/, 'icC', 'vC(0-)'], [/\(s \+ 2\)V_C − V_L = 2/, 'nCe', 'node C collected'], [/= −1\/s/, 'nLc', 'node L rhs'],
+    [/s² \+ 2s \+ 2/, 'dB', 'delta'], [/2s \+ 1/, 'dCb', 'delta C'], [/\(s\+1\)² \+ 1/, 'sq', 'completed square'], [/2 cos t/, 'vc', 'v_C(t)'], [/sin t/, 'vc', 'v_C(t) sin'],
+    [/2 V/, 'ivt', 'v_C(0+)'], [/1 C\)/, 'jump', 'jump'], [/Lecture 9 ·/, 'yt', 'links'], [/e⁻ᵗ cos t/, 'yt', 'your-turn answer'],
+  ],
   pfe3: [
     [/A = 6|(?<![\d(])6(?=\/\(s\+1\))/, 'A-val', 'A value'], [/B = −6/, 'B-val', 'B value'], [/−18(?!\d)/, 'C-val', 'C value'],
     [/\(s ?\+ ?2\)²/, 'sq-done', 'completed square'], [/α = (4\/2 = )?2/, 'al-val', 'alpha'], [/β = (√9 = )?3/, 'be-val', 'beta'],
@@ -54,7 +65,7 @@ for (let i = 0; i < beats.length; i++) {
     await p.waitForTimeout(140);
     const st = await p.evaluate(() => {
       const stage = document.getElementById('stage'); const clone = stage.cloneNode(true); clone.querySelectorAll('.sr-only,[data-card="yourturn"]').forEach((e) => e.remove());
-      const vis = Array.from(stage.querySelectorAll('[data-gate="work"],[data-gate="tape"],[data-gate="ft"],[data-gate="caption"],[data-gate="band"],[data-gate="circuit"],[data-gate="models"],[data-gate="out"],[data-gate="rail"]')).filter((e) => !e.closest('[data-card]') && e.dataset.card !== 'yourturn').map((e) => e.innerText + '\n' + Array.from(e.querySelectorAll('svg text')).map((t) => t.textContent).join('\n')).join('\n');
+      const vis = Array.from(stage.querySelectorAll('[data-gate="work"],[data-gate="tape"],[data-gate="ft"],[data-gate="caption"],[data-gate="band"],[data-gate="circuit"],[data-gate="models"],[data-gate="out"],[data-gate="rail"],[data-gate="board"],[data-gate="plot"]')).filter((e) => !e.closest('[data-card]') && e.dataset.card !== 'yourturn').map((e) => e.innerText + '\n' + Array.from(e.querySelectorAll('svg text')).map((t) => t.textContent).join('\n')).join('\n');
       const focus = Array.from(document.querySelectorAll('[data-focus]')); const f = focus[0];
       const big = []; const tw = document.createTreeWalker(stage, NodeFilter.SHOW_TEXT); let n;
       while ((n = tw.nextNode())) { const el = n.parentElement; if (!n.textContent.trim() || el.closest('.sr-only')) continue; const fs = parseFloat(getComputedStyle(el).fontSize); const inFocus = !!el.closest('[data-focus]'); const zone = el.closest('[data-gate="work"],[data-gate="tape"],[data-gate="ft"]'); if (zone && !inFocus && fs > 16.01 && !el.closest('[data-card="yourturn"]')) big.push(fs + ':' + n.textContent.trim().slice(0, 20)); if (inFocus && fs < 23.99 && !el.closest('[data-unk]') && el.dataset.unk == null) { const sm = el.closest('[data-focus] div[style*="font-size: 16px"]'); if (!sm) big.push('focus small ' + fs + ':' + n.textContent.trim().slice(0, 20)); } }
