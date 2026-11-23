@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v3.2.1">
-<title>Commutation — Simple DC Motor v3.2.1</title>
+<meta name="version" content="v3.2.2">
+<title>Commutation — Simple DC Motor v3.2.2</title>
 <script>/* set the theme before first paint so there is no flash */
 try { var t = localStorage.getItem('commutation-theme'); if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -225,7 +225,7 @@ select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(
   <div class="brand">
     <span class="dot"></span>
     <div>
-      <h1>Commutation <span class="ver">v3.2.1</span></h1>
+      <h1>Commutation <span class="ver">v3.2.2</span></h1>
       <p>How a split ring keeps the current — and the torque — going the same way</p>
     </div>
   </div>
@@ -653,7 +653,14 @@ select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(
 
 <script>
 /* =====================================================================
-   COMMUTATION — v3.2.1
+   COMMUTATION — v3.2.2
+   v3.2.2 (2026-11-20, Claude Code): PPR-COM-013 — the guided-tour text of every
+     polarity-dependent step (1, 2, 4, 6, 8, 10, 12) follows the supply polarity
+     (S.pol) and is redrawn when either Reverse button is pressed, so an open step
+     never contradicts the RIGHT NOW card, the drawings or the TORQUE readout.
+     rev 1: DEFECT-COM-014 (2026-11-21) — applyTour() resets S.pol to normal before
+     showTour() picks the step text, so a step entered by Start, Next or Back after
+     Reverse shows the normal-polarity text that matches the polarity in force.
    v3.2.1 (2026-11-19): PPR-COM-001 — machine ③ RIGHT NOW card states the
      conductor marks under each pole from the supply polarity (S.pol).
    Conventions (end view, looking along the shaft from the brush end):
@@ -1688,31 +1695,39 @@ function updateText() {
 /* =====================================================================
    GUIDED TOUR
    ===================================================================== */
+// PPR-COM-013 (v3.2.2): a step whose text names a current direction, brush or torque sense gives one text for each supply polarity;
+// showTour() picks the one for S.pol, and reverseCurrent() redraws the open step
+const byPol = (normal, reversed) => pol => (pol > 0 ? normal : reversed);
 const TOUR = [
   { mode: 'slip', theta: 60, view: '3d', title: 'A loop in a magnetic field',
-    text: 'One loop of wire (sides <b>1</b> and <b>1′</b>) sits between the N and S poles, with the field pointing <b>down</b>. Follow the white arrows: current comes from the + terminal, goes <b style="color:var(--into)">into the page (×)</b> along side 1′, crosses at the back, and comes <b style="color:var(--out)">out of the page (•)</b> along side 1. F = I L × B pushes side 1 <b>right</b> and side 1′ <b>left</b>, which turns the rotor <b style="color:var(--force)">clockwise</b>.' },
+    text: byPol('One loop of wire (sides <b>1</b> and <b>1′</b>) sits between the N and S poles, with the field pointing <b>down</b>. Follow the white arrows: current comes from the + terminal, goes <b style="color:var(--into)">into the page (×)</b> along side 1′, crosses at the back, and comes <b style="color:var(--out)">out of the page (•)</b> along side 1. F = I L × B pushes side 1 <b>right</b> and side 1′ <b>left</b>, which turns the rotor <b style="color:var(--force)">clockwise</b>.',
+      'One loop of wire (sides <b>1</b> and <b>1′</b>) sits between the N and S poles, with the field pointing <b>down</b>. The supply is <b>reversed</b>, so follow the white arrows the other way: current comes from the + terminal, goes <b style="color:var(--into)">into the page (×)</b> along side 1, crosses at the back, and comes <b style="color:var(--out)">out of the page (•)</b> along side 1′. F = I L × B pushes side 1 <b>left</b> and side 1′ <b>right</b>, which turns the rotor <b style="color:var(--force)">counter-clockwise</b>.') },
   { mode: 'slip', theta: 60, to: -60, view: '3d', title: 'Half a turn later…',
-    text: 'These are plain <b>slip rings</b>, so each end of the loop stays wired to the same terminal. Side 1 still carries current <b style="color:var(--out)">out of the page</b>, but it is now under the <b>S</b> pole. The current is the same and the field is reversed, so the force reverses and the torque is now <b style="color:var(--bad)">counter-clockwise</b>.' },
+    text: byPol('These are plain <b>slip rings</b>, so each end of the loop stays wired to the same terminal. Side 1 still carries current <b style="color:var(--out)">out of the page</b>, but it is now under the <b>S</b> pole. The current is the same and the field is reversed, so the force reverses and the torque is now <b style="color:var(--bad)">counter-clockwise</b>.',
+      'These are plain <b>slip rings</b>, so each end of the loop stays wired to the same terminal. With the supply reversed, side 1 still carries current <b style="color:var(--into)">into the page</b>, but it is now under the <b>S</b> pole. The current is the same and the field is reversed, so the force reverses and the torque is now <b style="color:var(--bad)">clockwise</b>, the opposite of where it started.') },
   { mode: 'slip', theta: 60, run: 'free', title: 'So it just rocks',
     text: 'Let the loop turn on its own torque. It swings toward the neutral line, overshoots, gets pushed back, and settles. <b>The current in the loop needs to reverse every half turn</b>, and slip rings can’t do that.' },
   { mode: 'comm', theta: 60, view: '3d', title: 'Split the ring in two',
-    text: 'Cut the ring into two halves, segments <b>a</b> and <b>b</b>. They turn with the loop, but the brushes stay put. Right now <b>a</b> touches the + brush, so the current pattern is exactly the same as before: <b style="color:var(--out)">•</b> under N, <b style="color:var(--into)">×</b> under S, torque <b style="color:var(--force)">clockwise</b>.' },
+    text: byPol('Cut the ring into two halves, segments <b>a</b> and <b>b</b>. They turn with the loop, but the brushes stay put. Right now <b>a</b> touches the + brush, so the current pattern is exactly the same as before: <b style="color:var(--out)">•</b> under N, <b style="color:var(--into)">×</b> under S, torque <b style="color:var(--force)">clockwise</b>.',
+      'Cut the ring into two halves, segments <b>a</b> and <b>b</b>. They turn with the loop, but the brushes stay put. The supply is reversed, so right now <b>b</b> touches the + brush, and the current pattern is the same as the slip-ring loop on this supply: <b style="color:var(--into)">×</b> under N, <b style="color:var(--out)">•</b> under S, torque <b style="color:var(--force)">counter-clockwise</b>.') },
   { mode: 'comm', theta: 60, to: 0, view: '3d', title: 'The switch-over (commutation)',
     text: 'The loop reaches the neutral line. The gap between a and b is now under each brush, so each brush touches <b>both</b> segments and the loop is briefly shorted. Its current is <b style="color:var(--comm)">passing through zero</b> on the way to reversing. This happens where <b>B ≈ 0</b>, where the loop makes no torque anyway, so nothing is lost.' },
   { mode: 'comm', theta: 0, to: -60, view: '3d', title: 'After the switch',
-    text: 'Now <b>b</b> is on the + brush, so current enters at side 1 instead. Side 1 has moved under S, and its current has <b>reversed</b> to <b style="color:var(--into)">× into the page</b>. Side 1′ under N carries <b style="color:var(--out)">• out</b>. The force is still <b style="color:var(--force)">clockwise</b>. <b>The current in the loop reversed; the current under each pole did not.</b>' },
+    text: byPol('Now <b>b</b> is on the + brush, so current enters at side 1 instead. Side 1 has moved under S, and its current has <b>reversed</b> to <b style="color:var(--into)">× into the page</b>. Side 1′ under N carries <b style="color:var(--out)">• out</b>. The force is still <b style="color:var(--force)">clockwise</b>. <b>The current in the loop reversed; the current under each pole did not.</b>',
+      'With the supply reversed, <b>a</b> is now on the + brush, so current enters at side 1′ instead. Side 1 has moved under S, and its current has <b>reversed</b> to <b style="color:var(--out)">• out of the page</b>. Side 1′ under N carries <b style="color:var(--into)">× in</b>. The force is still <b style="color:var(--force)">counter-clockwise</b>. <b>The current in the loop reversed; the current under each pole did not.</b>') },
   { mode: 'comm', theta: 60, run: 'steady', title: 'Two points of view',
     text: 'Watch the graphs. The loop carries <b>alternating</b> current that flips every half turn (top). The supply only ever sees <b>DC</b> (middle). Each flip happens in the neutral zone, so the torque (bottom) never goes negative. The commutator is a <b>reversing switch turned by the shaft</b>.' },
   { mode: 'comm', theta: 60, run: 'free', view: '3d', title: 'Reverse the current, reverse the motor',
-    text: 'Press <b>⇄ Reverse current</b> (top right of the 3-D view) while it runs. The supply terminals swap, so every <b style="color:var(--out)">•</b> becomes <b style="color:var(--into)">×</b> and every force arrow flips. The rotor brakes, stops, and spins up the other way. The commutator still switches at the neutral line, so the new direction is just as steady. Drag the 3-D view around to look at it from any side.' },
+    text: byPol('Press <b>⇄ Reverse current</b> (top right of the 3-D view) while it runs. The supply terminals swap, so every <b style="color:var(--out)">•</b> becomes <b style="color:var(--into)">×</b> and every force arrow flips. The rotor brakes, stops, and spins up the other way. The commutator still switches at the neutral line, so the new direction is just as steady. Drag the 3-D view around to look at it from any side.',
+      'The current is now <b>reversed</b>: the supply terminals swapped, so every <b style="color:var(--out)">•</b> became <b style="color:var(--into)">×</b> and every force arrow flipped. The rotor brakes, stops, and spins up the other way (<b style="color:var(--force)">counter-clockwise</b>). The commutator still switches at the neutral line, so the new direction is just as steady. Press <b>⇄ Current reversed</b> to swap back. Drag the 3-D view around to look at it from any side.') },
   { mode: 'comm', theta: 30, to: 0, view: '3d', title: 'The weakness of one loop',
     text: 'The torque falls to zero every time the loop passes the neutral zone. If the rotor stops exactly here, it can’t restart on its own. Real machines fix this by using many coils.' },
   { mode: 'four', theta: 45, view: 'circuit', follow: 0, title: 'Four coils, four segments',
-    text: 'Coils 1–4 are joined end to end in a closed ring through segments <b>a–d</b>. The brushes split that ring into <b>two parallel paths</b>: current enters at the + brush, half goes each way round, and it leaves at the − brush. Every conductor under N is <b style="color:var(--out)">•</b> and every one under S is <b style="color:var(--into)">×</b>.' },
+    text: pol => 'Coils 1–4 are joined end to end in a closed ring through segments <b>a–d</b>. The brushes split that ring into <b>two parallel paths</b>: current enters at the + brush, half goes each way round, and it leaves at the − brush. ' + (pol > 0 ? 'Every conductor under N is <b style="color:var(--out)">•</b> and every one under S is <b style="color:var(--into)">×</b>.' : 'The supply is reversed, so every conductor under N is <b style="color:var(--into)">×</b> and every one under S is <b style="color:var(--out)">•</b>.') },
   { mode: 'four', theta: 45, to: 0, view: '3d', follow: 0, title: 'Commutation, two coils at a time',
     text: 'Coils 1 and 3 reach the neutral line, and the brushes short them while their current reverses. Coils 2 and 4 are squarely under the poles, carrying full current, so the torque <b>never drops to zero</b>.' },
   { mode: 'four', theta: 45, run: 'steady', view: '3d', follow: 0, title: 'The big idea',
-    text: 'Follow coil 1 (white ring): its current flips every half turn. But the <b>pattern in space</b> (• under N, × under S) never changes. Commutation keeps that pattern fixed while the copper moves through it. Use <b>Follow one coil</b> to check the others.' },
+    text: pol => 'Follow coil 1 (white ring): its current flips every half turn. But the <b>pattern in space</b> (' + (pol > 0 ? '• under N, × under S' : '× under N, • under S, with the supply reversed') + ') never changes. Commutation keeps that pattern fixed while the copper moves through it. Use <b>Follow one coil</b> to check the others.' },
 ];
 function showTour() {
   const i = S.tour;
@@ -1724,14 +1739,15 @@ function showTour() {
   }
   const t = TOUR[i];
   $('tourStep').textContent = `Step ${i + 1} of ${TOUR.length}`;
-  $('tourTitle').textContent = t.title; $('tourText').innerHTML = t.text;
+  $('tourTitle').textContent = t.title; $('tourText').innerHTML = typeof t.text === 'function' ? t.text(S.pol) : t.text;
   $('tourPrev').disabled = false;
   $('tourNext').textContent = i === TOUR.length - 1 ? 'Finish ✓' : 'Next ▶';
 }
 function applyTour(i) {
-  S.tour = i; showTour(); if (i < 0) return;
+  S.tour = i;
+  if (i >= 0) { S.pol = 1; syncPol(); }   // DEFECT-COM-014: entering a step forces normal polarity BEFORE its text is chosen
+  showTour(); if (i < 0) return;
   const t = TOUR[i];
-  S.pol = 1; syncPol();
   setMode(t.mode, true);
   if (t.follow != null) { S.follow = t.follow; $('follow').value = t.follow; }
   if (t.view) setView(t.view);
@@ -1777,6 +1793,7 @@ $('speed').oninput = e => { S.speed = +e.target.value; $('dSpeed').textContent =
 $('pauseComm').onclick = () => { S.pauseComm = !S.pauseComm; $('pauseComm').classList.toggle('on', S.pauseComm); };
 function reverseCurrent() {
   S.pol = -S.pol; syncPol();
+  if (S.tour >= 0) showTour();   // PPR-COM-013: the open tour step follows the new polarity
   // the rotor keeps its momentum for a moment, then the reversed torque brakes it and spins it the other way
   if (S.motion === 'steady') S.omega = 0;
 }
