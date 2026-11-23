@@ -1,13 +1,13 @@
 # Power Divider Designer — sources
 
-`../Power_Divider_Designer_v2.0.0.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
+`../Power_Divider_Designer_v2.0.1.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
 v2.0.0 replaces the Wilkinson Power Divider Designer v1.0.0 (a Claude Design bundle with React and Babel, 1.5 MB): this is
 plain JavaScript in one offline HTML file (about 270 kB, fonts included).
 
 | File | What it holds |
 |---|---|
 | `template.html` | Markup of the six pages, CSS (light theme default, dark toggle, print), the version stamp |
-| `engine.js` | Complex arithmetic and matrices; the nodal solver (lossy line π stamps, resistors, Kron reduction, Y → S; a compiled path for sweeps); the loaded solve and energy balance; microstrip (Pozar/Wheeler, Hammerstad–Jensen + Kirschning–Jansen); binomial and Chebyshev tapers; isolation-resistor synthesis (even/odd-mode minimax, full-solver refinement for unequal splits, deferred while a slider moves); synthesis of the Wilkinson, T-junction, resistive divider and the N-way branching tree; network build; sweeps, bandwidths, S-matrix checks |
+| `engine.js` | Complex arithmetic and matrices; the nodal solver (lossy line π stamps, resistors, Kron reduction, Y → S; a compiled path for sweeps); the loaded solve and energy balance; microstrip (course formulas L06–L09; Hammerstad–Jensen + Kirschning–Jansen); quasi-TEM range warnings; binomial and Chebyshev tapers; isolation-resistor synthesis (even/odd-mode minimax, full-solver refinement for unequal splits, deferred while a slider moves); synthesis of the Wilkinson, T-junction, resistive divider and the N-way branching tree; network build; sweeps, bandwidths, S-matrix checks |
 | `layout.js` | The to-scale top view in mm: resistor land patterns (0402, 0603), centreline paths with optimum-mitre or round corners, the four section shapes fitted to λg/4, quarter-turn placement, two-arm / star / resistive stages, single dividers with launches, binary and H-tree placement with interconnects and serpentine delay lines, bounding box |
 | `ui.js` | State (persisted in localStorage, validated on load), formats, DOM and SVG builders, the derived design (synthesis → layout → network → sweep) |
 | `view3d.js` | 3D view: substrate on its ground plane, copper, resistors and edge-launch SMA connectors, painted by a small canvas renderer (orbit, zoom, height exaggeration) |
@@ -25,7 +25,7 @@ plain JavaScript in one offline HTML file (about 270 kB, fonts included).
 ## Build and test
 
 ```sh
-python3 build.py                                   # writes ../Power_Divider_Designer_v2.0.0.html
+python3 build.py                                   # writes ../Power_Divider_Designer_v2.0.1.html
 node tests/engine.test.js
 NODE_PATH=$(npm root -g) node tests/browser.test.js   # needs Playwright; CHROMIUM=/path/to/chromium optional
 ```

@@ -308,7 +308,7 @@ function layoutSingle(g, design){
   const st = design.stage, W0 = g.ms(g.z0).W, L0 = g.launch, pfx = 'x';
   const sg = st.kind === 'resistive' ? stageResistive(g, st, pfx) : st.kind === 'star' ? stageStar(g, st, pfx) : stageTwoArm(g, st, pfx);
   const els = sg.els.slice(), N = sg.ends.length;
-  els.unshift(zLine(pfx + '.in', 'launch', [P(-L0, 0), P(0, 0)], W0, g.h, false));
+  if(L0 > 0) els.unshift(zLine(pfx + '.in', 'launch', [P(-L0, 0), P(0, 0)], W0, g.h, false));   // no input launch at 0 mm (DEFECT-PDD-001)
   const ys = sg.ends.map(e => e.y), span = Math.max(g.pitch * (N - 1), ys[N - 1] - ys[0]);
   const yp = ys.map((y, i) => N === 1 ? y : -span / 2 + span * i / (N - 1));
   if(sg.stub != null){
@@ -423,7 +423,7 @@ function layoutTree(g, design){
     l.port = { name: 'P' + (l.nd.idx + 2), at: applyTf(ltf, pts[pts.length - 1]), dir: ltf.q, i: l.nd.idx + 1 };
   });
   // root input launch (drawn, not modelled)
-  els.push(zLine('in', 'launch', [P(-L0, 0), P(0, 0)], W0, h, false));
+  if(L0 > 0) els.push(zLine('in', 'launch', [P(-L0, 0), P(0, 0)], W0, h, false));   // none at 0 mm (DEFECT-PDD-001)
   const ports = [{ name: 'P1', at: P(-L0, 0), dir: 2, i: 0 }].concat(leaves.map(l => l.port).sort((a, b) => a.i - b.i));
   const out = finish({ els, res, labels, ports, W0, lens, zs, warnings, thMax, thLeaf: leaves.map((l, i) => ({ idx: l.nd.idx, th: thLeaf[i] + 2 * Math.PI * plan[i].dL / lg0 })) });
   return out;

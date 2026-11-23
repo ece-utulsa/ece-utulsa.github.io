@@ -5,7 +5,7 @@
    2. Complex matrices       — dense re/im arrays, Gauss–Jordan inverse, linear solve
    3. Nodal solver           — lossy line π stamps, resistors, Kron reduction of internal nodes, Y → S
    4. Loaded solve           — matched source, mismatched loads, node voltages, the energy balance
-   5. Microstrip             — Pozar (Wheeler) synthesis; Hammerstad–Jensen with Kirschning–Jansen dispersion
+   5. Microstrip             — course formulas (L06–L09); Hammerstad–Jensen with Kirschning–Jansen dispersion; quasi-TEM range
    6. Impedance tapers       — binomial and Chebyshev multisection transformers
    7. Isolation resistors    — odd-mode minimax optimisation (equal split), full-solver refinement (unequal)
    8. Divider synthesis      — Wilkinson, T-junction, resistive, corporate tree (structure only; the layout adds lengths)
@@ -38,6 +38,7 @@ const DEG = 180 / Math.PI;
 // A dense n×m complex matrix: { n, m, re: Float64Array, im: Float64Array }, row-major.
 const cmat = (n, m) => ({ n, m: m || n, re: new Float64Array(n * (m || n)), im: new Float64Array(n * (m || n)) });
 const mget = (M, i, j) => ({ re: M.re[i * M.m + j], im: M.im[i * M.m + j] });
+const sdb = (M, i, j) => dB20(cabs(mget(M, i, j)));   // |Sij| in dB
 // Inverse by Gauss–Jordan with partial pivoting.
 function cmatInv(M){
   const n = M.n, w = 2 * n, re = new Float64Array(n * w), im = new Float64Array(n * w);
@@ -258,25 +259,42 @@ function solveLoaded(net, u, lossDb, loads){
 
 // ── 5. MICROSTRIP ─────────────────────────────────────────────
 /* Two models (zero strip thickness):
-   'pozar' — Pozar eq. 3.195–3.197 (Wheeler's synthesis): W/h from Z and εr, quasi-static ε_eff, no dispersion.
-   'hj'    — Hammerstad–Jensen (1980) Z and ε_eff, W/h found by bisection, then the Kirschning–Jansen (1982)
-             dispersion of ε_eff at f0 for the guided wavelength. Z is not corrected for dispersion. */
-const ETA0 = 376.730313668;
-function msPozarWh(Z, er){
+   'course' — the course formula set (default; PED-15 proposal, ruling PDD-3 2026-11-20): W/h from Z and εr by the
+              Wheeler–Hammerstad A/B synthesis of lecture L09; ε_eff by the two-branch Hammerstad formula of L06 (an added
+              0.04(1 − W/h)² term for W/h ≤ 1); Z0 of the synthesised strip by the L07 formula, as the verify step L09 asks
+              for. Quasi-static, no dispersion.
+   'hj'     — beyond the lecture notes: Hammerstad–Jensen (1980) Z and ε_eff, W/h found by bisection, then the
+              Kirschning–Jansen (1982) dispersion of ε_eff at f0 for the guided wavelength. Z is not corrected for dispersion. */
+const ETA0 = 376.730313668;                           // free-space wave impedance (Ω)
+const WH_BRANCH = 1;                                  // W/h at which the L06/L07 formulas change branch
+const WH_SYNTH_BRANCH = 2;                            // W/h at which the L09 synthesis changes from the A to the B branch
+// L09 synthesis (Wheeler–Hammerstad A/B branches): W/h for impedance Z (Ω) on relative permittivity er.
+function msWheelerWh(Z, er){
   const A = Z / 60 * Math.sqrt((er + 1) / 2) + (er - 1) / (er + 1) * (0.23 + 0.11 / er);
   let wh = 8 * Math.exp(A) / (Math.exp(2 * A) - 2);
-  if(!(wh > 0 && wh < 2)){
+  if(!(wh > 0 && wh < WH_SYNTH_BRANCH)){
     const B = ETA0 * Math.PI / (2 * Z * Math.sqrt(er));
     wh = (2 / Math.PI) * (B - 1 - Math.log(2 * B - 1) + (er - 1) / (2 * er) * (Math.log(B - 1) + 0.39 - 0.61 / er));
   }
   return wh;
 }
-const msPozarEeff = (er, wh) => (er + 1) / 2 + (er - 1) / 2 / Math.sqrt(1 + 12 / wh);
+// L06 two-branch quasi-static ε_eff at width ratio wh = W/h.
+function msCourseEeff(er, wh){
+  const base = 1 / Math.sqrt(1 + 12 / wh);
+  return (er + 1) / 2 + (er - 1) / 2 * (wh <= WH_BRANCH ? base + 0.04 * (1 - wh) ** 2 : base);
+}
+// L07 characteristic impedance (Ω) of a strip of width ratio wh with effective permittivity eeff (the verify step).
+function msCourseZ(wh, eeff){
+  return wh <= WH_BRANCH ? 60 / Math.sqrt(eeff) * Math.log(8 / wh + wh / 4)
+    : ETA0 / (Math.sqrt(eeff) * (wh + 1.393 + 0.667 * Math.log(wh + 1.444)));
+}
+// Hammerstad–Jensen static ε_eff at width ratio u = W/h.
 function msHjEeff(er, u){
   const a = 1 + Math.log((u ** 4 + (u / 52) ** 2) / (u ** 4 + 0.432)) / 49 + Math.log(1 + (u / 18.1) ** 3) / 18.7;
   const b = 0.564 * ((er - 0.9) / (er + 3)) ** 0.053;
   return (er + 1) / 2 + (er - 1) / 2 * (1 + 10 / u) ** (-a * b);
 }
+// Hammerstad–Jensen characteristic impedance (Ω) at width ratio u = W/h.
 function msHjZ(er, u){
   const f = 6 + (2 * Math.PI - 6) * Math.exp(-((30.666 / u) ** 0.7528));
   return ETA0 / (2 * Math.PI) * Math.log(f / u + Math.sqrt(1 + (2 / u) ** 2)) / Math.sqrt(msHjEeff(er, u));
@@ -291,18 +309,37 @@ function msKjEeff(er, u, eeff0, fGHz, hmm){
   const P = P1 * P2 * ((0.1844 + P3 * P4) * fn) ** 1.5763;
   return er - (er - eeff0) / (1 + P);
 }
-/* Synthesis: { wh, W (mm), eeff, lambdaG (mm), lenQ (mm, λg/4) } for impedance Z on (εr, h mm) at f (Hz). */
+const HJ_WH_LO = 1e-3, HJ_WH_HI = 100, HJ_BISECT_STEPS = 80;   // W/h bracket and bisection steps for the H–J synthesis
+/* Synthesis: { wh, W (mm), eeff, lambdaG (mm), lenQ (mm, λg/4), zCheck (Ω, course model only) } for impedance Z on
+   (εr, h mm) at f (Hz). */
 function microstrip(Z, er, h, f, model){
-  let wh, eeff;
+  let wh, eeff, zCheck = null;
   if(model === 'hj'){
-    let lo = 1e-3, hi = 100;                        // Z falls as W/h grows
-    for(let i = 0; i < 80; i++){ const m = Math.sqrt(lo * hi); if(msHjZ(er, m) > Z) lo = m; else hi = m; }
+    let lo = HJ_WH_LO, hi = HJ_WH_HI;               // Z falls as W/h grows
+    for(let i = 0; i < HJ_BISECT_STEPS; i++){ const m = Math.sqrt(lo * hi); if(msHjZ(er, m) > Z) lo = m; else hi = m; }
     wh = Math.sqrt(lo * hi); eeff = msKjEeff(er, wh, msHjEeff(er, wh), f / 1e9, h);
-  } else { wh = msPozarWh(Z, er); eeff = msPozarEeff(er, wh); }
+  } else { wh = msWheelerWh(Z, er); eeff = msCourseEeff(er, wh); zCheck = msCourseZ(wh, eeff); }
   const lambdaG = C0 / (f * Math.sqrt(eeff)) * 1000;
-  return { wh, W: wh * h, eeff, lambdaG, lenQ: lambdaG / 4 };
+  return { wh, W: wh * h, eeff, lambdaG, lenQ: lambdaG / 4, zCheck };
 }
-const MS_MODEL_NAME = { pozar: 'Pozar (Wheeler) quasi-static synthesis, no dispersion', hj: 'Hammerstad–Jensen with Kirschning–Jansen dispersion' };
+const MS_MODEL_NAME = { course: 'Course formulas (L06–L09, Wheeler–Hammerstad): quasi-static, no dispersion',
+  hj: 'Hammerstad–Jensen with Kirschning–Jansen dispersion (beyond the lecture notes)' };
+/* Quasi-TEM validity (ruling PDD-4): the first TM surface-wave onset f_T = c·atan(εr) / (√2·π·h·√(εr − 1)) (h in m; no
+   surface-wave limit for εr = 1). The model is flagged, not refused, when f0 > QTEM_FT_FRACTION·f_T or when a λg/4
+   section is shorter than its own width or the substrate height. */
+const QTEM_FT_FRACTION = 0.5;
+function surfaceWaveFt(er, hmm){ return er > 1 ? C0 * Math.atan(er) / (Math.SQRT2 * Math.PI * hmm / 1000 * Math.sqrt(er - 1)) : Infinity; }
+// Warnings (plain words) for the quasi-TEM range; secs: [{ name, W (mm), len (mm, λg/4) }].
+function quasiTemWarnings(er, hmm, f0, secs){
+  const out = [], fT = surfaceWaveFt(er, hmm);
+  if(f0 > QTEM_FT_FRACTION * fT) out.push(`f₀ ${(f0 / 1e9).toFixed(2)} GHz is above half the surface-wave onset f_T ${(fT / 1e9).toFixed(2)} GHz ` +
+    `(εr ${er}, h ${hmm} mm): the quasi-TEM microstrip model is out of range, so these numbers are not a real board's.`);
+  const short = secs.filter(s => s.len < Math.max(s.W, hmm));
+  if(short.length){ const s = short.reduce((a, b) => (b.len / Math.max(b.W, hmm) < a.len / Math.max(a.W, hmm) ? b : a));
+    out.push(`${short.length} λg/4 section${short.length > 1 ? 's are' : ' is'} shorter than ${short.length > 1 ? 'their' : 'its'} own width or the substrate height ` +
+      `(e.g. ${s.name}: λg/4 ${s.len.toFixed(2)} mm, W ${s.W.toFixed(2)} mm, h ${hmm} mm): the quasi-TEM model is out of range.`); }
+  return out;
+}
 // ── END 5 ─────────────────────────────────────────────────────
 
 // ── 6. IMPEDANCE TAPERS ───────────────────────────────────────
@@ -645,16 +682,23 @@ function bandwidths(sw, lim){
   let use = null; rows.forEach(r => { const f = r.bw ? r.bw.frac : 0; if(!use || f < (use.bw ? use.bw.frac : 0)) use = r; });
   return { rows, usable: use };
 }
-/* S-matrix checks at one frequency: matched (all |Sii| < −20 dB), reciprocal (|Sij − Sji| < 1e-9), lossless
-   (every column power sum = 1 to 1e-6), isolated (all output pairs < −20 dB). */
+/* S-matrix checks at one frequency: matched (all |Sii| < −20 dB), reciprocal (|Sij − Sji| within a relative tolerance of
+   the larger of the two, PPR-PDD-001), lossless (every column power sum = 1 to 1e-6), isolated (all output pairs < −20 dB). */
+const CHECK_DB = -20;                                 // match and isolation threshold (dB)
+const RECIP_REL_TOL = 1e-6, RECIP_ABS_FLOOR = 1e-12;  // |Sij − Sji| ≤ RECIP_REL_TOL · max(|Sij|, |Sji|, RECIP_ABS_FLOOR)
+const LOSSLESS_TOL = 1e-6;                            // |Σ|Sij|² − 1| per column
 function sChecks(S){
-  const p = S.n; let match = true, recip = true, iso = true; const col = [];
+  const p = S.n; let match = true, recip = true, iso = true, inMatch = true, outMatch = true; const col = [];
   for(let j = 0; j < p; j++){ let s = 0; for(let i = 0; i < p; i++) s += cabs(mget(S, i, j)) ** 2; col.push(s); }
   for(let i = 0; i < p; i++){
-    if(dB20(cabs(mget(S, i, i))) > -20) match = false;
-    for(let j = 0; j < p; j++){ if(i !== j && cabs(csub(mget(S, i, j), mget(S, j, i))) > 1e-9) recip = false; if(i > 0 && j > i && dB20(cabs(mget(S, i, j))) > -20) iso = false; }
+    if(dB20(cabs(mget(S, i, i))) > CHECK_DB){ match = false; if(i === 0) inMatch = false; else outMatch = false; }
+    for(let j = 0; j < p; j++){
+      const a = mget(S, i, j), b = mget(S, j, i);
+      if(i !== j && cabs(csub(a, b)) > RECIP_REL_TOL * Math.max(cabs(a), cabs(b), RECIP_ABS_FLOOR)) recip = false;
+      if(i > 0 && j > i && dB20(cabs(a)) > CHECK_DB) iso = false;
+    }
   }
-  const lossless = col.every(s => Math.abs(s - 1) < 1e-6);
-  return { match, recip, iso, lossless, col };
+  const lossless = col.every(s => Math.abs(s - 1) < LOSSLESS_TOL);
+  return { match, recip, iso, lossless, col, inMatch, outMatch };
 }
 // ── END 10 ────────────────────────────────────────────────────

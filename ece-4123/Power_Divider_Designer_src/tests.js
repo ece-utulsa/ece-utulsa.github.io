@@ -1,7 +1,7 @@
 /* Power Divider Designer — Tests page: the acceptance tests of the briefing (§2 rows and §5), run in the page against
    the engine, the layout and the drawn SVG. Independent of the Designer's current settings (each test builds its own
    design), except the timing test, which measures a full update of a 16-output, 4-section tree. */
-const T_FR4 = { er: 4.4, h: 1.6, f0: 2.4e9, model: 'pozar' };
+const T_FR4 = { er: 4.4, h: 1.6, f0: 2.4e9, model: 'course' };
 function tGeom(sub, over){
   const sb = sub || T_FR4, cache = new Map();
   const ms = Z => { const k = Z.toFixed(6); if(!cache.has(k)) cache.set(k, microstrip(Z, sb.er, sb.h, sb.f0, sb.model)); return cache.get(k); };
@@ -14,7 +14,7 @@ function tDesign(p, gover, sub){
   const lay = layoutDesign(tGeom(sub, gover), d), net = buildNetwork(d, { z0: 50, resOn: p.resOn !== false, rMult: 1, lens: lay.lens, zs: lay.zs });
   return { d, lay, net, S: solveS(net, 1, p.loss || 0) };
 }
-const sdb = (M, i, j) => dB20(cabs(mget(M, i, j))), sdeg = (M, i, j) => carg(mget(M, i, j)) * DEG;
+const sdeg = (M, i, j) => carg(mget(M, i, j)) * DEG;
 const near = (a, b, t) => Math.abs(a - b) <= t;
 function TESTS(){ return [
   ['§2 Equal 2-way, 1 section: S21 = S31 = −3.01 dB ∠−90°; S11, S22, S33, S23 < −140 dB; arm 70.7 Ω; R = 100 Ω', () => {
@@ -41,7 +41,7 @@ function TESTS(){ return [
     return { pass: near(L.pRefl, 0.0625, 1e-4) && near(L.pRes, 0.0625, 1e-4) && near(L.pLoad[0], 0.5, 1e-4) && near(L.pLoad[1], 0.375, 1e-4),
       got: [L.pRefl, L.pRes, L.pLoad[0], L.pLoad[1]].map(x => (x * 100).toFixed(3) + ' %').join(' / ') }; }],
   ['§2 Microstrip 70.7 Ω on FR-4 (1.6 mm, 2.4 GHz): W = 1.62 mm, ε_eff = 3.17, λ/4 = 17.5 mm', () => {
-    const m = microstrip(70.71, 4.4, 1.6, 2.4e9, 'pozar');
+    const m = microstrip(70.71, 4.4, 1.6, 2.4e9, 'course');
     return { pass: near(m.W, 1.62, 0.005) && near(m.eeff, 3.17, 0.005) && near(m.lenQ, 17.5, 0.05), got: `W ${m.W.toFixed(3)} mm, ε_eff ${m.eeff.toFixed(3)}, λ/4 ${m.lenQ.toFixed(2)} mm` }; }],
   ['§5 Resistive Y (16.7 Ω each): all Sii = 0; all |Sij| = 0.5 (−6.02 dB)', () => {
     const { d, S: s } = tDesign({ topology: 'resistive' }); let ok = near(d.stage.R, 50 / 3, 1e-9), worst = -Infinity, dev = 0;
@@ -77,7 +77,7 @@ function TESTS(){ return [
       got: w.map(x => x.toFixed(4)).join(' / ') + ' W; ' + dbm2.map(x => x.toFixed(2)).join(' / ') + ' dBm; ' + dbr.map(x => x.toFixed(2)).join(' / ') + ' dB' }; }],
   ['§5 Ratio table: the F2 reference widths are reproduced to ±0.02 mm (FR-4, 2.4 GHz, Wheeler/Pozar)', () => {
     const ref = [[1, 1.62, 1.62, 3.06, 3.06], [2, 2.91, 0.65, 4.04, 2.27], [3, 3.78, 0.30, 4.70, 1.87], [4, 4.43, 0.14, 5.22, 1.62]];
-    const ms = Z => microstrip(Z, 4.4, 1.6, 2.4e9, 'pozar').W, out = [];
+    const ms = Z => microstrip(Z, 4.4, 1.6, 2.4e9, 'course').W, out = [];
     const ok = ref.every(([r, w2, w3, t2, t3]) => { const st = wilkinsonStage(50, 10 * Math.log10(r), 1, 'binomial', 0, false), a = st.arms;
       const g = [ms(a[0][0].Z), ms(a[1][0].Z), a[0][1] ? ms(a[0][1].Z) : ms(50), a[1][1] ? ms(a[1][1].Z) : ms(50)];
       out.push(r + ':1 ' + g.map(x => x.toFixed(2)).join('/') + ' (R ' + st.res[0].toFixed(1) + ')');
@@ -103,12 +103,12 @@ function TESTS(){ return [
     return { pass: worst <= 1e-3, got: `${n} cases, worst |sum − 100 %| = ${(worst * 100).toExponential(2)} %` }; }],
   ['§5 Curved / meander layouts: the centreline of every λ/4 section is λg/4 within 0.1 %', () => {
     let worst = 0, n = 0, fails = [];
-    [['straight'], ['arc'], ['meander'], ['mitred'], ['arc', 'meander', 'mitred']].forEach(sh => [[{ er: 3.55, h: 0.508, f0: 2.4e9, model: 'pozar' }], [T_FR4]].forEach(([sub]) =>
+    [['straight'], ['arc'], ['meander'], ['mitred'], ['arc', 'meander', 'mitred']].forEach(sh => [[{ er: 3.55, h: 0.508, f0: 2.4e9, model: 'course' }], [T_FR4]].forEach(([sub]) =>
       [[1, 0], [2, 0], [3, 3]].forEach(([M, r]) => { const { lay } = tDesign({ M, ratioDB: r }, { shapes: sh, shapeOpt: { phi: Math.PI, turns: 2, gap: 3 * sub.h, bend: 'mitre' } }, sub);
         lay.els.filter(e => e.model && e.lenTarget).forEach(e => { const err = Math.abs(e.path.len - e.lenTarget) / e.lenTarget; n++; if(err > worst) worst = err; if(err > 1e-3) fails.push(e.id + ' ' + e.shape); }); })));
     return { pass: worst <= 1e-3, got: `${n} sections, worst ${(worst * 100).toFixed(4)} %` + (fails.length ? '; ' + fails.slice(0, 4).join(', ') : '') }; }],
   ['§5 Rules enforced with visible warnings: arc radius < 3W and meander gap < 3h are flagged and drawn with a red halo', () => {
-    const a = tDesign({ M: 1, ratioDB: 3 }, { shapes: ['arc'] }), b = tDesign({ M: 1 }, { shapes: ['meander'], shapeOpt: { phi: Math.PI, turns: 1, gap: 0.5, bend: 'mitre' } }, { er: 3.55, h: 0.508, f0: 2.4e9, model: 'pozar' });
+    const a = tDesign({ M: 1, ratioDB: 3 }, { shapes: ['arc'] }), b = tDesign({ M: 1 }, { shapes: ['meander'], shapeOpt: { phi: Math.PI, turns: 1, gap: 0.5, bend: 'mitre' } }, { er: 3.55, h: 0.508, f0: 2.4e9, model: 'course' });
     const wa = a.lay.warnings.some(w => /radius/.test(w)), wb = b.lay.warnings.some(w => /coupling/.test(w));
     const svg = testSvg(); drawOneLayout(svg, a.lay, a, 10, 0, { main: true, key: 't' }); const halo = svg.querySelectorAll('.warned .halo').length;
     return { pass: wa && wb && halo > 0, got: `arc warning ${wa}, meander warning ${wb}, haloed elements ${halo}` }; }],
@@ -118,13 +118,13 @@ function ASYNC_TESTS(){ return [
   ['§5 Footprint readout matches the drawn bounding box (rasterised copper, 1 px = 0.05 mm)', async () => {
     const out = [];
     for(const [p, sh] of [[{ M: 2 }, ['arc']], [{ M: 2, ratioDB: 3 }, ['meander']], [{ topology: 'tree', tree: tTree(4) }, ['mitred']], [{ N: 3, M: 2 }, ['arc']]]){
-      const t = tDesign(p, { shapes: sh }, { er: 3.55, h: 0.508, f0: 2.4e9, model: 'pozar' }), bb = await rasterBox(t);
+      const t = tDesign(p, { shapes: sh }, { er: 3.55, h: 0.508, f0: 2.4e9, model: 'course' }), bb = await rasterBox(t);
       const b = t.lay.bbox, e = Math.max(Math.abs(bb.x0 - b.x0), Math.abs(bb.x1 - b.x1), Math.abs(bb.y0 - b.y0), Math.abs(bb.y1 - b.y1));
       out.push({ e, w: b.w, h: b.h }); }
     const worst = Math.max(...out.map(o => o.e));
     return { pass: worst <= 0.1, got: out.map(o => `${o.w.toFixed(2)}×${o.h.toFixed(2)} mm, worst edge ${o.e.toFixed(3)} mm`).join('; ') }; }],
   ['§5 Layout scale: drawn widths and centreline lengths match the parameter sheet within 1 px; the scale bar is true', async () => {
-    const t = tDesign({ M: 2, ratioDB: 3 }, { shapes: ['arc'] }, { er: 3.55, h: 0.508, f0: 2.4e9, model: 'pozar' });
+    const t = tDesign({ M: 2, ratioDB: 3 }, { shapes: ['arc'] }, { er: 3.55, h: 0.508, f0: 2.4e9, model: 'course' });
     const svg = testSvg(), k = 9; svg.setAttribute('viewBox', `${t.lay.bbox.x0 - 5} ${t.lay.bbox.y0 - 5} ${(t.lay.bbox.w + 10)} ${(t.lay.bbox.h + 10)}`);
     svg.setAttribute('width', ((t.lay.bbox.w + 10) * k).toFixed(3)); svg.setAttribute('height', ((t.lay.bbox.h + 10) * k).toFixed(3));
     drawOneLayout(svg, t.lay, t, k, 0, { main: true, key: 't' });
@@ -139,13 +139,15 @@ function ASYNC_TESTS(){ return [
     document.body.removeChild(svg);
     return { pass: n > 0 && worstL <= 1 && worstW <= 1 && near(scale, k, 0.01), got: `${n} sections at ${k} px/mm: worst length ${worstL.toFixed(3)} px, worst width ${worstW.toFixed(3)} px; scale ${scale.toFixed(3)} px/mm` }; }],
   ['§6 Performance: a full update of a 16-output tree with 4 sections takes < 100 ms (layout, sweep, drawing)', async () => {
-    const keep = JSON.stringify(S), was = currentPage;
-    Object.assign(S, { topology: 'tree', M: 4, shapes: new Array(MAX_SEC).fill('straight') }); S.tree = tTree(16); S.tree.layout = 'binary'; S.tree.equalise = true; S.tree.pathErr = 0;
-    showPage('designer'); update(true); await new Promise(r => setTimeout(r, 30));
-    const times = [];
-    for(let i = 0; i < 5; i++){ S.ratioDB = 0.1 * i; const t0 = performance.now(); update(false); times.push(performance.now() - t0); }
-    for(let i = 0; i < 3; i++){ S.tree.pathErr = i; const t0 = performance.now(); update(true); times.push(performance.now() - t0); }
-    mergeInto(S, JSON.parse(keep)); showPage(was); update(true);
+    // drives the live page on a copy of the design: saving is suspended, and the design is put back whatever happens (SEC-PDD-003)
+    const keep = JSON.stringify(S), was = currentPage, times = [];
+    SAVE.suspended = true;
+    try {
+      Object.assign(S, { topology: 'tree', M: 4, shapes: new Array(MAX_SEC).fill('straight') }); S.tree = tTree(16); S.tree.layout = 'binary'; S.tree.equalise = true; S.tree.pathErr = 0;
+      showPage('designer'); update(true); await new Promise(r => setTimeout(r, 30));
+      for(let i = 0; i < 5; i++){ S.ratioDB = 0.1 * i; const t0 = performance.now(); update(false); times.push(performance.now() - t0); }
+      for(let i = 0; i < 3; i++){ S.tree.pathErr = i; const t0 = performance.now(); update(true); times.push(performance.now() - t0); }
+    } finally { mergeInto(S, JSON.parse(keep)); showPage(was); update(true); SAVE.suspended = false; }
     const med = times.slice().sort((a, b) => a - b)[Math.floor(times.length / 2)], mx = Math.max(...times);
     return { pass: med < 100, got: `median ${med.toFixed(0)} ms, worst ${mx.toFixed(0)} ms over ${times.length} updates` }; }],
 ];}
@@ -170,18 +172,25 @@ async function rasterBox(t){
   for(let y = 0; y < cv.height; y++) for(let x = 0; x < cv.width; x++) if(d[(y * cv.width + x) * 4 + 3] > 127){ if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y; }
   return { x0: vb[0] + x0 / k, x1: vb[0] + (x1 + 1) / k, y0: vb[1] + y0 / k, y1: vb[1] + (y1 + 1) / k };
 }
+let testsRunning = false;                             // one run at a time (the timing test returns to this page mid-run)
 async function runTests(){
+  if(testsRunning) return;
+  testsRunning = true;
+  try { await runAll(); } finally { testsRunning = false; }
+}
+// Run every test and show the table.
+async function runAll(){
   const box = $('testsBody'), rows = [];
-  box.innerHTML = '<p class="hint">Running…</p>';
+  box.replaceChildren(el('p', { class: 'hint', text: 'Running…' }));
   const run = async ([name, fn]) => { const t0 = performance.now(); let r; try { r = await fn(); } catch(e){ r = { pass: false, got: 'error: ' + e.message }; }
     rows.push({ name, pass: r.pass, got: r.got, ms: performance.now() - t0 }); };
   for(const t of TESTS()) await run(t);
   for(const t of ASYNC_TESTS()) await run(t);
   const np = rows.filter(r => r.pass).length;
-  box.innerHTML = `<article class="doc"><h1>Tests</h1><p class="lede"><b class="${np === rows.length ? 'okc' : 'bad'}">${np} of ${rows.length} passed.</b> Each test builds its own design; values are computed now, in this page.</p>
-    <table class="sheet tests"><thead><tr><th>Result</th><th class="l">Test</th><th class="l">Measured</th><th>ms</th></tr></thead><tbody>` +
-    rows.map(r => `<tr class="${r.pass ? 'tpass' : 'tfail'}"><td>${r.pass ? 'PASS' : 'FAIL'}</td><td class="l">${r.name}</td><td class="l num">${r.got}</td><td>${r.ms.toFixed(0)}</td></tr>`).join('') +
-    `</tbody></table><p><button id="rerun">Run again</button></p></article>`;
-  $('rerun').addEventListener('click', runTests);
+  box.replaceChildren(el('article', { class: 'doc' }, el('h1', { text: 'Tests' }),
+    el('p', { class: 'lede' }, el('b', { class: np === rows.length ? 'okc' : 'bad', text: np + ' of ' + rows.length + ' passed.' }), ' Each test builds its own design; values are computed now, in this page.'),
+    table('sheet tests', ['Result', { t: 'Test', cls: 'l' }, { t: 'Measured', cls: 'l' }, 'ms'],
+      rows.map(r => ({ cls: r.pass ? 'tpass' : 'tfail', cells: [r.pass ? 'PASS' : 'FAIL', { text: r.name, cls: 'l' }, { text: String(r.got), cls: 'l num' }, r.ms.toFixed(0)] }))),
+    el('p', {}, el('button', { id: 'rerun', text: 'Run again', on: { click: runTests } }))));
   box.dataset.done = String(np) + '/' + rows.length;
 }

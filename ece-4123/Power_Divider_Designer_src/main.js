@@ -5,6 +5,7 @@ const PAGES = ['designer', 'perf', 'params', 'theory', 'exp', 'tests'];
 /* Recompute and redraw the visible page. full: also rebuild the sidebar (a button or a mode changed); while a slider is
    dragged (full = false) the sidebar is kept, so the slider keeps focus, and unequal-resistor refinement is deferred. */
 function update(full){
+  if(sliderFrame){ cancelAnimationFrame(sliderFrame); sliderFrame = 0; }
   REFINE.defer = true;
   D = derive();
   save();
@@ -24,12 +25,14 @@ function syncSide(Dd){
   if($('ratioVal') && tgt.enabled){
     const v = tgt.get(), fr = powerSplit(v);
     $('ratioVal').textContent = ratioText(v) + '  (' + fmt(v, 2) + ' dB)';
-    $('ratioPct').textContent = (fr[0] * 100).toFixed(1) + ' / ' + (fr[1] * 100).toFixed(1) + ' %';
-    const t = $('ratioText'); if(t && document.activeElement !== t){ t.value = ratioText(v); t.classList.remove('invalid'); }
+    $('ratioPct').textContent = (fr[0] * 100).toFixed(2) + ' / ' + (fr[1] * 100).toFixed(2) + ' %';
+    const t = $('ratioText'); if(t && document.activeElement !== t && !t.classList.contains('invalid')) t.value = ratioText(v);
     const r = $('ratioSlider'); if(r && document.activeElement !== r) r.value = String(v);
   }
   const m = microstrip(S.z0, S.er, S.h, S.f0, S.msModel);
-  if($('subInfo')) $('subInfo').textContent = `Z₀ line: W ${m.W.toFixed(3)} mm, ε_eff ${m.eeff.toFixed(3)}, λg ${m.lambdaG.toFixed(2)} mm`;
+  if($('subInfo')) $('subInfo').textContent = `Z₀ line: W ${m.W.toFixed(3)} mm, εeff ${m.eeff.toFixed(3)}, λg ${m.lambdaG.toFixed(2)} mm` +
+    (m.zCheck != null ? `; check (L07): Z₀ ${m.zCheck.toFixed(1)} Ω` : '');
+  if($('statusLine')) $('statusLine').textContent = statusText(Dd);
   const st = Dd.design.stage, pend = st && st.refined === false || (isTree() && Dd.design.tree.junctions.some(j => j.stage.refined === false));
   const w = Dd.lay.warnings.slice(0, 12).map(x => el('div', { class: 'warnline', text: '⚠ ' + x }));
   if(Dd.lay.warnings.length > 12) w.push(el('div', { class: 'warnline', text: '… and ' + (Dd.lay.warnings.length - 12) + ' more (hover the red elements)' }));

@@ -21,42 +21,42 @@ function sheetRows(D){
   D.lay.res.forEach(r => rows.push({ id: r.id, el: 'resistor ' + r.id.replace(/^x\./, ''), Z: null, W: null, L: null, th: null, shape: '', res: r.R.toFixed(1) + ' Ω, ' + S.fp, warn: '' }));
   return rows;
 }
+/* Shown precision of each sheet column, shared by the page and the CSV so one quantity reads the same in both
+   (DEFECT-PDD-010). */
+const SHEET_DP = { Z: 1, W: 3, L: 2, th: 1, fp: 2, trace: 1 };
+// Parameters page: build sheet, substrate and totals blocks, CSV and print buttons (DOM built with createElement).
 function drawParams(D){
   const rows = sheetRows(D), m0 = msFactory()(S.z0), bb = D.lay.bbox, rb = D.ref.bbox, tt = D.lay.totals;
   const f = (v, d) => v == null ? '' : v.toFixed(d);
-  const body = rows.map(r => `<tr data-id="${r.id}" class="${r.warn ? 'warnrow' : ''}"><td>${r.el}</td><td>${f(r.Z, 1)}</td><td>${f(r.W, 3)}</td><td>${f(r.L, 2)}</td><td>${f(r.th, 1)}</td>` +
-    `<td class="l">${r.shape}${r.warn ? '<br><span class="bad">⚠ ' + r.warn + '</span>' : ''}</td><td>${r.res}</td></tr>`).join('');
-  $('paramsBody').innerHTML = `
-    <div class="sheet-head">
-      <div><h2>Design parameters</h2><p class="num">${designLabel(D)} · f₀ = ${(S.f0 / 1e9).toFixed(3)} GHz · Z₀ = ${S.z0} Ω · input ${fmtW(pinW())}</p></div>
-      <div class="row"><button id="csvBtn">Export CSV</button><button id="printBtn">Print</button></div>
-    </div>
-    <div class="blocks">
-      <section><h4>Substrate</h4><table class="sheet"><tbody>
-        <tr><td>ε<sub>r</sub></td><td>${S.er}</td></tr><tr><td>h</td><td>${S.h} mm</td></tr>
-        <tr><td>model</td><td>${MS_MODEL_NAME[S.msModel]}</td></tr>
-        <tr><td>ε<sub>eff</sub> (Z₀ line)</td><td>${m0.eeff.toFixed(3)}</td></tr><tr><td>λ<sub>g</sub> (Z₀ line)</td><td>${m0.lambdaG.toFixed(2)} mm</td></tr>
-        <tr><td>W (Z₀ line)</td><td>${m0.W.toFixed(3)} mm</td></tr></tbody></table></section>
-      <section><h4>Totals</h4><table class="sheet"><tbody>
-        <tr><td>footprint</td><td>${bb.w.toFixed(2)} × ${bb.h.toFixed(2)} mm = ${bb.area.toFixed(0)} mm²</td></tr>
-        <tr><td>straight layout</td><td>${rb.w.toFixed(2)} × ${rb.h.toFixed(2)} mm = ${rb.area.toFixed(0)} mm² (${fmt((1 - bb.area / rb.area) * 100, 1)} % saved)</td></tr>
-        <tr><td>trace length</td><td>${tt.sec.toFixed(1)} mm in the λ/4 sections, ${tt.all.toFixed(1)} mm in all traces</td></tr>
-        <tr><td>resistors</td><td>${resistorCount(D.design)} × ${S.fp}</td></tr></tbody></table></section>
-    </div>
-    <table class="sheet full"><thead><tr><th>Element</th><th>Z (Ω)</th><th>W (mm)</th><th>Length (mm)</th><th>Electrical length (°)</th><th class="l">Shape and radius or meander spec</th><th>Resistor</th></tr></thead>
-    <tbody>${body}</tbody></table>
-    <p class="hint">Length is the centreline length; electrical length is 360° × length / λ<sub>g</sub> of that width at f₀. Junction bars, pads, launches, bends and coupling are drawn but not in the circuit model.</p>
-    <div id="printLayout"></div>`;
-  $('csvBtn').addEventListener('click', () => downloadCsv(D, rows));
-  $('printBtn').addEventListener('click', () => { printLayoutCopy(); window.print(); });
+  const body = rows.map(r => ({ attrs: { 'data-id': r.id }, cls: r.warn ? 'warnrow' : null, cells: [{ text: r.el }, f(r.Z, SHEET_DP.Z), f(r.W, SHEET_DP.W), f(r.L, SHEET_DP.L), f(r.th, SHEET_DP.th),
+    { cls: 'l', t: r.shape + (r.warn ? '<br><span class="bad">⚠ ' + r.warn + '</span>' : '') }, { text: r.res }] }));
+  const kvt = list => table('sheet', null, list.map(([k, v]) => ({ cells: [k, { text: v }] })));
+  const csv = el('button', { id: 'csvBtn', text: 'Export CSV', on: { click: () => downloadCsv(D, rows) } });
+  const prn = el('button', { id: 'printBtn', text: 'Print', on: { click: () => { printLayoutCopy(); window.print(); } } });
+  $('paramsBody').replaceChildren(
+    el('div', { class: 'sheet-head' },
+      el('div', {}, el('h2', { text: 'Design parameters' }), el('p', { class: 'num', text: designLabel(D) + ' · f₀ = ' + (S.f0 / 1e9).toFixed(3) + ' GHz · Z₀ = ' + S.z0 + ' Ω · input ' + fmtW(pinW()) })),
+      el('div', { class: 'row' }, csv, prn)),
+    el('div', { class: 'blocks' },
+      el('section', {}, el('h4', { text: 'Substrate' }), kvt([['ε<sub>r</sub>', String(S.er)], ['h', S.h + ' mm'], ['model', MS_MODEL_NAME[S.msModel]],
+        ['ε<sub>eff</sub> (Z₀ line)', m0.eeff.toFixed(3)], ['λ<sub>g</sub> (Z₀ line)', m0.lambdaG.toFixed(2) + ' mm'], ['W (Z₀ line)', m0.W.toFixed(3) + ' mm']]
+        .concat(m0.zCheck != null ? [['Z₀ check (L07)', m0.zCheck.toFixed(1) + ' Ω']] : []))),
+      el('section', {}, el('h4', { text: 'Totals' }), kvt([
+        ['footprint', bb.w.toFixed(SHEET_DP.fp) + ' × ' + bb.h.toFixed(SHEET_DP.fp) + ' mm = ' + bb.area.toFixed(0) + ' mm²'],
+        ['straight layout', rb.w.toFixed(SHEET_DP.fp) + ' × ' + rb.h.toFixed(SHEET_DP.fp) + ' mm = ' + rb.area.toFixed(0) + ' mm² (' + fmt((1 - bb.area / rb.area) * 100, 1) + ' % saved)'],
+        ['trace length', tt.sec.toFixed(SHEET_DP.trace) + ' mm in the λ/4 sections, ' + tt.all.toFixed(SHEET_DP.trace) + ' mm in all traces'],
+        ['resistors', resistorCount(D.design) + ' × ' + S.fp]]))),
+    table('sheet full', ['Element', 'Z (Ω)', 'W (mm)', 'Length (mm)', 'Electrical length (°)', { t: 'Shape and radius or meander spec', cls: 'l' }, 'Resistor'], body),
+    el('p', { class: 'hint' }, rich('Length is the centreline length; electrical length is 360° × length / λ<sub>g</sub> of that width at f₀. Junction bars, pads, launches, bends and coupling are drawn but not in the circuit model.')),
+    el('div', { id: 'printLayout' }));
 }
 function csvCell(v){ const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 function downloadCsv(D, rows){
   const lines = [['Power Divider Designer ' + document.querySelector('meta[name=version]').content], [designLabel(D)],
     ['f0 (GHz)', S.f0 / 1e9], ['Z0 (ohm)', S.z0], ['er', S.er], ['h (mm)', S.h], ['model', MS_MODEL_NAME[S.msModel]], [],
     ['Element', 'Z (ohm)', 'W (mm)', 'Length (mm)', 'Electrical length (deg)', 'Shape', 'Resistor']]
-    .concat(rows.map(r => [r.el, r.Z == null ? '' : r.Z.toFixed(2), r.W == null ? '' : r.W.toFixed(4), r.L == null ? '' : r.L.toFixed(3), r.th == null ? '' : r.th.toFixed(2), r.shape, r.res]))
-    .concat([[], ['footprint (mm)', D.lay.bbox.w.toFixed(2), D.lay.bbox.h.toFixed(2)], ['trace length (mm)', D.lay.totals.all.toFixed(2)]]);
+    .concat(rows.map(r => [r.el, r.Z == null ? '' : r.Z.toFixed(SHEET_DP.Z), r.W == null ? '' : r.W.toFixed(SHEET_DP.W), r.L == null ? '' : r.L.toFixed(SHEET_DP.L), r.th == null ? '' : r.th.toFixed(SHEET_DP.th), r.shape, r.res]))
+    .concat([[], ['footprint (mm)', D.lay.bbox.w.toFixed(SHEET_DP.fp), D.lay.bbox.h.toFixed(SHEET_DP.fp)], ['trace length (mm)', D.lay.totals.all.toFixed(SHEET_DP.trace)]]);
   const blob = new Blob([lines.map(r => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv' });
   const a = el('a', { href: URL.createObjectURL(blob), download: 'power_divider_parameters.csv' }); document.body.append(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);

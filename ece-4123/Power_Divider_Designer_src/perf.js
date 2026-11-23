@@ -90,9 +90,10 @@ function drawPerfPlot(D){
   shown.forEach(t => { const v = traceData({ S: [sw.S[mi]] }, t, P0.mode)[0]; if(isFinite(v)) svg.append(svgEl('circle', { cx: X(sw.u[mi]), cy: Y(v), r: 3.5, fill: t.col })); });
   svg.addEventListener('click', ev => { const r = svg.getBoundingClientRect(), u = uL + (uH - uL) * (ev.clientX - r.left - x0) / (x1 - x0); if(u >= uL && u <= uH){ S.perf.marker = u; update(true); } });
   svg.style.cursor = 'crosshair';
-  const mrows = shown.map(t => { const v = traceData({ S: [sw.S[mi]] }, t, P0.mode)[0]; return `<span class="mk" style="--c:${t.col}">${t.label} ${isFinite(v) ? fmt(v, 2) + (phase ? '°' : ' dB') : '—'}</span>`; }).join(' ');
-  box.replaceChildren(el('h4', { html: 'S-parameters <span class="hint">(click the plot to move the marker' + (PIN ? '; dashed: pinned ' + PIN.label : '') + ')</span>' }), head, chips, svg,
-    el('div', { class: 'markers num', html: `<b>marker ${fmtGHz(sw.u[mi])}</b> ` + mrows }));
+  const mrows = shown.map(t => { const v = traceData({ S: [sw.S[mi]] }, t, P0.mode)[0];
+    return el('span', { class: 'mk', style: '--c:' + t.col, text: t.label + ' ' + (isFinite(v) ? (phase ? fmtDeg(v, 2) + '°' : fmt(v, 2) + ' dB') : '—') }); });
+  box.replaceChildren(el('h4', {}, 'S-parameters ', el('span', { class: 'hint', text: '(click the plot to move the marker' + (PIN ? '; dashed: pinned ' + PIN.label : '') + ')' })), head, chips, svg,
+    el('div', { class: 'markers num' }, el('b', { text: 'marker ' + fmtGHz(sw.u[mi]) }), ...mrows));
 }
 function niceStep(x){ const p = 10 ** Math.floor(Math.log10(x)), m = x / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; }
 function designLabel(D){
@@ -106,10 +107,10 @@ function pinCurrent(D){ return { label: 'B: ' + designLabel(D), sw: D.sw, summar
 // ── 3. BANDWIDTHS ─────────────────────────────────────────────
 function drawBandwidths(D){
   const rows = D.bw.rows.map(r => { const b = r.bw, use = D.bw.usable === r;
-    return `<tr class="${use ? 'use' : ''}"><td>${r.label}${use ? ' ← usable' : ''}</td><td>${b ? (b.frac * 100).toFixed(1) + ' %' : 'fails at f₀'}</td>` +
-      `<td>${b ? fmtGHz(b.lo) + ' – ' + fmtGHz(b.hi) : ''}${b && (b.clipLo || b.clipHi) ? ' (past the plot range)' : ''}</td></tr>`; });
-  $('perfBw').innerHTML = `<h4>−15 dB bandwidths</h4><table class="sheet"><thead><tr><th>Parameter</th><th>Δf/f₀</th><th>band</th></tr></thead><tbody>${rows.join('')}</tbody></table>
-    <p class="hint">The usable bandwidth is the narrowest: every port matched and the outputs isolated to −15 dB.</p>`;
+    return { cls: use ? 'use' : null, cells: [{ text: r.label + (use ? ' ← usable' : '') }, b ? (b.frac * 100).toFixed(1) + ' %' : 'fails at f₀',
+      { text: (b ? fmtGHz(b.lo) + ' – ' + fmtGHz(b.hi) : '') + (b && (b.clipLo || b.clipHi) ? ' (past the plot range)' : '') }] }; });
+  $('perfBw').replaceChildren(el('h4', { text: '−15 dB bandwidths' }), table('sheet', ['Parameter', 'Δf/f₀', 'band'], rows),
+    el('p', { class: 'hint', text: 'The usable bandwidth is the narrowest: every port matched and the outputs isolated to −15 dB.' }));
 }
 // ── END 3 ─────────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ function flowSvg(Ld, title, n){
     const w = Math.max(0.6, hMax * p.v), ys = acc + w / 2; acc += hMax * p.v;
     const ye = top + gapY * (i + 0.5), faded = p.v < 0.01 ? ' faded' : '';
     svg.append(svgEl('path', { d: `M${x0} ${ys} C${(x0 + x1) / 2} ${ys} ${(x0 + x1) / 2} ${ye} ${x1} ${ye}`, class: 'fband ' + p.cls + faded, 'stroke-width': w }));
-    svg.append(svgEl('text', { x: x1 + 6, y: ye + 4, 'font-size': 11, class: faded ? 'fadedtxt' : '' }, `${p.label} ${(p.v * 100).toFixed(p.v < 0.1 ? 2 : 1)} %`));
+    svg.append(svgEl('text', { x: x1 + 6, y: ye + 4, 'font-size': 11, class: faded ? 'fadedtxt' : '' }, `${p.label} ${(p.v * 100).toFixed(2)} %`));
   });
   const wr = Math.max(0.6, hMax * Ld.pRefl);
   svg.append(svgEl('path', { d: `M${x0} ${yIn + inW / 2 + 8 + wr / 2} H 10`, class: 'fband fre' + (Ld.pRefl < 0.01 ? ' faded' : ''), 'stroke-width': wr }));
@@ -147,59 +148,71 @@ function drawFlow(D){
 // ── END 4 ─────────────────────────────────────────────────────
 
 // ── 5. S-MATRIX ───────────────────────────────────────────────
-const THEOREM = {
-  wilkinson: 'Wilkinson: matched at every port and isolated; it gives up losslessness — power reflected by the outputs (odd mode) is absorbed in R.',
-  tee: 'Lossless T: lossless and reciprocal, so it cannot be matched at all three ports: the input is matched, the outputs are not, and they are not isolated.',
-  resistive: 'Resistive: matched at every port, but lossy for every signal (half the input power for N = 2) and not isolated.',
-  tree: 'Tree: each junction keeps or gives up what its module does — Wilkinson junctions stay matched and isolated; branching lines are lossless but leave the outputs unmatched; resistive Y junctions lose 6 dB each.',
-};
+/* The theorem sentence under the badges (PPR-PDD-002, -003, -007): built from the same checks as the badges, for the
+   state on screen. "Three-port theorem" only for three-ports; for more ports the N-port statement that does hold. */
+function theoremText(D, ck){
+  const n = D.net.ports.length - 1, cols = ck.col.map(x => x.toFixed(3)).join(', ');
+  const odd = D.design.topology === 'wilkinson' && S.resOn && ck.match && ck.iso ?
+    ' Of the power a mismatched output reflects, R absorbs only the odd-mode part; the even-mode part returns to the input (Theory §4).' : '';
+  let state;
+  if(ck.match && ck.iso && !ck.lossless) state = 'matched at every port and isolated, so it is not lossless: power entering an output is partly absorbed in the resistors (column power sums ' + cols + ').' + odd;
+  else if(ck.match && !ck.lossless) state = 'matched at every port and lossy (column power sums ' + cols + ')' + (n > 1 && !ck.iso ? '; its outputs are not isolated.' : '.');
+  else if(ck.lossless && ck.recip) state = 'lossless and reciprocal, so it is not matched at every port: ' + (ck.inMatch ? 'the input is matched, the outputs are not' : 'not even the input is matched') +
+    (n > 1 ? (ck.iso ? ', though the outputs are isolated.' : ', and the outputs are not isolated.') : '.');
+  else state = 'neither matched at every port nor lossless in this state (column power sums ' + cols + '): it pays the loss and still does not get the match.';
+  const tree = D.design.topology === 'tree' ? ' Each junction keeps or gives up what its module does: Wilkinson junctions stay matched and isolated; branching lines are lossless but leave the outputs unmatched; resistive Y junctions lose 6.02 dB each.' : '';
+  if(n === 2) return { head: 'Three-port theorem.', text: 'A three-port cannot be lossless, reciprocal and matched at all three ports at once. This one is ' + state + tree };
+  return { head: 'Matched, isolated, lossless?', text: 'The three-port theorem is a three-port result. What holds for any number of outputs: a divider matched at every port with isolated outputs cannot be lossless, because each output column then holds only |S1j|² (1/N for an equal split). This ' + (n + 1) + '-port is ' + state + tree };
+}
 function drawSMatrix(D){
   const S0 = D.S0, p = S0.n, ck = sChecks(S0), box = $('perfS');
   let grid;
   if(p <= 5){
-    let rows = '';
-    for(let i = 0; i < p; i++){ rows += `<tr><th>${i + 1}</th>`; for(let j = 0; j < p; j++){ const v = mget(S0, i, j);
-      rows += `<td class="${i === j ? 'diag' : ''}">${fmtDb(dB20(cabs(v)), 2)} dB<br><span class="mut">∠${fmt(carg(v) * DEG, 1)}°</span></td>`; } rows += '</tr>'; }
-    grid = `<table class="sheet smat"><thead><tr><th>i \\ j</th>${[...Array(p).keys()].map(j => `<th>${j + 1}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
+    const rows = [];
+    for(let i = 0; i < p; i++){ const cells = [{ text: String(i + 1), th: true }]; for(let j = 0; j < p; j++){ const v = mget(S0, i, j);
+      cells.push({ t: fmtDb(dB20(cabs(v)), 2) + ' dB<br><span class="mut">∠' + fmtDeg(carg(v) * DEG, 1) + '°</span>', cls: i === j ? 'diag' : null }); } rows.push({ cells }); }
+    grid = table('sheet smat', ['i \\ j', ...[...Array(p).keys()].map(j => String(j + 1))], rows);
   } else {
-    const c = 16; let cells = '';
+    const c = 16, g = svgEl('svg', { width: 30 + p * c, height: 20 + p * c, role: 'img', 'aria-label': '|S| at f0 as a grid' });
     for(let i = 0; i < p; i++) for(let j = 0; j < p; j++){ const db = dB20(cabs(mget(S0, i, j))), t = Math.max(0, Math.min(1, (db + 60) / 60));
-      cells += `<rect x="${24 + j * c}" y="${14 + i * c}" width="${c - 1}" height="${c - 1}" fill="var(--s31)" fill-opacity="${(0.06 + 0.94 * t).toFixed(3)}"><title>S${i + 1},${j + 1}: ${fmtDb(db, 2)} dB ∠${fmt(carg(mget(S0, i, j)) * DEG, 1)}°</title></rect>`; }
-    grid = `<svg width="${30 + p * c}" height="${20 + p * c}" role="img" aria-label="|S| at f0 as a grid">${cells}<text x="24" y="10" font-size="10">j →</text><text x="2" y="${20 + p * c / 2}" font-size="10">i</text></svg>
-      <p class="hint">|S<sub>ij</sub>| at f₀, darker = larger (0 to −60 dB); hover a cell for its value.</p>`;
+      const r = svgEl('rect', { x: 24 + j * c, y: 14 + i * c, width: c - 1, height: c - 1, fill: 'var(--s31)', 'fill-opacity': (0.06 + 0.94 * t).toFixed(3) });
+      r.append(svgEl('title', {}, 'S' + (i + 1) + ',' + (j + 1) + ': ' + fmtDb(db, 2) + ' dB ∠' + fmtDeg(carg(mget(S0, i, j)) * DEG, 1) + '°')); g.append(r); }
+    g.append(svgEl('text', { x: 24, y: 10, 'font-size': 10 }, 'j →'), svgEl('text', { x: 2, y: 20 + p * c / 2, 'font-size': 10 }, 'i'));
+    grid = el('div', {}, g, el('p', { class: 'hint' }, rich('|S<sub>ij</sub>| at f₀, darker = larger (0 to −60 dB); hover a cell for its value.')));
   }
-  const yes = (b, t, f) => `<li class="${b ? 'ok' : 'no'}">${b ? '✓' : '✗'} ${b ? t : f}</li>`;
-  box.innerHTML = `<h4>S-matrix at f₀</h4>${grid}<ul class="checks">` +
-    yes(ck.match, 'matched: every |Sii| < −20 dB', 'not matched at every port (some |Sii| ≥ −20 dB)') +
-    yes(ck.recip, 'reciprocal: Sij = Sji', 'not reciprocal') +
-    yes(ck.iso, 'outputs isolated: every |Sij| < −20 dB', 'outputs not isolated') +
-    yes(ck.lossless, 'lossless: every column Σ|Sij|² = 1', 'lossy: column power sums ' + ck.col.map(x => x.toFixed(3)).join(', ')) +
-    `</ul><p class="theorem"><b>Three-port theorem.</b> ${THEOREM[D.design.topology]}</p>`;
+  const yes = (b, t, f) => el('li', { class: b ? 'ok' : 'no', text: (b ? '✓ ' : '✗ ') + (b ? t : f) });
+  const th = theoremText(D, ck);
+  box.replaceChildren(el('h4', { text: 'S-matrix at f₀' }), grid, el('ul', { class: 'checks' },
+    yes(ck.match, 'matched: every |Sii| < −20 dB', 'not matched at every port (some |Sii| ≥ −20 dB)'),
+    yes(ck.recip, 'reciprocal: Sij = Sji', 'not reciprocal'),
+    yes(ck.iso, 'outputs isolated: every |Sij| < −20 dB', 'outputs not isolated'),
+    yes(ck.lossless, 'lossless: every column Σ|Sij|² = 1', 'lossy: column power sums ' + ck.col.map(x => x.toFixed(3)).join(', '))),
+    el('p', { class: 'theorem' }, el('b', { text: th.head }), ' ' + th.text));
 }
 // ── END 5 ─────────────────────────────────────────────────────
 
 // ── 6. COMPARE ────────────────────────────────────────────────
+// Summary figures of one design for the comparison tables.
 function summaryOf(D, label){
-  const n = D.net.ports.length - 1;
-  let worstJ = -Infinity, worstIso = -Infinity;
-  for(let i = 1; i <= n; i++){ worstJ = Math.max(worstJ, dB20(cabs(mget(D.S0, i, i)))); for(let j = i + 1; j <= n; j++) worstIso = Math.max(worstIso, dB20(cabs(mget(D.S0, i, j)))); }
-  return { label, n, s11: dB20(cabs(mget(D.S0, 0, 0))), worstJ, worstIso, deliv: D.L0.pDeliv, loss: D.L0.pRes + D.L0.pLine,
+  const n = D.net.ports.length - 1, { worstJ, worstIso } = worstOut(D.S0);
+  return { label, n, s11: sdb(D.S0, 0, 0), worstJ, worstIso, deliv: D.L0.pDeliv, loss: D.L0.pRes + D.L0.pLine,
     use: D.bw && D.bw.usable && D.bw.usable.bw ? D.bw.usable.bw.frac : 0, fp: D.lay.bbox, nR: resistorCount(D.design), spread: phaseImbalance(D.S0, n).spread };
 }
+// Comparison table, one column per design summary (plain text cells).
 function compareTable(list){
-  const r = (k, f) => `<tr><td>${k}</td>${list.map(s => `<td>${f(s)}</td>`).join('')}</tr>`;
-  return `<table class="sheet cmp"><thead><tr><th></th>${list.map(s => `<th>${s.label}</th>`).join('')}</tr></thead><tbody>` +
-    r('delivered (matched loads)', s => (s.deliv * 100).toFixed(2) + ' % (' + fmt(10 * Math.log10(s.deliv / s.n), 2) + ' dB each)') +
-    r('S11 at f₀', s => fmtDb(s.s11, 1) + ' dB') + r('worst output match', s => fmtDb(s.worstJ, 1) + ' dB') +
-    r('worst isolation', s => s.n > 1 ? fmtDb(s.worstIso, 1) + ' dB' : '—') + r('usable −15 dB band', s => (s.use * 100).toFixed(1) + ' %') +
-    r('phase imbalance', s => s.spread.toFixed(2) + '°') + r('footprint', s => s.fp.w.toFixed(1) + ' × ' + s.fp.h.toFixed(1) + ' mm (' + s.fp.area.toFixed(0) + ' mm²)') +
-    r('resistors', s => String(s.nR)) + '</tbody></table>';
+  const r = (k, f) => ({ cells: [{ text: k }, ...list.map(s => ({ text: f(s) }))] });
+  return table('sheet cmp', [{ text: '' }, ...list.map(s => ({ text: s.label, th: true }))], [
+    r('delivered (matched loads)', s => (s.deliv * 100).toFixed(2) + ' % (' + fmt(10 * Math.log10(s.deliv / s.n), 2) + ' dB each)'),
+    r('S11 at f₀', s => fmtDb(s.s11, 1) + ' dB'), r('worst output match', s => fmtDb(s.worstJ, 1) + ' dB'),
+    r('worst isolation', s => s.n > 1 ? fmtDb(s.worstIso, 1) + ' dB' : '—'), r('usable −15 dB band', s => (s.use * 100).toFixed(1) + ' %'),
+    r('phase imbalance', s => s.spread.toFixed(2) + '°'), r('footprint', s => s.fp.w.toFixed(2) + ' × ' + s.fp.h.toFixed(2) + ' mm (' + s.fp.area.toFixed(0) + ' mm²)'),
+    r('resistors', s => String(s.nR))]);
 }
 let DIRECT = { key: '', list: null };
 function drawCompare(D){
   const box = $('perfCmp'), parts = [el('h4', { text: 'Compare' })];
   const A = summaryOf(D, 'A: ' + designLabel(D));
-  if(PIN) parts.push(el('div', { html: compareTable([A, PIN.summary]) }));
+  if(PIN) parts.push(compareTable([A, PIN.summary]));
   else parts.push(el('p', { class: 'hint', text: 'Pin a design as B (button above the plot), change the design, and the two are compared here and overlaid on the plot — e.g. 1 vs 3 sections, or Wilkinson vs T vs resistive.' }));
   const n = nOut();
   if(isTree() || (S.topology === 'wilkinson' && n > 2)){
@@ -209,7 +222,7 @@ function drawCompare(D){
       const resY = analyse(synthesize(Object.assign(synthParams(), { topology: 'resistive', N: n, resForm: 'Y' })));
       DIRECT = { key, list: [summaryOf(star, 'Wilkinson star ' + n + '-way'), summaryOf(resY, 'Resistive Y ' + n + '-way (R = ' + (S.z0 * (n - 1) / (n + 1)).toFixed(1) + ' Ω)')] };
     }
-    parts.push(el('h4', { text: 'Against a direct ' + n + '-way divider (same N, matched loads)' }), el('div', { html: compareTable((isTree() ? [A] : []).concat(DIRECT.list)) }),
+    parts.push(el('h4', { text: 'Against a direct ' + n + '-way divider (same N, matched loads)' }), compareTable((isTree() ? [A] : []).concat(DIRECT.list)),
       el('p', { class: 'hint', text: 'A star of N > 2 resistors is not planar (air bridges). The resistive Y loses 10·log₁₀N² dB per output instead of 10·log₁₀N.' }));
   }
   box.replaceChildren(...parts);
