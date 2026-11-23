@@ -1,28 +1,32 @@
 <!DOCTYPE html>
 <!--
   Static Stability Limit — ECE 3033 Lecture 2
-  Version: v1.1.0
-  Released: 2026-11-21
+  Version: v1.2.0
+  Released: 2026-11-22
   Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
-  DEMO RELEASE 2026-11-21 (principal ruling; gates pending)
-  Changelog: v1.1.0 — slides 1–5 reworked per principal review 2026-11-21 (slide spec v1.1.0); DEMO RELEASE
+  DEMO RELEASE 2026-11-22 (principal ruling; gates pending)
+  Changelog: v1.2.0 — seven slides per principal review 2026-11-22 (slide spec v1.2.0): new slide 1 (definition, predict, Show me),
+  new slide 3 (six-step still proof), new slide 5 (more field, fixed power); every power to one decimal with losses in kW; no status
+  callout or alarm sound in the lecture; the lecture fits 1366 × 768 at 100 % and 125 % zoom; Watch cues are crisp (wider, darker
+  line, teal outline or teal text; no filter, glow or shadow anywhere: briefing addendum 1); DEMO RELEASE
+  v1.1.0 — slides 1–5 reworked per principal review 2026-11-21 (slide spec v1.1.0); DEMO RELEASE
   v1.0.1 — slide-6 card from one model; unused shell styles removed; low-margin lamp off while slipping.
   v1.0.0 — first build: six-slide interactive lecture with Lab and Experiments tabs.
   Model: G3, 25 MVA, 13.8 kV, 4 poles, 1800 r/min (ω_m = 188.5 rad/s), X_S = 1.0 pu = 7.62 Ω, on the infinite bus
-  V_φ = 7.97 kV; E_A = V_φ × I_F / 5.00 A (no saturation). From slide 2 on R_A and the rotational losses are ignored:
-  P = 3 V_φ E_A sin δ / X_S, Q = 3 V_φ (E_A cos δ − V_φ) / X_S, I_A = (E_A − V_φ) / jX_S. Slide 1 losses are
-  illustrative: friction and windage 0.15 MW, core 0.20 MW, stray 0.01 × P_out, copper 3 I_A² R_A with R_A = 0.07 Ω,
+  V_φ = 7.97 kV; E_A = V_φ × I_F / 5.00 A (no saturation). R_A and the rotational losses are ignored on every slide but slide 2:
+  P = 3 V_φ E_A sin δ / X_S, Q = 3 V_φ (E_A cos δ − V_φ) / X_S, I_A = (E_A − V_φ) / jX_S. Slide 2 losses are
+  illustrative: friction and windage 150 kW, core 200 kW, stray 0.01 × P_out, copper 3 I_A² R_A with R_A = 0.07 Ω,
   with I_A from the lossless phasor relation at the set field current. The Lab's power-flow panel keeps the v1.0.1
-  unity-power-factor loss model. The loss of synchronism is qualitative (rotor angle run away at a rate that grows
-  with P_in − P_max sin δ, breaker trip after one pole slip); transient stability is not modelled.
+  unity-power-factor loss model. The loss of synchronism (slide 1 and the Lab) is qualitative (rotor angle run away at a rate
+  that grows with P_in − P_max sin δ, breaker trip after one pole slip); transient stability is not modelled.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-UUWqknwzG9YYd+Glz6mhuV5hPucoHmXt6wajlORb51Q='; style-src 'sha256-6I3zaRGFwbC+fZKZLARtky1o+hXROFkX9m9JZHUHDF4='; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-xP5l5/p0f7CLNWI4GUbbZ4V8sb4H2aDU5A4p5NjMHXg='; style-src 'sha256-PY0L++cQw++SpnUi4GzL1iJuLmh5HOalR8Ce30IoCOM='; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="v1.1.0">
-<title>Static Stability Limit — ECE 3033 Lecture 2 v1.1.0</title>
+<meta name="version" content="v1.2.0">
+<title>Static Stability Limit — ECE 3033 Lecture 2 v1.2.0</title>
 <style>
 /* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
 :root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
@@ -46,7 +50,7 @@ header h1{font-size:17px;margin:0;font-weight:800}
 nav.tabs{display:flex;gap:6px;margin-left:auto}
 nav.tabs button{font-size:13px}
 #model summary{cursor:pointer;font-weight:700;color:var(--acc);font-size:13px}
-#model .pop{position:absolute;right:12px;top:100%;z-index:6;width:min(560px,92vw);background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:10px 14px;font-size:13px;box-shadow:0 6px 18px rgba(26,35,40,.18)}
+#model .pop{position:absolute;right:12px;top:100%;z-index:6;width:min(560px,92vw);background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:10px 14px;font-size:13px}
 #model .pop p{margin:0 0 6px}
 /* ═══ APP GRID ═══ */
 #app{flex:1;min-height:0;display:grid;grid-template-columns:326px minmax(0,1fr) 316px;gap:8px;padding:8px}
@@ -96,22 +100,23 @@ math{font-size:16px;math-style:normal}
 #pin{margin-top:auto;border-top:2px solid var(--edge);padding-top:6px}
 #pin .btns{margin:0 0 5px;flex-wrap:nowrap;gap:4px}
 #pin .btns button{flex:1 1 auto;padding:3px 4px;font-size:12.5px}
-#callout{height:68px;overflow:hidden;margin:0 0 5px;padding:4px 8px;border-radius:8px;background:var(--soft);border-left:5px solid var(--acc);font-size:13px;font-weight:700;line-height:1.35}
-#callout.bad{background:#fbe9e6;border-left-color:var(--err);color:#8f2a1d}
-#callout.good{background:#e3f3ea;border-left-color:var(--ok);color:#10512f}
+#callout,#pdMsg{margin:0 0 5px;padding:4px 8px;border-radius:8px;background:var(--soft);border-left:5px solid var(--acc);font-size:13px;font-weight:700;line-height:1.35}
+#callout{height:68px;overflow:hidden}
+#callout.bad,#pdMsg.bad{background:#fbe9e6;border-left-color:var(--err);color:#8f2a1d}
+#callout.good,#pdMsg.good{background:#e3f3ea;border-left-color:var(--ok);color:#10512f}
 #callout.warn{background:#fff3d6;border-left-color:var(--warn);color:#6b4300}
 #pager{display:flex;gap:6px;align-items:center}
 #pager .ro{min-width:44px;text-align:center}
 #pager #slNbtn{margin-left:auto}
-/* ═══ WATCH CUES: the named element itself is highlighted; nothing is drawn over the diagrams ═══ */
+/* ═══ WATCH CUES: the named element itself is highlighted, crisply (no filter, glow or shadow): a cued line is drawn wider and
+   darker by the script; a cued shape gets a teal outline; cued text turns teal. Nothing is drawn over the diagrams. ═══ */
 .watch{margin:6px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12.5px}
 .watch b{color:var(--acc);text-transform:uppercase;letter-spacing:1px;font-size:11.5px;margin-right:2px}
 .watch button{min-height:24px;padding:1px 7px;font-size:12.5px;font-weight:600;border-color:var(--line);text-align:left}
 .watch button[aria-current="true"]{border:2px solid var(--acc);background:var(--soft);font-weight:800}
-svg .cue{filter:drop-shadow(0 0 3px #0f6e6c) drop-shadow(0 0 1px #0f6e6c)}
-svg text.cue{filter:none;text-decoration:underline}
-svg .cuefill.cue{fill-opacity:.42;filter:none}
-.it.cue,.vrl.cue,#eqCard.cue{box-shadow:inset 0 0 0 3px var(--acc)}
+svg polygon.cue,svg rect.cue,svg circle.cue{stroke:#0f6e6c;stroke-width:2.5px}
+svg text.cue{fill:#0f6e6c}
+.it.cue{outline:3px solid var(--acc);outline-offset:-3px}
 /* ═══ EXPERIMENTS WORKSHEET (a document: this page scrolls) ═══ */
 #page-exp{flex:1;min-height:0;overflow:auto;padding:10px}
 .doc{max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 24px}
@@ -131,15 +136,16 @@ table.rec{border-collapse:collapse;margin:8px 0}
 table.rec th,table.rec td{border:1px solid var(--line);padding:4px 8px;font-size:14px}
 table.rec input{width:110px}
 /* ═══ LECTURE 2: VIEWS AND INSTRUMENTS ═══ */
-#itFlow1{grid-area:flow1} #itRo1{grid-area:ro1} #itPhA{grid-area:phA} #itPhB{grid-area:phB} #itRo2{grid-area:ro2} #itPh3{grid-area:ph3} #itDeriv{grid-area:deriv}
-#itBanner{grid-area:banner} #itRot{grid-area:rot} #itRo4{grid-area:ro4} #itCurve5{grid-area:curve5} #itTurn{grid-area:turn}
-#itFlow{grid-area:flow} #itPhasor{grid-area:phasor} #itCurve{grid-area:curve} #itDial{grid-area:dial} #itAlarm{grid-area:alarm} #itRo{grid-area:ro} #itEq{grid-area:eq}
-#stage[data-view=p1]{grid-template:"flow1" minmax(0,1fr) "ro1" auto/minmax(0,1fr)}
-#stage[data-view=p2]{grid-template:"phA phB" minmax(0,1fr) "ro2 ro2" auto/minmax(0,1fr) minmax(0,1fr)}
-#stage[data-view=p3]{grid-template:"ph3 curve" minmax(0,1fr) "deriv deriv" auto/minmax(0,33fr) minmax(0,67fr)}
-#stage[data-view=p4]{grid-template:"banner banner" auto "curve rot" minmax(0,1fr) "ro4 ro4" auto/minmax(0,68fr) minmax(0,32fr)}
-#stage[data-view=p5]{grid-template:"curve5" minmax(0,1fr) "turn" auto/minmax(0,1fr)}
-#stage[data-view=p6]{grid-template:"eq curve" minmax(0,1fr)/minmax(0,12fr) minmax(0,9fr)}
+#itCurve{grid-area:curve} #itRo1{grid-area:ro1} #itFlowL{grid-area:flowL} #itRo2{grid-area:ro2} #itProof{grid-area:proof} #itPfStep{grid-area:pfstep} #itRo3{grid-area:ro3}
+#itArc{grid-area:arc} #itDeriv{grid-area:deriv} #itField{grid-area:field} #itRo5{grid-area:ro5} #itCurve6{grid-area:curve6} #itTurn{grid-area:turn} #itEq{grid-area:eq}
+#itFlow{grid-area:flow} #itPhasor{grid-area:phasor} #itDial{grid-area:dial} #itAlarm{grid-area:alarm} #itRo{grid-area:ro}
+#stage[data-view=p1]{grid-template:"curve" minmax(0,1fr) "ro1" auto/minmax(0,1fr)}
+#stage[data-view=p2]{grid-template:"flowL" minmax(0,1fr) "ro2" auto/minmax(0,1fr)}
+#stage[data-view=p3]{grid-template:"proof" minmax(0,1fr) "pfstep" auto "ro3" auto/minmax(0,1fr)}
+#stage[data-view=p4]{grid-template:"arc curve" minmax(0,1fr) "deriv deriv" auto/minmax(0,37fr) minmax(0,63fr)}
+#stage[data-view=p5]{grid-template:"field" minmax(0,1fr) "ro5" auto/minmax(0,1fr)}
+#stage[data-view=p6]{grid-template:"curve6" minmax(0,1fr) "turn" auto/minmax(0,1fr)}
+#stage[data-view=p7]{grid-template:"eq" minmax(0,1fr)/minmax(0,1fr)}
 #stage[data-view=plab]{grid-template:"flow flow dial alarm" auto "flow flow dial ro" minmax(0,30fr) "phasor curve curve curve" minmax(0,42fr)/minmax(0,44fr) minmax(0,14fr) 150px minmax(0,26fr)}
 .chips{flex-direction:row;flex-wrap:wrap;gap:6px;align-items:center;align-content:flex-start}
 .chips .ro{font-weight:600;font-size:12.5px;padding:3px 6px} .chips b{font-weight:800}
@@ -149,15 +155,15 @@ table.rec input{width:110px}
 #lmOk.on{color:var(--ok)} #lmOk.on i{background:var(--ok)}
 #lmLow.on{color:var(--warn)} #lmLow.on i{background:#f2a900}
 #lmOver.on,#lmSlip.on{color:var(--err)} #lmOver.on i,#lmSlip.on i{background:var(--err)}
-#banner,#lecBanner{min-height:30px;border-radius:8px;padding:5px 10px;font-weight:800;font-size:14px;text-align:center}
-#banner{margin-top:6px}
-#lecBanner{font-size:15px;background:var(--inset);color:var(--mut)}
-#banner.on,#lecBanner.on{background:var(--err);color:#fff}
-#itBanner{padding:4px}
+#banner{min-height:30px;border-radius:8px;padding:5px 10px;font-weight:800;font-size:14px;text-align:center;margin-top:6px}
+#banner.on{background:var(--err);color:#fff}
 .flash{animation:flash 1s steps(1,end) infinite}
 @keyframes flash{0%{opacity:1}50%{opacity:.3}}
 body.paused .flash{animation-play-state:paused}
 @media (prefers-reduced-motion:reduce){.flash{animation:none}}
+.pdc{display:flex;flex-direction:column;gap:4px;margin:4px 0}
+.pdc button{text-align:left}
+#pdMsg{margin:5px 0}
 #dPrev{margin:0;font-size:12.5px;color:var(--mut);line-height:1.5}
 .dcur{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:2px 0}
 .dcur .lead{font-size:15px;font-weight:700}
@@ -165,10 +171,11 @@ body.paused .flash{animation-play-state:paused}
 .drow{display:flex;gap:8px;align-items:center}
 .drow .vrl{flex:1 1 auto;min-width:0}
 .drow .btns{margin:0;flex-wrap:nowrap;flex:none}
-#eqCard{display:flex;flex-direction:column;gap:2px;min-height:0}
-.erow{display:grid;grid-template-columns:minmax(0,10fr) minmax(0,11fr);gap:8px;align-items:center}
-.erow .eq{margin:0;padding:0 6px} .erow math{font-size:14px} .ev{font:600 12.5px var(--mono)}
-.left6{font-size:15px;margin:4px 0}
+#pfLead{flex:1 1 auto;min-width:0;margin:0;font-size:15px;font-weight:700;line-height:1.3;min-height:3.9em}
+.vrl.wait{visibility:hidden}
+#eqCard{flex:1;min-height:0;display:grid;grid-template:repeat(5,minmax(0,1fr))/1fr 1fr;grid-auto-flow:column;gap:6px 12px}
+#eqCard .eq{margin:0;display:flex;align-items:center;justify-content:center}
+#eqCard math{font-size:24px}
 #itTurn p{margin:2px 0 6px;font-size:14px}
 .trow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .trow input{width:78px;padding:5px 8px}
@@ -177,7 +184,7 @@ body.paused .flash{animation-play-state:paused}
 #turnMsg.bad{color:var(--err)} #turnMsg.good{color:var(--ok)} #turnMsg.mid{color:var(--warn)}
 #sol{font:600 13px var(--mono);background:var(--inset);border-radius:8px;padding:5px 10px;margin-top:4px;white-space:pre-wrap}
 /* ═══ NARROW OR SHORT WINDOWS: the page scrolls instead of squeezing ═══ */
-@media (max-width:1199px),(max-height:559px){
+@media (max-width:999px),(max-height:559px){
   html,body{height:auto} body{display:block;min-height:0}
   #app,#app.lab{display:block}
   #app>*{margin-bottom:8px}
@@ -185,16 +192,59 @@ body.paused .flash{animation-play-state:paused}
   #stage .it{margin-bottom:8px}
   #stage .it>svg{flex:none;height:auto}
 }
+/* ═══ 1000 TO 1199 px WIDE (1366 × 768 at 125 % zoom). Lecture: the three columns are kept, with narrower side panels and
+   smaller type, so no slide scrolls. Lab and Experiments (html without .lec): the page scrolls, as in the block above. ═══ */
+@media (min-width:1000px) and (max-width:1199px) and (min-height:560px){
+  html:not(.lec),html:not(.lec) body{height:auto} html:not(.lec) body{display:block;min-height:0}
+  html:not(.lec) #app.lab{display:block}
+  html:not(.lec) #app>*{margin-bottom:8px}
+  html:not(.lec) #stage[data-view]{display:block;overflow:visible}
+  html:not(.lec) #stage .it{margin-bottom:8px}
+  html:not(.lec) #stage .it>svg{flex:none;height:auto}
+  html.lec header{padding:3px 10px}
+  html.lec #app{grid-template-columns:246px minmax(0,1fr) 228px;gap:6px;padding:6px}
+  html.lec .panel{padding:7px 9px}
+  html.lec #main,html.lec #stage{gap:6px}
+  html.lec button{font-size:12.5px;min-height:26px;padding:2px 7px}
+  html.lec .sl h2.st{font-size:16.5px;margin:3px 0 4px}
+  html.lec .keyp{font-size:12.5px;padding:5px 8px;margin:4px 0}
+  html.lec .def{font-size:12px;margin:4px 0}
+  html.lec .sl .eq{margin:4px 0;padding:2px 6px}
+  html.lec .sl .eq math{font-size:13px}
+  html.lec .watch{margin:4px 0;gap:3px}
+  html.lec .watch button{font-size:11.5px;min-height:22px;padding:1px 5px}
+  html.lec #notesBox{padding:4px 8px}
+  html.lec #slNotes{font-size:12.5px;line-height:1.3}
+  html.lec .it{padding:4px 6px}
+  html.lec .vrl{font-size:12px;padding:2px 6px}
+  html.lec .dt{font-size:13px}
+  html.lec .chead{flex-direction:column;align-items:stretch}
+  html.lec .cbt{justify-content:flex-end}
+  html.lec .cl,html.lec .side-t{font-size:13px}
+  html.lec .side-t{margin:4px 0}
+  html.lec .losses{font-size:12px}
+  html.lec .note{font-size:12px}
+  html.lec .ro{font-size:12.5px}
+  html.lec #pdMsg{font-size:12px}
+  html.lec #dPrev{font-size:11.5px;line-height:1.35}
+  html.lec .dcur .lead,html.lec #pfLead{font-size:13px}
+  html.lec .dcur math{font-size:16px}
+  html.lec #eqCard math{font-size:20px}
+  html.lec #itTurn p{font-size:12.5px;margin:2px 0 4px}
+  html.lec .trow input{width:62px;padding:3px 6px;font-size:13px}
+  html.lec #sol{font-size:11.5px}
+  html.lec #pin .btns button{font-size:12px}
+}
 </style>
 </head>
 <body>
 <header>
-  <h1>Static Stability Limit</h1><span class="badge">ECE 3033 · Lecture 2 · v1.1.0</span>
+  <h1>Static Stability Limit</h1><span class="badge">ECE 3033 · Lecture 2 · v1.2.0</span>
   <details id="model"><summary>Model</summary><div class="pop">
     <p>Machine G3: 25 MVA, 13.8 kV, 4 poles, 1800 r/min (ω<sub>m</sub> = 188.5 rad/s), X<sub>S</sub> = 7.62 Ω (1.0 pu), on the infinite bus: V<sub>φ</sub> = 7.97 kV, 60 Hz. E<sub>A</sub> = V<sub>φ</sub> × I<sub>F</sub> / 5.00 A (no saturation).</p>
-    <p>Slide 1 uses illustrative losses: friction and windage 0.15 MW, core 0.20 MW, stray 0.01 × P<sub>out</sub>, copper 3I<sub>A</sub>²R<sub>A</sub> with R<sub>A</sub> = 0.07 Ω. I<sub>A</sub> comes from the lossless phasor relation at the set field current. Its band and arrow widths are not to scale. The Lab's power-flow panel uses the same losses at unity power factor, with widths that follow MW.</p>
-    <p>From slide 2 on R<sub>A</sub> and the rotational losses are ignored (R<sub>A</sub> ≪ X<sub>S</sub>), so the input power equals P<sub>conv</sub> = P<sub>out</sub> = 3V<sub>φ</sub>E<sub>A</sub> sin δ / X<sub>S</sub>. Each lecture diagram has one fixed scale. I<sub>A</sub> is drawn for direction only: its length is not comparable with the voltages.</p>
-    <p>The loss of synchronism is qualitative: when the input power exceeds P<sub>max</sub> the rotor angle is run away at a rate that grows with (P<sub>in</sub> − P<sub>max</sub> sin δ), slowed so it can be followed, and the breaker trips after one pole slip. Transient stability (swings after a sudden change) is not modelled. δ moves to a new steady value with a short display lag.</p>
+    <p>Slide 2 uses illustrative losses: friction and windage 150.0 kW, core 200.0 kW, stray 0.01 × P<sub>out</sub>, copper 3I<sub>A</sub>²R<sub>A</sub> with R<sub>A</sub> = 0.07 Ω. I<sub>A</sub> comes from the lossless phasor relation at the set field current. Its band and arrow widths are not to scale. The Lab's power-flow panel uses the same losses at unity power factor, with widths that follow MW.</p>
+    <p>On every other slide R<sub>A</sub> and the rotational losses are ignored (R<sub>A</sub> ≪ X<sub>S</sub>), so the input power equals P<sub>conv</sub> = P<sub>out</sub> = 3V<sub>φ</sub>E<sub>A</sub> sin δ / X<sub>S</sub>. Each lecture diagram has one fixed scale. On slide 3 I<sub>A</sub> is drawn on its own scale: its length is not comparable with the voltages.</p>
+    <p>The loss of synchronism (slide 1 and the Lab) is qualitative: when the input power exceeds P<sub>max</sub> the rotor angle is run away at a rate that grows with (P<sub>in</sub> − P<sub>max</sub> sin δ), slowed so it can be followed, and the breaker trips after one pole slip. Transient stability (swings after a sudden change) is not modelled. δ moves to a new steady value with a short display lag. The 25 MW rating is thermal; powers above it are shown to see the trend.</p>
   </div></details>
   <nav class="tabs" aria-label="Pages">
     <button data-page="lec" aria-pressed="true">Lecture</button>
@@ -206,71 +256,76 @@ body.paused .flash{animation-play-state:paused}
 <div id="app">
   <!-- ═══ SLIDE PANEL (Lecture) ═══ -->
   <div class="panel" id="slidePanel" aria-label="Lecture slide">
-  <section class="sl" data-n="1"><p class="kick">1 of 6 · Where the power goes</p><h2 class="st">Not all the input power reaches the bus</h2>
-    <p class="keyp">Losses come out before and after the conversion to electrical power. What is left goes to the infinite bus.</p>
+  <section class="sl" data-n="1"><p class="kick">1 of 7 · The static stability limit</p><h2 class="st">How much power can G3 send to the bus?</h2>
+    <p class="keyp">The static stability limit is the largest real power a synchronous generator can deliver to the bus without losing synchronism, when the load changes slowly.</p>
+    <div class="eq" data-eq="pmax90"></div>
+    <p class="def">Higher E<sub>A</sub> (more field) raises it; higher X<sub>S</sub> lowers it. Past δ = 90° the power falls as δ grows, so G3 cannot hold step.</p>
+    <p class="def"><b>You will:</b> find P<sub>max</sub> from the phasor diagram; read δ and the margin off the curve; set the field for a required margin.</p></section>
+  <section class="sl" data-n="2"><p class="kick">2 of 7 · Where the power goes</p><h2 class="st">Losses are small: P<sub>in</sub> ≈ P<sub>out</sub></h2>
+    <p class="keyp">About 96 % reaches the bus, so from here on R<sub>A</sub> and the rotational losses are ignored.</p>
     <p class="def"><b>Infinite bus:</b> a power system so large that nothing G3 does changes its voltage or frequency: V<sub>φ</sub> = 7.97 kV at 60 Hz.</p>
     <div class="eq" data-eq="pconv1"></div>
     <div class="eq" data-eq="pout1"></div>
     <div class="eq" data-eq="ea"></div></section>
-  <section class="sl" data-n="2"><p class="kick">2 of 6 · The phasor diagram</p><h2 class="st">More power swings E<sub>A</sub> further ahead of V<sub>φ</sub></h2>
-    <p class="keyp">The field is fixed, so |E<sub>A</sub>| is fixed. More power raises the torque angle δ, and the vertical E<sub>A</sub> sin δ grows with it.</p>
+  <section class="sl" data-n="3"><p class="kick">3 of 7 · The phasor diagram</p><h2 class="st">Why E<sub>A</sub> sin δ = X<sub>S</sub> I<sub>A</sub> cos θ</h2>
+    <p class="keyp">The vertical from the tip of E<sub>A</sub> is a side of two right triangles. Read it in each one: the two results are the same line, so they are equal.</p>
     <div class="eq" data-eq="kvl"></div>
     <div class="eq" data-eq="vert"></div>
-    <p class="def">δ: torque angle, E<sub>A</sub> from V<sub>φ</sub>. θ: power factor angle, I<sub>A</sub> from V<sub>φ</sub>. R<sub>A</sub> ignored from here on.</p></section>
-  <section class="sl" data-n="3"><p class="kick">3 of 6 · From the diagram to P<sub>max</sub></p><h2 class="st">Power depends on δ, and it has a peak</h2>
-    <p class="keyp">The vertical E<sub>A</sub> sin δ in the phasor diagram is the power, scaled. It cannot be longer than E<sub>A</sub>, so P has a peak at δ = 90°.</p>
+    <p class="def">δ: torque angle, E<sub>A</sub> from V<sub>φ</sub>. θ: power factor angle, I<sub>A</sub> from V<sub>φ</sub>. Step through the proof under the diagram.</p></section>
+  <section class="sl" data-n="4"><p class="kick">4 of 7 · From the diagram to P<sub>max</sub></p><h2 class="st">More power, fixed field</h2>
+    <p class="keyp">The field is fixed, so |E<sub>A</sub>| is fixed and its tip stays on the arc. More power raises δ and the height E<sub>A</sub> sin δ, which is the power, scaled. It cannot be longer than E<sub>A</sub>, so P peaks at δ = 90°.</p>
     <div class="eq" data-eq="p"></div>
     <div class="eq" data-eq="pmax"></div>
-    <p class="def">Step through the derivation under the diagrams. The sliders unlock at step 6.</p></section>
-  <section class="sl" data-n="4"><p class="kick">4 of 6 · Static stability limit</p><h2 class="st">Past the peak, no torque angle balances the input power</h2>
-    <p class="keyp">G3 runs where the input power line crosses the curve. Above P<sub>max</sub> there is no crossing: G3 slips poles and the breaker trips. More field current lifts the curve.</p>
+    <p class="def">Step through the derivation under the diagrams. The slider unlocks at step 6.</p></section>
+  <section class="sl" data-n="5"><p class="kick">5 of 7 · Raising the limit</p><h2 class="st">More field, fixed power</h2>
+    <p class="keyp">P is fixed at 20 MW, so E<sub>A</sub> sin δ is fixed: the tip of E<sub>A</sub> slides along the horizontal line. More field lifts P<sub>max</sub> and lowers δ.</p>
     <div class="eq" data-eq="p"></div>
     <div class="eq" data-eq="pmax"></div>
-    <p class="def">Qualitative: the pole slip is illustrated, not computed. Transient stability is not modelled.</p></section>
-  <section class="sl" data-n="5"><p class="kick">5 of 6 · Your turn</p><h2 class="st">Set the field for 18 MW at δ = 28°</h2>
+    <p class="def">Left of the unity-pf line G3 is leading (it absorbs reactive power); right of it, lagging (it supplies reactive power).</p></section>
+  <section class="sl" data-n="6"><p class="kick">6 of 7 · Your turn</p><h2 class="st">Set the field for 18 MW at δ = 28°</h2>
     <p class="keyp">G3 must carry 18 MW with δ = 28°, inside the normal band. Find E<sub>A</sub>, the field current I<sub>F</sub>, and the new P<sub>max</sub>.</p>
     <div class="eq" data-eq="p"></div>
     <div class="eq" data-eq="ea"></div>
     <div class="eq" data-eq="pmax"></div>
     <p class="def">G3: V<sub>φ</sub> = 7.97 kV, X<sub>S</sub> = 7.62 Ω, R<sub>A</sub> ignored.</p></section>
-  <section class="sl" data-n="6"><p class="kick">6 of 6 · Key equations</p><h2 class="st">Eleven lines carry the whole lecture</h2>
-    <p class="keyp">Every value shown is G3 at the settings you left.</p>
-    <p class="def">Change the input power or the field on slide 4 or in the Lab, then come back: the values follow.</p>
+  <section class="sl" data-n="7"><p class="kick">7 of 7 · Key equations</p><h2 class="st">Ten lines carry the whole lecture</h2>
+    <p class="keyp">The power flow, the phasor diagram and the power–angle curve, in ten equations.</p>
+    <p class="def">Left column: the power flow, the field and the normal range of δ. Right column: the phasor diagram, then the curve and its peak.</p>
     <div class="btns"><button id="toS1">◀ Back to slide 1</button></div></section>
   </div>
 
   <!-- ═══ MAIN AREA ═══ -->
   <div id="main">
     <div id="stage" data-view="p1">
-      <div class="it" id="itFlow1">
-        <svg viewBox="0 0 760 300" role="img" aria-label="Power flow, not to scale: input power enters generator G3; stray, friction and windage and core losses leave on the rotor side; the converted power crosses to the stator side, where the copper loss leaves; the output power goes to the infinite bus."><g id="f1G"></g></svg>
-      </div>
-      <div class="it rd" id="itRo1"><p class="vrl" id="r1a"></p><p class="vrl" id="r1b"></p><p class="vrl" id="r1c"></p><p class="vrl" id="r1d"></p></div>
-      <div class="it" id="itPhA"><p class="dt">Why E<sub>A</sub> sin δ = X<sub>S</sub> I<sub>A</sub> cos θ</p>
-        <svg viewBox="0 0 400 340" role="img" aria-label="Phasor diagram: V phi, j X S I A and E A, with the vertical from the tip of E A shared by a blue and a grey right triangle, the torque angle delta and the power factor angle theta in two places."><g id="paG"></g></svg>
-      </div>
-      <div class="it" id="itPhB"><p class="dt">As the input power rises</p>
-        <svg viewBox="0 0 400 340" role="img" aria-label="E A climbing an arc of constant length as the input power rises, with its height E A sine delta and the unity power factor line."><g id="pbG"></g></svg>
-      </div>
-      <div class="it rd" id="itRo2"><p class="vrl" id="r2a"></p><p class="vrl" id="r2b"></p><p class="vrl" id="r2c"></p></div>
-      <div class="it" id="itPh3"><p class="dt">Phasor diagram</p>
-        <svg viewBox="0 0 300 270" role="img" aria-label="Phasor diagram with the vertical E A sine delta in amber."><g id="p3G"></g></svg>
-      </div>
-      <div class="it" id="itBanner" role="status" aria-live="polite"><div id="lecBanner"></div></div>
       <div class="it" id="itCurve">
-        <svg id="curve" viewBox="0 0 640 400" role="img" aria-label="Power and induced torque against torque angle delta from 0 to 180 degrees, with the input power line, the operating point and the peak."><g id="cvG"></g></svg>
+        <svg id="curve" viewBox="0 0 640 400" role="img" aria-label="Power against torque angle delta from 0 to 180 degrees, with the input power line, the operating point and the peak P max at 90 degrees."><g id="cvG"></g></svg>
       </div>
-      <div class="it" id="itRot"><p class="dt">E<sub>A</sub> against V<sub>φ</sub></p>
-        <svg viewBox="0 0 260 270" role="img" aria-label="V phi and E A on a fixed scale; E A turns on a dotted circle and rotates during a pole slip."><g id="p4G"></g></svg>
+      <div class="it rd" id="itRo1"><p class="vrl" id="r1a"></p><p class="vrl" id="r1b"></p></div>
+      <div class="it" id="itFlowL">
+        <svg viewBox="0 0 760 300" role="img" aria-label="Power flow, not to scale: input power enters generator G3; stray, friction and windage and core losses leave on the rotor side; the converted power crosses to the stator side, where the copper loss leaves; the output power goes to the infinite bus."><g id="lfG"></g></svg>
       </div>
-      <div class="it rd" id="itRo4"><p class="vrl" id="r4a"></p><p class="vrl" id="r4b"></p></div>
+      <div class="it rd" id="itRo2"><p class="vrl" id="r2a"></p><p class="vrl" id="r2b"></p><p class="vrl" id="r2c"></p><p class="vrl" id="r2d"></p></div>
+      <div class="it" id="itProof"><p class="dt" id="pfTitle"></p>
+        <svg viewBox="0 0 640 320" role="img" aria-label="Phasor diagram at one fixed operating point, built in six steps: V phi on the axis and I A lagging by theta; j X S I A from the tip of V phi at 90 degrees to I A; E A closing the triangle at the torque angle delta; the vertical from the tip of E A; the angle theta at the tip; and the two right triangles that share the vertical."><g id="pfG"></g></svg>
+      </div>
+      <div class="it" id="itPfStep">
+        <div class="drow"><p id="pfLead" aria-live="polite"></p><span class="btns"><button id="pfBack">◀ Back</button><button id="pfNext" class="pri">Next step ▶</button><span class="ro" id="pfPos">1/6</span></span></div>
+      </div>
+      <div class="it rd" id="itRo3"><p class="vrl" id="r3a"></p><p class="vrl" id="r3b"></p></div>
+      <div class="it" id="itArc"><p class="dt">E<sub>A</sub> on its arc (field fixed)</p>
+        <svg viewBox="0 0 300 290" role="img" aria-label="E A climbing an arc of constant length as the input power rises, with its height E A sine delta in amber and the unity power factor line."><g id="arG"></g></svg>
+      </div>
       <div class="it" id="itDeriv">
         <p id="dPrev"></p>
         <div class="dcur"><span class="lead" id="dLead"></span><div class="eq" id="dEq"></div><div class="eq" id="dEq2"></div></div>
         <div class="drow"><p class="vrl" id="dLive"></p><span class="btns"><button id="stepBack">◀ Back</button><button id="stepNext" class="pri">Next step ▶</button><span class="ro" id="stepPos">1/6</span></span></div>
       </div>
-      <div class="it" id="itCurve5">
-        <svg viewBox="0 0 640 400" role="img" aria-label="Power against torque angle: the curve at 6.00 amperes dashed, an 18 megawatt line and a line at delta equals 28 degrees crossing at the target point."><g id="c5G"></g></svg>
+      <div class="it" id="itField"><p class="dt">E<sub>A</sub> at a fixed input power</p>
+        <svg viewBox="0 0 640 400" role="img" aria-label="Phasor diagram at a fixed input power: V phi on the axis, a horizontal line of constant E A sine delta, a vertical unity power factor line, the present E A with its torque angle delta, and a faint E A at the starting field current."><g id="fdG"></g></svg>
+      </div>
+      <div class="it rd" id="itRo5"><p class="vrl" id="r5a"></p><p class="vrl" id="r5b"></p><p class="vrl" id="r5c"></p></div>
+      <div class="it" id="itCurve6">
+        <svg viewBox="0 0 640 400" role="img" aria-label="Power against torque angle: the curve at 6.00 amperes dashed, an 18 megawatt line and a line at delta equals 28 degrees crossing at the target point."><g id="c6G"></g></svg>
       </div>
       <div class="it" id="itTurn">
         <div class="trow"><label for="eIn"><b>E<sub>A</sub> (kV)</b></label><input type="text" id="eIn" inputmode="decimal" maxlength="10" autocomplete="off" aria-describedby="turnMsg"><label for="ifIn"><b>I<sub>F</sub> (A)</b></label><input type="text" id="ifIn" inputmode="decimal" maxlength="10" autocomplete="off" aria-describedby="turnMsg"><label for="pmIn"><b>P<sub>max</sub> (MW)</b></label><input type="text" id="pmIn" inputmode="decimal" maxlength="10" autocomplete="off" aria-describedby="turnMsg"><button id="chkBtn" class="pri">Check</button><button id="hintBtn">Hint</button><button id="solBtn">Show solution</button></div>
@@ -298,7 +353,7 @@ body.paused .flash{animation-play-state:paused}
       <div class="it chips" id="itRo" role="status">
         <span class="ro">δ <b id="rD"></b></span><span class="ro">pf <b id="rPf"></b></span><span class="ro">I<sub>A</sub> <b id="rIa"></b> A</span><span class="ro">E<sub>A</sub> <b id="rEa"></b> kV</span><span class="ro">Q <b id="rQ"></b></span><span class="ro">P<sub>max</sub> <b id="rPm"></b> MW</span><span class="ro">Margin <b id="rMg"></b> MW</span>
       </div>
-      <div class="it" id="itEq"><h2>Key equations, with G3's values now</h2><div id="eqCard"></div></div>
+      <div class="it" id="itEq"><h2>Key equations</h2><div id="eqCard"></div></div>
     </div>
     <div id="notesBox" aria-live="polite"><p class="kick">Speaker notes</p><p id="slNotes"></p></div>
   </div>
@@ -306,6 +361,10 @@ body.paused .flash{animation-play-state:paused}
   <!-- ═══ SIDEBAR ═══ -->
   <div class="panel" id="side" aria-label="Controls">
     <h2 id="sideH">G3 controls</h2>
+    <div class="grp" data-g="pfix">
+      <p class="cl">Input power P<sub>in</sub></p>
+      <div class="brow"><span class="ro" id="pfixO"></span></div>
+    </div>
     <div class="grp" data-g="pm">
       <div class="chead"><label class="cl" for="pmS">Input power P<sub>in</sub></label><span class="cbt"><button class="sm" id="pmM" aria-label="Lower the input power 0.1 megawatt">−</button><button class="sm" id="pmP" aria-label="Raise the input power 0.1 megawatt">+</button><span class="ro" id="pmO"></span></span></div>
       <input type="range" id="pmS" min="0" max="35" step="0.5" value="20">
@@ -319,8 +378,18 @@ body.paused .flash{animation-play-state:paused}
       <div class="brow"><span class="ro">6.00 A (fixed)</span></div>
       <p class="ro wrap" id="fixEa"></p>
     </div>
-    <div class="grp" data-g="show2"><div class="brow"><button class="pri" data-show="2">▶ Show me: 0 → 28 MW</button></div></div>
-    <div class="grp" data-g="show4"><div class="brow"><button class="pri" data-show="4a">▶ Show me: too much power</button><button class="pri" data-show="4b">▶ Show me: more field</button></div></div>
+    <div class="grp" data-g="predict">
+      <p class="side-t" id="pdQ">The prime mover raises the input power from 15 to 34 MW, field unchanged. What happens?</p>
+      <div class="pdc" role="group" aria-labelledby="pdQ">
+        <button data-pick="rise" aria-pressed="false">Output keeps rising to 34 MW</button>
+        <button data-pick="rating" aria-pressed="false">It stops at the 25 MW rating</button>
+        <button data-pick="slip" aria-pressed="false">G3 loses step past 30 MW</button>
+      </div>
+      <div class="brow"><button class="pri" data-show="1">▶ Show me: 15 → 34 MW</button></div>
+      <p id="pdMsg" role="status" aria-live="polite"></p>
+      <p class="note">The pole slip is illustrated, not computed. Transient stability is not modelled.</p>
+    </div>
+    <div class="grp" data-g="show5"><div class="brow"><button class="pri" data-show="5">▶ Show me: 6.00 → 8.00 A</button></div></div>
     <div class="grp" data-g="loss">
       <p class="cl">Losses</p>
       <ul class="losses">
@@ -329,13 +398,13 @@ body.paused .flash{animation-play-state:paused}
         <li><b>Core:</b> hysteresis and eddy currents in the iron; fixed at fixed voltage.</li>
         <li><b>Copper:</b> 3I<sub>A</sub>²R<sub>A</sub> in the armature; grows as the current squared.</li></ul>
     </div>
-    <div class="grp" data-g="none5"><p class="side-t">The dashed curve is G3 at 6.00 A. The new curve appears when you solve the problem.</p></div>
-    <div class="grp" data-g="left6"><p class="left6">Input power <span class="ro" id="pmR"></span></p><p class="left6">Field current <span class="ro" id="ifR"></span></p><p class="left6">E<sub>A</sub> <span class="ro" id="eaR"></span></p></div>
+    <div class="grp" data-g="still3"><p class="side-t" id="stillT"></p></div>
+    <div class="grp" data-g="none6"><p class="side-t">The dashed curve is G3 at 6.00 A. The new curve appears when you solve the problem.</p></div>
     <p class="note" id="lockNote" hidden>Locked until step 6 of the derivation.</p>
     <div id="pin">
-      <div class="btns" role="group" aria-label="Reset, time and sound"><button id="resetBtn" class="danger">↺ Reset</button><button id="pauseBtn" aria-pressed="false">❚❚ Pause</button><button id="soundBtn" aria-pressed="false">🔈 Alarm sound: off</button></div>
-      <div id="callout" role="status" aria-live="polite"></div>
-      <div id="pager"><button id="slPrev" aria-label="Previous slide">◀</button><span class="ro" id="slPos">1/6</span><button id="slNext" aria-label="Next slide">▶</button><button id="slNbtn" aria-pressed="true">Notes (N)</button></div>
+      <div class="btns" role="group" aria-label="Reset, time and sound"><button id="resetBtn" class="danger">↺ Reset</button><button id="pauseBtn" aria-pressed="false">❚❚ Pause</button><button id="soundBtn" aria-pressed="false" hidden>🔈 Alarm sound: off</button></div>
+      <div id="callout" role="status" aria-live="polite" hidden></div>
+      <div id="pager"><button id="slPrev" aria-label="Previous slide">◀</button><span class="ro" id="slPos">1/7</span><button id="slNext" aria-label="Next slide">▶</button><button id="slNbtn" aria-pressed="true">Notes (N)</button></div>
     </div>
   </div>
 </div>
@@ -357,7 +426,7 @@ body.paused .flash{animation-play-state:paused}
       <tr><td>15.0</td><td><input type="text" data-k="e1b" aria-label="P out at 15 megawatts in"></td><td><input type="text" data-k="e1b2" aria-label="Efficiency at 15 megawatts in"></td></tr>
       <tr><td>25.0</td><td><input type="text" data-k="e1c" aria-label="P out at 25 megawatts in"></td><td><input type="text" data-k="e1c2" aria-label="Efficiency at 25 megawatts in"></td></tr></table>
     <ol class="qs"><li>Predict first: which loss grows fastest with load, and why? Then say what you saw.<textarea data-k="e1q1"></textarea></li></ol>
-    <details><summary>What you should see</summary><p>P<sub>out</sub> ≈ 4.60, 14.43 and 24.19 MW; efficiency ≈ 91.9, 96.2 and 96.8 %. Friction and windage and core loss stay at 0.15 and 0.20 MW. The copper loss 3I<sub>A</sub>²R<sub>A</sub> grows as the square of the current: about 0.008, 0.077 and 0.215 MW. The fixed losses weigh most at light load, so the efficiency is lowest there.</p></details></div>
+    <details><summary>What you should see</summary><p>P<sub>out</sub> ≈ 4.6, 14.4 and 24.2 MW; efficiency ≈ 91.9, 96.2 and 96.8 %. Friction and windage and core loss stay at 150.0 and 200.0 kW. The copper loss 3I<sub>A</sub>²R<sub>A</sub> grows as the square of the current: about 7.8, 76.5 and 215.1 kW. The fixed losses weigh most at light load, so the efficiency is lowest there.</p></details></div>
 
   <div class="exp-card"><p class="num">Experiment 2</p><h3>Torque angle and power factor against power</h3>
     <p>Goal: at a fixed field, follow δ and the power factor as the load rises, and find the unity power factor load.</p>
@@ -384,13 +453,13 @@ body.paused .flash{animation-play-state:paused}
     <button class="try" data-try='{"pm":20,"iF":6}'>▶ Set up</button>
     <ol><li>The input power stays at 20 MW. Raise the field until δ reads 25°.</li></ol>
     <ol class="qs"><li>Predict first with P = P<sub>max</sub> sin δ: what P<sub>max</sub> is needed? Then give the I<sub>F</sub> you found and the margin in MW.<textarea data-k="e4q1"></textarea></li></ol>
-    <details><summary>What you should see</summary><p>At 6.00 A, 20 MW sits at δ = 41.8°. δ = 25° needs P<sub>max</sub> = 20 / sin 25° = 47.3 MW, which is I<sub>F</sub> ≈ 9.46 A (9.45 A gives 25.0°). The margin is then about 27 MW.</p></details></div>
+    <details><summary>What you should see</summary><p>At 6.00 A, 20 MW sits at δ = 41.8°. δ = 25° needs P<sub>max</sub> = 20 / sin 25° = 47.3 MW, which is I<sub>F</sub> ≈ 9.46 A (9.45 A gives 25.0°). The margin is then about 27.3 MW.</p></details></div>
 </article></section>
 
 <script>
 /* ═══ CONTENTS ═══
-   1. CONSTANTS   2. STATE   3. PHYSICS   4. FORMATTING AND EQUATIONS   5. SLIDE 1: POWER FLOW   6. LECTURE PHASOR DIAGRAMS
-   7. P–δ CURVE   8. SLIDE 5: YOUR TURN   9. LAB INSTRUMENTS   10. READOUTS AND VERDICT   11. CONTROLS
+   1. CONSTANTS   2. STATE   3. PHYSICS   4. FORMATTING AND EQUATIONS   5. SLIDE 2: POWER FLOW   6. LECTURE PHASOR DIAGRAMS
+   7. P–δ CURVE   8. SLIDE 6: YOUR TURN   9. LAB INSTRUMENTS   10. READOUTS AND VERDICT   11. CONTROLS
    12. LECTURE (slides, views, demos)   13. WATCH CUES   14. WORKSHEET   15. LOOP */
 'use strict';
 /* ═══ 1. CONSTANTS ═══ */
@@ -404,14 +473,14 @@ const N_SYNC = 1800;                      // r/min, 4 poles at 60 Hz
 const W_M = 2 * Math.PI * N_SYNC / 60;    // rad/s, mechanical speed, 188.5
 const LOSS_FW = 0.15, LOSS_CORE = 0.20;   // MW, friction and windage, core (illustrative, fixed)
 const STRAY_K = 0.01;                     // stray loss as a fraction of P_out (illustrative)
-const R_A = 0.07;                         // Ω per phase, armature resistance (copper loss on slide 1 and in the Lab panel only)
+const R_A = 0.07;                         // Ω per phase, armature resistance (copper loss on slide 2 and in the Lab panel only)
 const COPPER_K = R_A / (3 * V_PH * V_PH); // MW per MW², Lab panel: copper loss = COPPER_K · P_out² at unity power factor
-const FLOW_ITER = 40;                     // fixed-point passes of the slide-1 loss model (converges in a few)
-const IF_START = 6.00;                    // A, field current on entering a slide; the fixed field of slide 2
+const FLOW_ITER = 40;                     // fixed-point passes of the slide-2 loss model (converges in a few)
+const IF_START = 6.00;                    // A, field current on entering a slide; the fixed field of slides 1 and 4
 const PM_SLIDE = 0.5, IF_SLIDE = 0.1;     // MW and A, slider steps on the lecture slides
 const PM_STEP = 0.1, IF_STEP = 0.05;      // MW and A, the − / + buttons (and the Lab sliders)
 /* Slider ranges on each lecture slide (MW and A); null = no such control there. */
-const CTL = { 1: { pm: [5, 25], iF: [5.5, 8.0] }, 2: { pm: [0, 28], iF: null }, 3: { pm: [0, 28], iF: [5.0, 8.0] }, 4: { pm: [0, 35], iF: [5.0, 8.5] }, 5: { pm: null, iF: null }, 6: { pm: null, iF: null } };
+const CTL = { 1: { pm: null, iF: null }, 2: { pm: [5, 25], iF: [5.5, 8.0] }, 3: { pm: null, iF: null }, 4: { pm: [0, 28], iF: null }, 5: { pm: null, iF: [5.0, 8.5] }, 6: { pm: null, iF: null }, 7: { pm: null, iF: null } };
 const LAB_CTL = { pm: [0, 35], iF: [3, 10] };   // slider ranges in the Lab
 const BAND_LO = 20, BAND_HI = 30;         // degrees, normal operating band of δ
 const TAU_D = 0.25;                       // s, glide of δ toward its steady value
@@ -420,11 +489,13 @@ const W_SLIP_MIN = 0.15, W_SLIP_MAX = 4;  // rad/s, slowest and fastest drawn sl
 const TRIP_AT = 2 * Math.PI;              // rad, the breaker trips after one pole slip (δ has advanced 360°)
 const RAMP_PM = 3.5;                      // MW/s, Show-me ramps of the input power
 const RAMP_IF = 0.5;                      // A/s, Show-me ramp of the field
-const DEMO2_TO = 28;                      // MW, end of the slide-2 ramp
-const DEMO4A = { pm: 15, to: 34, iF: 6 }; // slide-4 demo 1: input power 15 → 34 MW at 6 A
-const DEMO4B = { pm: 20, iF: 6, to: 8.3 };// slide-4 demo 2: field 6 → 8.3 A at 20 MW
-const DEMO_HOLD_MS = 1500;                // ms demo 2 shows its starting point before the field moves
-const TURN_P = 18, TURN_DEG = 28;         // MW and degrees, the slide-5 problem
+const DEMO1 = { pm: 15, to: 34, iF: 6 };  // slide-1 demo: input power 15 → 34 MW at 6 A
+const DEMO5 = { pm: 20, iF: 6, to: 8.0 }; // slide-5 demo: field 6 → 8 A at 20 MW
+const DEMO_HOLD_MS = 1500;                // ms the slide-5 demo shows its starting point before the field moves
+const WAIT_MS = 30;                       // ms between checks while a demo waits
+const PROOF = { pm: 15, iF: 7 };          // MW and A, the one operating point of the slide-3 proof
+const P_FIX = DEMO5.pm;                   // MW, the fixed input power of slide 5
+const TURN_P = 18, TURN_DEG = 28;         // MW and degrees, the slide-6 problem
 const TURN_TOL = [0.05, 0.03, 0.3];       // kV, A, MW accepted either side of the three answers
 const NUMBER_FORM = /^[+\-−]?(\d+\.?\d*|\.\d+)$/;   // a plain decimal number, optional sign
 const BEEP_HZ = 880, BEEP_S = 0.15, BEEP_EVERY_MS = 1000;   // audible alarm: tone, length, repeat (1 per second)
@@ -434,17 +505,20 @@ const HOLD_DELAY = 400, HOLD_EVERY = 110; // ms, press-and-hold repeat
 const DEG = 180 / Math.PI, HALF_PI = Math.PI / 2;
 const MINUS = '−';                        // U+2212
 const SVGNS = 'http://www.w3.org/2000/svg', MMLNS = 'http://www.w3.org/1998/Math/MathML';
-const NSL = 6;                            // lecture slides
-const NSTEP = 6;                          // derivation steps on slide 3
+const NSL = 7;                            // lecture slides
+const NSTEP = 6;                          // derivation steps on slide 4
+const NPROOF = 6;                         // proof steps on slide 3
+const KW_PER_MW = 1e3;                    // kW in one MW (losses are written in kW)
 const SHEET_KEY = 'static-stability-limit-worksheet-v1';   // the only localStorage key this tool reads or writes
 const SHEET_MAX = 4000;                   // longest stored answer (characters)
 const EPS = 1e-9;
 const COL = { v: '#d32f2f', e: '#1c5fd6', x: '#3a444b', i: '#18744a', proj: '#b06f00', mech: '#8a5700', loss: '#c2412f', mut: '#55636b', ink: '#1a2328', ok: '#18744a', card: '#eceef4' };
 const HALO = { stroke: '#ffffff', 'stroke-width': 4, 'paint-order': 'stroke', 'stroke-linejoin': 'round' };   // keeps a label legible where a line crosses it
 
+
 /* ═══ 2. STATE ═══ */
-const S = { pm: 20, iF: IF_START, d: 0, w: 0, run: 'ok', over: false, paused: false, ramp: null, demoId: 0, busy: false, step: 1, refIF: IF_START,
-            mode: 'lec', slide: 1, notes: true, vis: new Set(), cueAuto: null, cueMan: null, moved: false, demoDone: false,
+const S = { pm: 15, iF: IF_START, d: 0, w: 0, run: 'ok', paused: false, ramp: null, demoId: 0, busy: false, step: 1, pstep: 1, pick: null,
+            mode: 'lec', slide: 1, notes: true, vis: new Set(), cueAuto: null, cueMan: null, moved: false,
             sound: false, lastBeep: 0, solved: false, shown: false, tried: false };
 
 /* ═══ 3. PHYSICS ═══ */
@@ -458,17 +532,17 @@ function pMaxAt(iF) { return 3 * V_PH * eAt(iF) / X_S; }
 function pMax() { return pMaxAt(S.iF); }
 /* Steady torque angle (rad) for input power p (MW), or null when p exceeds P_max. */
 function dSteady(p) { const m = pMax(); return p <= m ? Math.asin(p / m) : null; }
-/* Operating point at torque angle d (rad), R_A ignored: P, Q, I_A (kA, with its real and imaginary parts on V_φ), θ (rad, negative = lagging), pf. */
-function point(d) {
-  const E = eA(), ir = E * Math.sin(d) / X_S, ii = -(E * Math.cos(d) - V_PH) / X_S;     // I_A = (E_A − V_φ) / jX_S
+/* Operating point at torque angle d (rad) and internal voltage E (kV; the present one unless given), R_A ignored: P, Q, I_A (kA, with its real and imaginary parts on V_φ), θ (rad, negative = lagging), pf. */
+function point(d, E = eA()) {
+  const ir = E * Math.sin(d) / X_S, ii = -(E * Math.cos(d) - V_PH) / X_S;     // I_A = (E_A − V_φ) / jX_S
   const I = Math.hypot(ir, ii), th = Math.atan2(ii, ir);
   return { E, d, ir, ii, I, th, pf: I < EPS ? 1 : Math.cos(th), P: 3 * V_PH * ir, Q: -3 * V_PH * ii, vert: E * Math.sin(d) };
 }
 /* Word for the power factor of point p. */
 function pfWord(p) { return Math.abs(p.Q) < 0.05 ? 'unity' : p.Q > 0 ? 'lagging' : 'leading'; }
-/* Slide-1 power flow for input pin (MW) at field current iF (A), illustrative losses. δ comes from P_out with the lossless
+/* Slide-2 power flow for input pin (MW) at field current iF (A), illustrative losses. δ comes from P_out with the lossless
    relation P_out = 3 V_φ E_A sin δ / X_S, then I_A = |E_A∠δ − V_φ| / X_S; the copper and stray losses are iterated to a fixed point. */
-function flow1(pin, iF) {
+function flowLec(pin, iF) {
   const E = eAt(iF), fixed = LOSS_FW + LOSS_CORE, cur = po => { const d = Math.asin(Math.min(1, po * X_S / (3 * V_PH * E))); return { d, I: Math.hypot(E * Math.cos(d) - V_PH, E * Math.sin(d)) / X_S }; };
   let po = pin - fixed;
   for (let n = 0; n < FLOW_ITER; n++) po = (pin - fixed - 3 * cur(po).I ** 2 * R_A) / (1 + STRAY_K);
@@ -483,18 +557,12 @@ function flowLab(pin) {
   const po = below ? 0 : (-b + Math.sqrt(b * b + 4 * COPPER_K * c)) / (2 * COPPER_K);
   return { pin, po, stray: STRAY_K * po, fw: LOSS_FW, core: LOSS_CORE, copper: COPPER_K * po * po, pconv: po + COPPER_K * po * po };
 }
-/* True where the loss of synchronism is played out (slide 4 and the Lab). */
-function alarmsOn() { return S.mode === 'lab' || S.slide === 4; }
-/* Advance δ by dt seconds: glide to the steady angle; past the limit, run away and trip after one pole slip (qualitative).
-   Where the slip is not played out, δ parks at 90° (the peak). */
+/* Advance δ by dt seconds: glide to the steady angle; above P_max (the slide-1 demo and the Lab; no other slide can reach it),
+   run away and trip after one pole slip (qualitative). */
 function stepAngle(dt) {
   if (S.run === 'trip') return;
   const m = pMax(), ds = dSteady(S.pm);
-  if (S.run === 'ok') {
-    if (ds !== null) { S.over = false; S.d += (ds - S.d) * (1 - Math.exp(-dt / TAU_D)); }
-    else if (alarmsOn()) { S.run = 'slip'; S.w = 0; }
-    else { S.over = true; S.d += (HALF_PI - S.d) * (1 - Math.exp(-dt / TAU_D)); }
-  }
+  if (S.run === 'ok') { if (ds !== null) S.d += (ds - S.d) * (1 - Math.exp(-dt / TAU_D)); else { S.run = 'slip'; S.w = 0; } }
   if (S.run === 'slip') {
     if (ds !== null && S.d < Math.PI - ds) { S.run = 'ok'; S.w = 0; return; }      // power back under the curve before the unstable point: it pulls back in
     S.w = Math.min(W_SLIP_MAX, Math.max(W_SLIP_MIN, S.w + K_SLIP * (S.pm - m * Math.sin(S.d)) * dt)); S.d += S.w * dt;
@@ -507,6 +575,8 @@ function stepAngle(dt) {
 function f(x, d) { return x.toFixed(d).replace('-', MINUS); }
 /* Signed number with + or −. */
 function sg(x, d) { return (x < 0 ? MINUS : '+') + Math.abs(x).toFixed(d); }
+/* A power x (MW) written in kW with one decimal: the form used for every loss. */
+function kw(x) { return f(x * KW_PER_MW, 1) + ' kW'; }
 /* Set an element's text only when it changes. */
 function put(id, t) { const e = document.getElementById(id); if (e.textContent !== t) e.textContent = t; }
 /* Write text into el, showing "x_ab" as x with subscript ab (text nodes and <sub> only, no markup parsed). */
@@ -541,17 +611,17 @@ const EQ = {
   ea: [EA, '=', VP, '×', ['frac', sub('I', 'F'), '5.00 A']],
   pin: [sub('P', 'in'), '=', sub('τ', 'app'), WM],
   pconv: [sub('P', 'conv'), '=', sub('τ', 'ind'), WM],
-  loss: [sub('P', 'in'), '−', sub('P', 'out'), '=', 'the losses'],
   pout: [sub('P', 'out'), '=', '3', VP, IA, 'cos', 'θ'],
   kvl: [sub('E', 'A', 'b'), '=', sub('V', 'φ', 'b'), '+', 'j', XS, sub('I', 'A', 'b')],
   vert: [EA, 'sin', 'δ', '=', XS, IA, 'cos', 'θ'],
-  step1: [sub('P', 'conv'), '=', sub('P', 'out'), '=', '3', VP, IA, 'cos', 'θ'],
   icos: [IA, 'cos', 'θ', '=', ['frac', ['row', EA, 'sin', 'δ'], XS]],
   p: ['P', '=', ['frac', ['row', '3', VP, EA, 'sin', 'δ'], XS]],
   pmax: [sub('P', 'max'), '=', ['frac', ['row', '3', VP, EA], XS]],
+  pmax90: [sub('P', 'max'), '=', ['frac', ['row', '3', VP, EA], XS], ' at ', 'δ', '=', '90°'],
   tau: [sub('τ', 'ind'), '=', ['frac', ['row', '3', VP, EA, 'sin', 'δ'], ['row', WM, XS]]],
   taumax: [sub('τ', 'max'), '=', ['frac', ['row', '3', VP, EA], ['row', WM, XS]]],
-  band: ['normal operation: ', 'δ', '≈', '20°–30°']
+  taumaxP: [sub('τ', 'max'), '=', ['frac', sub('P', 'max'), WM]],
+  band: ['normal ', 'δ', '≈', '20°–30°']
 };
 /* Build one MathML node from an equation item. */
 function mnode(it) {
@@ -564,58 +634,64 @@ function mnode(it) {
   }
   if (/^[\d.°–]+$/.test(it)) return el('mn', it);
   if (/^[=+−×≈≤∝]$/.test(it)) return el('mo', it);
-  if (it.includes(' ')) return el('mtext', it);
+  if (/\s/.test(it)) return el('mtext', it);
   return el('mi', it);
 }
 /* Fill an element with the equation named key. */
 function putEq(box, key) { const m = document.createElementNS(MMLNS, 'math'); m.setAttribute('display', 'block'); m.appendChild(mnode(EQ[key])); box.appendChild(m); }
-
-/* ═══ 5. SLIDE 1: POWER FLOW (deliberately not to scale) ═══ */
-const F1 = { loss: {} };
-const F1_TOP = 100;                       // y of the band's top edge (viewBox units)
-const F1_W0 = 60, F1_STEP = 8;            // px: width of the input band, and the fixed step it narrows by at each loss
-const F1_BOX = [200, 420, 580];           // x of the generator box: left edge, rotor / stator divider, right edge
-const F1_LOSS = [['stray', 'Stray', 240], ['fw', 'F&W', 315], ['core', 'Core', 390], ['copper', 'Copper', 500]];   // key, name, x of each loss arrow
-const F1_ARROW = 10;                      // px, width of every loss arrow
-/* Build the slide-1 power flow once: a band that narrows by one fixed step at each loss, amber while mechanical, blue once electrical. */
-function buildFlow1() {
-  const g = document.getElementById('f1G'), [x0, xd, x1] = F1_BOX, T = F1_TOP, yb = n => T + F1_W0 - n * F1_STEP, xs = F1_LOSS.map(l => l[2]);
+/* ═══ 5. SLIDE 2: POWER FLOW (deliberately not to scale) ═══ */
+const LF = { loss: {} };
+const LF_TOP = 100;                       // y of the band's top edge (viewBox units)
+const LF_W0 = 60, LF_STEP = 8;            // px: width of the input band, and the fixed step it narrows by at each loss
+const LF_BOX = [200, 420, 580];           // x of the generator box: left edge, rotor / stator divider, right edge
+const LF_LOSS = [['stray', 'Stray', 240], ['fw', 'F&W', 315], ['core', 'Core', 390], ['copper', 'Copper', 500]];   // key, name, x of each loss arrow
+const LF_ARROW = 10;                      // px, width of every loss arrow
+/* Build the slide-2 power flow once: a band that narrows by one fixed step at each loss, amber while mechanical, blue once electrical. */
+function buildLecFlow() {
+  const g = document.getElementById('lfG'), [x0, xd, x1] = LF_BOX, T = LF_TOP, yb = n => T + LF_W0 - n * LF_STEP, xs = LF_LOSS.map(l => l[2]);
   const txt = (x, y, size, weight, fill, str, parent) => mk(parent || g, 'text', { x, y, 'text-anchor': 'middle', 'font-size': size, 'font-weight': weight, fill }, str);
   mk(g, 'rect', { x: x0, y: 56, width: xd - x0, height: 150, fill: '#f6f1e6' }); mk(g, 'rect', { x: xd, y: 56, width: x1 - xd, height: 150, fill: '#e9f0fd' });
   mk(g, 'rect', { x: x0, y: 56, width: x1 - x0, height: 150, rx: 4, fill: 'none', stroke: COL.ink, 'stroke-width': 2.5 });
   mk(g, 'path', { d: `M${xd} 56V206`, stroke: COL.ink, 'stroke-width': 1.5, 'stroke-dasharray': '6 5' });
   txt((x0 + x1) / 2, 46, 16, 800, COL.ink, 'Generator G3'); txt((x0 + xd) / 2, 74, 13.5, 700, COL.mech, 'rotor side'); txt((xd + x1) / 2, 74, 13.5, 700, COL.e, 'stator side');
-  F1.gIn = mk(g, 'g', {}); F1.gLoss = mk(g, 'g', {}); F1.gOut = mk(g, 'g', {});
-  mk(F1.gIn, 'polygon', { points: `10,${T} ${x0},${T} ${x0},${yb(0)} 10,${yb(0)}`, fill: COL.mech });
+  LF.gIn = mk(g, 'g', {}); LF.gLoss = mk(g, 'g', {}); LF.gOut = mk(g, 'g', {});
+  mk(LF.gIn, 'polygon', { points: `10,${T} ${x0},${T} ${x0},${yb(0)} 10,${yb(0)}`, fill: COL.mech });
   mk(g, 'polygon', { points: `${x0},${T} ${xd},${T} ${xd},${yb(3)} ${xs[2]},${yb(3)} ${xs[2]},${yb(2)} ${xs[1]},${yb(2)} ${xs[1]},${yb(1)} ${xs[0]},${yb(1)} ${xs[0]},${yb(0)} ${x0},${yb(0)}`, fill: COL.mech, 'fill-opacity': 0.85 });
   mk(g, 'polygon', { points: `${xd},${T} ${x1},${T} ${x1},${yb(4)} ${xs[3]},${yb(4)} ${xs[3]},${yb(3)} ${xd},${yb(3)}`, fill: COL.e, 'fill-opacity': 0.85 });
-  const ym = (T + yb(4)) / 2; mk(F1.gOut, 'polygon', { points: `${x1},${T} 668,${T} 668,${T - 8} 696,${ym} 668,${yb(4) + 8} 668,${yb(4)} ${x1},${yb(4)}`, fill: COL.e });
-  mk(F1.gOut, 'rect', { x: 696, y: 60, width: 10, height: 140, fill: COL.v }); txt(701, 48, 15, 800, COL.v, 'Infinite bus', F1.gOut);
-  txt(105, 70, 15, 800, COL.mech, 'Input power', F1.gIn); F1.tIn = txt(105, 90, 13.5, 700, COL.mech, '', F1.gIn);
-  F1.tConv = mk(g, 'text', Object.assign({ x: xd, y: 94, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 800, fill: COL.ink }, HALO), '');
-  F1.tOut = txt(636, 90, 14, 800, COL.e, '', F1.gOut);
-  F1_LOSS.forEach(([key, name, x], n) => { const y = yb(n), h = F1_ARROW / 2;
-    mk(F1.gLoss, 'polygon', { points: `${x - h},${y - F1_STEP} ${x + h},${y - F1_STEP} ${x + h},222 ${x + h + 5},222 ${x},236 ${x - h - 5},222 ${x - h},222`, fill: COL.loss });
-    txt(x, 252, 13.5, 700, COL.loss, name, F1.gLoss); F1.loss[key] = txt(x, 269, 13.5, 800, COL.loss, '', F1.gLoss); });
+  const ym = (T + yb(4)) / 2; mk(LF.gOut, 'polygon', { points: `${x1},${T} 668,${T} 668,${T - 8} 696,${ym} 668,${yb(4) + 8} 668,${yb(4)} ${x1},${yb(4)}`, fill: COL.e });
+  mk(LF.gOut, 'rect', { x: 696, y: 60, width: 10, height: 140, fill: COL.v }); txt(701, 48, 15, 800, COL.v, 'Infinite bus', LF.gOut);
+  txt(105, 70, 15, 800, COL.mech, 'Input power', LF.gIn); LF.tIn = txt(105, 90, 13.5, 700, COL.mech, '', LF.gIn);
+  LF.tConv = mk(g, 'text', Object.assign({ x: xd, y: 94, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 800, fill: COL.ink }, HALO), '');
+  LF.tOut = txt(636, 90, 14, 800, COL.e, '', LF.gOut);
+  LF_LOSS.forEach(([key, name, x], n) => { const y = yb(n), h = LF_ARROW / 2;
+    mk(LF.gLoss, 'polygon', { points: `${x - h},${y - LF_STEP} ${x + h},${y - LF_STEP} ${x + h},222 ${x + h + 5},222 ${x},236 ${x - h - 5},222 ${x - h},222`, fill: COL.loss });
+    txt(x, 252, 13.5, 700, COL.loss, name, LF.gLoss); LF.loss[key] = txt(x, 269, 13.5, 800, COL.loss, '', LF.gLoss); });
   txt(380, 292, 13, 400, COL.mut, 'Band and arrow widths are not to scale: each loss takes a visible step.');
 }
-/* Write the slide-1 values for the present input power and field current. The picture itself does not change. */
-function drawFlow1() {
-  const F = flow1(S.pm, S.iF);
-  subT(F1.tIn, 'P_in = τ_app ω_m = ' + f(F.pin, 2) + ' MW'); subT(F1.tConv, 'P_conv = ' + f(F.pconv, 2) + ' MW'); subT(F1.tOut, 'P_out = ' + f(F.po, 2) + ' MW');
-  for (const key in F1.loss) subT(F1.loss[key], f(F[key], 3) + ' MW');
+/* Write the slide-2 values for the present input power and field current: powers in MW, losses in kW. The picture itself does not change. */
+function drawLecFlow() {
+  const F = flowLec(S.pm, S.iF);
+  subT(LF.tIn, 'P_in = τ_app ω_m = ' + f(F.pin, 1) + ' MW'); subT(LF.tConv, 'P_conv = ' + f(F.pconv, 1) + ' MW'); subT(LF.tOut, 'P_out = ' + f(F.po, 1) + ' MW');
+  for (const key in LF.loss) subT(LF.loss[key], kw(F[key]));
 }
 
 /* ═══ 6. LECTURE PHASOR DIAGRAMS (one fixed scale each) ═══ */
-const PA_O = { x: 30, y: 276 }, PB_O = { x: 30, y: 276 }, P2_PX_KV = 28;   // slide 2: origins of the two diagrams and their scale (px per kV), set for E_A = 9.56 kV
-const P3_O = { x: 30, y: 246 }, P3_PX_KV = 18;      // slide 3: origin and scale, set for E_A = 12.75 kV (8.0 A)
-const P4_O = { x: 130, y: 120 }, P4_PX_KV = 8.2;    // slide 4: centre and scale, set for E_A = 13.54 kV (8.5 A)
-const I_DIR_PX = 44;                      // px, drawn length of I_A (direction only)
-const JX_MIN_PX = 50;                     // px: below this height of the vertical the jX_S I_A label is left out
-const VERT_MIN_PX = 30;                   // px: below this height the labels on the vertical are left out
+const PF_O = { x: 56, y: 240 }, PF_PX_KV = 44;      // slide 3: origin and scale (px per kV), set for E_A = 11.15 kV (7.00 A)
+const PF_I_PX = 150;                      // px, drawn length of I_A on slide 3 (its own scale)
+const PF_PAR_PX = 70;                     // px, length of the dashed line parallel to I_A at the tip of V_φ
+const PF_SQ = 11;                         // px, side of a right-angle mark
+const PF_R_TH = 40, PF_R_D = 78, PF_R_TIP = 52;   // px, radii of the θ arc at the origin, the δ arc and the θ arc at the tip of E_A
+const AR_O = { x: 22, y: 240 }, AR_PX_KV = 22;      // slide 4: origin and scale, set for E_A = 9.56 kV (6.00 A)
+const AR_FLIP_X = 188;                    // px: right of this the amber-height label goes to the left of the bar (it would leave the drawing)
+const FD_O = { x: 50, y: 350 }, FD_PX_KV = 44;      // slide 5: origin and scale, set for E_A = 13.54 kV (8.5 A)
+const VERT_FIX = P_FIX * X_S / (3 * V_PH);          // kV, E_A sin δ at the fixed power of slide 5: 6.37
+const IF_UNITY = IF_RATED * Math.hypot(V_PH, VERT_FIX) / V_PH;   // A, field current at which slide 5's power is delivered at unity power factor: 6.40
+const UNITY_NEAR = 0.2;                   // A: within this of IF_UNITY the slide-5 cue points at the unity-pf line
+const VERT_MIN_PX = 50;                   // px: below this height the label on the amber height is left out
 const ANG_MIN = 0.03;                     // rad: below this an angle arc is left out
-const ARC_TO = 75 / DEG;                  // rad, how far the constant-|E_A| arc of slide 2 is drawn (δ reaches 69° at 28 MW)
-const PA = {}, PB = {}, P3 = {}, P4 = {};
+const D_BELOW = 0.35;                     // rad: below this the δ label of slide 4 goes under the axis, clear of E_A
+const ARC_TO = 75 / DEG;                  // rad, how far the constant-|E_A| arc of slide 4 is drawn (δ reaches 69° at 28 MW)
+const PF = { s: [[], [], [], [], [], []] }, AR = {}, FD = {};
 /* Create one arrow (line and head) in g. */
 function arrow(g, col, w, dash) { return { l: mk(g, 'path', Object.assign({ stroke: col, 'stroke-width': w, fill: 'none', 'stroke-linecap': 'round' }, dash ? { 'stroke-dasharray': dash } : {})), h: mk(g, 'polygon', { fill: col }) }; }
 /* Set an arrow from (x1,y1) to (x2,y2) with a head of length hl. */
@@ -635,131 +711,129 @@ function at(t, x, y, str) { t.setAttribute('x', x.toFixed(1)); t.setAttribute('y
 function label(g, col, size, anchor, str) { return mk(g, 'text', Object.assign({ fill: col, 'font-size': size, 'text-anchor': anchor, 'font-weight': 700 }, HALO), str === undefined ? '' : str); }
 /* Screen geometry of the present point p for a diagram at origin O and scale s: tips of V_φ and E_A. */
 function tips(p, O, s) { return { vx: O.x + V_PH * s, ex: O.x + p.E * Math.cos(p.d) * s, ey: O.y - p.E * Math.sin(p.d) * s }; }
-/* Build slide 2, diagram 1: the two right triangles that share the vertical. */
-function buildPhA() {
-  const g = document.getElementById('paG'), O = PA_O;
-  PA.triB = mk(g, 'polygon', { class: 'cuefill', fill: COL.e, 'fill-opacity': 0.14 }); PA.triG = mk(g, 'polygon', { class: 'cuefill', fill: COL.x, 'fill-opacity': 0.16 });
-  mk(g, 'path', { d: `M${O.x} ${O.y}H370`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
-  PA.vert = mk(g, 'path', { stroke: COL.ink, 'stroke-width': 2, 'stroke-dasharray': '6 4', fill: 'none' });
-  PA.arcD = mk(g, 'path', { stroke: COL.e, 'stroke-width': 2, fill: 'none' }); PA.arcT0 = mk(g, 'path', { stroke: COL.i, 'stroke-width': 2, fill: 'none' }); PA.arcT1 = mk(g, 'path', { stroke: COL.i, 'stroke-width': 2, fill: 'none' });
-  PA.I = arrow(g, COL.i, 2.5, '5 4'); PA.V = arrow(g, COL.v, 4); PA.X = arrow(g, COL.x, 4); PA.E = arrow(g, COL.e, 6);
-  PA.lV = label(g, COL.v, 15, 'end', 'V_φ'); PA.lE = label(g, COL.e, 15, 'end', 'E_A'); PA.lX = label(g, COL.x, 14, 'start'); PA.lI = label(g, COL.i, 13, 'start');
-  PA.lD = label(g, COL.e, 14, 'start'); PA.lT0 = label(g, COL.i, 14, 'start'); PA.lT1 = label(g, COL.i, 14, 'start');
-  PA.lVl = label(g, COL.e, 14, 'end'); PA.lVr = label(g, COL.x, 14, 'start');
+/* Build the slide-3 proof once: G3 at the one operating point PROOF, drawn to scale. PF.s[n] holds what step n + 1 adds. */
+function buildProof() {
+  const g = document.getElementById('pfG'), O = PF_O, p = point(Math.asin(PROOF.pm / pMaxAt(PROOF.iF)), eAt(PROOF.iF));
+  const { vx, ex, ey } = tips(p, O, PF_PX_KV), h = O.y - ey, len = Math.hypot(ex - vx, h), q = PF_SQ, n1 = v => v.toFixed(1);
+  const ux = Math.cos(p.th), uy = -Math.sin(p.th);          // screen unit vector along I_A (y grows downward)
+  const nx = (ex - vx) / len, ny = -h / len;                // screen unit vector along jX_S I_A
+  const aTip = Math.atan2(-h, vx - ex), aMid = (aTip - HALF_PI) / 2;   // rad, from the tip of E_A: back along jX_S I_A, and the middle of the θ wedge there
+  const add = (n, e) => { PF.s[n - 1].push(e); return e; };
+  const lab = (n, col, anchor, x, y, str) => { const t = add(n, label(g, col, 15, anchor)); at(t, x, y, str); return t; };
+  const arw = (n, col, w, x2, y2, x1, y1, hl) => { const A = arrow(g, col, w); setArrow(A, x1, y1, x2, y2, hl); add(n, A.l); add(n, A.h); };
+  const line = (n, d, col, dash) => add(n, mk(g, 'path', Object.assign({ d, stroke: col, 'stroke-width': 2, fill: 'none' }, dash ? { 'stroke-dasharray': dash } : {})));
+  const foot = `${n1(ex)},${O.y} ${n1(ex)},${n1(ey)}`;
+  add(4, mk(g, 'polygon', { points: `${O.x},${O.y} ${foot}`, fill: COL.e, 'fill-opacity': 0.14 }));
+  add(6, mk(g, 'polygon', { points: `${n1(vx)},${O.y} ${foot}`, fill: COL.x, 'fill-opacity': 0.18 }));
+  mk(g, 'path', { d: `M${O.x} ${O.y}H624`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
+  PF.arcT0 = line(1, arcPath(O.x, O.y, PF_R_TH, 0, p.th), COL.i);
+  line(2, `M${n1(vx)} ${O.y}l${n1(PF_PAR_PX * ux)} ${n1(PF_PAR_PX * uy)}`, COL.i, '5 4');
+  line(2, `M${n1(vx + q * ux)} ${n1(O.y + q * uy)}l${n1(q * nx)} ${n1(q * ny)}l${n1(-q * ux)} ${n1(-q * uy)}`, COL.ink);
+  line(3, arcPath(O.x, O.y, PF_R_D, 0, p.d), COL.e);
+  line(4, `M${n1(ex)} ${n1(ey)}V${O.y}`, COL.ink, '6 4');
+  line(4, `M${n1(ex - q)} ${O.y}v${-q}h${q}`, COL.ink);
+  line(5, arcPath(ex, ey, PF_R_TIP, -HALF_PI, aTip), COL.i);
+  arw(1, COL.i, 3.5, O.x + PF_I_PX * ux, O.y + PF_I_PX * uy, O.x, O.y, 12);
+  arw(1, COL.v, 5, vx, O.y, O.x, O.y, 14);
+  arw(2, COL.x, 4, ex, ey, vx, O.y, 13);
+  arw(3, COL.e, 6, ex, ey, O.x, O.y, 16);
+  lab(1, COL.v, 'end', vx - 10, O.y + 21, 'V_φ = ' + f(V_PH, 2) + ' kV');
+  lab(1, COL.i, 'start', O.x + PF_I_PX * ux + 8, O.y + PF_I_PX * uy + 5, 'I_A = ' + f(p.I * 1e3, 0) + ' A');
+  PF.lT0 = lab(1, COL.i, 'start', O.x + (PF_R_TH + 8) * Math.cos(p.th / 2), O.y - (PF_R_TH + 8) * Math.sin(p.th / 2) + 6, 'θ = ' + f(Math.abs(p.th) * DEG, 1) + '°');
+  lab(2, COL.x, 'end', (vx + ex) / 2 - 12, O.y - h / 2 + 5, 'jX_S I_A');
+  lab(2, COL.i, 'start', vx + PF_PAR_PX * ux + 6, O.y + PF_PAR_PX * uy + 5, 'parallel to I_A');
+  lab(3, COL.e, 'end', (O.x + ex) / 2 - 10 * Math.sin(p.d) - 3, (O.y + ey) / 2 - 10 * Math.cos(p.d) - 2, 'E_A = ' + f(p.E, 2) + ' kV');
+  lab(3, COL.e, 'start', O.x + (PF_R_D + 9) * Math.cos(p.d / 2), O.y - (PF_R_D + 9) * Math.sin(p.d / 2) + 5, 'δ = ' + f(p.d * DEG, 1) + '°');
+  lab(4, COL.e, 'start', ex + 10, O.y - h * 0.62, 'E_A sin δ');
+  lab(5, COL.i, 'middle', ex + (PF_R_TIP + 14) * Math.cos(aMid), ey - (PF_R_TIP + 14) * Math.sin(aMid) + 5, 'θ');
+  lab(6, COL.x, 'start', ex + 10, O.y - h * 0.42, '= X_S I_A cos θ');
+  lab(6, COL.ink, 'start', ex + 10, O.y - h * 0.22, '= ' + f(p.vert, 2) + ' kV');
   mk(g, 'circle', { cx: O.x, cy: O.y, r: 4, fill: COL.ink });
 }
-/* Draw diagram 1 at the present δ. */
-function drawPhA() {
-  const p = point(S.d), O = PA_O, s = P2_PX_KV, { vx, ex, ey } = tips(p, O, s), h = O.y - ey, lag = ex >= vx, show = h > VERT_MIN_PX;
-  PA.triB.setAttribute('points', `${O.x},${O.y} ${ex.toFixed(1)},${O.y} ${ex.toFixed(1)},${ey.toFixed(1)}`); PA.triG.setAttribute('points', `${vx.toFixed(1)},${O.y} ${ex.toFixed(1)},${O.y} ${ex.toFixed(1)},${ey.toFixed(1)}`);
-  PA.vert.setAttribute('d', `M${ex.toFixed(1)} ${ey.toFixed(1)}V${O.y}`);
-  setArrow(PA.V, O.x, O.y, vx, O.y, 13); setArrow(PA.X, vx, O.y, ex, ey, 12); setArrow(PA.E, O.x, O.y, ex, ey, 16);
-  const ix = O.x + I_DIR_PX * Math.cos(p.th), iy = O.y - I_DIR_PX * Math.sin(p.th), up = p.th > 0, hasT = Math.abs(p.th) > ANG_MIN && p.I > EPS;
-  setArrow(PA.I, O.x, O.y, ix, iy, 9);
-  PA.arcD.setAttribute('d', p.d > ANG_MIN ? arcPath(O.x, O.y, 46, 0, p.d) : ''); PA.arcT0.setAttribute('d', hasT ? arcPath(O.x, O.y, 28, 0, p.th) : '');
-  PA.arcT1.setAttribute('d', hasT && show ? arcPath(ex, ey, 30, -HALF_PI, Math.atan2(-h, vx - ex)) : '');   // at the tip of E_A: from straight down to back along jX_S I_A
-  at(PA.lV, vx - 8, O.y + 19, 'V_φ'); at(PA.lE, (O.x + ex) / 2 - 10 * Math.sin(p.d) - 3, (O.y + ey) / 2 - 10 * Math.cos(p.d) - 2, 'E_A');
-  const xOn = t => vx + (ex - vx) * t;   // x on jX_S I_A at fraction t of its height
-  at(PA.lX, Math.max(ex, xOn(0.72)) + 8, O.y - h * 0.72 + 5, h > JX_MIN_PX ? 'jX_S I_A' : '');
-  at(PA.lI, ix + 8, up ? O.y + 17 : iy + 4, 'I_A (direction only)');
-  at(PA.lD, O.x + 56 * Math.cos(p.d / 2), O.y - 56 * Math.sin(p.d / 2) + 5, p.d > ANG_MIN ? 'δ = ' + f(p.d * DEG, 1) + '°' : '');
-  at(PA.lT0, O.x + 34 * Math.cos(p.th / 2), O.y - 34 * Math.sin(p.th / 2) + (up ? 0 : 9), hasT ? 'θ' : ''); at(PA.lT1, ex + (lag ? -17 : 5), ey + 46, hasT && show && h > 70 ? 'θ' : '');
-  at(PA.lVl, ex - 8, O.y - h * 0.3, show ? 'E_A sin δ' : ''); at(PA.lVr, Math.max(ex, xOn(0.3)) + 8, O.y - h * 0.3, show ? 'X_S I_A cos θ' : '');
-}
-/* Build slide 2, diagram 2: E_A climbing its arc, the amber height and the unity power factor line. */
-function buildPhB() {
-  const g = document.getElementById('pbG'), O = PB_O, s = P2_PX_KV, r = eAt(IF_START) * s, vx = O.x + V_PH * s;
-  mk(g, 'path', { d: `M${O.x} ${O.y}H370`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
-  PB.arc = mk(g, 'path', { d: arcPath(O.x, O.y, r, 0, ARC_TO), stroke: COL.e, 'stroke-width': 2, 'stroke-dasharray': '7 5', fill: 'none' });
-  mk(g, 'path', { d: `M${vx.toFixed(1)} ${O.y}V12`, stroke: COL.i, 'stroke-width': 2, 'stroke-dasharray': '2 5', fill: 'none' });
-  mk(g, 'text', Object.assign({ x: (vx + 6).toFixed(1), y: 24, 'font-size': 14, 'font-weight': 700, fill: COL.i }, HALO), 'unity pf');
-  PB.arcD = mk(g, 'path', { stroke: COL.e, 'stroke-width': 2, fill: 'none' });
-  PB.bar = mk(g, 'path', { stroke: COL.proj, 'stroke-width': 7, fill: 'none' });
-  PB.V = arrow(g, COL.v, 4); PB.E = arrow(g, COL.e, 6);
-  PB.lV = label(g, COL.v, 15, 'end', 'V_φ'); PB.lE = label(g, COL.e, 15, 'end', 'E_A'); PB.lD = label(g, COL.e, 14, 'start'); PB.lB = label(g, COL.mech, 14, 'start');
-  mk(g, 'circle', { cx: O.x, cy: O.y, r: 4, fill: COL.ink });
-  mk(g, 'text', { x: 200, y: 312, 'text-anchor': 'middle', 'font-size': 14, fill: COL.mut }, 'lagging: tip right of the line · leading: left');
-  mk(g, 'text', { x: 200, y: 331, 'text-anchor': 'middle', 'font-size': 14, fill: COL.mut }, 'dashed arc: constant |E_A| (field fixed at 6.00 A)');
-}
-/* Draw diagram 2 at the present δ. */
-function drawPhB() {
-  const p = point(S.d), O = PB_O, { vx, ex, ey } = tips(p, O, P2_PX_KV), h = O.y - ey;
-  setArrow(PB.V, O.x, O.y, vx, O.y, 13); setArrow(PB.E, O.x, O.y, ex, ey, 16);
-  PB.bar.setAttribute('d', h > 1 ? `M${ex.toFixed(1)} ${O.y}V${ey.toFixed(1)}` : ''); PB.arcD.setAttribute('d', p.d > ANG_MIN ? arcPath(O.x, O.y, 46, 0, p.d) : '');
-  at(PB.lV, vx - 8, O.y + 19, 'V_φ'); at(PB.lE, (O.x + ex) / 2 - 10 * Math.sin(p.d) - 3, (O.y + ey) / 2 - 10 * Math.cos(p.d) - 2, 'E_A');
-  at(PB.lD, O.x + 56 * Math.cos(p.d / 2), O.y - 56 * Math.sin(p.d / 2) + 5, p.d > ANG_MIN ? 'δ = ' + f(p.d * DEG, 1) + '°' : '');
-  at(PB.lB, ex + 9, O.y - h * 0.45, h > VERT_MIN_PX ? 'E_A sin δ ∝ P' : '');
-}
-/* Build the small slide-3 diagram: the slide-2 triangle with its vertical in amber. */
-function buildPh3() {
-  const g = document.getElementById('p3G'), O = P3_O;
+/* Build the slide-4 diagram: E_A climbing its arc, the amber height and the unity power factor line. */
+function buildArc() {
+  const g = document.getElementById('arG'), O = AR_O, s = AR_PX_KV, r = eAt(IF_START) * s, vx = O.x + V_PH * s;
+  const note = (x, y, anchor, col, str) => mk(g, 'text', Object.assign({ x: x.toFixed(1), y, 'text-anchor': anchor, 'font-size': 16, 'font-weight': 700, fill: col }, HALO), str);
   mk(g, 'path', { d: `M${O.x} ${O.y}H290`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
-  P3.arcD = mk(g, 'path', { stroke: COL.e, 'stroke-width': 2, fill: 'none' });
-  P3.vert = mk(g, 'path', { stroke: COL.proj, 'stroke-width': 7, fill: 'none' });
-  P3.I = arrow(g, COL.i, 2.5, '5 4'); P3.V = arrow(g, COL.v, 4); P3.X = arrow(g, COL.x, 4); P3.E = arrow(g, COL.e, 6);
-  P3.lV = label(g, COL.v, 19, 'end', 'V_φ'); P3.lE = label(g, COL.e, 19, 'end', 'E_A'); P3.lD = label(g, COL.e, 18, 'start'); P3.lB = label(g, COL.mech, 18, 'start');
-  P3.over = mk(g, 'text', Object.assign({ x: 8, y: 16, 'font-size': 16, 'font-weight': 800, fill: COL.loss }, HALO), '');
+  AR.arc = mk(g, 'path', { d: arcPath(O.x, O.y, r, 0, ARC_TO), stroke: COL.e, 'stroke-width': 2, 'stroke-dasharray': '7 5', fill: 'none' });
+  mk(g, 'path', { d: `M${vx.toFixed(1)} ${O.y}V22`, stroke: COL.i, 'stroke-width': 2, 'stroke-dasharray': '2 5', fill: 'none' });
+  note(vx, 15, 'middle', COL.i, 'unity pf'); note(vx - 8, 36, 'end', COL.i, 'leading'); note(vx + 8, 36, 'start', COL.i, 'lagging');
+  AR.arcD = mk(g, 'path', { stroke: COL.e, 'stroke-width': 2, fill: 'none' });
+  AR.bar = mk(g, 'path', { stroke: COL.proj, 'stroke-width': 7, fill: 'none' });
+  AR.V = arrow(g, COL.v, 4); AR.E = arrow(g, COL.e, 6);
+  AR.lV = label(g, COL.v, 17, 'end', 'V_φ'); AR.lE = label(g, COL.e, 17, 'end', 'E_A'); AR.lD = label(g, COL.e, 16, 'start'); AR.lB = label(g, COL.mech, 16, 'start');
+  mk(g, 'circle', { cx: O.x, cy: O.y, r: 4, fill: COL.ink });
+  mk(g, 'text', { x: 150, y: 283, 'text-anchor': 'middle', 'font-size': 15, fill: COL.mut }, 'dashed arc: constant |E_A| (' + f(IF_START, 2) + ' A)');
+}
+/* Draw the slide-4 diagram at the present δ. */
+function drawArc() {
+  const p = point(S.d), O = AR_O, { vx, ex, ey } = tips(p, O, AR_PX_KV), h = O.y - ey, left = ex > AR_FLIP_X;
+  setArrow(AR.V, O.x, O.y, vx, O.y, 13); setArrow(AR.E, O.x, O.y, ex, ey, 16);
+  AR.bar.setAttribute('d', h > 1 ? `M${ex.toFixed(1)} ${O.y}V${ey.toFixed(1)}` : ''); AR.arcD.setAttribute('d', p.d > ANG_MIN ? arcPath(O.x, O.y, 46, 0, p.d) : '');
+  at(AR.lV, vx - 8, O.y + 21, 'V_φ'); at(AR.lE, (O.x + ex) / 2 - 10 * Math.sin(p.d) - 3, (O.y + ey) / 2 - 10 * Math.cos(p.d) - 2, 'E_A');
+  if (p.d < D_BELOW) at(AR.lD, O.x + 52, O.y + 20, p.d > ANG_MIN ? 'δ = ' + f(p.d * DEG, 1) + '°' : ''); else at(AR.lD, O.x + 56 * Math.cos(p.d / 2), O.y - 56 * Math.sin(p.d / 2) + 5, 'δ = ' + f(p.d * DEG, 1) + '°');
+  AR.lB.setAttribute('text-anchor', left ? 'end' : 'start'); at(AR.lB, ex + (left ? -9 : 9), O.y - h * (left ? 0.3 : 0.45), h > VERT_MIN_PX ? 'E_A sin δ ∝ P' : '');
+}
+/* Build the slide-5 diagram: V_φ, the horizontal line the tip of E_A must stay on at the fixed power, the unity power factor
+   line with its field current, a faint E_A at the starting field, and the live E_A. */
+function buildField() {
+  const g = document.getElementById('fdG'), O = FD_O, s = FD_PX_KV, vx = O.x + V_PH * s, yl = O.y - VERT_FIX * s, x0 = O.x + Math.sqrt(eAt(IF_START) ** 2 - VERT_FIX ** 2) * s;
+  const note = (x, y, anchor, col, size, str) => mk(g, 'text', Object.assign({ x: x.toFixed(1), y: y.toFixed(1), 'text-anchor': anchor, 'font-size': size, 'font-weight': 700, fill: col }, HALO), str);
+  mk(g, 'path', { d: `M${O.x} ${O.y}H624`, stroke: '#c9d1d5', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
+  FD.cp = mk(g, 'path', { d: `M14 ${yl.toFixed(1)}H626`, stroke: COL.proj, 'stroke-width': 2.5, 'stroke-dasharray': '10 4', fill: 'none' });
+  FD.cpT = note(14, yl - 9, 'start', COL.mech, 15, 'E_A sin δ fixed (P = ' + f(P_FIX, 1) + ' MW)');
+  FD.un = mk(g, 'path', { d: `M${vx.toFixed(1)} ${O.y}V24`, stroke: COL.i, 'stroke-width': 2, 'stroke-dasharray': '2 5', fill: 'none' });
+  FD.unT = note(vx, 16, 'middle', COL.i, 15, 'unity pf: I_F = ' + f(IF_UNITY, 2) + ' A'); FD.lead = note(vx - 10, 38, 'end', COL.i, 14, '◀ leading'); FD.lag = note(vx + 10, 38, 'start', COL.i, 14, 'lagging ▶');
+  const E0 = arrow(g, COL.e, 5); setArrow(E0, O.x, O.y, x0, yl, 14); E0.l.setAttribute('opacity', 0.28); E0.h.setAttribute('opacity', 0.28);
+  note(x0 + 18, yl - 9, 'end', COL.mut, 13, 'start: ' + f(IF_START, 2) + ' A');
+  FD.arcD = mk(g, 'path', { stroke: COL.e, 'stroke-width': 2, fill: 'none' });
+  FD.V = arrow(g, COL.v, 5); FD.E = arrow(g, COL.e, 6);
+  FD.lE = label(g, COL.e, 15, 'end'); FD.lD = label(g, COL.e, 15, 'start');
+  note(vx - 10, O.y + 21, 'end', COL.v, 15, 'V_φ = ' + f(V_PH, 2) + ' kV'); setArrow(FD.V, O.x, O.y, vx, O.y, 14);
   mk(g, 'circle', { cx: O.x, cy: O.y, r: 4, fill: COL.ink });
 }
-/* Draw the slide-3 diagram at the present δ. */
-function drawPh3() {
-  const p = point(S.d), O = P3_O, { vx, ex, ey } = tips(p, O, P3_PX_KV), h = O.y - ey;
-  P3.vert.setAttribute('d', h > 1 ? `M${ex.toFixed(1)} ${O.y}V${ey.toFixed(1)}` : '');
-  setArrow(P3.V, O.x, O.y, vx, O.y, 13); setArrow(P3.X, vx, O.y, ex, ey, 12); setArrow(P3.E, O.x, O.y, ex, ey, 16);
-  setArrow(P3.I, O.x, O.y, O.x + I_DIR_PX * Math.cos(p.th), O.y - I_DIR_PX * Math.sin(p.th), 9);
-  P3.arcD.setAttribute('d', p.d > ANG_MIN ? arcPath(O.x, O.y, 40, 0, p.d) : '');
-  at(P3.lV, vx - 8, O.y + 21, 'V_φ'); at(P3.lE, (O.x + ex) / 2 - 10 * Math.sin(p.d) - 3, (O.y + ey) / 2 - 10 * Math.cos(p.d) - 2, 'E_A');
-  at(P3.lD, O.x + 50 * Math.cos(p.d / 2), O.y - 50 * Math.sin(p.d / 2) + 5, p.d > ANG_MIN ? 'δ = ' + f(p.d * DEG, 1) + '°' : '');
-  P3.lB.setAttribute('text-anchor', ex > 170 ? 'end' : 'start'); at(P3.lB, ex + (ex > 170 ? -9 : 9), O.y - h * 0.4, h > VERT_MIN_PX ? 'E_A sin δ' : '');
-  subT(P3.over, S.over ? 'Above P_max: parked at 90°' : '');
-}
-/* Build the slide-4 diagram: V_φ and E_A on a fixed scale, with the circle E_A turns on. */
-function buildPh4() {
-  const g = document.getElementById('p4G'), O = P4_O;
-  P4.circ = mk(g, 'circle', { cx: O.x, cy: O.y, fill: 'none', stroke: COL.e, 'stroke-width': 1.5, 'stroke-dasharray': '2 5' });
-  P4.arcD = mk(g, 'path', { stroke: COL.e, 'stroke-width': 2, fill: 'none' });
-  P4.V = arrow(g, COL.v, 4); P4.E = arrow(g, COL.e, 6);
-  mk(g, 'circle', { cx: O.x, cy: O.y, r: 4, fill: COL.ink });
-  mk(g, 'text', Object.assign({ x: O.x + V_PH * P4_PX_KV - 4, y: O.y + 18, 'text-anchor': 'end', 'font-size': 14, 'font-weight': 700, fill: COL.v }, HALO), 'V_φ');
-  P4.lE = label(g, COL.e, 14, 'middle', 'E_A');
-  P4.txt = mk(g, 'text', { x: O.x, y: 260, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 800 }, '');
-}
-/* Draw the slide-4 diagram: E_A at δ (it goes all the way round during a pole slip). */
-function drawPh4() {
-  const O = P4_O, s = P4_PX_KV, r = eA() * s, ex = O.x + r * Math.cos(S.d), ey = O.y - r * Math.sin(S.d), dd = S.d % (2 * Math.PI);
-  P4.circ.setAttribute('r', r.toFixed(1)); setArrow(P4.V, O.x, O.y, O.x + V_PH * s, O.y, 12); setArrow(P4.E, O.x, O.y, ex, ey, 15);
-  P4.arcD.setAttribute('d', dd > ANG_MIN && S.run !== 'trip' ? arcPath(O.x, O.y, 26, 0, dd) : '');
-  at(P4.lE, O.x + (r + 13) * Math.cos(S.d), O.y - (r + 13) * Math.sin(S.d) + 5, 'E_A');
-  P4.txt.setAttribute('fill', S.run === 'ok' ? COL.ink : COL.loss); subT(P4.txt, S.run === 'trip' ? 'breaker tripped' : 'δ = ' + f(dd * DEG, S.run === 'slip' ? 0 : 1) + '°');
+/* Draw the slide-5 diagram at the present δ and field current. */
+function drawField() {
+  const p = point(S.d), O = FD_O, { ex, ey } = tips(p, O, FD_PX_KV);
+  setArrow(FD.E, O.x, O.y, ex, ey, 16); FD.arcD.setAttribute('d', arcPath(O.x, O.y, 60, 0, p.d));
+  at(FD.lE, (O.x + ex) / 2 - 10 * Math.sin(p.d) - 3, (O.y + ey) / 2 - 10 * Math.cos(p.d) - 2, 'E_A = ' + f(p.E, 2) + ' kV');
+  at(FD.lD, O.x + 70 * Math.cos(p.d / 2), O.y - 70 * Math.sin(p.d / 2) + 5, 'δ = ' + f(p.d * DEG, 1) + '°');
 }
 
-/* ═══ 7. P–δ CURVE (slides 3, 4 and 6, and the Lab) ═══ */
+/* ═══ 7. P–δ CURVE (slides 1 and 4, and the Lab) ═══ */
 const CG = document.getElementById('cvG'), CV = { key: '' };
 const CX = deg => 70 + deg * 480 / 180, CY = (p, yMax) => 348 - p * 296 / yMax;   // curve: degrees → x, MW → y (viewBox units)
-const YMAX_S3 = 40, YMAX_S4 = 50;         // MW, fixed tops of the curve on slides 3 and 4 (P_max reaches 40.0 and 42.5 MW there)
-/* What the curve shows and its scale. Slides 3 and 4 have a fixed scale; slide 3 is built up step by step. */
+const FS_S1 = 16, FS_S4 = 19, FS_LAB = 13;   // viewBox font sizes: slide 1 (full width), slide 4 (shares its row, so drawn smaller), the Lab
+const LINE_UNDER = 0.8;                   // fraction of P_max above which slide 4 writes the input power label under its line
+const PT_LABEL_Y = 340;                   // lowest baseline of the operating point's label (the δ axis is at y = 348)
+const YMAX_LEC = 40;                      // MW, fixed top of the curve on slides 1 and 4 (P_max is 30.0 MW there; the slide-1 demo reaches 34 MW)
+/* What the curve shows and its scale. The lecture slides have a fixed scale; slide 4 is built up step by step. */
 function curveCtx() {
-  const lec = S.mode === 'lec', s3 = lec && S.slide === 3, s4 = lec && S.slide === 4, st = s3 ? S.step : NSTEP;
-  return { lec, fs: lec ? 15 : 13, yMax: s3 ? YMAX_S3 : s4 ? YMAX_S4 : Math.max(40, 10 * Math.ceil(pMax() * 1.12 / 10)),
-           curve: st >= 3, peak: st >= 4, peakLine: (s3 && st >= 4) || s4, torque: st >= 5, band: st >= 6, zone: !s3 || st >= 6, line: !s3, bar: s3 && st >= 3, ref: s4 };
+  const lec = S.mode === 'lec', s1 = lec && S.slide === 1, s4 = lec && S.slide === 4, st = s4 ? S.step : NSTEP;
+  return { lec, s1, fs: s4 ? FS_S4 : lec ? FS_S1 : FS_LAB, yMax: lec ? YMAX_LEC : Math.max(40, 10 * Math.ceil(pMax() * 1.12 / 10)),
+           curve: st >= 3, peak: st >= 4, peakLine: s1 || (s4 && st >= 4), torque: !s1 && st >= 5, band: !s1 && st >= 6, zone: st >= 6, line: st >= 3, bar: s4 && st >= 3 };
 }
-/* Build or rebuild the fixed parts of the curve (axes, ticks, zones) for context F. */
+/* Build or rebuild the fixed parts of the curve (axes, ticks, zones, the slide-1 rating line) for context F. */
 function buildCurve(F) {
   while (CG.firstChild) CG.removeChild(CG.firstChild);
   const yMax = F.yMax, fs = F.fs;
-  mk(CG, 'text', { x: 70, y: 20, 'font-size': fs + 2, 'font-weight': 800 }, F.torque ? 'Power and induced torque against the torque angle δ' : 'Power against the torque angle δ');
-  if (F.zone) { mk(CG, 'rect', { x: CX(90), y: 52, width: CX(180) - CX(90), height: 296, fill: '#fbe3df' }); mk(CG, 'text', { x: CX(F.lec ? 150 : 135), y: 70, 'text-anchor': 'middle', 'font-size': fs + 1, 'font-weight': 700, fill: COL.loss }, 'beyond the limit'); }   // on the lecture slides, clear of the P_max label at high field
+  mk(CG, 'text', { x: 70, y: 20, 'font-size': fs + 2, 'font-weight': 800 }, F.s1 ? 'Power against the torque angle δ at I_F = ' + f(IF_START, 2) + ' A' : F.torque ? (F.lec ? 'Power and torque against the torque angle δ' : 'Power and induced torque against the torque angle δ') : 'Power against the torque angle δ');
+  if (F.zone) { mk(CG, 'rect', { x: CX(90), y: 52, width: CX(180) - CX(90), height: 296, fill: '#fbe3df' }); mk(CG, 'text', { x: CX(F.lec ? 145 : 135), y: 70, 'text-anchor': 'middle', 'font-size': fs + 1, 'font-weight': 700, fill: COL.loss }, F.lec ? 'past 90°: unstable' : 'beyond the limit'); }   // on the lecture slides, clear of the P_max label
   CV.band = F.band ? mk(CG, 'rect', { x: CX(BAND_LO), y: 52, width: CX(BAND_HI) - CX(BAND_LO), height: 296, fill: '#cfeadb' }) : null;
   if (F.band) mk(CG, 'text', { x: CX(25), y: 70, 'text-anchor': 'middle', 'font-size': fs, 'font-weight': 700, fill: COL.ok }, '20°–30°');
   mk(CG, 'path', { d: `M70 52V348H550${F.torque ? 'V52' : ''}`, stroke: COL.mut, 'stroke-width': 1.5, fill: 'none' });
-  for (let a = 0; a <= 180; a += 30) { mk(CG, 'path', { d: `M${CX(a)} 348v5`, stroke: COL.mut }); mk(CG, 'text', { x: CX(a), y: 368, 'text-anchor': 'middle', 'font-size': fs, fill: COL.mut }, a + '°'); }
-  mk(CG, 'text', { x: 310, y: 390, 'text-anchor': 'middle', 'font-size': fs + 1, fill: COL.mut }, 'torque angle δ');
-  mk(CG, 'text', { x: 64, y: 38, 'text-anchor': 'end', 'font-size': fs, 'font-weight': 700, fill: COL.e }, 'P (MW)');
-  CV.tq = mk(CG, 'g', {}); if (F.torque) mk(CV.tq, 'text', { x: 554, y: 36, 'font-size': fs, 'font-weight': 700, fill: COL.mech }, 'τ_ind (kN·m)');
+  for (let a = 0; a <= 180; a += 30) { mk(CG, 'path', { d: `M${CX(a)} 348v5`, stroke: COL.mut }); mk(CG, 'text', { x: CX(a), y: F.lec ? 353 + fs : 368, 'text-anchor': 'middle', 'font-size': fs, fill: COL.mut }, a + '°'); }
+  mk(CG, 'text', { x: 310, y: F.lec ? 395 : 390, 'text-anchor': 'middle', 'font-size': fs + 1, fill: COL.mut }, 'torque angle δ');
+  mk(CG, 'text', F.lec ? { x: 2, y: 36, 'font-size': fs, 'font-weight': 700, fill: COL.e } : { x: 64, y: 38, 'text-anchor': 'end', 'font-size': fs, 'font-weight': 700, fill: COL.e }, 'P (MW)');   // the lecture's larger type needs the axis names clear of the ticks
+  CV.tq = mk(CG, 'g', {}); if (F.torque) mk(CV.tq, 'text', { x: 636, y: F.lec ? 34 : 36, 'text-anchor': 'end', 'font-size': fs, 'font-weight': 700, fill: COL.mech }, 'τ_ind (kN·m)');
   for (let p = 0; p <= yMax + EPS; p += 10) { const y = CY(p, yMax);
     mk(CG, 'path', { d: `M66 ${y}H550`, stroke: p ? '#d6dde0' : 'none' }); mk(CG, 'text', { x: 62, y: y + 4, 'text-anchor': 'end', 'font-size': fs, fill: COL.e }, String(p));
     if (F.torque) mk(CV.tq, 'text', { x: 556, y: y + 4, 'font-size': fs, fill: COL.mech }, f(p * 1e3 / W_M, 0)); }
-  CV.ref = mk(CG, 'path', { stroke: COL.mut, 'stroke-width': 2, 'stroke-dasharray': '3 4', fill: 'none' }); CV.refT = mk(CG, 'text', Object.assign({ 'font-size': fs - 1, 'font-weight': 700, fill: COL.mut, 'text-anchor': 'middle' }, HALO), '');
+  CV.rate = mk(CG, 'g', {});
+  if (F.s1) { const yr = CY(P_RATED, yMax), words = { x: CX(90), 'text-anchor': 'middle', fill: COL.mut };   // between the curve's two crossings of the line
+    mk(CV.rate, 'path', { d: `M70 ${yr}H550`, stroke: COL.mut, 'stroke-width': 2, 'stroke-dasharray': '6 5' });
+    mk(CV.rate, 'text', Object.assign({ y: yr - 7, 'font-size': fs, 'font-weight': 800 }, words, HALO), 'rating ' + P_RATED + ' MW');
+    mk(CV.rate, 'text', Object.assign({ y: yr + 17, 'font-size': fs - 2, 'font-weight': 700 }, words, HALO), '(thermal, not this limit)'); }
   CV.peakLine = mk(CG, 'path', { stroke: COL.ink, 'stroke-width': 1.5, 'stroke-dasharray': '4 4', fill: 'none' });
   CV.none = mk(CG, 'text', { x: 310, y: 200, 'text-anchor': 'middle', 'font-size': fs + 1, fill: COL.mut }, F.curve ? '' : 'curve drawn at step 3');
   CV.solid = mk(CG, 'path', { stroke: COL.e, 'stroke-width': 3, fill: 'none' }); CV.dash = mk(CG, 'path', { stroke: COL.e, 'stroke-width': 3, 'stroke-dasharray': '8 5', fill: 'none' });
@@ -776,29 +850,29 @@ function drawCurve() {
   const m = pMax(), F = curveCtx(), yMax = F.yMax, key = JSON.stringify(F);
   if (key !== CV.key) { CV.key = key; buildCurve(F); updateCues(); }
   CV.solid.setAttribute('d', F.curve ? sinePath(m, 0, 90, yMax) : ''); CV.dash.setAttribute('d', F.curve ? sinePath(m, 90, 180, yMax) : '');
-  const ref = F.ref && Math.abs(S.iF - S.refIF) > EPS, mr = pMaxAt(S.refIF);
-  CV.ref.setAttribute('d', ref ? sinePath(mr, 0, 180, yMax) : ''); at(CV.refT, CX(90), CY(mr, yMax) + 18, ref ? 'before: ' + f(S.refIF, 2) + ' A' : '');
   const yl = CY(Math.min(S.pm, yMax), yMax); CV.line.setAttribute('d', F.line ? `M70 ${yl.toFixed(1)}H550` : '');
-  at(CV.lineT, 546, yl - 6, F.line ? 'input power ' + f(S.pm, 1) + ' MW' + (S.pm > yMax ? ' (above the scale)' : '') : '');
+  const under = F.bar && S.pm > LINE_UNDER * m;   // slide 4, near the peak: the label goes under the line, clear of the P_max and τ_max labels
+  at(CV.lineT, 546, under ? yl + F.fs : yl - 6, F.line ? 'input power ' + f(S.pm, 1) + ' MW' + (S.pm > yMax ? ' (above the scale)' : '') : '');
   const py = CY(m, yMax); CV.peak.setAttribute('cx', CX(90)); CV.peak.setAttribute('cy', py); CV.peak.setAttribute('opacity', F.peak ? 1 : 0);
   CV.peakLine.setAttribute('d', F.peakLine ? `M70 ${py.toFixed(1)}H550` : '');
-  at(CV.peakT, CX(90), py - (F.torque ? 27 : 11), F.peak ? 'P_max = ' + f(m, 1) + ' MW' : ''); at(CV.peakT2, CX(90), py - 11, F.torque ? 'τ_max = ' + f(m * 1e3 / W_M, 0) + ' kN·m' : '');
+  at(CV.peakT, CX(90), py - (F.torque ? F.fs + 14 : 11), F.peak ? 'P_max = ' + f(m, 1) + ' MW' : ''); at(CV.peakT2, CX(90), py - 11, F.torque ? 'τ_max = ' + f(m * 1e3 / W_M, 0) + ' kN·m' : '');
   const dd = (S.d % (2 * Math.PI)) * DEG, on = F.curve && S.run !== 'trip' && dd <= 180, px = CX(Math.min(dd, 180)), pyy = CY(m * Math.sin(dd / DEG), yMax);
   CV.pt.setAttribute('cx', px.toFixed(1)); CV.pt.setAttribute('cy', pyy.toFixed(1)); CV.pt.setAttribute('opacity', on ? 1 : 0);
   CV.bar.setAttribute('d', F.bar && on && 348 - pyy > 1 ? `M${px.toFixed(1)} 348V${pyy.toFixed(1)}` : '');
-  at(CV.ptT, px + 12, pyy + 22, on ? 'δ = ' + f(dd, 1) + '°' : '');
+  const low = pyy + 22 > PT_LABEL_Y;   // near the axis the label stays above the tick labels, further right to clear the curve
+  at(CV.ptT, px + (low ? 22 : 12), low ? PT_LABEL_Y : pyy + 22, on ? 'δ = ' + f(dd, 1) + '°' : '');
 }
 
-/* ═══ 8. SLIDE 5: YOUR TURN ═══ */
-const T5 = {};
-const T5_YMAX = 45;                       // MW, fixed top of the slide-5 curve (the answer peaks at 38.3 MW)
+/* ═══ 8. SLIDE 6: YOUR TURN ═══ */
+const T6 = {};
+const T6_YMAX = 45;                       // MW, fixed top of the slide-6 curve (the answer peaks at 38.3 MW)
 const E_TURN = TURN_P * X_S / (3 * V_PH * Math.sin(TURN_DEG / DEG));   // kV, the answer: 12.22
 const IF_TURN = IF_RATED * E_TURN / V_PH; // A, the answer: 7.67
 const PM_TURN = 3 * V_PH * E_TURN / X_S;  // MW, the answer: 38.3
 const FIELDS = [['eIn', 'E_A', E_TURN, 2], ['ifIn', 'I_F', IF_TURN, 2], ['pmIn', 'P_max', PM_TURN, 1]];   // answer boxes: id, name, model value, decimals as printed
-/* Build the slide-5 curve once: the 6.00 A curve dashed, the 18 MW and δ = 28° lines and a hollow point with "?". No new curve yet. */
-function buildCurve5() {
-  const g = document.getElementById('c5G'), Y = p => CY(p, T5_YMAX), m6 = pMaxAt(IF_START), xt = CX(TURN_DEG), yt = Y(TURN_P);
+/* Build the slide-6 curve once: the 6.00 A curve dashed, the 18 MW and δ = 28° lines and a hollow point with "?". No new curve yet. */
+function buildCurve6() {
+  const g = document.getElementById('c6G'), Y = p => CY(p, T6_YMAX), m6 = pMaxAt(IF_START), xt = CX(TURN_DEG), yt = Y(TURN_P);
   mk(g, 'text', { x: 70, y: 20, 'font-size': 17, 'font-weight': 800 }, 'Power against the torque angle δ');
   mk(g, 'rect', { x: CX(BAND_LO), y: 52, width: CX(BAND_HI) - CX(BAND_LO), height: 296, fill: '#cfeadb' });
   mk(g, 'path', { d: 'M70 52V348H550', stroke: COL.mut, 'stroke-width': 1.5, fill: 'none' });
@@ -806,23 +880,23 @@ function buildCurve5() {
   mk(g, 'text', { x: 310, y: 390, 'text-anchor': 'middle', 'font-size': 16, fill: COL.mut }, 'torque angle δ'); mk(g, 'text', { x: 64, y: 38, 'text-anchor': 'end', 'font-size': 15, 'font-weight': 700, fill: COL.e }, 'P (MW)');
   for (let p = 0; p <= 40; p += 10) { mk(g, 'path', { d: `M66 ${Y(p)}H550`, stroke: p ? '#d6dde0' : 'none' }); mk(g, 'text', { x: 62, y: Y(p) + 4, 'text-anchor': 'end', 'font-size': 15, fill: COL.e }, String(p)); }
   mk(g, 'text', Object.assign({ x: CX(25), y: 340, 'text-anchor': 'middle', 'font-size': 13.5, 'font-weight': 700, fill: COL.ok }, HALO), '20°–30°');
-  mk(g, 'path', { d: sinePath(m6, 0, 180, T5_YMAX), stroke: COL.e, 'stroke-width': 2.5, 'stroke-dasharray': '8 5', fill: 'none' });
+  mk(g, 'path', { d: sinePath(m6, 0, 180, T6_YMAX), stroke: COL.e, 'stroke-width': 2.5, 'stroke-dasharray': '8 5', fill: 'none' });
   mk(g, 'text', Object.assign({ x: CX(120), y: Y(m6 * Math.sin(120 / DEG)) + 22, 'font-size': 15, 'font-weight': 700, fill: COL.e }, HALO), f(IF_START, 2) + ' A: P_max ' + f(m6, 1) + ' MW');
-  T5.done = mk(g, 'g', {});
-  T5.gT = mk(g, 'g', {});
-  mk(T5.gT, 'path', { d: `M70 ${yt.toFixed(1)}H550`, stroke: COL.proj, 'stroke-width': 2.5 }); mk(T5.gT, 'path', { d: `M${xt.toFixed(1)} 348V52`, stroke: COL.proj, 'stroke-width': 2.5, 'stroke-dasharray': '7 5' });
-  mk(T5.gT, 'text', Object.assign({ x: 546, y: yt - 7, 'text-anchor': 'end', 'font-size': 15, 'font-weight': 800, fill: COL.mech }, HALO), TURN_P + ' MW');
-  mk(T5.gT, 'text', Object.assign({ x: xt + 7, y: 66, 'font-size': 15, 'font-weight': 800, fill: COL.mech }, HALO), 'δ = ' + TURN_DEG + '°');
-  T5.pt = mk(T5.gT, 'circle', { cx: xt.toFixed(1), cy: yt.toFixed(1), r: 7.5, stroke: COL.proj, 'stroke-width': 3 });
-  T5.ask = mk(T5.gT, 'text', Object.assign({ x: xt + 12, y: yt + 24, 'font-size': 19, 'font-weight': 800, fill: COL.mech }, HALO), '');
+  T6.done = mk(g, 'g', {});
+  T6.gT = mk(g, 'g', {});
+  mk(T6.gT, 'path', { d: `M70 ${yt.toFixed(1)}H550`, stroke: COL.proj, 'stroke-width': 2.5 }); mk(T6.gT, 'path', { d: `M${xt.toFixed(1)} 348V52`, stroke: COL.proj, 'stroke-width': 2.5, 'stroke-dasharray': '7 5' });
+  mk(T6.gT, 'text', Object.assign({ x: 546, y: yt - 7, 'text-anchor': 'end', 'font-size': 15, 'font-weight': 800, fill: COL.mech }, HALO), TURN_P + ' MW');
+  mk(T6.gT, 'text', Object.assign({ x: xt + 7, y: 66, 'font-size': 15, 'font-weight': 800, fill: COL.mech }, HALO), 'δ = ' + TURN_DEG + '°');
+  T6.pt = mk(T6.gT, 'circle', { cx: xt.toFixed(1), cy: yt.toFixed(1), r: 7.5, stroke: COL.proj, 'stroke-width': 3 });
+  T6.ask = mk(T6.gT, 'text', Object.assign({ x: xt + 12, y: yt + 24, 'font-size': 19, 'font-weight': 800, fill: COL.mech }, HALO), '');
 }
-/* Draw the slide-5 marker: hollow with "?" until the problem is solved or the solution shown; then the new curve and the filled point. */
-function drawCurve5() {
-  const done = S.solved || S.shown; T5.pt.setAttribute('fill', done ? COL.proj : '#ffffff'); subT(T5.ask, done ? '' : '?');
-  if (!done) { while (T5.done.firstChild) T5.done.removeChild(T5.done.firstChild); return; }
-  if (T5.done.firstChild) return;
-  mk(T5.done, 'path', { d: sinePath(PM_TURN, 0, 90, T5_YMAX), stroke: COL.e, 'stroke-width': 3.5, fill: 'none' }); mk(T5.done, 'path', { d: sinePath(PM_TURN, 90, 180, T5_YMAX), stroke: COL.e, 'stroke-width': 3.5, 'stroke-dasharray': '8 5', fill: 'none' });
-  mk(T5.done, 'text', Object.assign({ x: CX(90), y: CY(PM_TURN, T5_YMAX) - 9, 'text-anchor': 'middle', 'font-size': 16, 'font-weight': 800, fill: COL.e }, HALO), f(IF_TURN, 2) + ' A: P_max ' + f(PM_TURN, 1) + ' MW');
+/* Draw the slide-6 marker: hollow with "?" until the problem is solved or the solution shown; then the new curve and the filled point. */
+function drawCurve6() {
+  const done = S.solved || S.shown; T6.pt.setAttribute('fill', done ? COL.proj : '#ffffff'); subT(T6.ask, done ? '' : '?');
+  if (!done) { while (T6.done.firstChild) T6.done.removeChild(T6.done.firstChild); return; }
+  if (T6.done.firstChild) return;
+  mk(T6.done, 'path', { d: sinePath(PM_TURN, 0, 90, T6_YMAX), stroke: COL.e, 'stroke-width': 3.5, fill: 'none' }); mk(T6.done, 'path', { d: sinePath(PM_TURN, 90, 180, T6_YMAX), stroke: COL.e, 'stroke-width': 3.5, 'stroke-dasharray': '8 5', fill: 'none' });
+  mk(T6.done, 'text', Object.assign({ x: CX(90), y: CY(PM_TURN, T6_YMAX) - 9, 'text-anchor': 'middle', 'font-size': 16, 'font-weight': 800, fill: COL.e }, HALO), f(IF_TURN, 2) + ' A: P_max ' + f(PM_TURN, 1) + ' MW');
 }
 /* Show a message under the answer boxes: kind 'good', 'bad' (refused or wrong) or 'mid' (hint). */
 function turnMsg(t, kind) { const e = document.getElementById('turnMsg'); putRich(e, t); e.className = kind; }
@@ -892,20 +966,20 @@ function buildLabFlow() {
     FL.loss[k] = { arrow: mk(FG, 'polygon', { fill: COL.loss }), val: mk(FG, 'text', { x, y: 386, 'text-anchor': 'middle', 'font-size': 13.5, 'font-weight': 800, fill: COL.loss }, '') };
     mk(FG, 'text', { x, y: 368, 'text-anchor': 'middle', 'font-size': 13.5, 'font-weight': 700, fill: COL.loss }, name);
   }
-  mk(FG, 'text', { x: 362, y: 408, 'text-anchor': 'middle', 'font-size': 14, fill: COL.mut }, 'rotational losses (MW): almost fixed');
-  mk(FG, 'text', { x: 606, y: 408, 'text-anchor': 'middle', 'font-size': 14, fill: COL.mut }, '(MW): grows as I_A²');
+  mk(FG, 'text', { x: 362, y: 408, 'text-anchor': 'middle', 'font-size': 14, fill: COL.mut }, 'rotational losses (kW): almost fixed');
+  mk(FG, 'text', { x: 606, y: 408, 'text-anchor': 'middle', 'font-size': 14, fill: COL.mut }, '(kW): grows as I_A²');
   mk(FG, 'text', { x: 16, y: 428, 'font-size': 13, fill: COL.mut }, 'Illustrative losses, unity power factor. Arrow widths follow MW; loss arrows on their own scale.');
 }
-/* Draw the Lab power flow for input power S.pm. */
+/* Draw the Lab power flow for input power S.pm: powers in MW, losses in kW. */
 function drawLabFlow() {
   const F = flowLab(S.pm), w = p => Math.max(1.5, p * FLOW_PX_MW), wi = w(F.pin), wc = w(F.pconv), wo = w(F.po), y = FLOW_Y;
   const band = (x0, x1, a, b) => `${x0},${y - a / 2} ${x1},${y - b / 2} ${x1},${y + b / 2} ${x0},${y + a / 2}`;
   FL.shaft.setAttribute('points', band(148, 290, wi, wi)); FL.rotor.setAttribute('points', band(290, 465, wi, wc)); FL.stator.setAttribute('points', band(465, 640, wc, wo));
   FL.out.setAttribute('points', `640,${y - wo / 2} 800,${y - wo / 2} 800,${y - wo / 2 - 7} 826,${y} 800,${y + wo / 2 + 7} 800,${y + wo / 2} 640,${y + wo / 2}`);
-  subT(FL.tIn, f(F.pin, 2) + ' MW'); subT(FL.tConv, f(F.pconv, 2) + ' MW'); subT(FL.tOut, f(F.po, 2) + ' MW');
+  subT(FL.tIn, f(F.pin, 1) + ' MW'); subT(FL.tConv, f(F.pconv, 1) + ' MW'); subT(FL.tOut, f(F.po, 1) + ' MW');
   for (const k in FL.loss) { const v = F[k], x = LOSS_AT[k], h = (LOSS_PX + LOSS_PX_MW * v) / 2, top = y + (k === 'copper' ? wc : wi) / 2 - 2;
     FL.loss[k].arrow.setAttribute('points', v < 0.0005 ? '' : `${x - h},${top} ${x + h},${top} ${x + h},334 ${x + h + 6},334 ${x},350 ${x - h - 6},334 ${x - h},334`);
-    subT(FL.loss[k].val, f(v, 3)); }
+    subT(FL.loss[k].val, f(v * KW_PER_MW, 1)); }
 }
 const PG = document.getElementById('phG'), PH = {};
 const PH_O = { x: 86, y: 418 };           // origin of the phasors (viewBox units)
@@ -971,51 +1045,67 @@ function drawDial() {
 function drawAlarms() {
   const deg = S.d * DEG, slip = S.run === 'slip', trip = S.run === 'trip';
   const lamp = (id, on, flash) => { const e = document.getElementById(id); e.classList.toggle('on', on); e.classList.toggle('flash', on && flash); };
-  lamp('lmOk', S.run === 'ok' && !S.over && deg <= BAND_HI + 0.05, false); lamp('lmLow', S.run === 'ok' && deg > BAND_HI + 0.05, false);   // off once G3 is slipping or tripped (v1.0.1)
+  lamp('lmOk', S.run === 'ok' && deg <= BAND_HI + 0.05, false); lamp('lmLow', S.run === 'ok' && deg > BAND_HI + 0.05, false);   // off once G3 is slipping or tripped (v1.0.1)
   lamp('lmOver', slip && deg > 90, true); lamp('lmSlip', trip || (slip && deg > 180), !trip);
   const b = document.getElementById('banner'), t = trip ? 'BREAKER TRIPPED — G3 LOST SYNCHRONISM. Press Reset.' : slip ? 'LOSS OF SYNCHRONISM — G3 IS SLIPPING POLES' : '';
   if (b.textContent !== t) b.textContent = t; b.classList.toggle('on', !!t); b.classList.toggle('flash', slip);
 }
 let audio = null;
-/* One short beep of the audible alarm (only when the student has switched the sound on). */
+/* One short beep of the audible alarm: in the Lab only, and only when the student has switched the sound on there. */
 function beep(len) {
-  if (!S.sound || !audio) return;
+  if (S.mode !== 'lab' || !S.sound || !audio) return;
   try { const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = BEEP_HZ; g.gain.value = 0.08; o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + len); } catch (e) { S.sound = false; syncButtons(); }
-}
-/* The banner over slide 4: red and flashing (1 Hz) while G3 slips, steady red after the trip. With reduced motion it does not flash. */
-function drawLecBanner() {
-  const b = document.getElementById('lecBanner'), slip = S.run === 'slip', trip = S.run === 'trip';
-  const t = trip ? 'Breaker tripped after a pole slip: press Reset' : slip ? 'Losing synchronism: δ past 90°' : 'In step: no alarm';
-  if (b.textContent !== t) b.textContent = t; b.classList.toggle('on', slip || trip); b.classList.toggle('flash', slip);
 }
 
 /* ═══ 10. READOUTS AND VERDICT ═══ */
-/* The one verdict line for what the student sees now: [text, kind]. */
+/* The Lab's one verdict line for what the student sees now: [text, kind]. */
 function verdict(p) {
-  const lec = S.mode === 'lec';
-  if (lec && S.slide === 1) { const F = flow1(S.pm, S.iF); return [f(F.pin, 1) + ' MW in, ' + f(F.po, 2) + ' MW out: efficiency ' + f(F.eff * 100, 1) + ' %.', '']; }
-  if (lec && S.slide === 5) return S.solved ? ['Solved: E_A = ' + f(E_TURN, 2) + ' kV, I_F = ' + f(IF_TURN, 2) + ' A, P_max = ' + f(PM_TURN, 1) + ' MW.', 'good'] : ['Your turn: ' + TURN_P + ' MW at δ = ' + TURN_DEG + '°.', ''];
   if (S.run === 'trip') return ['Breaker tripped: G3 lost synchronism. Press Reset.', 'bad'];
   if (S.run === 'slip') return ['Loss of synchronism: the input power is more than P_max.', 'bad'];
-  if (S.over) return ['Above P_max: no steady δ — see slide 4', 'bad'];
-  if (S.busy) return ['Show me is running…', ''];
   if (S.pm > P_RATED + EPS) return ['Above the 25 MW rating: shown to see the trend. δ = ' + f(p.d * DEG, 1) + '°.', 'warn'];
   if (p.d * DEG > BAND_HI + 0.05) return ['δ = ' + f(p.d * DEG, 1) + '°: above 30°, low margin (' + f(pMax() - S.pm, 1) + ' MW).', 'warn'];
   return ['In step: δ = ' + f(p.d * DEG, 1) + '°, margin ' + f(pMax() - S.pm, 1) + ' MW.', 'good'];
 }
-/* Each derivation step of slide 3: the words before the equation, its equation keys, and its short form once it is behind. */
+/* What the slide-1 demo showed, said to each of the three predictions (P_max at the demo's field current is written in). */
+const SLIP_SAID = 'no torque angle balances the input power: δ passed 90°, G3 slipped a pole and the breaker tripped.';
+const PICK_SAYS = {
+  rise: m => 'Not quite. The output followed the input only up to P_max = ' + m + ' MW. Above that ' + SLIP_SAID,
+  rating: m => 'Not quite. The 25 MW rating is thermal and does not hold the power back: the output went past it. Above P_max = ' + m + ' MW ' + SLIP_SAID,
+  slip: m => 'Correct. Above P_max = ' + m + ' MW ' + SLIP_SAID + ' The 25 MW rating is thermal: it is not this limit.'
+};
+/* The line under the slide-1 predict buttons: ask, wait for Show me, follow the demo, then confirm or correct the choice: [text, kind]. */
+function predictSays() {
+  if (S.run === 'trip') return [PICK_SAYS[S.pick](f(pMax(), 1)), S.pick === 'slip' ? 'good' : 'bad'];   // the demo runs only after a choice
+  if (S.busy || S.run === 'slip') return ['Watch the operating point as the input power rises.', ''];
+  return S.pick ? ['Your prediction is in. Press Show me.', ''] : ['Choose one answer, then press Show me.', ''];
+}
+/* The six proof steps of slide 3. Each adds its part to the still diagram. */
+const PROOF_STEPS = [
+  'V_φ lies on the axis: the bus is the reference. I_A lags it by θ.',
+  'Add jX_S I_A at the tip of V_φ. It is at 90° to I_A.',
+  'E_A closes the triangle: E_A = V_φ + jX_S I_A. It leads V_φ by the torque angle δ.',
+  'Drop the vertical from the tip of E_A. In the blue triangle it is E_A sin δ.',
+  'jX_S I_A ⟂ I_A and the vertical ⟂ V_φ, so the angle between them is θ: the same θ at the tip of E_A and at the origin.',
+  'In the grey triangle the same vertical is X_S I_A cos θ. One line, two readings: E_A sin δ = X_S I_A cos θ.'];
+/* Show proof step S.pstep: its words, and the diagram parts drawn up to it. */
+function showProofStep() {
+  const lead = document.getElementById('pfLead'), n = S.pstep; if (lead.dataset.step === String(n)) return; lead.dataset.step = String(n);
+  richText(lead, n + '. ' + PROOF_STEPS[n - 1]); put('pfPos', n + '/' + NPROOF);
+  PF.s.forEach((els, k) => els.forEach(e => e.setAttribute('visibility', k < n ? 'visible' : 'hidden')));
+}
+/* Each derivation step of slide 4: the words before the equation, its equation keys, and its short form once it is behind. */
 const STEPS = [
-  ['R_A ≪ X_S, so', ['step1'], 'P_conv = P_out = 3V_φ I_A cos θ'], ['From slide 2:', ['icos'], 'I_A cos θ = E_A sin δ / X_S'], ['Substitute:', ['p'], 'P = 3V_φ E_A sin δ / X_S'],
-  ['sin δ ≤ 1, so at δ = 90°:', ['pmax'], 'P_max = 3V_φ E_A / X_S'], ['÷ ω_m:', ['tau', 'taumax'], 'τ_ind = P / ω_m, τ_max = P_max / ω_m'], ['Real machines run at δ ≈ 20°–30°. The sliders are live.', [], '']];
+  ['From slide 3:', ['vert'], 'E_A sin δ = X_S I_A cos θ'], ['Divide by X_S:', ['icos'], 'I_A cos θ = E_A sin δ / X_S'], ['P_out = 3V_φ I_A cos θ. Substitute:', ['p'], 'P = 3V_φ E_A sin δ / X_S'],
+  ['sin δ ≤ 1, so at δ = 90°:', ['pmax'], 'P_max = 3V_φ E_A / X_S'], ['÷ ω_m:', ['tau', 'taumax'], 'τ_ind = P / ω_m, τ_max = P_max / ω_m'], ['Real machines run at δ ≈ 20°–30°. The slider is live.', [], '']];
 /* The live line under the present derivation step: its equation with the numbers now on screen. */
 function liveLine(p) {
   const E = f(p.E, 2), V = f(V_PH, 2), X = f(X_S, 2), dg = f(p.d * DEG, 1), m = pMax();
-  return ['P = 3 × ' + V + ' × I_A cos θ = 3 × ' + V + ' kV × ' + f(p.ir, 3) + ' kA = ' + f(p.P, 1) + ' MW',
+  return ['E_A sin δ = ' + E + ' × sin ' + dg + '° = ' + f(p.vert, 2) + ' kV = X_S I_A cos θ',
     'I_A cos θ = ' + E + ' kV × sin ' + dg + '° / ' + X + ' Ω = ' + f(p.ir * 1e3, 0) + ' A',
     'P = 3 × ' + V + ' × ' + E + ' × sin ' + dg + '° / ' + X + ' = ' + f(p.P, 1) + ' MW',
     'P_max = 3 × ' + V + ' × ' + E + ' / ' + X + ' = ' + f(m, 1) + ' MW at ' + f(S.iF, 2) + ' A',
-    'τ_max = ' + f(m, 1) + ' MW / ' + f(W_M, 1) + ' rad/s = ' + f(m * 1e3 / W_M, 1) + ' kN·m; τ_ind = ' + f(p.P * 1e3 / W_M, 1) + ' kN·m',
-    S.over ? 'Above P_max = ' + f(m, 1) + ' MW: no steady δ' : 'δ = ' + dg + '°; margin = P_max − P = ' + f(m - p.P, 1) + ' MW'][S.step - 1];
+    'τ_max = ' + f(m, 1) + ' MW / ' + f(W_M, 1) + ' rad/s = ' + f(m * 1e3 / W_M, 1) + ' kN·m',
+    'δ = ' + dg + '°; margin = P_max − P = ' + f(m - p.P, 1) + ' MW'][S.step - 1];
 }
 /* Show derivation step S.step: earlier steps small and grey, the present one large. */
 function showStep() {
@@ -1024,42 +1114,37 @@ function showStep() {
   richText(document.getElementById('dPrev'), STEPS.slice(0, S.step - 1).map((s, n) => (n + 1) + '. ' + s[2]).join('  ·  '));
   ['dEq', 'dEq2'].forEach((id, n) => { const box = document.getElementById(id); while (box.firstChild) box.removeChild(box.firstChild); box.hidden = !keys[n]; if (keys[n]) putEq(box, keys[n]); });
 }
-/* Slide 6: each key equation with G3's value at the present settings: [equation key, value]. Every row comes from the one
-   lossless operating point p, so the card agrees with itself. */
-function eqValues(p) {
-  const m = pMax(), T = x => f(x * 1e3 / W_M, 1) + ' kN·m', PT = f(p.P, 1) + ' MW = ' + f(p.P * 1e3 / W_M, 1) + ' kN·m × ' + f(W_M, 1) + ' rad/s';   // one model for every row: R_A and the rotational losses ignored, so P_in = P_conv = P_out (v1.0.1)
-  return [['pin', PT], ['pconv', PT],
-    ['loss', '≈ 0 with R_A and rotational losses ignored; slide 1 shows them'], ['pout', '3(' + f(V_PH, 2) + ' kV)(' + f(p.I, 3) + ' kA)(' + f(p.pf, 3) + ') = ' + f(p.P, 1) + ' MW'],
-    ['kvl', f(p.E, 2) + '∠' + f(p.d * DEG, 1) + '° = ' + f(V_PH, 2) + '∠0° + j' + f(X_S, 2) + ' × ' + f(p.I, 3) + '∠' + f(p.th * DEG, 1) + '° kV'], ['vert', f(p.vert, 2) + ' kV = ' + f(X_S * p.I * p.pf, 2) + ' kV'],
-    ['p', f(p.P, 1) + ' MW at δ = ' + f(p.d * DEG, 1) + '°'], ['pmax', f(m, 1) + ' MW at I_F = ' + f(S.iF, 2) + ' A'], ['tau', T(p.P)], ['taumax', T(m)], ['band', 'now δ = ' + f(p.d * DEG, 1) + '°, margin ' + f(m - p.P, 1) + ' MW']];
-}
 let lastTxt = -1e9;
-/* Update readouts, verdict, the substituted lines and cues: at most 4 times a second (or at once when forced). */
+/* Update readouts, the Lab verdict, the substituted lines and cues: at most 4 times a second (or at once when forced). */
 function readouts(force) {
   const now = performance.now(); if (!force && now - lastTxt < RO_MS) return; lastTxt = now;
-  const p = point(Math.min(S.d, Math.PI)), m = pMax(), steady = S.run === 'ok' && !S.over, rich = (id, t) => putRich(document.getElementById(id), t);
-  const E = f(p.E, 2), V = f(V_PH, 2), X = f(X_S, 2), dg = f(p.d * DEG, 1);
-  put('pmO', f(S.pm, 1) + ' MW'); put('ifO', f(S.iF, 2) + ' A'); put('pmR', f(S.pm, 1) + ' MW'); put('ifR', f(S.iF, 2) + ' A'); put('eaR', E + ' kV');
+  const p = point(Math.min(S.d, Math.PI)), m = pMax(), steady = S.run === 'ok', rich = (id, t) => putRich(document.getElementById(id), t);
+  const E = f(p.E, 2), V = f(V_PH, 2), X = f(X_S, 2), dg = f(p.d * DEG, 1), pmaxLine = 'P_max = 3 × ' + V + ' × ' + E + ' / ' + X + ' = ' + f(m, 1) + ' MW';
+  put('pmO', f(S.pm, 1) + ' MW'); put('ifO', f(S.iF, 2) + ' A');
   rich('fixEa', 'E_A = ' + V + ' × ' + f(IF_START, 2) + ' / 5.00 = ' + f(eAt(IF_START), 2) + ' kV');
   put('rD', steady ? dg + '°' : '—'); put('rPf', steady ? f(p.pf, 3) + ' ' + pfWord(p) : '—'); put('rIa', steady ? f(p.I * 1e3, 0) : '—'); put('rEa', E);
   put('rQ', steady ? sg(p.Q, 1) + ' MVAR ' + (Math.abs(p.Q) < 0.05 ? '' : p.Q > 0 ? '(supplies)' : '(absorbs)') : '—'); put('rPm', f(m, 1)); put('rMg', sg(m - S.pm, 1));
-  const [txt, kind] = verdict(p), co = document.getElementById('callout'); putRich(co, txt); if (co.className !== kind) co.className = kind;
-  if (S.vis.has('ro1')) { const F = flow1(S.pm, S.iF);
-    rich('r1a', 'P_conv = P_in − (stray + 0.150 + 0.200) = ' + f(F.pin, 2) + ' − ' + f(F.stray + F.fw + F.core, 3) + ' = ' + f(F.pconv, 2) + ' MW');
-    rich('r1b', 'P_out = P_conv − copper = ' + f(F.pconv, 2) + ' − ' + f(F.copper, 3) + ' = ' + f(F.po, 2) + ' MW');
-    rich('r1c', 'E_A = ' + V + ' kV × ' + f(S.iF, 2) + ' / 5.00 = ' + f(F.E, 2) + ' kV;  I_A = ' + f(F.I * 1e3, 0) + ' A at pf ' + f(F.pf, 3) + ' ' + F.word);
-    rich('r1d', 'τ_app = ' + f(F.tApp, 1) + ' kN·m;  τ_ind = ' + f(F.tInd, 1) + ' kN·m;  η = ' + f(F.eff * 100, 1) + ' %'); }
-  if (S.vis.has('ro2')) {
-    rich('r2a', 'E_A sin δ = ' + E + ' × sin ' + dg + '° = ' + f(p.vert, 2) + ' kV');
-    rich('r2b', 'X_S I_A cos θ = ' + X + ' Ω × ' + f(p.I * 1e3, 0) + ' A × ' + f(p.pf, 3) + ' = ' + f(X_S * p.I * p.pf, 2) + ' kV (equal by construction)');
-    rich('r2c', 'P = 3V_φ E_A sin δ / X_S = ' + f(p.P, 1) + ' MW;  pf ' + f(p.pf, 3) + ' ' + pfWord(p) + ';  θ = ' + f(Math.abs(p.th) * DEG, 1) + '°'); }
-  if (S.vis.has('ro4')) { const ds = dSteady(S.pm), dd = ds === null ? 0 : ds * DEG;
-    rich('r4a', 'P_max = 3 × ' + V + ' × ' + E + ' / ' + X + ' = ' + f(m, 1) + ' MW;  margin = ' + sg(m - S.pm, 1) + ' MW');
-    rich('r4b', S.run === 'trip' ? 'Breaker tripped after a pole slip: press Reset.' : S.run === 'slip' || ds === null ? 'No δ satisfies P = P_max sin δ: the rotor runs ahead of the bus.'
-      : 'sin δ = P / P_max = ' + f(S.pm, 1) + ' / ' + f(m, 1) + ' → δ = ' + f(dd, 1) + '°' + (dd >= BAND_LO - 0.05 && dd <= BAND_HI + 0.05 ? ' (normal band)' : '')); }
+  if (S.mode === 'lab') { const [txt, kind] = verdict(p), co = document.getElementById('callout'); putRich(co, txt); if (co.className !== kind) co.className = kind; }
+  if (S.vis.has('ro1')) { const ds = dSteady(S.pm), dd = ds === null ? 0 : ds * DEG, [said, kind] = predictSays(), box = document.getElementById('pdMsg');
+    rich('r1a', pmaxLine + ';  margin = ' + sg(m - S.pm, 1) + ' MW');
+    rich('r1b', S.run === 'trip' ? 'Breaker tripped after a pole slip: press Reset.' : S.run === 'slip' || ds === null ? 'No δ satisfies P = P_max sin δ: the rotor runs ahead of the bus.'
+      : 'sin δ = P / P_max = ' + f(S.pm, 1) + ' / ' + f(m, 1) + ' → δ = ' + f(dd, 1) + '°' + (dd >= BAND_LO - 0.05 && dd <= BAND_HI + 0.05 ? ' (normal band)' : ''));
+    putRich(box, said); if (box.className !== kind) box.className = kind; }
+  if (S.vis.has('ro2')) { const F = flowLec(S.pm, S.iF);
+    rich('r2a', 'P_conv = P_in − (stray + F&W + core) = ' + f(F.pin, 1) + ' MW − ' + kw(F.stray + F.fw + F.core) + ' = ' + f(F.pconv, 1) + ' MW');
+    rich('r2b', 'P_out = P_conv − copper = ' + f(F.pconv, 1) + ' MW − ' + kw(F.copper) + ' = ' + f(F.po, 1) + ' MW');
+    rich('r2c', 'E_A = ' + V + ' kV × ' + f(S.iF, 2) + ' / 5.00 = ' + f(F.E, 2) + ' kV;  I_A = ' + f(F.I * 1e3, 0) + ' A at pf ' + f(F.pf, 3) + ' ' + F.word);
+    rich('r2d', 'τ_app = ' + f(F.tApp, 1) + ' kN·m;  τ_ind = ' + f(F.tInd, 1) + ' kN·m;  η = P_out / P_in = ' + f(F.eff * 100, 1) + ' %'); }
+  if (S.vis.has('ro3')) { showProofStep();
+    rich('r3a', 'E_A sin δ = ' + E + ' × sin ' + dg + '° = ' + f(p.vert, 2) + ' kV');
+    rich('r3b', 'X_S I_A cos θ = ' + X + ' × ' + f(p.I, 3) + ' × cos ' + f(Math.abs(p.th) * DEG, 1) + '° = ' + f(X_S * p.I * p.pf, 2) + ' kV');
+    ['r3a', 'r3b'].forEach(id => document.getElementById(id).classList.toggle('wait', S.pstep < NPROOF)); }
+  if (S.vis.has('ro5')) { const q = point(Math.asin(S.pm / m));   // the steady point at this field (P_max is never below this slide's power)
+    rich('r5a', 'E_A = ' + V + ' × ' + f(S.iF, 2) + ' / 5.00 = ' + E + ' kV;  sin δ = ' + f(q.vert, 2) + ' / ' + E + ' → δ = ' + f(q.d * DEG, 1) + '°');
+    rich('r5b', pmaxLine + ';  margin = P_max − P = ' + f(m - S.pm, 1) + ' MW');
+    rich('r5c', 'pf = ' + f(q.pf, 3) + ' ' + pfWord(q) + ';  I_A = ' + f(q.I * 1e3, 0) + ' A;  θ = ' + f(Math.abs(q.th) * DEG, 1) + '°'); }
   if (S.vis.has('deriv')) { showStep(); rich('dLive', liveLine(p)); put('stepPos', S.step + '/' + NSTEP); }
-  if (S.vis.has('curve5')) drawCurve5();
-  if (S.vis.has('eq')) eqValues(p).forEach(([k, v]) => putRich(document.getElementById('ev_' + k), v));
+  if (S.vis.has('curve6')) drawCurve6();
   updateCues();
 }
 
@@ -1067,17 +1152,18 @@ function readouts(force) {
 const pmS = document.getElementById('pmS'), ifS = document.getElementById('ifS');
 /* Slider ranges where the student is now. */
 function ctl() { return S.mode === 'lec' ? CTL[S.slide] : LAB_CTL; }
-/* True when the student may not move the sliders: slide 3 before step 6, a running demo, a tripped breaker. */
-function locked() { return (S.mode === 'lec' && S.slide === 3 && S.step < NSTEP) || S.busy || S.run === 'trip'; }
+/* True when the student may not move the sliders: slide 4 before step 6, a running demo, a tripped breaker. */
+function locked() { return (S.mode === 'lec' && S.slide === 4 && S.step < NSTEP) || S.busy || S.run === 'trip'; }
 /* Set the input power (MW) from a control, to 0.1 MW, inside the present range. */
 function setPm(v) { const c = ctl().pm; if (locked() || !c) return; S.pm = Math.min(c[1], Math.max(c[0], Math.round(v * 10) / 10)); S.moved = true; changed(); }
 /* Set the field current (A) from a control, to 0.05 A, inside the present range. */
 function setIf(v) { const c = ctl().iF; if (locked() || !c) return; S.iF = Math.min(c[1], Math.max(c[0], Math.round(v * 20) / 20)); S.moved = true; changed(); }
 /* A control changed. */
 function changed() { syncButtons(); readouts(true); }
-/* Set the state (Reset, slide presets, demos, Experiment set-ups): o = { pm, iF }. δ starts at its steady value. */
+/* Set the state (Reset, slide presets, demos, Experiment set-ups): o = { pm, iF }. δ starts at its steady value (at the peak for a
+   set-up above P_max, which then slips). */
 function setup(o) {
-  S.pm = o.pm; S.iF = o.iF; S.refIF = o.iF; S.run = 'ok'; S.w = 0; S.over = false; S.ramp = null; S.paused = false; S.moved = false;
+  S.pm = o.pm; S.iF = o.iF; S.run = 'ok'; S.w = 0; S.ramp = null; S.paused = false; S.moved = false;
   const ds = dSteady(S.pm); S.d = ds === null ? HALF_PI : ds; changed();
 }
 /* Mirror the state on buttons and sliders. */
@@ -1091,9 +1177,11 @@ function syncButtons() {
   pr('pauseBtn', S.paused); pr('soundBtn', S.sound); pr('slNbtn', S.notes);
   put('pauseBtn', S.paused ? '▶ Run' : '❚❚ Pause'); put('soundBtn', S.sound ? '🔊 Alarm sound: on' : '🔈 Alarm sound: off');
   document.body.classList.toggle('paused', S.paused);
-  document.getElementById('lockNote').hidden = !(lec && S.slide === 3 && S.step < NSTEP);
-  document.querySelectorAll('button[data-show]').forEach(b => { b.disabled = S.busy; });
+  document.getElementById('lockNote').hidden = !(lec && S.slide === 4 && S.step < NSTEP);
+  document.querySelectorAll('button[data-show]').forEach(b => { b.disabled = S.busy || S.run !== 'ok' || (b.dataset.show === '1' && !S.pick); });   // predict first, then Show me
+  document.querySelectorAll('button[data-pick]').forEach(b => { b.disabled = S.busy || S.run !== 'ok'; b.setAttribute('aria-pressed', String(b.dataset.pick === S.pick)); });
   document.getElementById('stepBack').disabled = S.step <= 1; document.getElementById('stepNext').disabled = S.step >= NSTEP;
+  document.getElementById('pfBack').disabled = S.pstep <= 1; document.getElementById('pfNext').disabled = S.pstep >= NPROOF;
 }
 /* Run fn now, then repeat while the button is held (press and hold). Keyboard activation runs fn once. */
 function holdButton(id, fn) {
@@ -1117,7 +1205,7 @@ function showPage(id) {
   const exp = id === 'exp'; S.mode = id === 'lec' ? 'lec' : 'lab';
   document.getElementById('app').hidden = exp; document.getElementById('page-exp').hidden = !exp;
   document.querySelectorAll('nav.tabs button[data-page]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.page === id)));
-  if (S.mode === 'lec') goSlide(S.slide, false); else { S.demoId++; S.busy = false; S.ramp = null; if (S.over) setup({ pm: S.pm, iF: S.iF }); applyView(); syncButtons(); readouts(true); }
+  if (S.mode === 'lec') goSlide(S.slide, false); else { S.demoId++; S.busy = false; S.ramp = null; applyView(); syncButtons(); readouts(true); }
 }
 document.querySelectorAll('nav.tabs button[data-page]').forEach(b => b.addEventListener('click', () => showPage(b.dataset.page)));
 /* Experiment set-ups: put the Lab in the stated state and show it. */
@@ -1129,55 +1217,63 @@ document.querySelectorAll('button.try').forEach(b => b.addEventListener('click',
 
 /* ═══ 12. LECTURE (slides, views, demos) ═══ */
 const NOTES = [
-  'G3 is connected to an infinite bus: a system so large that its voltage and frequency stay at 7.97 kV and 60 Hz whatever G3 does. The input power P_in comes from the prime mover. Before conversion, stray, friction and windage, and core losses come out. What is left, P_conv, becomes electrical. The armature copper loss comes out next, and P_out goes to the bus. Move the input power and the field current, and watch which losses change. The field current sets E_A: at 5.00 A E_A equals V_φ, and E_A rises in proportion.',
-  'V_φ is fixed by the infinite bus and is our reference. With R_A ignored, KVL gives E_A = V_φ + jX_S I_A. Left diagram: jX_S I_A is at right angles to I_A, so the angle between it and the dashed vertical is the same θ as between I_A and V_φ. The vertical belongs to two right triangles: in the blue one it is E_A sin δ, in the grey one X_S I_A cos θ. Same line, so they are equal. Right diagram: the field is fixed, so E_A stays on its arc. More input power swings it ahead of V_φ and the amber height grows with P. Watch the tip cross the unity line: lagging, unity, then leading. Press Show me.',
-  'Six steps turn the diagram into the power equation; press Next step for each. With R_A ignored, the converted power is the output power, 3V_φ I_A cos θ. Slide 2 gave I_A cos θ in terms of E_A and δ. Substitute, and the power follows sin δ: that is the curve. The amber height in the phasor diagram and the amber height on the curve are the same quantity: the curve is that vertical, scaled by 3V_φ/X_S. A sine cannot exceed 1, so the power peaks at 90°: P_max, the static stability limit, 30.0 MW at 6 A. Divide by the speed and the curve reads as torque. Real machines run at 20° to 30°. At step 6 the sliders unlock.',
-  'This is what the limit means. The input power line is the power pushed in; the curve is the power G3 can send to the bus at each δ. Where they cross, G3 runs in step. Press the first Show me: the input power rises past the peak. Now no δ balances it. The rotor runs ahead, δ passes 90°, G3 slips a pole and the breaker trips. Reset, then press the second Show me: at 20 MW, δ is 42°, too close for comfort. Raising the field lifts the whole curve, and δ falls back to 29°. The slip shown here is qualitative; transient stability is not modelled.',
+  'The static stability limit is the most real power G3 can send to the bus and stay in synchronism when the load changes slowly. The curve is the power G3 delivers at each torque angle δ, here at a field current of 6 A. It peaks at 90°: that peak is P_max, 30 megawatts. The amber line is the input power from the prime mover; G3 runs where the line crosses the curve, at 30°. The dashed grey line is the 25 megawatt rating. It is a thermal limit, set by heating, and a different thing from the stability limit. Now predict: the input power rises from 15 to 34 megawatts with the field unchanged. Choose an answer, then press Show me.',
+  'G3 is connected to an infinite bus: a system so large that its voltage and frequency stay at 7.97 kV and 60 Hz whatever G3 does. The input power P_in comes from the prime mover. Before conversion, stray, friction and windage, and core losses come out. What is left, P_conv, becomes electrical. The armature copper loss comes out next, and P_out goes to the bus. Move the input power and the field current: the losses stay a few hundred kilowatts out of many megawatts, so about 96 percent reaches the bus. That is why the other slides ignore R_A and the rotational losses. The field current sets E_A: at 5.00 A E_A equals V_φ, and E_A rises in proportion.',
+  'This is one operating point, 15 megawatts at a field current of 7 A, drawn to scale. Press Next step six times. V_φ is the reference, fixed by the infinite bus, and I_A lags it by θ. With R_A ignored, the voltage across the synchronous reactance is jX_S I_A, at right angles to I_A. Add it to V_φ and E_A closes the triangle, ahead of V_φ by the torque angle δ. Now drop a vertical from the tip of E_A. In the blue triangle it is E_A sin δ. jX_S I_A is at right angles to I_A and the vertical is at right angles to V_φ, so the angle at the tip is the same θ. In the grey triangle the same vertical is X_S I_A cos θ. One line, two readings: they are equal.',
+  'Now the field is fixed at 6 A, so the length of E_A is fixed and its tip stays on the dashed arc. Press Next step to turn the diagram into the power equation. Slide 3 gave E_A sin δ = X_S I_A cos θ, so I_A cos θ is E_A sin δ over X_S. The output power is 3V_φ I_A cos θ; substitute, and the power follows sin δ: that is the curve. The amber height in the phasor diagram and the amber height on the curve are the same quantity: the curve is that vertical, scaled by 3V_φ/X_S. A sine cannot exceed 1, so the power peaks at 90°: P_max, 30.0 MW at 6 A. Divide by the speed and the curve reads as torque. Real machines run at 20° to 30°. At step 6 the slider unlocks: raise the input power and watch E_A climb the arc, from lagging through unity to leading.',
+  'Here the input power is fixed at 20 megawatts and you change the field. Fixed power means the height E_A sin δ is fixed, so the tip of E_A can only slide along the horizontal line. At 6 A the torque angle is 42°, too close to 90° for comfort, and G3 is slightly leading. Press Show me, or raise the field yourself. E_A grows, its tip slides to the right, δ falls to 30°, and P_max rises from 30 to 40 megawatts: the margin doubles. On the way the tip crosses the dotted line at 6.40 A, where the power factor is unity; to the right of it G3 is lagging. More field buys margin, and it also changes the reactive power.',
   'Your turn. G3 must carry 18 megawatts with the torque angle at 28 degrees, inside the normal band. Rearrange the power equation for E_A, then turn E_A into a field current, then find the new peak. Notice the new P_max, 38 megawatts, is a stability limit, not a rating: G3 is a 25 MVA machine and would overheat long before it got there.',
-  'Everything in this lecture is on this card, with G3\'s values at the settings you left. The first four lines are the power flow of slide 1; here R_A and the rotational losses are ignored, as on every slide after the first, so P_in, P_conv and P_out are the same number. The next two are the phasor diagram. The last five are the power–angle curve: the power, its peak, the same two as torque, and where real machines run. Go back to slide 4 or the Lab, change the input power or the field, and return: the values follow.'];
-const LAB_START = { pm: 15, iF: 6 };       // Lab Reset
-/* Each slide: the stage view, the sidebar groups shown, and the preset applied on entry and by Reset (slides 5 and 6 keep the present settings). */
+  'Everything in this lecture is in these ten equations. The left column is the power flow, the field current that sets E_A, and where real machines run. The right column is the phasor diagram, its vertical read two ways, and the power–angle curve with its peak, as power and as torque. If one looks unfamiliar, go back to its slide: slide 2 for the power flow, slide 3 for the phasor diagram, slides 1, 4 and 5 for the curve and the limit.'];
+const LAB_START = { pm: 15, iF: 6 };       // Lab Reset; also the state behind slides 6 and 7, which show no live model
+/* Each slide: the stage view, the sidebar groups shown, the sidebar heading, and the preset applied on entry and by Reset. */
 const SL = {
-  1: { view: 'p1', grp: ['pm', 'field', 'loss'], preset: { pm: 20, iF: IF_START } },
-  2: { view: 'p2', grp: ['pm', 'fixed', 'show2'], preset: { pm: 10, iF: IF_START } },
-  3: { view: 'p3', grp: ['pm', 'field'], preset: { pm: 15, iF: IF_START } },
-  4: { view: 'p4', grp: ['pm', 'field', 'show4'], preset: { pm: 15, iF: IF_START } },
-  5: { view: 'p5', grp: ['none5'], preset: null },
-  6: { view: 'p6', grp: ['left6'], preset: null }
+  1: { view: 'p1', grp: ['predict'], head: 'Predict, then Show me', preset: { pm: DEMO1.pm, iF: DEMO1.iF } },
+  2: { view: 'p2', grp: ['pm', 'field', 'loss'], head: 'G3 controls', preset: { pm: 20, iF: IF_START } },
+  3: { view: 'p3', grp: ['still3'], head: 'No controls on this slide', preset: PROOF },
+  4: { view: 'p4', grp: ['pm', 'fixed'], head: 'G3 controls', preset: { pm: 15, iF: IF_START } },
+  5: { view: 'p5', grp: ['pfix', 'field', 'show5'], head: 'G3 controls', preset: { pm: P_FIX, iF: DEMO5.iF } },
+  6: { view: 'p6', grp: ['none6'], head: 'No controls on this slide', preset: LAB_START },
+  7: { view: 'p7', grp: [], head: 'No controls on this slide', preset: LAB_START }
 };
 /* Instruments on the stage for each view. */
-const VIEW = { p1: ['flow1', 'ro1'], p2: ['phA', 'phB', 'ro2'], p3: ['ph3', 'curve', 'deriv'], p4: ['banner', 'curve', 'rot', 'ro4'], p5: ['curve5', 'turn'], p6: ['eq', 'curve'],
+const VIEW = { p1: ['curve', 'ro1'], p2: ['flowL', 'ro2'], p3: ['proof', 'pfstep', 'ro3'], p4: ['arc', 'curve', 'deriv'], p5: ['field', 'ro5'], p6: ['curve6', 'turn'], p7: ['eq'],
                plab: ['flow', 'phasor', 'curve', 'dial', 'alarm', 'ro'] };
-const IT = { flow1: 'itFlow1', ro1: 'itRo1', phA: 'itPhA', phB: 'itPhB', ro2: 'itRo2', ph3: 'itPh3', deriv: 'itDeriv', banner: 'itBanner', rot: 'itRot', ro4: 'itRo4', curve5: 'itCurve5', turn: 'itTurn',
-             flow: 'itFlow', phasor: 'itPhasor', curve: 'itCurve', dial: 'itDial', alarm: 'itAlarm', ro: 'itRo', eq: 'itEq' };
+const IT = { curve: 'itCurve', ro1: 'itRo1', flowL: 'itFlowL', ro2: 'itRo2', proof: 'itProof', pfstep: 'itPfStep', ro3: 'itRo3', arc: 'itArc', deriv: 'itDeriv', field: 'itField', ro5: 'itRo5', curve6: 'itCurve6', turn: 'itTurn', eq: 'itEq',
+             flow: 'itFlow', phasor: 'itPhasor', dial: 'itDial', alarm: 'itAlarm', ro: 'itRo' };
 const SLIDES = document.querySelectorAll('.sl');
-/* Show the instruments and sidebar controls of the present slide (Lecture) or all of them (Lab). */
+/* Show the instruments and sidebar controls of the present slide (Lecture) or all of them (Lab). The status callout and the alarm
+   sound button belong to the Lab only. */
 function applyView() {
   const lec = S.mode === 'lec', v = lec ? SL[S.slide].view : 'plab', items = new Set(VIEW[v]);
   document.getElementById('stage').dataset.view = v; S.vis = items;
   for (const k in IT) document.getElementById(IT[k]).classList.toggle('on', items.has(k));
   const open = lec ? SL[S.slide].grp : ['pm', 'field'];
   document.querySelectorAll('.grp').forEach(g => g.classList.toggle('open', open.includes(g.dataset.g)));
-  put('sideH', lec && S.slide === 5 ? 'No controls on this slide' : lec && S.slide === 6 ? 'G3 settings now' : 'G3 controls');
-  document.getElementById('app').classList.toggle('lab', !lec);
+  put('sideH', lec ? SL[S.slide].head : 'G3 controls');
+  document.getElementById('app').classList.toggle('lab', !lec); document.documentElement.classList.toggle('lec', lec);
+  document.getElementById('soundBtn').hidden = lec; document.getElementById('callout').hidden = lec;
   document.getElementById('pager').hidden = !lec; document.getElementById('notesBox').hidden = !lec || !S.notes;
 }
-/* Enter slide n: show it, apply its preset, write its notes. reset = true also restarts slide 3's steps and slide 5's problem. */
+/* Enter slide n: show it, apply its preset, write its notes. A new slide or reset = true also restarts the steps of slides 3 and 4,
+   the slide-1 prediction and the slide-6 problem. */
 function goSlide(n, reset) {
   const prev = S.slide; S.slide = Math.max(1, Math.min(NSL, n)); S.demoId++; S.busy = false;   // cancels a running demo
   SLIDES.forEach(e => e.classList.toggle('on', +e.dataset.n === S.slide));
-  if (S.slide !== prev || reset) { S.step = 1; if (S.slide === 5) resetTurn(); }
-  S.cueMan = null; S.cueAuto = null; S.demoDone = false;
+  if (S.slide !== prev || reset) { S.step = 1; S.pstep = 1; S.pick = null; if (S.slide === 6) resetTurn(); }
+  S.cueMan = null; S.cueAuto = null;
   applyView();
-  setup(SL[S.slide].preset || { pm: S.pm, iF: S.iF });
+  setup(SL[S.slide].preset);
   put('slPos', S.slide + '/' + NSL); richText(document.getElementById('slNotes'), NOTES[S.slide - 1]);
   syncButtons(); readouts(true);
 }
 document.getElementById('slPrev').addEventListener('click', () => goSlide(S.slide - 1, false));
 document.getElementById('slNext').addEventListener('click', () => goSlide(S.slide + 1, false));
 document.getElementById('toS1').addEventListener('click', () => goSlide(1, false));
-document.getElementById('stepBack').addEventListener('click', () => { if (S.step > 1) { S.step--; if (S.step < NSTEP) setup(SL[3].preset); changed(); } });
+document.getElementById('stepBack').addEventListener('click', () => { if (S.step > 1) { S.step--; if (S.step < NSTEP) setup(SL[4].preset); changed(); } });
 document.getElementById('stepNext').addEventListener('click', () => { if (S.step < NSTEP) { S.step++; changed(); } });
+document.getElementById('pfBack').addEventListener('click', () => { if (S.pstep > 1) { S.pstep--; changed(); } });
+document.getElementById('pfNext').addEventListener('click', () => { if (S.pstep < NPROOF) { S.pstep++; changed(); } });
+document.querySelectorAll('button[data-pick]').forEach(b => b.addEventListener('click', () => { S.pick = b.dataset.pick; changed(); }));
 /* Show or hide the speaker notes under the main area. */
 function toggleNotes() { S.notes = !S.notes; applyView(); syncButtons(); readouts(true); }
 document.getElementById('slNbtn').addEventListener('click', toggleNotes);
@@ -1188,27 +1284,24 @@ addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goSlide(S.slide - 1, false); }
   else if (e.key === 'n' || e.key === 'N') toggleNotes();
 });
-/* Resolve when pred() is true (checked every 30 ms), or with false if the demo was cancelled or timed out. */
+/* Resolve true when pred() holds (checked every WAIT_MS), or false if the demo was cancelled or ms of running time passed
+   (time spent paused does not count). */
 function waitUntil(pred, id, ms) {
-  const t0 = performance.now();
-  return new Promise(res => { const tick = () => { if (S.demoId !== id) return res(false); if (pred()) return res(true); if (performance.now() - t0 > ms) return res(false); setTimeout(tick, 30); }; tick(); });
+  let left = ms;
+  return new Promise(res => { const tick = () => { if (S.demoId !== id) return res(false); if (pred()) return res(true); if (!S.paused) left -= WAIT_MS; if (left <= 0) return res(false); setTimeout(tick, WAIT_MS); }; tick(); });
 }
-/* Run a Show-me demo. 2: ramp the input power 0 → 28 MW; 4a: 15 → 34 MW past the limit; 4b: raise the field at 20 MW. */
+/* Run a Show-me demo. 1: ramp the input power 15 → 34 MW past the limit; 5: hold at 20 MW, then raise the field 6 → 8 A. */
 async function demo(key) {
   if (S.busy) return;
   const id = ++S.demoId; S.busy = true;
-  if (key === '2') {
-    setup({ pm: 0, iF: IF_START }); S.busy = true; S.ramp = { k: 'pm', to: DEMO2_TO, rate: RAMP_PM };
-    syncButtons(); await waitUntil(() => S.ramp === null, id, 30000);
-  } else if (key === '4a') {
-    setup({ pm: DEMO4A.pm, iF: DEMO4A.iF }); S.busy = true; S.ramp = { k: 'pm', to: DEMO4A.to, rate: RAMP_PM };
+  if (key === '1') {
+    setup({ pm: DEMO1.pm, iF: DEMO1.iF }); S.ramp = { k: 'pm', to: DEMO1.to, rate: RAMP_PM };
     syncButtons(); await waitUntil(() => S.run === 'trip', id, 40000);
   } else {
-    setup({ pm: DEMO4B.pm, iF: DEMO4B.iF }); S.busy = true; syncButtons();
-    const t0 = performance.now(); await waitUntil(() => performance.now() - t0 > DEMO_HOLD_MS, id, 5000);   // hold at 20 MW, δ ≈ 42°, before the field rises
-    if (S.demoId === id) { S.ramp = { k: 'iF', to: DEMO4B.to, rate: RAMP_IF }; await waitUntil(() => S.ramp === null, id, 30000); }
+    setup({ pm: DEMO5.pm, iF: DEMO5.iF }); await waitUntil(() => false, id, DEMO_HOLD_MS);   // hold at 20 MW, δ ≈ 42°, before the field rises
+    if (S.demoId === id) { S.ramp = { k: 'iF', to: DEMO5.to, rate: RAMP_IF }; await waitUntil(() => S.ramp === null, id, 30000); }
   }
-  if (S.demoId === id) { S.busy = false; S.demoDone = true; syncButtons(); readouts(true); }
+  if (S.demoId === id) { S.busy = false; syncButtons(); readouts(true); }
 }
 document.querySelectorAll('button[data-show]').forEach(b => b.addEventListener('click', () => demo(b.dataset.show)));
 /* Advance a running demo ramp by dt seconds. */
@@ -1220,55 +1313,73 @@ function stepRamp(dt) {
 }
 
 /* ═══ 13. WATCH CUES (Lecture only) ═══ */
-/* Each slide's Watch buttons: [cue key, label]. */
+/* Each slide's Watch buttons: [cue key, label]. Slide 3 is cued by its own stepper and slide 7 has nothing to point at. */
 const CUES = {
-  1: [['in', 'Input power'], ['loss', 'Losses'], ['out', 'Output to the bus']],
-  2: [['ang', 'δ and θ'], ['esin', 'E_A sin δ'], ['xcos', 'X_S I_A cos θ'], ['arc', 'E_A climbs the arc']],
-  3: [['vert', 'The amber vertical'], ['curve', 'The curve and its peak'], ['tq', 'The torque axis']],
-  4: [['line', 'Input power line'], ['pt', 'The crossing'], ['curve', 'The curve and P_max']],
-  5: [['target', 'The 18 MW line and δ = 28°'], ['turn', 'Your three answers'], ['new', 'The new curve']],
-  6: [['eq', 'The values now'], ['pt', 'The operating point']]
+  1: [['curve', 'The curve and P_max'], ['rate', 'The 25 MW rating'], ['line', 'Input power line'], ['pt', 'The operating point']],
+  2: [['in', 'Input power'], ['loss', 'Losses'], ['out', 'Output to the bus']],
+  3: [],
+  4: [['vert', 'The amber height'], ['curve', 'The curve and its peak'], ['tq', 'The torque axis']],
+  5: [['cp', 'The constant-P line'], ['unity', 'The unity-pf line'], ['ea', 'E_A and δ']],
+  6: [['target', 'The 18 MW line and δ = 28°'], ['turn', 'Your three answers'], ['new', 'The new curve']],
+  7: []
 };
-const CUE_MOVE_MW = 5;                    // MW the input power must move on slide 1 before the cue goes to the output
+const CUE_WIDEN = 1.6, CUE_DARK = 0.7;     // a cued line: stroke width × 1.6, and each colour channel × 0.7 (darker)
+const CUE_MOVE_MW = 5;                    // MW the input power must move on slide 2 before the cue goes to the output
 /* The elements each cue highlights. Read when needed, because the curve is rebuilt when its context changes. */
 const CUE_EL = {
-  in: () => kids(F1.gIn), loss: () => kids(F1.gLoss), out: () => kids(F1.gOut),
-  ang: () => [PA.arcD, PA.arcT0, PA.arcT1, PA.lD, PA.lT0, PA.lT1], esin: () => [PA.triB, PA.lVl], xcos: () => [PA.triG, PA.lVr], arc: () => [PB.arc, PB.E.l, PB.E.h, PB.bar],
-  ph3: () => [document.getElementById('itPh3')], vert: () => [P3.vert, P3.lB], curve: () => [CV.solid, CV.dash, CV.peak, CV.peakT], peak: () => [CV.peakLine, CV.peakT], tq: () => kids(CV.tq), band: () => [CV.band],
-  line: () => [CV.line, CV.lineT], pt: () => [CV.pt, CV.ptT],
-  target: () => kids(T5.gT), turn: () => [document.getElementById('itTurn')], new: () => kids(T5.done), eq: () => [document.getElementById('eqCard')]
+  curve: () => [CV.solid, CV.dash, CV.peak, CV.peakT], rate: () => kids(CV.rate), line: () => [CV.line, CV.lineT], pt: () => [CV.pt, CV.ptT], peak: () => [CV.peakLine, CV.peakT], tq: () => kids(CV.tq), band: () => [CV.band],
+  in: () => kids(LF.gIn), loss: () => kids(LF.gLoss), out: () => kids(LF.gOut),
+  s1: () => PF.s[0], s2: () => PF.s[1], s3: () => PF.s[2], s4: () => PF.s[3], s5: () => PF.s[4].concat(PF.arcT0, PF.lT0), s6: () => PF.s[5],
+  vert: () => [AR.bar, AR.lB, CV.bar], cp: () => [FD.cp, FD.cpT], unity: () => [FD.un, FD.unT, FD.lead, FD.lag], ea: () => [FD.E.l, FD.E.h, FD.arcD, FD.lD],
+  target: () => kids(T6.gT), turn: () => [document.getElementById('itTurn')], new: () => kids(T6.done)
 };
 let cueOn = [];
-/* The elements inside group g. */
-function kids(g) { return [...g.children]; }
-/* The cue the slide's present state calls for. */
+/* The elements inside group g (none before the group is first built). */
+function kids(g) { return g ? [...g.children] : []; }
+/* True when element e has something on screen now (a path with no outline, an empty label or a hidden mark has not). */
+function drawn(e) { return e.getAttribute('opacity') !== '0' && (e.tagName !== 'path' || !!e.getAttribute('d')) && (e.tagName !== 'text' || e.textContent !== ''); }
+/* The colour #rrggbb with each channel multiplied by CUE_DARK. */
+function darker(hex) { return '#' + [1, 3, 5].map(k => Math.round(parseInt(hex.slice(k, k + 2), 16) * CUE_DARK).toString(16).padStart(2, '0')).join(''); }
+/* Mark element e as cued or not. A line (a stroked path) is made wider and darker here and put back afterwards; shapes and text
+   are restyled by the class "cue". */
+function setCue(e, on) {
+  e.classList.toggle('cue', on);
+  if (e.tagName !== 'path' && e.tagName !== 'line') return;
+  if (on && !e.dataset.sw) { e.dataset.sw = e.getAttribute('stroke-width') || '1'; e.dataset.sc = e.getAttribute('stroke'); e.setAttribute('stroke-width', (e.dataset.sw * CUE_WIDEN).toFixed(2)); e.setAttribute('stroke', darker(e.dataset.sc)); }
+  else if (!on && e.dataset.sw) { e.setAttribute('stroke-width', e.dataset.sw); e.setAttribute('stroke', e.dataset.sc); delete e.dataset.sw; delete e.dataset.sc; }
+}
+/* The cue the slide's present state calls for (null: none). */
 function autoCue() {
   switch (S.slide) {
-    case 1: return !S.moved ? 'in' : Math.abs(S.pm - SL[1].preset.pm) >= CUE_MOVE_MW ? 'out' : 'loss';
-    case 2: return S.busy || S.demoDone ? 'arc' : S.moved ? 'esin' : 'ang';
-    case 3: return ['ph3', 'vert', 'curve', 'peak', 'tq', 'band'][S.step - 1];
-    case 4: return (S.ramp && S.ramp.k === 'iF') || Math.abs(S.iF - S.refIF) > EPS ? 'curve' : S.run !== 'ok' || !S.moved ? 'line' : 'pt';
-    case 5: return S.solved || S.shown ? 'new' : S.tried || FIELDS.some(([id]) => document.activeElement === document.getElementById(id)) ? 'turn' : 'target';
-    default: return 'eq';
+    case 1: return S.run === 'slip' ? 'pt' : S.busy ? 'line' : 'curve';
+    case 2: return !S.moved ? 'in' : Math.abs(S.pm - SL[2].preset.pm) >= CUE_MOVE_MW ? 'out' : 'loss';
+    case 3: return 's' + S.pstep;
+    case 4: return S.step === NSTEP && S.moved ? 'pt' : ['vert', 'vert', 'curve', 'peak', 'tq', 'band'][S.step - 1];
+    case 5: return !S.busy && Math.abs(S.iF - SL[5].preset.iF) < EPS ? 'cp' : Math.abs(S.iF - IF_UNITY) < UNITY_NEAR ? 'unity' : 'ea';
+    case 6: return S.solved || S.shown ? 'new' : S.tried || FIELDS.some(([id]) => document.activeElement === document.getElementById(id)) ? 'turn' : 'target';
+    default: return null;
   }
 }
-/* Write the "Watch" line under each slide's key point: one button per cue. */
+/* Write the "Watch" line under the key point of each slide that has cues: one button per cue. */
 function buildWatch() {
-  SLIDES.forEach(sl => { const p = document.createElement('p'); p.className = 'watch'; const b = document.createElement('b'); b.textContent = 'Watch'; p.appendChild(b);
-    CUES[+sl.dataset.n].forEach(([key, label]) => { const bt = document.createElement('button'); bt.dataset.cue = key; richText(bt, label);
+  SLIDES.forEach(sl => { const list = CUES[+sl.dataset.n]; if (!list.length) return;
+    const p = document.createElement('p'); p.className = 'watch'; const b = document.createElement('b'); b.textContent = 'Watch'; p.appendChild(b);
+    list.forEach(([key, label]) => { const bt = document.createElement('button'); bt.dataset.cue = key; richText(bt, label);
       bt.addEventListener('click', () => { S.cueMan = key; readouts(true); }); p.appendChild(bt); });
     sl.querySelector('.keyp').after(p); });
 }
-/* Highlight the elements of the present cue (class "cue" on the elements themselves) and mark it in the Watch line.
-   A cue the student clicked stays until the slide's state calls for a different one. */
+/* Highlight the elements of the present cue (setCue on the elements themselves) and mark it in the Watch line.
+   A cue the student clicked stays until the slide's state calls for a different one. A Watch button whose target is not
+   on screen yet (the curve before step 3, the new curve before the answer) is disabled. */
 function updateCues() {
   let els = [];
   if (S.mode === 'lec' && !document.getElementById('app').hidden) {
     const auto = autoCue(); if (auto !== S.cueAuto) { S.cueAuto = auto; S.cueMan = null; }
-    const key = S.cueMan || auto; els = CUE_EL[key]().filter(Boolean);
-    document.querySelectorAll('.sl.on .watch button').forEach(b => { if (b.dataset.cue === key) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
+    const key = S.cueMan || auto; els = key ? CUE_EL[key]().filter(Boolean) : [];
+    document.querySelectorAll('.sl.on .watch button').forEach(b => { if (b.dataset.cue === key) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+      b.disabled = !CUE_EL[b.dataset.cue]().filter(Boolean).some(drawn); });
   }
-  cueOn.forEach(e => { if (!els.includes(e)) e.classList.remove('cue'); }); els.forEach(e => e.classList.add('cue')); cueOn = els;
+  cueOn.forEach(e => { if (!els.includes(e)) setCue(e, false); }); els.forEach(e => setCue(e, true)); cueOn = els;
 }
 
 /* ═══ 14. WORKSHEET ═══ */
@@ -1300,7 +1411,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   try { localStorage.removeItem(SHEET_KEY); sheetMsg('Answers cleared.', false); } catch (e) { sheetMsg('Could not clear the stored copy in this browser.', true); }
 });
 document.getElementById('exportBtn').addEventListener('click', () => {
-  const lines = ['Static Stability Limit — ECE 3033 Lecture 2 v1.1.0', 'Name: ' + (SHEET.name || ''), 'Section: ' + (SHEET.section || ''), 'Date: ' + (SHEET.date || ''), ''];
+  const lines = ['Static Stability Limit — ECE 3033 Lecture 2 v1.2.0', 'Name: ' + (SHEET.name || ''), 'Section: ' + (SHEET.section || ''), 'Date: ' + (SHEET.date || ''), ''];
   document.querySelectorAll('#sheet [data-k]').forEach(e => { if (['name', 'section', 'date'].includes(e.dataset.k)) return;
     const lab = e.getAttribute('aria-label') || (e.closest('li') ? e.closest('li').firstChild.textContent.trim() : e.dataset.k);
     lines.push('[' + e.dataset.k + '] ' + lab, '  ' + (SHEET[e.dataset.k] || '(blank)')); });
@@ -1311,14 +1422,13 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 
 /* ═══ 15. LOOP ═══ */
 let tPrev = performance.now();
-/* One frame: advance demo ramps and δ, sound the alarm, then draw what is on screen; numbers 4 times a second. */
+/* One frame: advance demo ramps and δ, sound the Lab alarm, then draw what is on screen; numbers 4 times a second. */
 function frame(t) {
   const dt = S.paused ? 0 : Math.min(DT_MAX, (t - tPrev) / 1000); tPrev = t;
   if (dt > 0) { stepRamp(dt); stepAngle(dt); if (S.run === 'slip' && t - S.lastBeep > BEEP_EVERY_MS) { S.lastBeep = t; beep(BEEP_S); } }
-  if (S.vis.has('flow1')) drawFlow1();
-  if (S.vis.has('phA')) { drawPhA(); drawPhB(); }
-  if (S.vis.has('ph3')) drawPh3();
-  if (S.vis.has('rot')) { drawPh4(); drawLecBanner(); }
+  if (S.vis.has('flowL')) drawLecFlow();
+  if (S.vis.has('arc')) drawArc();
+  if (S.vis.has('field')) drawField();
   if (S.vis.has('curve')) drawCurve();
   if (S.vis.has('flow')) drawLabFlow();
   if (S.vis.has('phasor')) drawLabPhasor();
@@ -1327,11 +1437,13 @@ function frame(t) {
   readouts(false);
   requestAnimationFrame(frame);
 }
-/* Fill the static equations, build the slide-6 card (one row per equation, with a value cell), then the drawings. */
+/* Fill the static equations, the slide-7 card (ten equations, column by column) and the fixed values written from the constants, then build the drawings. */
 document.querySelectorAll('[data-eq]').forEach(b => putEq(b, b.dataset.eq));
-['pin', 'pconv', 'loss', 'pout', 'kvl', 'vert', 'p', 'pmax', 'tau', 'taumax', 'band'].forEach(k => { const row = document.createElement('div'); row.className = 'erow';
-  const e = document.createElement('div'); e.className = 'eq'; putEq(e, k); const v = document.createElement('div'); v.className = 'ev'; v.id = 'ev_' + k; row.appendChild(e); row.appendChild(v); document.getElementById('eqCard').appendChild(row); });
-buildFlow1(); buildPhA(); buildPhB(); buildPh3(); buildPh4(); buildCurve5(); buildLabFlow(); buildLabPhasor(); buildDial(); buildWatch(); loadSheet(); showPage('lec');
+['pin', 'pconv', 'pout', 'ea', 'band', 'kvl', 'vert', 'p', 'pmax', 'taumaxP'].forEach(k => { const e = document.createElement('div'); e.className = 'eq'; putEq(e, k); document.getElementById('eqCard').appendChild(e); });
+richText(document.getElementById('pfTitle'), 'G3 at ' + f(PROOF.pm, 1) + ' MW and I_F = ' + f(PROOF.iF, 2) + ' A: a still picture, drawn to scale');
+richText(document.getElementById('stillT'), 'One operating point: ' + f(PROOF.pm, 1) + ' MW at I_F = ' + f(PROOF.iF, 2) + ' A. Nothing moves here: use Next step under the diagram.');
+put('pfixO', f(P_FIX, 1) + ' MW (fixed)');
+buildLecFlow(); buildProof(); buildArc(); buildField(); buildCurve6(); buildLabFlow(); buildLabPhasor(); buildDial(); buildWatch(); loadSheet(); showPage('lec');
 requestAnimationFrame(frame);
 </script>
 </body>
