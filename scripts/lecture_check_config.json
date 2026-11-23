@@ -1,0 +1,16 @@
+{
+  "_comment": "Banned strings for scripts/lecture_check.py. 'global' applies to every lecture; 'courses' adds patterns per course folder (the folder the file sits in). Each rule: name, regex (Python), case (true = case-sensitive). 'allowed' lists phrases per course whose surrounding text exempts a hit. Ruling 2026-11-22 06:04: 'the governor on the prime mover' is allowed, so ece-3033 does not ban 'governor'.",
+  "global": [
+    {"name": "textbook author", "regex": "\\bChapman\\b"},
+    {"name": "textbook author", "regex": "\\bGuru\\b"},
+    {"name": "textbook author", "regex": "\\bHiziroglu\\b"},
+    {"name": "textbook reference", "regex": "\\btextbook\\b"},
+    {"name": "homework reference", "regex": "\\bhomework\\b"},
+    {"name": "homework abbreviation", "regex": "\\bHW\\b", "case": true},
+    {"name": "problem number", "regex": "\\bproblem\\s+\\d+(?:[-.]\\d+)*"}
+  ],
+  "courses": {
+    "ece-3033": []
+  },
+  "allowed": {}
+}
