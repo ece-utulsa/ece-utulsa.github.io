@@ -11,7 +11,11 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
-const VERSION = /^VERSION = '([^']+)'/m.exec(fs.readFileSync(path.join(__dirname, '..', 'build.py'), 'utf8'))[1];   // the version build.py writes (CQ-RFC-018)
+// the release fields build.py writes (CQ-RFC-018): version, date, and the changelog's versions, newest first
+const BUILD_PY = fs.readFileSync(path.join(__dirname, '..', 'build.py'), 'utf8');
+const VERSION = /^VERSION = '([^']+)'/m.exec(BUILD_PY)[1], RELEASED = /^RELEASED = '([^']+)'/m.exec(BUILD_PY)[1];
+const HISTORY = [...BUILD_PY.matchAll(/\\n {4}v(\d+\.\d+\.\d+) - /g)].map(m => 'v' + m[1]);
+const V = 'v' + VERSION, reEsc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v' + VERSION + '.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
@@ -143,23 +147,21 @@ const devGapIssues = page => page.evaluate(() => {
 
   console.log('Load');
   { const { ctx, page, log } = await open(browser);
-    check('version v1.8.1: header comment, Released, meta, title; changelog v1.8.1 on top, then v1.8.0 … v1.1.0 as history',
-      /Version: v1\.8\.1/.test(html) && /Released: 2026-11-20/.test(html) && /<meta name="version" content="v1\.8\.1">/.test(html) && /<title>RF Cascade Analyzer v1\.8\.1<\/title>/.test(html) && /v1\.8\.1 - Fix pass on the first gates/.test(html)
-      && /v1\.8\.0 - Cascade: the plot under the circuit is compact/.test(html) && /v1\.7\.2 - Cascade: the power divider drawn as a splitter/.test(html) && /v1\.7\.1 - Cascade: the circuit .* scales up with the window/.test(html) && /v1\.7\.0 - Cascade: v1\.1\.0's Lab brought back/.test(html)
-      && /v1\.6\.0 - Devices: drawn as the incident \/ reflected \/ transmitted flow diagram/.test(html) && /every device's S entries editable, keeping the device as "<Device> \(edited\)" with a reset\./.test(html)
-      && ['v1.8.1', 'v1.8.0', 'v1.7.2', 'v1.7.1', 'v1.7.0', 'v1.6.0', 'v1.5.0', 'v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
-      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[012]|8\.0)\b|content="v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[012]|8\.0)"/.test(html));
-    check('footer: v1.8.1 · released 2026-11-20 · Author: Claude Code', (await text(page, 'footer')).includes('v1.8.1 · released 2026-11-20 · Author: Claude Code'));
-    const stamp = async () => page.evaluate(() => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
+    check('version ' + V + ' (from build.py): header comment, Released, meta, title; changelog ' + V + ' on top, then the history in order',
+      new RegExp('Version: ' + reEsc(V) + '\\b').test(html) && html.includes('Released: ' + RELEASED) && html.includes('<meta name="version" content="' + V + '">') && html.includes('<title>RF Cascade Analyzer ' + V + '</title>')
+      && HISTORY[0] === V && HISTORY.length > 1 && HISTORY.every((v, n, a) => n === 0 || (html.indexOf(a[n - 1] + ' - ') >= 0 && html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - ')))
+      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && (html.match(/RF Cascade Analyzer v\d+\.\d+\.\d+/g) || []).every(t => t.endsWith(V)) && (html.match(/content="v\d+\.\d+\.\d+"/g) || []).every(t => t === 'content="' + V + '"'), HISTORY);
+    check('footer: ' + V + ' · released ' + RELEASED + ' · Author: Claude Code', (await text(page, 'footer')).includes(V + ' · released ' + RELEASED + ' · Author: Claude Code'));
+    const stamp = async () => page.evaluate(V => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
       const btns = [...document.querySelectorAll('#top button')].filter(b => b.getBoundingClientRect().width), last = btns[btns.length - 1].getBoundingClientRect(), top = document.getElementById('top').getBoundingClientRect();
       return { text: v.textContent, fs: parseFloat(cs.fontSize), mut: cs.color === getComputedStyle(document.querySelector('.note') || document.body).color || cs.color !== getComputedStyle(document.body).color,
-        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.8.1'),
-        oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; });
+        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes(V),
+        oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; }, V);
     let st = await stamp();
-    check('stamp "v1.8.1" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.8.1' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
+    check('stamp "' + V + '" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === V && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
     const wBtn = await page.evaluate(() => [...document.querySelectorAll('#top button')].map(b => Math.round(b.getBoundingClientRect().width)).join(','));
     await present(page); st = await stamp();
-    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.8.1"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
+    check('presentation (light): stamp visible right of Present; body.innerText contains "' + V + '"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
     await page.keyboard.press('t'); await page.waitForTimeout(60); st = await stamp();
     check('presentation (dark): stamp still visible', st.shown && st.body && await page.evaluate(() => !document.body.classList.contains('light')));
     await page.keyboard.press('t'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
@@ -318,8 +320,8 @@ const devGapIssues = page => page.evaluate(() => {
       const got = await page.getAttribute('#numRow', 'data-text'), braces = await page.evaluate(() => document.getElementById('vV1m').textContent === document.getElementById('n_b1').textContent && document.getElementById('vV2m').textContent === document.getElementById('n_b2').textContent);
       check('B.4 ' + d + ' ' + dr + ': row 2 ' + want + '; the braces show b1, b2', got === want && braces, got); }
     await goto(page, '#view=devices&device=custom&drive=fwd');
-    check('labels: V1⁺, b1, V2⁺, b2 on the diagram (b: the normalized outgoing waves, PPR-RFC-008); Port 1, Port 2 under the DUT stubs; the DUT box shows the device name', JSON.stringify(await Promise.all(['#nV1p', '#nV1m', '#nV2p', '#nV2m', '#dutName'].map(x => text(page, x))))
-      === JSON.stringify(['V1⁺', 'b1 =', 'V2⁺', 'b2 =', 'Custom']) && JSON.stringify(await page.$$eval('#stage .port', e => e.map(x => x.textContent))) === '["Port 1","Port 2"]');
+    check('labels: a1, b1, a2, b2 on the diagram (one wave notation, PPR-RFC-008, -014); Port 1, Port 2 under the DUT stubs; the DUT box shows the device name', JSON.stringify(await Promise.all(['#nV1p', '#nV1m', '#nV2p', '#nV2m', '#dutName'].map(x => text(page, x))))
+      === JSON.stringify(['a1', 'b1 =', 'a2', 'b2 =', 'Custom']) && JSON.stringify(await page.$$eval('#stage .port', e => e.map(x => x.textContent))) === '["Port 1","Port 2"]');
     check('matrix entries in the S colours; badges unchanged (Custom: R ✓ S ✗ L ✗ P ✓)', await page.evaluate(() => ['s11', 's21', 's12', 's22'].every(k => document.getElementById('n_' + k).getAttribute('fill') === 'var(--' + k + ')'))
       && (await page.evaluate(() => [...document.querySelectorAll('#stage .badge')].map(b => b.getAttribute('data-on')).join(''))) === '1001');
     check('panel: power out ÷ in = |b2|²/|a1|² = 36 %; the device title "Custom"; caption about normalized waves', (await text(page, '#roPower')) === '36 %' && (await page.evaluate(() => document.getElementById('roPower').previousSibling.textContent)) === 'power out ÷ in = |b2|²/|a1|²');
@@ -666,8 +668,8 @@ const devGapIssues = page => page.evaluate(() => {
       && !((await text(page, '#specM3')) || '').includes('∞'), [c.slice(0, 300), await text(page, '#specM3')]);
     // PPR-RFC-005: mismatch loss
     await click(page, '#cReset'); await click(page, '#stage [data-src]'); await setInput(page, '#zs', '25'); c = await cres();
-    check('PPR-RFC-005: Zs = 25 Ω: P_in 4.4444 mW, P_avs 5.0000 mW, mismatch loss 555.5556 µW (11.1% of P_avs); reflected wave named (re Z0)',
-      c.includes('4.4444 mW') && c.includes('5.0000 mW') && /mismatch loss P_avs − P_in\s+555\.5556 µW \(−2\.55 dBm\), 11\.1% of P_avs/.test(c) && c.includes('reflected wave ½|b₁|² (re Z0)'), c.slice(0, 600));
+    check('PPR-RFC-005, -015: Zs = 25 Ω: P_in 4.4444 mW, P_avs 5.0000 mW, not accepted P_avs − P_in 555.5556 µW (11.1% of P_avs), named as a power; reflected wave named (re Z0)',
+      c.includes('4.4444 mW') && c.includes('5.0000 mW') && /not accepted, P_avs − P_in\s+555\.5556 µW \(−2\.55 dBm\), 11\.1% of P_avs/.test(c) && !/mismatch loss/.test(c) && c.includes('reflected wave ½|b₁|² (re Z0)'), c.slice(0, 600));
     // CQ-RFC-014 / DEFECT-RFC-005: P_avs undefined for a lossless source
     await setInput(page, '#zs', '0+j50'); c = await cres();
     check('DEFECT-RFC-005: Zs = j50: P_avs "undefined: |Γs| = 1 (lossless source)", no −∞ dBm', /undefined: \|Γs\| = 1 \(lossless source\), no finite available power/.test(c) && !c.includes('−∞ dBm'), c.slice(0, 500));
@@ -697,6 +699,90 @@ const devGapIssues = page => page.evaluate(() => {
       await page.evaluate(() => !document.getElementById('panel').hasAttribute('aria-live') && document.getElementById('main').getAttribute('role') === 'tabpanel'
         && document.getElementById('main').getAttribute('aria-labelledby') === 'tab_cascade' && document.querySelector('#stage svg').getAttribute('role') === 'group'));
     check('v1.8.1 section: no console errors, no network', log.console.length === 0 && log.requests.every(u => u.startsWith('file:')), log);
+    await ctx.close(); }
+
+  console.log('v1.8.2 fixes (developer checks of the briefed items)');
+  { const { ctx, page, log } = await open(browser);
+    const err = id => page.evaluate(id => { const e = document.getElementById(id + 'Err'); return e ? e.textContent : null; }, id);
+    const cres = () => page.evaluate(() => document.getElementById('cres').innerText);
+    // no "NaN" anywhere on the page: panel text or any attribute of the drawing
+    const nanCount = () => page.evaluate(() => (document.body.innerText.match(/NaN/g) || []).length
+      + [...document.querySelectorAll('#stage *')].filter(e => [...e.attributes].some(a => /NaN/.test(a.value))).length);
+    const reset = async () => { await goto(page, '#view=cascade'); await click(page, '#cReset'); };
+    const toCustom = async i => { await click(page, '#stage [data-blk="main:' + i + '"]'); await page.selectOption('#kType', 'custom'); await page.waitForTimeout(60); };
+    // DEFECT-RFC-012 / -016 (J5 A rule 1): Z = −Z0 at the load, a branch load or the source is refused, naming the model limit
+    await reset(); await click(page, '#stage [data-load="L"]'); await setInput(page, '#zl', '-50');
+    let m = await err('zl');
+    check('DEFECT-RFC-012: Z_L = −50 (Z0 50) refused: Γ_L infinite, the Z0 wave model cannot represent it, try another Z0; no "steady state" claim; no NaN',
+      /^Refused: Z_L = −Z0 makes Γ_L infinite, which the wave model referenced to Z0 cannot represent \(try another Z0\); keeping/.test(m) && !/steady state/.test(m) && (await nanCount()) === 0, m);
+    await reset(); await click(page, '#stage [data-src]'); await setInput(page, '#z0', '75'); await setInput(page, '#zs', '-75'); m = await err('zs');
+    check('DEFECT-RFC-016: Z_s = −75 (Z0 75) refused naming Γs infinite (not "not a complex impedance")', /^Refused: Z_s = −Z0 makes Γs infinite/.test(m) && !/not a complex/.test(m), m);
+    await setInput(page, '#zs', '-50'); check('Z_s = −50 with Z0 = 75 is accepted (not a pole of the Z0 frame)', (await err('zs')) === '' && (await nanCount()) === 0);
+    await setInput(page, '#z0', '50'); m = await err('z0');
+    check('DEFECT-RFC-012: Z0 = 50 refused while Z_s = −50 (the reflection would be infinite), cause named', /^Refused: this Z0 equals −Z_s/.test(m), m);
+    await reset(); await page.click('#stage [data-add="main:3"]'); await page.waitForTimeout(60); await click(page, '#add_div');
+    for(const b of ['A', 'B']){ await click(page, '#stage [data-load="' + b + '"]'); await setInput(page, '#zl', '-50');
+      check('DEFECT-RFC-012: divider Load ' + b + ' = −50 refused (Γ_L' + b + ' infinite)', new RegExp('^Refused: Z_L' + b + ' = −Z0 makes Γ_L' + b + ' infinite').test(await err('zl')), await err('zl')); }
+    // DEFECT-RFC-012 (J5 A rule 2): physical loop poles are accepted and stated in words; readouts "undefined"; no NaN
+    await reset(); await toCustom(0); await setInput(page, '#ks11', '1.2'); await setInput(page, '#ks21', '1'); await click(page, '#stage [data-src]'); await setInput(page, '#zs', '550');
+    let c = await cres();
+    check('DEFECT-RFC-012: Γs·S11 = 1 (S11 1.2, Z_s 550 Ω): "No finite steady state at the input …", powers, V, I and G_T undefined, no G_T sign text, no NaN',
+      /^No finite steady state at the input, between the source and the circuit: the reflections there reinforce without limit \(Γ·Γ′ = 1\)\. The voltages, currents and powers are undefined\./m.test(c)
+      && /P\s*in into the circuit\s+undefined/.test(c) && /transducer gain\s+undefined/.test(c) && !/G_T < 0/.test(c) && !/^Active circuit/m.test(c) && (await nanCount()) === 0, c.slice(0, 700));
+    await reset(); await toCustom(2); await setInput(page, '#ks22', '1.5'); await click(page, '#stage [data-load="L"]'); await setInput(page, '#zl', '250');
+    c = await cres();
+    check('DEFECT-RFC-012: S22·Γ_L = 1 (S22 1.5, Z_L 250 Ω): "No finite steady state at the load", no NaN (panel, both plots)',
+      /^No finite steady state at the load:/m.test(c) && (await nanCount()) === 0 && (await click(page, '#seg_band'), (await nanCount()) === 0)
+      && (await page.$$eval('#stage .legend', e => e.map(x => x.textContent))).every(t => t.endsWith('(no steady state: not drawn)')), c.slice(0, 300));
+    await setInput(page, '#zl', '249.99'); c = await cres();
+    check('near the pole (Z_L 249.99 Ω): finite values, no pole statement', !/No finite steady state/.test(c) && !/undefined/.test(c.split('Load')[1] || 'undefined') && (await nanCount()) === 0, c.slice(0, 300));
+    // DEFECT-RFC-013: named upper limits
+    await reset(); await click(page, '#stage [data-src]');
+    for(const [id, v, re] of [['vsMag', '1e308', /^Refused: above 1000 V peak/], ['zs', '1e300', /^Refused: \|Z_s\| above 1 MΩ/], ['zs', '1e7+j1', /^Refused: \|Z_s\| above 1 MΩ/]]){
+      await setInput(page, '#' + id, v); check('DEFECT-RFC-013: ' + id + ' = ' + v + ' refused with the limit named', re.test(await err(id)) && (await nanCount()) === 0, await err(id)); await setInput(page, '#' + id, id === 'zs' ? '50' : '1'); }
+    await setInput(page, '#vsMag', '1000'); check('V_s = 1000 V (the limit) accepted, no NaN', (await err('vsMag')) === '' && (await nanCount()) === 0);
+    await click(page, '#stage [data-load="L"]'); await setInput(page, '#zl', '1e308'); check('DEFECT-RFC-013: Z_L = 1e308 refused, "type open" named', /^Refused: \|Z_L\| above 1 MΩ .*type open/.test(await err('zl')), await err('zl'));
+    await setInput(page, '#zl', 'open'); check('Z_L "open" still accepted', (await err('zl')) === '');
+    await reset(); await toCustom(0);
+    for(const k of ['ks11', 'ks12', 'ks21', 'ks22']){ await setInput(page, '#' + k, '1e308'); check('DEFECT-RFC-013: ' + k + ' = 1e308 refused (|S| above 1000)', /^Refused: \|S\| above 1000 \(60 dB/.test(await err(k)) && (await nanCount()) === 0, await err(k)); }
+    await reset(); await click(page, '#stage [data-blk="main:0"]'); await setInput(page, '#kp_G', '60'); await setInput(page, '#ks11', '0');
+    check('an Amplifier at 60 dB edited into Custom keeps |S21| = 1000 (inside the S limit)', (await err('ks11')) === '' && (await page.inputValue('#ks21')).startsWith('1000'), await page.inputValue('#ks21'));
+    // DEFECT-RFC-014: a band too narrow to sweep is refused; no NaN attribute, no console error
+    await reset(); await click(page, '#seg_cs');
+    for(const v of ['1e-17', '1e-300', '5e-324']){ await setInput(page, '#bandW', v);
+      check('DEFECT-RFC-014: span ' + v + ' GHz refused, the minimum named; keeping 1', /^Refused: a band this narrow cannot be resolved: the span must be at least one part in 10⁹ of the centre \(1e−9 GHz here\); keeping 1$/.test(await err('bandW')) && (await nanCount()) === 0, await err('bandW')); }
+    await setInput(page, '#bandW', '1e-6'); check('span 1e-6 GHz (1 kHz) accepted; no NaN', (await err('bandW')) === '' && (await nanCount()) === 0);
+    await click(page, '#seg_ss'); await setInput(page, '#bandE', '2'); await setInput(page, '#bandS', '1.9999999999999');
+    check('DEFECT-RFC-014: Start one ulp-ish below Stop refused as unresolvable', /cannot be resolved/.test(await err('bandS')), await err('bandS'));
+    // CQ-RFC-020 / DEFECT-RFC-015: band refusals name the value in use
+    await reset(); await click(page, '#seg_cs'); await setInput(page, '#bandW', '0.2'); await setInput(page, '#bandW', '50');
+    check('CQ-RFC-020: Span 0.2 accepted then 50 refused "keeping 0.2"', /; keeping 0\.2$/.test(await err('bandW')), await err('bandW'));
+    await setInput(page, '#bandC', '1.2'); await setInput(page, '#bandC', '');
+    check('CQ-RFC-020: Centre 1.2 then empty refused "keeping 1.2"', /; keeping 1\.2$/.test(await err('bandC')), await err('bandC'));
+    await reset(); await click(page, '#seg_ss'); await setInput(page, '#bandS', '0.8'); await setInput(page, '#bandS', '5');
+    check('CQ-RFC-020: Start 0.8 then 5 refused "keeping 0.8"', /; keeping 0\.8$/.test(await err('bandS')), await err('bandS'));
+    await setInput(page, '#bandE', '1.7'); await setInput(page, '#bandE', '');
+    check('CQ-RFC-020: Stop 1.7 then empty refused "keeping 1.7"', /; keeping 1\.7$/.test(await err('bandE')), await err('bandE'));
+    await click(page, '#seg_cs');
+    // PPR-RFC-013: G_T undefined with P_avs; the incident-power ratio under its own name
+    for(const zs of ['0', '0+j50', '-25']){ await reset(); await click(page, '#stage [data-src]'); await setInput(page, '#zs', zs); c = await cres();
+      check('PPR-RFC-013: Z_s = ' + zs + ': "G_T transducer gain undefined: P_avs is undefined, |Γs| …"; P_L / P⁺ (to the incident power) shown with a number; footnote names it',
+        /transducer gain\s+undefined: P_avs is undefined, \|Γs\| [=>] 1/.test(c) && /P\s*L\s*\/ P⁺ \(to the incident power\)\s+\d/.test(c)
+        && (await page.evaluate(() => document.getElementById('panel').innerText)).includes('G_T is undefined (P_avs is undefined); the plots\' ratios are of the incident power P⁺.'), c.slice(0, 900)); }
+    await reset(); await page.click('#stage [data-add="main:1"]'); await page.waitForTimeout(60); await click(page, '#add_div'); await click(page, '#stage [data-src]'); await setInput(page, '#zs', '0'); c = await cres();
+    check('PPR-RFC-013: divider, Z_s = 0: "(P_LA / P_avs)" and "(P_LB / P_avs)" read undefined, never a number', /\(P_LA \/ P_avs\)\s+undefined/.test(c) && /\(P_LB \/ P_avs\)\s+undefined/.test(c), c.slice(0, 1200));
+    // PPR-RFC-016: the band-plot legend names the reflected wave as Results does
+    await reset(); await click(page, '#seg_band');
+    check('PPR-RFC-016: band-plot legend "reflected wave (re Z0)"', (await page.$$eval('#stage .legend', e => e.map(x => x.textContent))).includes('reflected wave (re Z0)'));
+    await click(page, '#seg_chain');
+    check('v1.8.2 section: no console errors, no network', log.console.length === 0 && log.requests.every(u => u.startsWith('file:')), log);
+    await ctx.close(); }
+  // VIS-RFC-009: at 1024×768 windowed nothing in the top bar is clipped; help and the version stamp are on screen
+  { const { ctx, page } = await open(browser, { viewport: { width: 1024, height: 768 } });
+    for(const hs of ['#view=reflections&vr=0', '#view=devices&device=through&drive=fwd', '#view=cascade']){ await goto(page, hs);
+      const t = await page.evaluate(() => { const top = document.getElementById('top'), r = id => document.getElementById(id).getBoundingClientRect();
+        return { sw: top.scrollWidth, cw: top.clientWidth, help: r('helpBtn').right, ver: r('verStamp').right, verW: r('verStamp').width, w: window.innerWidth }; });
+      check('VIS-RFC-009: 1024×768 ' + hs + ': top bar not overflowing; "?" and the version stamp inside the window', t.sw <= t.cw && t.help <= t.w && t.ver <= t.w && t.verW > 0, t); }
     await ctx.close(); }
   // CQ-RFC-006: one redraw per interaction (view changes, presentation)
   { const { ctx, page } = await open(browser, { viewport: { width: 1280, height: 720 } });

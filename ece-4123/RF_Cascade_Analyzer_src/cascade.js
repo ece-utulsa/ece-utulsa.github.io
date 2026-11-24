@@ -3,12 +3,16 @@
    be inserted at any junction of the chain: it splits the chain into two parallel branches, A and B, each with its own
    blocks and its own load. A frequency band (centre ± span, or start to stop) is sent through the circuit: the drawing
    shows the band's power spectrum at every junction (a "block" of frequencies being shaped as it passes each device)
-   and the response across the band, with a marker frequency whose values the panel reads out. The engine's solvers are
-   used unchanged; the frequency-dependent device models are here.
+   and the response across the band, with a marker frequency whose values the panel reads out. The engine's solvers
+   (E5–E14) solve the circuit; the frequency-dependent device models are here.
    v1.8.1: a power ≤ 0 is never given a dB value (stated in words with its direction; an active circuit is named once,
-   PPR-RFC-001); the input account closes (mismatch loss P_avs − P_in, PPR-RFC-005); every % names its basis; the marker
+   PPR-RFC-001); the input account closes (P_avs − P_in, PPR-RFC-005); every % names its basis; the marker
    box follows the current band and names the cause of a refusal; the drawing is built as nodes; the band sweep is cached
-   until the circuit or the band changes; traces beyond a plot's axis are drawn dotted on its edge (clipped). */
+   until the circuit or the band changes; traces beyond a plot's axis are drawn dotted on its edge (clipped).
+   v1.8.2: no NaN on screen: Z = −Z0 at the source or a load is refused (the wave model cannot represent it), a loop
+   whose reflections reinforce without limit is stated in words with its values undefined, typed magnitudes and the
+   band's width have named limits (DEFECT-RFC-012..014); G_T is undefined with P_avs (PPR-RFC-013); the power not
+   accepted is named as a power (PPR-RFC-015); refusals name the value in use (CQ-RFC-020); named dash patterns. */
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — presets and their parameters, divider names, limits, example circuit, layout, symbol geometry
@@ -101,6 +105,15 @@ const SYM = { boxW: 1.2, rx: 2, sw: 2, ampL: 0.85, ampR: 0.95, attL: 0.8, attSte
 const SCALE_MAX = 2;               // the circuit grows up to 2× when the drawing area has room for it
 const PLOT_H = [200, 320, 0.34];   // the plot under the circuit: 34 % of the drawing's height, kept between 200 and 320 units
 const REF_NONE = 1;                // ratio reference (W) when the source delivers no power at all (every ratio is then 0)
+const REFL_NAME = 'reflected wave (re Z0)';   // the input's reflected wave ½|b₁|², one name in Results and the band plot (PPR-RFC-016)
+const NOT_ACCEPTED = 'not accepted, P_avs − P_in';   // the power the source could deliver but the circuit does not accept (PPR-RFC-015)
+const UNDEF_TEXT = 'undefined';
+const REFUSED = 'refused';         // key of a parse result that refuses a well-formed entry, with the cause (see tfield)
+const Z_MAX_TEXT = '1 MΩ';         // Z_MAX in words   // a readout with no finite value (no finite steady state, or P_avs undefined)
+const BAND_REL_MIN = 1e-9, BAND_REL_TEXT = 'one part in 10⁹';   // narrowest band, as a fraction of its centre: a narrower one cannot be swept at NPTS distinct frequencies (DEFECT-RFC-014)
+// stroke-dasharray patterns (CQ-RFC-019): a spectrum's leader to the wire, the marker line in a spectrum, series B in the
+// response plot and its legend swatch, branch B in the chain plot and its legend swatch, the chain plot's stage gridlines
+const DASH_C = { leader: '3 4', miniMark: '4 3', seriesB: '9 6', seriesBLeg: '6 4', branchB: '2 5', branchBLeg: '2 4', grid: '2 4' };
 const STATE_KEYS = ['vsMag', 'vsAng', 'zs', 'z0', 'main', 'A', 'B', 'div', 'zl', 'zlA', 'zlB', 'f1', 'f2', 'f0'];   // what the sweep depends on
 /* The circuit's layout at scale k (vertical: sizes and positions) and kh (horizontal sizes: source, load, divider, blocks;
    kept at 1 while the drawing is only 900 wide). The edge clearance and the "+" buttons do not scale. */
@@ -141,8 +154,8 @@ const loadKey = b => (b === 'A' ? 'zlA' : b === 'B' ? 'zlB' : 'zl');
 // ── FORMATTING ────────────────────────────────────────────────
 // An angle (degrees) in the current unit, as text.
 const angText = deg => (K.unit === 'rad' ? fx(deg / DEG, DEC_RAD) + ' rad' : fx(wrapDeg(deg), DEC_ANG) + '°');
-// Magnitude∠angle in the current unit.
-const polarU = (c, unit) => fmtMag(cabs(c)) + ANGLE_SIGN + angText(cabs(c) <= EPS_ZERO ? 0 : carg(c) * DEG) + (unit ? ' ' + unit : '');
+// Magnitude∠angle in the current unit; "undefined" for a value with no finite steady state (DEFECT-RFC-012).
+const polarU = (c, unit) => (!cfinite(c) ? UNDEF_TEXT : fmtMag(cabs(c)) + ANGLE_SIGN + angText(cabs(c) <= EPS_ZERO ? 0 : carg(c) * DEG) + (unit ? ' ' + unit : ''));
 // A number as field text with the true minus sign (the parser reads it back).
 const fieldNum = v => String(v).replace('-', MINUS);
 /* Field text for a complex value as magnitude∠angle in the current unit (S entries): the angle in (−180°, 180°], so
@@ -174,13 +187,13 @@ const dbm = P => fx(DB_POWER * Math.log10(P / MW), DEC_DBM) + ' dBm';
 /* A net power with its dBm, never giving a power ≤ 0 a dB value (PPR-RFC-001): zero is "0 W (no power)"; a negative
    power is written as its size with the direction it flows in words (out: e.g. "flows out of the load"). */
 function fmtPow(P, out){
-  if(!isFinite(P)) return 'undefined';
+  if(!isFinite(P)) return UNDEF_TEXT;
   if(P > 0) return fmtW(P) + ' (' + dbm(P) + ')';
   if(P === 0) return '0 W (no power)';
   return fmtW(-P) + ' ' + (out || 'flows back toward the source') + ' (P < 0: no dB value)';
 }
-// A power ratio in dB as label text ("+6.1 dB", "−3.0 dB", "−∞ dB" for zero), or the words for a ratio ≤ 0.
-const ratioText = r => { const d = dbPow(r); return d === null ? 'P < 0 (no dB)' : fmtDbVal(d, { plus: true }); };
+// A power ratio in dB as label text ("+6.1 dB", "−3.0 dB", "−∞ dB" for zero), or the words for a ratio ≤ 0 or undefined.
+const ratioText = r => { if(Number.isNaN(r)) return UNDEF_TEXT; const d = dbPow(r); return d === null ? 'P < 0 (no dB)' : fmtDbVal(d, { plus: true }); };
 // A frequency in the band's unit: short (3 significant figures, block labels and axis) and full (3 decimals, marker).
 const fText = f => +(f / FU[K.fu]).toPrecision(F_SIG) + ' ' + K.fu;
 // A frequency as full text (3 decimals).
@@ -196,7 +209,7 @@ function keyText(d){
     case 'phase': return fx(-p.ph, 0) + '°';
     case 'lpf': case 'hpf': case 'bpf': return fText(p.fc);
   }
-  const m = cabs(d.S.s21); return m < S_ZERO ? MINUS + INF + ' dB' : dbText(dbOf(m));
+  const m = cabs(d.S.s21); return dbText(m < S_ZERO ? -Infinity : dbOf(m));   // −∞ dB written by fmtDbVal (CQ-RFC-021)
 }
 // A block's name for the panel and screen readers: "Block 2" or "Branch A, block 1".
 const blockName = (k, i) => (k === 'main' ? 'Block ' + (i + 1) : 'Branch ' + k + ', block ' + (i + 1));
@@ -232,24 +245,56 @@ function divWaves(S, GA, GB){
 // The divider's split into branch A (%): fixed at 50 for the equal-split types.
 const splitOf = () => (DIV_EQUAL_ONLY[K.div.type] ? EQUAL_SPLIT : K.div.split);
 /* The circuit solved at f: source, input, the chain's interfaces (nodesM) and, with a divider, the power into it, the
-   branches' interfaces (nodesA, nodesB) and the divider's dissipation. Peak phasors (E5, E12). */
+   branches' interfaces (nodesA, nodesB) and the divider's dissipation. Peak phasors (E5, E12). pole: null, or the
+   interface where the reflections reinforce without limit ({ chain: 'M' | 'A' | 'B', node }); the waves, voltages,
+   currents and powers are then undefined, stated in words in Results (DEFECT-RFC-012). */
 function solveAt(f){
   // the S of each block of a list at f
   const Ss = l => l.map(d => devS(d, f)), Vs = polar(K.vsMag, K.vsAng), src = source(Vs, K.zs, K.z0), m = Ss(K.main);
-  if(!K.div){ const r = solveCascade(m, Vs, K.zs, K.zl, K.z0); return Object.assign(r, { nodesM: r.nodes }); }
+  if(!K.div){ const r = solveCascade(m, Vs, K.zs, K.zl, K.z0); return finiteCheck(Object.assign(r, { nodesM: r.nodes })); }
   const A = Ss(K.A), B = Ss(K.B), GLA = gammaLoad(K.zlA, K.z0), GLB = gammaLoad(K.zlB, K.z0), setA = branchSetup(A, GLA), setB = branchSetup(B, GLB);
-  const w = divWaves(dividerS(K.div.type, splitOf() / PCT), setA.Gin, setB.Gin);
-  const setM = branchSetup(m, w.b1), a1 = cdiv(src.bs, csub(ONE, cmul(src.Gs, setM.Gin)));
+  const pA = chainPole(A, setA), pB = chainPole(B, setB);
+  let pole = pA >= 0 ? { chain: 'A', node: pA } : pB >= 0 ? { chain: 'B', node: pB } : null;
+  const w = pole ? null : divWaves(dividerS(K.div.type, splitOf() / PCT), setA.Gin, setB.Gin);
+  const setM = branchSetup(m, w ? w.b1 : UNDEF_C), pM = w ? chainPole(m, setM) : -1;
+  if(!pole && pM >= 0) pole = { chain: 'M', node: pM };
+  if(!pole && loopPole(src.Gs, setM.Gin)) pole = { chain: 'M', node: 'src' };
+  const Gin = pole && pole.node !== 'src' ? UNDEF_C : setM.Gin, base = { Gs: src.Gs, Pavs: src.Pavs, Gin, Zin: cfinite(Gin) ? zFromGamma(Gin, K.z0) : UNDEF_C, GLA, GLB };
+  if(pole) return Object.assign(base, { nodesM: undefNodes(m.length + 1), nodesA: undefNodes(A.length + 1), nodesB: undefNodes(B.length + 1), singular: false, pole,
+    Pin: NaN, reflIn: NaN, PD: NaN, PA: NaN, PB: NaN, Pdiss: NaN });
+  const a1 = cdiv(src.bs, csub(ONE, cmul(src.Gs, setM.Gin)));
   const nodesM = propagate(m, setM, a1, K.z0), aD = nodesM[m.length].a;
   const nodesA = propagate(A, setA, cmul(aD, w.b2), K.z0), nodesB = propagate(B, setB, cmul(aD, w.b3), K.z0);
   const PD = nodesM[m.length].P, PA = nodesA[0].P, PB = nodesB[0].P;
-  return { Gs: src.Gs, Pavs: src.Pavs, Gin: setM.Gin, Zin: zFromGamma(setM.Gin, K.z0), nodesM, nodesA, nodesB, GLA, GLB, singular: w.singular,
-           Pin: nodesM[0].P, reflIn: PEAK * cabs(nodesM[0].b) ** 2, PD, PA, PB, Pdiss: PD - PA - PB };
+  return finiteCheck(Object.assign(base, { nodesM, nodesA, nodesB, singular: w.singular, pole: null,
+           Pin: nodesM[0].P, reflIn: PEAK * cabs(nodesM[0].b) ** 2, PD, PA, PB, Pdiss: PD - PA - PB }));
 }
-// The reference power for ratios: P_avs, or (a source with |Γs| = 1) the power incident at the input.
+/* The last guard against NaN on screen (DEFECT-RFC-012): a solved circuit whose waves are not all finite, with no pole
+   found at a named interface, is reported as having no finite steady state, its waves and powers undefined. */
+function finiteCheck(r){
+  const lists = [r.nodesM, r.nodesA, r.nodesB].filter(Boolean);
+  if(r.pole || lists.every(l => l.every(n => cfinite(n.a) && cfinite(n.b)))) return r;
+  return Object.assign(r, { pole: { chain: null, node: null }, nodesM: undefNodes(r.nodesM.length), nodesA: r.nodesA && undefNodes(r.nodesA.length),
+    nodesB: r.nodesB && undefNodes(r.nodesB.length), nodes: r.nodes && undefNodes(r.nodes.length), Pin: NaN, PL: NaN, reflIn: NaN, GT: NaN, PD: NaN, PA: NaN, PB: NaN, Pdiss: NaN });
+}
+// The reference power for ratios: P_avs, or (a source with |Γs| ≥ 1) the power incident at the input.
 const refOf = r => (r.Pavs > 0 ? r.Pavs : (r.Pin + r.reflIn) || REF_NONE);
-// the reference's name, for the footnote
-const refName = r => (r.Pavs > 0 ? 'P_avs' : 'the incident power');
+// Why P_avs is undefined for a source with |Γs| ≥ 1 (a lossless or negative-resistance source; CQ-RFC-014).
+const gsReason = r => '|Γs| ' + (Math.abs(cabs(r.Gs) - 1) <= EPS_UNIT ? '= 1 (lossless source)' : '> 1 (Re Zs < 0)');
+// The footnote naming every ratio's reference: G_T is of P_avs, and is undefined with it (PPR-RFC-013).
+const refNote = r => (isFinite(r.Pavs) ? 'G_T and the plots\' ratios are of P_avs.' : 'G_T is undefined (P_avs is undefined); the plots\' ratios are of the incident power P⁺.');
+/* Where a circuit has no finite steady state (DEFECT-RFC-012), in the Interfaces table's names: between the source and
+   the input, at junction "j|j+1", at the load (or the divider's input), in branch A or B. */
+function poleWhere(p){
+  if(p.chain === null) return 'in the circuit';
+  if(p.node === 'src') return 'the input, between the source and the circuit';
+  const n = listOf(p.chain === 'M' ? 'main' : p.chain).length, k = p.node;
+  if(p.chain === 'M') return k === n ? (K.div ? 'the divider input' : 'the load') : 'the junction ' + k + '|' + (k + 1);
+  return k === n ? 'load ' + p.chain : 'the junction ' + p.chain + k + '|' + (k + 1) + ' of branch ' + p.chain;
+}
+// The statement shown in Results when the circuit has no finite steady state at the marker frequency.
+const poleNote = p => 'No finite steady state at ' + poleWhere(p) + ': the reflections there reinforce without limit (Γ·Γ′ = 1). '
+  + 'The voltages, currents and powers are undefined.';
 /* The power shown at each junction of a chain (spectra and the chain plot): the forward wave's power ½|a|², the power
    arriving at the next stage, and at a load the power delivered to it. (Net power would show a filter's reflection
    already at the junction before it, as if the stage ahead had removed it.) The junction quantity is held (OD-8). */
@@ -430,14 +475,14 @@ function mini(o){
   // x of sweep point i
   const { x, w, y, h: mh, v, rng, name, id, above, wireY } = o, ax = dbAxis(rng[0], rng[1], y, y + mh), xs = i => x + w * i / (NPTS - 1);
   const db = dbList(v), pts = db.map((d, i) => [xs(i), d]), sp = seriesPaths(pts, ax);
-  const fill = 'M' + n2(x) + ' ' + n2(y + mh) + pts.map(([px, d]) => 'L' + n2(px) + ' ' + n2(d === null ? y + mh : ax.y(d === -Infinity ? ax.bot : d))).join('') + 'L' + n2(x + w) + ' ' + n2(y + mh) + 'Z';
+  const fill = 'M' + n2(x) + ' ' + n2(y + mh) + pts.map(([px, d]) => 'L' + n2(px) + ' ' + n2(d === null ? y + mh : ax.yDb(d))).join('') + 'L' + n2(x + w) + ' ' + n2(y + mh) + 'Z';
   const atV = o.at !== undefined ? o.at : v[Math.round((K.fm - K.f1) / (K.f2 - K.f1) * (NPTS - 1))], atDb = dbPow(atV), xm = markerX(x, x + w);
-  return [el('line', { x1: x + w / 2, y1: above ? y + mh : wireY, x2: x + w / 2, y2: above ? wireY : y, stroke: 'var(--line)', 'stroke-width': MINI.frameSw, 'stroke-dasharray': '3 4', class: 'leader', 'pointer-events': 'none' }),
+  return [el('line', { x1: x + w / 2, y1: above ? y + mh : wireY, x2: x + w / 2, y2: above ? wireY : y, stroke: 'var(--line)', 'stroke-width': MINI.frameSw, 'stroke-dasharray': DASH_C.leader, class: 'leader', 'pointer-events': 'none' }),
     el('rect', { x, y, width: w, height: mh, fill: 'var(--bg2)', stroke: 'var(--line)', 'stroke-width': MINI.frameSw, class: 'mini' }),
     el('path', { d: fill, fill: 'var(--s21)', 'fill-opacity': MINI.fillOp, stroke: 'none', class: 'spec' }),
-    el('path', { d: sp.d || 'M0 0', fill: 'none', stroke: 'var(--s21)', 'stroke-width': MINI.sw, class: 'specline', 'data-q': id, 'data-v': atDb === null ? null : +atDb.toFixed(DATA_DEC) }),
+    el('path', { d: sp.d || 'M0 0', fill: 'none', stroke: 'var(--s21)', 'stroke-width': MINI.sw, class: 'specline', 'data-q': id, 'data-v': atDb === null ? null : dataV(atDb) }),
     sp.c ? el('path', { d: sp.c, fill: 'none', stroke: 'var(--s21)', 'stroke-width': MINI.sw, 'stroke-dasharray': CLIP_DASH, class: 'clipped' }) : null,
-    el('line', { x1: xm, y1: y, x2: xm, y2: y + mh, stroke: 'var(--txt)', 'stroke-width': MINI.frameSw, 'stroke-dasharray': '4 3', class: 'mmark' }),
+    el('line', { x1: xm, y1: y, x2: xm, y2: y + mh, stroke: 'var(--txt)', 'stroke-width': MINI.frameSw, 'stroke-dasharray': DASH_C.miniMark, class: 'mmark' }),
     txt(x + w / 2, above ? y - MINI.labUp : y + mh + MINI.labDn, name + ' ' + ratioText(atV), { anchor: 'middle', size: FS.small, id, cls: 'minil' })];
 }
 // The spectra at every junction (minis), placed under the cascade, or above the chain and branch A and under branch B.
@@ -466,19 +511,21 @@ function seriesEls(pts, ax, attrs){
 function drawPlot(G, sw, y0){
   const P = PLOT, e = LY_C.edge, x0 = e + P.mL, x1 = G.W - e - P.mR, yt = y0 + P.mT, yb = G.H - e - P.mB, yh = y0 + P.head;
   if(yb - yt < P.minH) return null;
-  const series = G.div ? [['load A', 'var(--s21)', sw.A[sw.A.length - 1], 'plotA'], ['load B', 'var(--s12)', sw.B[sw.B.length - 1], 'plotB', true], ['reflected', 'var(--s11)', sw.refl, 'plotR']]
-    : [['load', 'var(--s21)', sw.M[sw.M.length - 1], 'plotL'], ['reflected', 'var(--s11)', sw.refl, 'plotR']];
+  const series = G.div ? [['load A', 'var(--s21)', sw.A[sw.A.length - 1], 'plotA'], ['load B', 'var(--s12)', sw.B[sw.B.length - 1], 'plotB', true], [REFL_NAME, 'var(--s11)', sw.refl, 'plotR']]
+    : [['load', 'var(--s21)', sw.M[sw.M.length - 1], 'plotL'], [REFL_NAME, 'var(--s11)', sw.refl, 'plotR']];
   const top = DECADE * Math.ceil((dbMax(series.map(x => x[2]), PLOT_FLOOR) + 1) / DECADE), ax = dbAxis(top - PLOT_SPAN, top, yt, yb);
   // x of sweep point i; the marker's x
   const xs = i => x0 + (x1 - x0) * i / (NPTS - 1), xm = markerX(x0, x1);
   // a series with no dB value somewhere (a power ≤ 0, PPR-RFC-001) says so in its legend; those points are not drawn
-  const leg = series.map(([t, col, v, , dash]) => [t + (v.some(r => dbPow(r) === null) ? ' (P < 0 not drawn)' : ''), col, AXIS.legendSw, dash ? '6 4' : null]);
+  // (DEFECT-RFC-012) and a frequency with no finite steady state is not drawn either, and said so
+  const leg = series.map(([t, col, v, , dash]) => [t + (v.some(r => r < 0) ? ' (P < 0 not drawn)' : '') + (v.some(r => Number.isNaN(r)) ? ' (no steady state: not drawn)' : ''),
+    col, AXIS.legendSw, dash ? DASH_C.seriesBLeg : null]);
   K.plot = { x0, x1 };
   return [headingIf(e, yh, 'Across the band · marker ' + fFull(K.fm), G.W - e - legendW(leg, P.leg[0], P.leg[1], P.leg[2]), P.leg[0]),
     legendRow(G.W - e, yh, leg, P.leg[0], P.leg[1], P.leg[2]),
     dbTicks(ax, x0, x1), plotFrame(x0, yt, x1, yb),
-    P.xFr.map(t => txt(x0 + (x1 - x0) * t, yb + P.xLab, fText(K.f1 + (K.f2 - K.f1) * t), { anchor: t === 0 ? 'start' : t === 1 ? 'end' : 'middle', size: FS.small, fill: 'var(--mut)', weight: FW.normal })),
-    series.map(([, col, v, q, dash]) => seriesEls(dbList(v).map((d, i) => [xs(i), d]), ax, { stroke: col, 'stroke-width': P.curveSw, 'stroke-dasharray': dash ? '9 6' : null, 'data-q': q })),
+    P.xFr.map(t => mutedTxt(x0 + (x1 - x0) * t, yb + P.xLab, fText(K.f1 + (K.f2 - K.f1) * t), { anchor: t === 0 ? 'start' : t === 1 ? 'end' : 'middle' })),
+    series.map(([, col, v, q, dash]) => seriesEls(dbList(v).map((d, i) => [xs(i), d]), ax, { stroke: col, 'stroke-width': P.curveSw, 'stroke-dasharray': dash ? DASH_C.seriesB : null, 'data-q': q })),
     el('line', { x1: xm, y1: yt, x2: xm, y2: yb, stroke: 'var(--txt)', 'stroke-width': P.markSw, 'stroke-dasharray': P.mkDash, class: 'marker', 'data-q': 'marker', 'data-v': K.fm }),
     el('rect', { x: x0, y: yt, width: x1 - x0, height: yb - yt, fill: 'none', 'pointer-events': 'all', 'data-plot': 1, class: 'plothit', 'aria-hidden': 'true' })];
 }
@@ -509,29 +556,29 @@ function drawChainPlot(G, chain, atM, y0){
   const ax = dbAxis(bot, top, yt, yb);
   // legend: each frequency in its colour (the unit on the last), the marker, and (with a divider) B dotted
   const leg = fl.map((a, i) => [a.marker ? 'marker ' + fFull(K.fm) : i === N_FREQ - 1 ? fText(a.f) : String(+(a.f / FU[K.fu]).toPrecision(F_SIG)), a.col, a.marker ? P.chainSw[1] : P.chainSw[0], null]);
-  if(G.div) leg.push(['B dotted', 'var(--mut)', P.chainSw[1], '2 4']);
+  if(G.div) leg.push(['B dotted', 'var(--mut)', P.chainSw[1], DASH_C.branchBLeg]);
   const s = [headingIf(e, yh, 'Along the chain', G.W - e - legendW(leg, P.legC[0], P.legC[1], P.legC[2]), P.legC[0]),
     legendRow(G.W - e, yh, leg, P.legC[0], P.legC[1], P.legC[2]), dbTicks(ax, x0, x1)];
-  for(let i = 0; i <= steps; i++) s.push(el('line', { x1: xs(i), y1: yt, x2: xs(i), y2: yb, stroke: 'var(--line)', 'stroke-width': AXIS.gridSw, 'stroke-dasharray': '2 4', class: 'grid' }));
+  for(let i = 0; i <= steps; i++) s.push(el('line', { x1: xs(i), y1: yt, x2: xs(i), y2: yb, stroke: 'var(--line)', 'stroke-width': AXIS.gridSw, 'stroke-dasharray': DASH_C.grid, class: 'grid' }));
   s.push(plotFrame(x0, yt, x1, yb));
   // one line through points p (dB), colour col, width w, dotted (branch B), data-q q; data-v its last value in dB
   const line = (p, col, w, dot, q) => { const db = p.map(([x, v]) => [x, dbPow(v)]), last = db[db.length - 1][1];
-    return seriesEls(db, ax, { stroke: col, 'stroke-width': w, 'stroke-dasharray': dot ? '2 5' : null, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'data-q': q, 'data-v': last === null || !isFinite(last) ? null : +last.toFixed(DATA_DEC) }); };
+    return seriesEls(db, ax, { stroke: col, 'stroke-width': w, 'stroke-dasharray': dot ? DASH_C.branchB : null, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'data-q': q, 'data-v': last === null || !isFinite(last) ? null : dataV(last) }); };
   // the marker line's dots, each with its dB value (none where the power is ≤ 0)
   const dots = p => p.filter(x => x[2]).map(([x, v, q]) => { const d = dbPow(v);
-    return d === null ? null : el('circle', { cx: x, cy: ax.y(d === -Infinity ? ax.bot : d), r: P.dotR, fill: 'var(--txt)', stroke: 'var(--bg)', 'stroke-width': P.dotSw, class: 'cdot', 'data-q': q, 'data-v': +d.toFixed(DATA_DEC) }); });
+    return d === null ? null : el('circle', { cx: x, cy: ax.yDb(d), r: P.dotR, fill: 'var(--txt)', stroke: 'var(--bg)', 'stroke-width': P.dotSw, class: 'cdot', 'data-q': q, 'data-v': dataV(d) }); });
   fl.forEach(a => { const p = paths(a), w = a.marker ? P.chainSw[1] : P.chainSw[0], q = 'chainLine' + a.q;
     s.push(line(p.M, a.col, w, false, q + 'M'));
     if(G.div) s.push(line(p.A, a.col, w, false, q + 'A'), line(p.B, a.col, w, true, q + 'B'));
     if(a.marker) s.push(dots(p.M), G.div ? [dots(p.A), dots(p.B)] : null); });
   // the stages' symbols under the axis, between their two points (names under them when there is no divider)
   const mid = i => (xs(i) + xs(i + 1)) / 2, yS = yb + P.symRow[0], yS2 = yb + P.symRow[1];
-  K.main.forEach((d, i) => { s.push(sym(d.type, mid(i), yS, P.symS, 'var(--txt)')); if(!G.div) s.push(txt(mid(i), yb + P.symLab, ABBR[d.type], { anchor: 'middle', size: FS.small, fill: 'var(--mut)', weight: FW.normal })); });
+  K.main.forEach((d, i) => { s.push(sym(d.type, mid(i), yS, P.symS, 'var(--txt)')); if(!G.div) s.push(mutedTxt(mid(i), yb + P.symLab, ABBR[d.type], { anchor: 'middle' })); });
   if(G.div){
     s.push(divSym(mid(nM), yS));
     K.A.forEach((d, i) => { s.push(sym(d.type, mid(nM + 1 + i), yS, P.symS, 'var(--txt)')); });
     K.B.forEach((d, i) => { s.push(sym(d.type, mid(nM + 1 + i), yS2, P.symS, 'var(--txt)')); });
-    if(K.A.length || K.B.length) s.push(txt(mid(nM + 1) - P.abIn, yS, 'A', { anchor: 'end', size: FS.small, fill: 'var(--mut)', weight: FW.normal }), txt(mid(nM + 1) - P.abIn, yS2, 'B', { anchor: 'end', size: FS.small, fill: 'var(--mut)', weight: FW.normal })); }
+    if(K.A.length || K.B.length) s.push(mutedTxt(mid(nM + 1) - P.abIn, yS, 'A', { anchor: 'end' }), mutedTxt(mid(nM + 1) - P.abIn, yS2, 'B', { anchor: 'end' })); }
   return s;
 }
 // The whole Cascade drawing (W: the drawing's width in design units).
@@ -610,15 +657,18 @@ function addMenu(){
 // ── END INTERACTION ───────────────────────────────────────────
 
 // ── PANEL ─────────────────────────────────────────────────────
-/* A validated text field (v1.1.0). parse(text) returns the value or null; ok(v) stores it. Invalid text flags the
-   field (red outline, aria-invalid and a message naming the cause) and the last valid value is kept. Text is bounded:
-   the field takes at most INPUT_MAXLEN + 1 characters, and anything over INPUT_MAXLEN is refused (SEC-RFC-001). */
+/* A validated text field (v1.1.0). parse(text) returns the value, null (not a value of the field's kind: the message
+   says what is expected, o.err) or refuse(cause) (a value the model cannot take: the message names the cause,
+   DEFECT-RFC-012, -013); ok(v) stores it. Invalid text flags the field (red outline, aria-invalid and a message naming
+   the cause) and the last valid value is kept. Text is bounded: the field takes at most INPUT_MAXLEN + 1 characters,
+   and anything over INPUT_MAXLEN is refused (SEC-RFC-001). */
 function tfield(o){
   const msg = errSpan(o.id);
   const inp = h('input', { type: 'text', id: o.id, value: o.text, spellcheck: false, autocomplete: 'off', maxLength: INPUT_MAXLEN + 1, attrs: { 'aria-describedby': o.id + 'Err' } });
   inp.addEventListener('input', () => {
-    const long = inp.value.length > INPUT_MAXLEN, v = long ? null : o.parse(inp.value), bad = v === null || v === undefined;
-    markInput(inp, msg, bad ? 'Refused: ' + (long ? 'too long (over ' + INPUT_MAXLEN + ' characters)' : 'not ' + (o.err || 'a valid value')) + '; keeping the last valid value' : '');
+    const long = inp.value.length > INPUT_MAXLEN, v = long ? null : o.parse(inp.value), bad = v === null || v === undefined || (typeof v === 'object' && REFUSED in v);
+    const why = long ? 'too long (over ' + INPUT_MAXLEN + ' characters)' : bad && v ? v[REFUSED] : 'not ' + (o.err || 'a valid value');
+    markInput(inp, msg, bad ? 'Refused: ' + why + '; keeping the last valid value' : '');
     if(!bad){ o.ok(v); redraw(!!o.full); }
   });
   return h('label', { cls: 'f', htmlFor: o.id }, h('span', {}, ...o.label), inp, msg);
@@ -631,6 +681,28 @@ function numField(id, label, value, unit, lim, ok, kept){
 }
 // A real number (true minus sign accepted), or null.
 function parseReal(text){ const c = parseComplex(text, 'deg'); return c && c.im === 0 ? c.re : null; }
+// A parse result refusing a well-formed entry the model cannot take, with the cause in words (see tfield).
+const refuse = cause => ({ [REFUSED]: cause });
+// Why Z = −Z0 is refused: the wave model referenced to Z0 cannot represent it (PPR-RFC-J5 A; not a claim about the circuit).
+const minusZ0 = (name, gam) => name + ' = −Z0 makes ' + gam + ' infinite, which the wave model referenced to Z0 cannot represent (try another Z0)';
+/* An impedance entry for the source or a load (DEFECT-RFC-012, -013, -016): refused when |Z| is over Z_MAX or Z = −Z0
+   (the reflection referenced to Z0 is infinite). name / gam: "Z_s" / "Γs" or "Z_L" / "Γ_L" for the message. */
+function checkZ(z, name, gam){
+  if(!z || z.inf) return z;
+  if(cabs(z.z) > Z_MAX) return refuse('|' + name + '| above ' + Z_MAX_TEXT + ' (the largest impedance this model takes' + (gam === 'Γs' ? ')' : '; type open for an open circuit)'));
+  if(cabs(cadd(z.z, C(K.z0, 0))) <= EPS_ZERO) return refuse(minusZ0(name, gam));
+  return z;
+}
+// A Cascade S entry: refused above S_ENTRY_MAX (DEFECT-RFC-013).
+const checkS = c => (c && cabs(c) > S_ENTRY_MAX ? refuse('|S| above ' + S_ENTRY_MAX + ' (60 dB, the largest gain a Cascade block takes)') : c);
+/* A reference impedance Z0, refused when it would make the source's or a load's reflection infinite (Z = −Z0 for a
+   typed Z_s or Z_L, DEFECT-RFC-012). */
+function checkZ0(text){
+  const z0 = parseZ0(text); if(z0 === null) return null;
+  const hit = (z, name) => (z && !z.inf && cabs(cadd(z.z, C(z0, 0))) <= EPS_ZERO ? name : null);
+  const which = hit({ z: K.zs }, 'Z_s') || hit(K.zl, 'Z_L') || (K.div ? hit(K.zlA, 'Z_LA') || hit(K.zlB, 'Z_LB') : null);
+  return which ? refuse('this Z0 equals −' + which + ', so the reflection of ' + which + ' would be infinite, which the wave model cannot represent (change ' + which + ' first)') : z0;
+}
 // Label pieces: "Z" with subscript "s" and so on.
 const sb = (base, sub, rest) => [base, h('sub', { text: sub }), rest || ''];
 // A segmented button group.
@@ -654,7 +726,7 @@ function blockEditor(){
     const lim = () => (isF ? { min: 0, minOpen: true, max: F_MAX / FU[K.fu] } : { min: mn, max: mx, integer: key === 'n' });
     return numField('kp_' + key, label, val, unit, lim, v => { d.p[key] = isF ? v * FU[K.fu] : v; }, () => boxNum(isF ? d.p[key] / FU[K.fu] : d.p[key])); });
   const S = devS(d, K.fm);
-  const grid = h('div', { cls: 'sg' }, S_FIELDS.map(key => tfield({ id: 'k' + key, label: [h('span', { cls: key, text: S_NAME[key] })], text: polarField(S[key]), parse: t => parseComplex(t, K.unit), err: 'a complex number',
+  const grid = h('div', { cls: 'sg' }, S_FIELDS.map(key => tfield({ id: 'k' + key, label: [h('span', { cls: key, text: S_NAME[key] })], text: polarField(S[key]), parse: t => checkS(parseComplex(t, K.unit)), err: 'a complex number',
     full: d.type !== 'custom', ok: v => { const cur = K[k][i]; if(cur.type !== 'custom'){ K[k][i] = { type: 'custom', p: {}, S: Object.assign(devS(cur, K.fm), { [key]: v }) }; } else cur.S[key] = v; } })));
   return [h('div', { cls: 'sec', id: 'kTitle', text: blockName(k, i) + ' · ' + PRESET_NAME[d.type] }),
     h('div', { cls: 'nrow' }, h('label', { htmlFor: 'kType', text: 'Type' }), typeSel), ...prm,
@@ -663,12 +735,13 @@ function blockEditor(){
 // The source and reference editor: V_s, Z_s and Z0.
 function srcEditor(){
   return [h('div', { cls: 'sec', id: 'kTitle', text: 'Source and reference' }),
-    tfield({ id: 'vsMag', label: sb('V', 's', ' magnitude (peak, V)'), text: String(K.vsMag), parse: t => { const v = parseReal(t); return v !== null && v >= 0 ? v : null; }, err: 'a real number ≥ 0', ok: v => { K.vsMag = v; } }),
+    tfield({ id: 'vsMag', label: sb('V', 's', ' magnitude (peak, V)'), text: String(K.vsMag), parse: t => { const v = parseReal(t); return v === null || v < 0 ? null : v > VS_MAX ? refuse('above ' + VS_MAX + ' V peak (the largest source this model takes)') : v; },
+      err: 'a real number ≥ 0', ok: v => { K.vsMag = v; } }),
     tfield({ id: 'vsAng', label: sb('V', 's', ' angle (' + (K.unit === 'rad' ? 'rad' : '°') + ')'), text: fieldNum(K.unit === 'rad' ? +(K.vsAng / DEG).toFixed(FIELD_DEC_RAD) : K.vsAng),
       parse: parseReal, err: 'a real number', ok: v => { K.vsAng = K.unit === 'rad' ? v * DEG : v; } }),
-    tfield({ id: 'zs', label: sb('Z', 's', ' source impedance (Ω)'), text: zField(K.zs), parse: t => { const z = parseComplex(t, K.unit); return z && cabs(cadd(z, C(K.z0, 0))) > EPS_ZERO ? z : null; },
+    tfield({ id: 'zs', label: sb('Z', 's', ' source impedance (Ω)'), text: zField(K.zs), parse: t => { const c = parseComplex(t, K.unit), z = c && checkZ(zLoad(c), 'Z_s', 'Γs'); return z && z.z ? z.z : z; },
       err: 'a complex impedance, e.g. 50 or 25+j10', ok: v => { K.zs = v; } }),
-    tfield({ id: 'z0', label: sb('Z', '0', ' reference impedance (Ω, real ' + Z0_MIN + '–' + Z0_MAX + ')'), text: String(K.z0), parse: parseZ0, err: 'a real value from ' + Z0_MIN + ' to ' + Z0_MAX + ' Ω', ok: v => { K.z0 = v; } }),
+    tfield({ id: 'z0', label: sb('Z', '0', ' reference impedance (Ω, real ' + Z0_MIN + '–' + Z0_MAX + ')'), text: String(K.z0), parse: checkZ0, err: 'a real value from ' + Z0_MIN + ' to ' + Z0_MAX + ' Ω', ok: v => { K.z0 = v; } }),
     note('Impedances: 50, 75+j30. S entries: 0.5∠−90 or 0.2+j0.1. Load: open, short.')];
 }
 // A load editor: Z_L text field plus Matched, Short and Open.
@@ -677,7 +750,7 @@ function loadEditor(){
   const set = zl => { K[key] = zl; redraw(true); };   // set this load and rebuild the panel (the pressed button changes)
   const pressed = { lMatch: !cur.inf && cur.z.re === K.z0 && cur.z.im === 0, lShort: !cur.inf && cur.z.re === 0 && cur.z.im === 0, lOpen: cur.inf };
   return [h('div', { cls: 'sec', id: 'kTitle', text: b === 'L' ? 'Load' : 'Load ' + b }),
-    tfield({ id: 'zl', label: sb('Z', b === 'L' ? 'L' : 'L' + b, ' load impedance (Ω)'), text: loadField(cur), parse: t => parseLoad(t, K.unit), err: 'an impedance, open or short', ok: v => { K[key] = v; } }),
+    tfield({ id: 'zl', label: sb('Z', b === 'L' ? 'L' : 'L' + b, ' load impedance (Ω)'), text: loadField(cur), parse: t => checkZ(parseLoad(t, K.unit), b === 'L' ? 'Z_L' : 'Z_L' + b, b === 'L' ? 'Γ_L' : 'Γ_L' + b), err: 'an impedance, open or short', ok: v => { K[key] = v; } }),
     h('div', { cls: 'btnrow' }, pbtn('lMatch', 'Matched', pressed.lMatch, () => set(zLoad(C(K.z0, 0)))), pbtn('lShort', 'Short', pressed.lShort, () => set(zLoad(ZERO))),
       pbtn('lOpen', 'Open', pressed.lOpen, () => set(OPEN_LOAD)))];
 }
@@ -700,13 +773,18 @@ function bandEditor(){
   const u = FU[K.fu], cs = K.bandMode === 'cs', half = () => (K.f2 - K.f1) / 2, mid = () => (K.f1 + K.f2) / 2;
   // set the band to a..b (Hz) and keep the marker inside it
   const setBand = (a, b) => { K.f1 = a; K.f2 = b; K.fm = Math.min(K.f2, Math.max(K.f1, K.fm)); };
-  // a frequency box: value (Hz), limits (Hz) read at entry, store (Hz)
-  // a frequency box: value (Hz), limits [min, max, minOpen, maxOpen] (Hz) read at entry, store (Hz)
-  const fld = (id, label, val, lim, ok) => numField(id, label, val / u, K.fu, () => { const L = lim(); const [mn, mx, minOpen, maxOpen] = L; return { min: mn / u, max: mx / u, minOpen, maxOpen }; }, v => ok(v * u), () => boxNum(val / u));
-  const a = cs ? fld('bandC', 'Centre', mid(), () => [half(), F_MAX, true, false], v => setBand(v - half(), v + half()))
-    : fld('bandS', 'Start', K.f1, () => [0, K.f2, true, true], v => setBand(v, K.f2));
-  const b = cs ? fld('bandW', 'Span', K.f2 - K.f1, () => [0, 2 * mid(), true, true], v => setBand(mid() - v / 2, mid() + v / 2))
-    : fld('bandE', 'Stop', K.f2, () => [K.f1, F_MAX, true, false], v => setBand(K.f1, v));
+  /* a frequency box: cur() its value in use (Hz, read at entry: the refusal names it, CQ-RFC-020), limits [min, max,
+     minOpen, maxOpen] (Hz) read at entry, store (Hz), and band(v) the band [a, b] (Hz) an entry v (Hz) would give, which
+     must be wide enough to resolve (DEFECT-RFC-014) */
+  const fld = (id, label, cur, lim, ok, band) => numField(id, label, cur() / u, K.fu, () => { const [mn, mx, minOpen, maxOpen] = lim();
+    return { min: mn / u, max: mx / u, minOpen, maxOpen, also: v => narrow(band(v * u)) }; }, v => ok(v * u), () => boxNum(cur() / u));
+  // why a band a..b (Hz) is refused: narrower than BAND_REL_MIN of its centre; null when it can be swept
+  const narrow = ([a, b]) => (b - a >= BAND_REL_MIN * (a + b) / 2 ? null
+    : 'a band this narrow cannot be resolved: the span must be at least ' + BAND_REL_TEXT + ' of the centre (' + fieldNum(boxNum(BAND_REL_MIN * (a + b) / 2 / u)) + ' ' + K.fu + ' here)');   // true minus in an exponent (D18.EQ4)
+  const a = cs ? fld('bandC', 'Centre', mid, () => [half(), F_MAX, true, false], v => setBand(v - half(), v + half()), v => [v - half(), v + half()])
+    : fld('bandS', 'Start', () => K.f1, () => [0, K.f2, true, true], v => setBand(v, K.f2), v => [v, K.f2]);
+  const b = cs ? fld('bandW', 'Span', () => K.f2 - K.f1, () => [0, 2 * mid(), true, true], v => setBand(mid() - v / 2, mid() + v / 2), v => [mid() - v / 2, mid() + v / 2])
+    : fld('bandE', 'Stop', () => K.f2, () => [K.f1, F_MAX, true, false], v => setBand(K.f1, v), v => [K.f1, v]);
   const unitSel = h('select', { id: 'fUnit', attrs: { 'aria-label': 'Frequency unit' }, onchange: e => { K.fu = e.target.value; redraw(true); } },
     Object.keys(FU).map(t => h('option', { value: t, text: t, selected: t === K.fu })));
   const mk = slider({ id: 'fm', label: 'Marker frequency', limits: () => ({ min: K.f1 / u, max: K.f2 / u }), step: 'any', value: K.fm / u, unit: K.fu, fmt: v => v + ' ' + K.fu,
@@ -718,24 +796,30 @@ function bandEditor(){
     note('f0 sets line lengths (ℓ in λ at f0) and new filters.')];
 }
 // P_avs as text: undefined, with the reason, when |Γs| ≥ 1 (a lossless or negative-resistance source; CQ-RFC-014).
-const pavsText = r => (isFinite(r.Pavs) ? fmtPow(r.Pavs) : 'undefined: |Γs| ' + (Math.abs(cabs(r.Gs) - 1) <= EPS_UNIT ? '= 1 (lossless source)' : '> 1 (Re Zs < 0)') + ', no finite available power');
-/* Source and input-port rows. The input account closes (PPR-RFC-005): with a source not matched to Z0 the mismatch
-   loss P_avs − P_in (the power the source could deliver but the circuit does not accept) is shown; "reflected wave"
-   is the Z0-referenced wave ½|b₁|², named as such (its definition is held, OD-10). */
+const pavsText = r => (isFinite(r.Pavs) ? fmtPow(r.Pavs) : UNDEF_TEXT + ': ' + gsReason(r) + ', no finite available power');
+/* Source and input-port rows. The input account closes (PPR-RFC-005): with a source not matched to Z0 the power the
+   source could deliver but the circuit does not accept, P_avs − P_in, is shown and named as a power (PPR-RFC-015: the
+   words "mismatch loss" mean the dB ratio of the slides); "reflected wave" is the Z0-referenced wave ½|b₁|², named as
+   such (its definition is held, OD-10). */
 function inputRows(r){
-  const n0 = r.nodesM[0], mis = isFinite(r.Pavs) && cabs(r.Gs) > EPS_UNIT;
-  return [[sb('Γ', 's'), polarU(r.Gs)], [sb('Γ', 'in'), polarU(r.Gin)], [sb('Z', 'in'), r.Zin ? fmtRect(r.Zin, DEC_MAG) + ' Ω' : INF + ' (open)'],
-    ['input VSWR', fmtVswr(cabs(r.Gin))], [sb('V', '1'), polarU(n0.V, 'V')], [sb('I', 's'), polarU(n0.I, 'A')],
+  const n0 = r.nodesM[0], mis = isFinite(r.Pavs) && cabs(r.Gs) > EPS_UNIT, gin = cfinite(r.Gin);
+  return [[sb('Γ', 's'), polarU(r.Gs)], [sb('Γ', 'in'), polarU(r.Gin)], [sb('Z', 'in'), !gin ? UNDEF_TEXT : r.Zin ? fmtRect(r.Zin, DEC_MAG) + ' Ω' : INF + ' (open)'],
+    ['input VSWR', gin ? fmtVswr(cabs(r.Gin)) : UNDEF_TEXT], [sb('V', '1'), polarU(n0.V, 'V')], [sb('I', 's'), polarU(n0.I, 'A')],
     [sb('P', 'in', ' into the circuit'), fmtPow(r.Pin, 'flows out of the circuit into the source')], [sb('P', 'avs', ' available'), pavsText(r)],
-    ...(mis ? [['mismatch loss P_avs − P_in', fmtPow(r.Pavs - r.Pin, 'more than available: an active circuit') + (r.Pavs > 0 ? ', ' + fmtPct((r.Pavs - r.Pin) / r.Pavs) + ' of P_avs' : '')]] : []),
+    ...(mis ? [[NOT_ACCEPTED, fmtPow(r.Pavs - r.Pin, 'more than available: an active circuit') + (r.Pavs > 0 && isFinite(r.Pin) ? ', ' + fmtPct((r.Pavs - r.Pin) / r.Pavs) + ' of P_avs' : '')]] : []),
     ['reflected wave ½|b₁|² (re Z0)', fmtPow(r.reflIn)]];
 }
-// Load rows for a chain end: G_T ≤ 0 is never given a dB value (PPR-RFC-001).
+/* Load rows for a chain end: G_T ≤ 0 is never given a dB value (PPR-RFC-001); G_T = P_L/P_avs is undefined when P_avs is
+   (|Γs| ≥ 1), and the ratio to the incident power is then shown under its own name (PPR-RFC-013, Pozar §12.1); with
+   no finite steady state it is undefined (DEFECT-RFC-012). */
 function loadRows(nodes, GL, r, tag){
-  const n = nodes[nodes.length - 1], gt = n.P / refOf(r);
-  const gtText = gt > 0 ? fx(gt, DEC_GT) + ' (' + fmtDbVal(dbPow(gt)) + ')' : gt === 0 ? '0 (no power)' : fx(gt, DEC_GT) + ' (G_T < 0: power flows out of the load; no dB value)';
-  return [[sb('Γ', 'L' + tag), polarU(GL)], ['load VSWR', fmtVswr(cabs(GL))], [sb('V', 'L' + tag), polarU(n.V, 'V')], [sb('I', 'L' + tag), polarU(n.I, 'A')],
-    [sb('P', 'L' + tag, ' to the load'), fmtPow(n.P, 'flows out of the load: an active load')], [sb('G', 'T', tag ? ' (P_L' + tag + ' / P_avs)' : ' transducer gain'), gtText]];
+  const n = nodes[nodes.length - 1], gt = n.P / refOf(r), pavsOk = isFinite(r.Pavs);
+  // a power ratio as text: 4 decimals and its dB; none for a ratio ≤ 0
+  const ratio = (x, neg) => (Number.isNaN(x) ? UNDEF_TEXT : x > 0 ? fx(x, DEC_GT) + ' (' + fmtDbVal(dbPow(x)) + ')' : x === 0 ? '0 (no power)' : fx(x, DEC_GT) + ' (' + neg + ': power flows out of the load; no dB value)');
+  const gtText = pavsOk ? ratio(gt, 'G_T < 0') : UNDEF_TEXT + ': P_avs is undefined, ' + gsReason(r);
+  return [[sb('Γ', 'L' + tag), polarU(GL)], ['load VSWR', cfinite(GL) ? fmtVswr(cabs(GL)) : UNDEF_TEXT], [sb('V', 'L' + tag), polarU(n.V, 'V')], [sb('I', 'L' + tag), polarU(n.I, 'A')],
+    [sb('P', 'L' + tag, ' to the load'), fmtPow(n.P, 'flows out of the load: an active load')], [sb('G', 'T', tag ? ' (P_L' + tag + ' / P_avs)' : ' transducer gain'), gtText],
+    ...(pavsOk ? [] : [[sb('P', 'L' + tag, ' / P⁺ (to the incident power)'), ratio(gt, 'ratio < 0')]])];
 }
 // Interface rows: power, and V and I, at each junction of a chain.
 function nodeRows(nodes, names){
@@ -745,12 +829,13 @@ function nodeRows(nodes, names){
 // The results at the marker frequency.
 function resultsBox(){
   const r = solveAt(K.fm), out = [];
-  if(isActive(r)) out.push(h('p', { cls: 'warn', id: 'activeNote', text: ACTIVE_NOTE }));
+  if(r.pole) out.push(h('p', { cls: 'warn', id: 'poleNote', text: poleNote(r.pole) }));
+  if(isActive(r) && !r.pole) out.push(h('p', { cls: 'warn', id: 'activeNote', text: ACTIVE_NOTE }));   // it speaks of the steady state shown
   if(r.singular) out.push(h('p', { cls: 'warn', id: 'singularNote', text: 'The divider\'s equations have no unique solution at this frequency: the divider and branch values shown are not defined.' }));
   if(!K.div){
     const S = r.St, db = dbOf(cabs(S.s21));
     out.push(h('h3', { text: 'Whole chain as one two-port' }), h('div', { cls: 'slines', id: 'chainS' }, ['s21', 's11', 's22', 's12'].map(key => h('div', { cls: 'sline' }, h('span', { cls: 'sname ' + key, text: S_NAME[key] }),
-      h('span', { cls: 'sv', text: polarU(S[key]) + (key === 's21' ? ' (' + (db === -Infinity ? MINUS + INF + ' dB' : dbText(db)) + ')' : '') })))));
+      h('span', { cls: 'sv', text: polarU(S[key]) + (key === 's21' && cfinite(S.s21) ? ' (' + dbText(db) + ')' : '') })))));
     out.push(h('h3', { text: 'Source and input' }), kv(inputRows(r)), h('h3', { text: 'Load' }), kv(loadRows(r.nodesM, r.GL, r, '')),
       h('h3', { text: 'Interfaces' }), nodeRows(r.nodesM, (j, N) => (j === 0 ? 'in' : j === N ? 'load' : j + '|' + (j + 1))));
   } else {
@@ -760,12 +845,12 @@ function resultsBox(){
     const brP = (x, k) => (x >= 0 ? fmtW(x) + pc(x) : fmtPow(x, 'flows back out of branch ' + k));
     out.push(h('h3', { text: 'Source and input' }), kv(inputRows(r)),
       h('h3', { text: 'Divider' }), kv([['type', DIV_NAME[K.div.type]], ['set split (A / B)', splitOf() + ' % / ' + (PCT - splitOf()) + ' %'], ['into the divider', fmtPow(r.PD, 'flows back out of the divider')],
-        ['into branch A', brP(r.PA, 'A')], ['into branch B', brP(r.PB, 'B')], ['dissipated', fmtW(Math.max(0, r.Pdiss)) + pc(Math.max(0, r.Pdiss))]]),
+        ['into branch A', brP(r.PA, 'A')], ['into branch B', brP(r.PB, 'B')], ['dissipated', isFinite(r.Pdiss) ? fmtW(Math.max(0, r.Pdiss)) + pc(Math.max(0, r.Pdiss)) : UNDEF_TEXT]]),
       h('h3', { text: 'Load A' }), kv(loadRows(r.nodesA, r.GLA, r, 'A')), h('h3', { text: 'Load B' }), kv(loadRows(r.nodesB, r.GLB, r, 'B')),
       h('h3', { text: 'Interfaces' }), nodeRows(r.nodesM, (j, N) => (j === 0 ? 'in' : j === N ? 'div in' : j + '|' + (j + 1))),
       nodeRows(r.nodesA, (j, N) => (j === N ? 'load A' : j === 0 ? 'A in' : 'A' + j + '|' + (j + 1))), nodeRows(r.nodesB, (j, N) => (j === N ? 'load B' : j === 0 ? 'B in' : 'B' + j + '|' + (j + 1))));
   }
-  out.push(note((K.div ? 'Divider % are of the power into the divider; G_T and the plots\' ratios are of ' : 'G_T and the plots\' ratios are of ') + refName(r) + '. Peak phasors.'));
+  out.push(note((K.div ? 'Divider % are of the power into the divider. ' : '') + refNote(r) + ' Peak phasors.'));
   return out;
 }
 // Side panel of the Cascade view: the selected item's editor, the band, the results at the marker, and Reset.

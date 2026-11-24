@@ -23,9 +23,20 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.8.1'
-RELEASED = '2026-11-20'
-CHANGELOG = ('\n    v1.8.1 - Fix pass on the first gates (PPR, Test, Code Quality, Cybersecurity, Visual). A power or gain at or below '
+VERSION = '1.8.2'
+RELEASED = '2026-11-23'
+CHANGELOG = ('\n    v1.8.2 - Fix pass on the v1.8.1 re-gates. No NaN on screen: Z_s or Z_L = -Z0 is refused (the wave model '
+             'referenced to Z0 cannot represent it; try another Z0), and a loop whose reflections reinforce without limit '
+             '(Gamma*Gamma\' = 1 at an interface) is stated in words in Results, its voltages, currents and powers undefined '
+             '(DEFECT-RFC-012, -016); V_s, impedances and Cascade S entries have named upper limits (DEFECT-RFC-013); a band '
+             'too narrow to sweep is refused (DEFECT-RFC-014); G_T is undefined when P_avs is, and the ratio to the incident '
+             'power is shown under its own name (PPR-RFC-013); the power not accepted, P_avs - P_in, is named as a power '
+             '(PPR-RFC-015); the band plot names the reflected wave as Results does (PPR-RFC-016); Devices labels the '
+             'incident waves a1, a2 (PPR-RFC-014); band-box refusals name the value in use (CQ-RFC-020); dash patterns named, '
+             'shared axis, label and data-value helpers, one dB formatter (CQ-RFC-019, -021); comments and the standards line '
+             'brought up to date (CQ-RFC-010); tests read the release fields from build.py (CQ-RFC-018); at 1024 px wide the '
+             'top bar drops the brand so the help button and the version stay in view (VIS-RFC-009).'
+             '\n    v1.8.1 - Fix pass on the first gates (PPR, Test, Code Quality, Cybersecurity, Visual). A power or gain at or below '
              'zero is never given a dB value: it is written in words with its direction, and an active circuit is named once. '
              'Cascade: the input account closes (mismatch loss P_avs - P_in; the reflected wave named as the Z0-referenced '
              '1/2|b1|^2); every percentage names its basis; the marker box follows the current band and a plot click lands '

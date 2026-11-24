@@ -87,6 +87,10 @@ function txt(x, y, s, opts){
   return el('text', Object.assign({ x, y, 'font-size': size, 'text-anchor': opts.anchor || 'start', fill: opts.fill || 'var(--txt)', 'font-weight': opts.weight || FW.semi,
     'dominant-baseline': 'central', class: opts.cls, id: opts.id }, opts.attrs || {}), parts);
 }
+// Muted small label text (ticks, axis and symbol names): FS.small, muted colour, normal weight; opts override (CQ-RFC-021).
+const mutedTxt = (x, y, s, opts) => txt(x, y, s, Object.assign({ size: FS.small, fill: 'var(--mut)', weight: FW.normal }, opts));
+// A dB value as a data-v attribute value (read by the tests), DATA_DEC decimals (CQ-RFC-021).
+const dataV = d => +d.toFixed(DATA_DEC);
 // Approximate drawn width of text s at size (monospace; subscript markers do not count), at its rendered size.
 const textW = (s, size) => String(s).replace(/_/g, '').length * GLYPH_W * fsz(size || FS.label);
 // The drawing root: an SVG of design width W (default DESIGN_W) and height H. role: 'img' for a picture, 'group' when
@@ -147,6 +151,8 @@ function dbAxis(bot, top, yt, yb){
   const span = top - bot;
   return { bot, top, span, yt, yb,
     y: d => yb - (yb - yt) * (Math.max(bot, Math.min(top, d)) - bot) / span,
+    // y of a dB value, −∞ dB (zero power) drawn at the axis floor (CQ-RFC-021: the one place this mapping is written)
+    yDb(d){ return this.y(d === -Infinity ? bot : d); },
     clip: d => (d < bot ? -1 : d > top ? 1 : 0) };
 }
 // The dB axis's ticks, gridlines and labels at x0..x1: ticks at least AXIS.tickGap units apart, on a whole step.
@@ -155,7 +161,7 @@ function dbTicks(ax, x0, x1){
   const out = [];
   for(let v = ax.top - step * Math.floor(ax.span / step); v <= ax.top; v += step){ const y = ax.y(v);
     out.push(el('line', { x1: x0, y1: y, x2: x1, y2: y, stroke: 'var(--line)', 'stroke-width': AXIS.gridSw, class: 'grid' }),
-      txt(x0 - AXIS.tickPad, y, (v > 0 ? '+' : '') + fx(v, 0) + ' dB', { anchor: 'end', size: FS.small, fill: 'var(--mut)', weight: FW.normal })); }
+      mutedTxt(x0 - AXIS.tickPad, y, fmtDbVal(v, { plus: true, trim: true }), { anchor: 'end' })); }
   return out;
 }
 // A plot's frame rectangle.
@@ -180,7 +186,7 @@ function seriesPaths(pts, ax){
   let d = '', c = '', prev = null;
   for(const [x, db] of pts){
     if(db === null || db === undefined || Number.isNaN(db)){ prev = null; continue; }
-    const k = db === -Infinity ? -1 : ax.clip(db), y = ax.y(db === -Infinity ? ax.bot : db), cmd = n2(x) + ' ' + n2(y);
+    const k = db === -Infinity ? -1 : ax.clip(db), y = ax.yDb(db), cmd = n2(x) + ' ' + n2(y);
     if(prev === null){ if(k) c += 'M' + cmd; else d += 'M' + cmd; }
     else if(k && prev.k){ c += 'L' + cmd; }
     else if(k){ c += 'M' + prev.cmd + 'L' + cmd; d += 'L' + cmd; }
@@ -220,7 +226,8 @@ function markInput(inp, msg, cause){
   inp.classList.toggle('invalid', !!cause); inp.setAttribute('aria-invalid', String(!!cause)); msg.textContent = cause || '';
 }
 /* Check a number box's text against limits read when the entry is made (never the limits at build time, CQ-RFC-007):
-   lim = { min, max, minOpen, maxOpen (the limit itself refused), integer, unit, kept }. Returns { v } or { cause } (the cause in words, with the value kept). */
+   lim = { min, max, minOpen, maxOpen (the limit itself refused), integer, unit, kept, also(v) → a further cause in
+   words or null }. Returns { v } or { cause } (the cause in words, with the value kept). */
 function checkNumber(inp, lim){
   const t = inp.value, kept = lim.kept !== undefined ? '; keeping ' + lim.kept : '', u = lim.unit ? ' ' + lim.unit : '';
   if(t.length > INPUT_MAXLEN) return { cause: 'Refused: too long (over ' + INPUT_MAXLEN + ' characters)' + kept };
@@ -230,7 +237,8 @@ function checkNumber(inp, lim){
   if(lim.integer && !Number.isInteger(v)) return { cause: 'Refused: a whole number is needed' + kept };
   const lo = lim.minOpen ? v <= lim.min : v < lim.min, hi = lim.maxOpen ? v >= lim.max : v > lim.max;
   if(lo || hi) return { cause: 'Refused: allowed ' + (lim.minOpen ? 'above ' : 'from ') + boxNum(lim.min) + (lim.maxOpen ? ' and below ' : ' to ') + boxNum(lim.max) + u + kept };
-  return { v };
+  const why = lim.also ? lim.also(v) : null;
+  return why ? { cause: 'Refused: ' + why + kept } : { v };
 }
 /* A validated number box (CQ-RFC-017: the one number-box validator). o: id, label (aria), value, limits() →
    { min, max, integer, unit } read at each entry, kept() → text of the value in use, onok(v). Returns { inp, msg }. */

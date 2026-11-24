@@ -2,7 +2,10 @@
    divider S matrices and the linear solver, network properties, device presets, input parsing and number display.
    Pure functions only (no DOM), used by the three views and loaded on its own by the developer tests.
    Equation numbers E1..E14 are those of spec A.10 (spec v1.1.0). v1.8.1: the helpers no view calls were removed
-   (CQ-RFC-008); number parsing is a strict, linear-time decimal grammar (SEC-RFC-001, -006); one dB formatter. */
+   (CQ-RFC-008); number parsing is a strict, linear-time decimal grammar (SEC-RFC-001, -006); one dB formatter.
+   v1.8.2: named magnitude limits for typed sources, impedances and S entries (DEFECT-RFC-013); a loop whose
+   reflections reinforce without limit (Γ·Γ′ = 1 at an interface) is found and reported, never computed into NaN
+   (DEFECT-RFC-012). */
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — tolerances, limits, unit symbols
@@ -43,6 +46,12 @@ const P_ZERO = 1e-12;            // a net power within this fraction of the wave
 const RESISTIVE_S = 0.5;         // resistive divider: every |S| off the diagonal is ½ (6 dB)
 const TEE_S11 = -1 / 3, TEE_S21 = 2 / 3;   // T-junction of three equal Z0 lines
 const TEACHING_S = { s11: [0.3, 40], s21: [0.6, -70], s12: [0.6, -70], s22: [0.4, -20] };   // Teaching example [|S|, °] (spec A.5.0)
+/* Largest typed magnitudes (DEFECT-RFC-013): a teaching range well inside the range where every square and product of
+   the solution stays finite. Larger entries are refused with the limit named. */
+const VS_MAX = 1000;             // |V_s|, V peak
+const Z_MAX = 1e6;               // |Z| of a source or load impedance, Ω (1 MΩ; an open is typed "open")
+const S_ENTRY_MAX = 1000;        // |S| of a Cascade S entry: 60 dB, the largest gain a Cascade amplifier block takes
+const POLE_TOL = 1e-9;           // |1 − Γ·Γ′| at or below this: the loop at that interface is singular (no finite steady state)
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── COMPLEX NUMBERS ───────────────────────────────────────────
@@ -128,6 +137,21 @@ function branchSetup(devs, GL){
   for(let k = N; k >= 1; k--) Gr[k - 1] = gammaIn(devs[k - 1], Gr[k]);
   return { N, Gr, Gin: Gr[0] };
 }
+// Whether a complex number is finite.
+const cfinite = a => isFinite(a.re) && isFinite(a.im);
+/* Whether the loop between reflections Ga and Gb at one interface is singular: 1 − Ga·Gb = 0 (the reflections reinforce
+   without limit; Pozar's oscillation condition), or a reflection there is not finite. */
+const loopPole = (Ga, Gb) => !cfinite(Ga) || !cfinite(Gb) || cabs(csub(ONE, cmul(Ga, Gb))) <= POLE_TOL;
+/* The interface of a chain (node index k, the output of device k) nearest the load whose loop is singular: device k's
+   S22 facing the reflection Gr[k] of what follows it. -1 when every loop of the chain is regular (DEFECT-RFC-012). */
+function chainPole(devs, setup){
+  for(let k = setup.N; k >= 1; k--) if(loopPole(devs[k - 1].s22, setup.Gr[k])) return k;
+  return -1;
+}
+// A node whose voltages, currents and power are undefined (shown as "undefined", never computed into NaN).
+const UNDEF_C = C(NaN, NaN);
+// Undefined nodes in place of a chain's solved nodes, when the circuit has no finite steady state.
+const undefNodes = n => Array.from({ length: n }, () => ({ a: UNDEF_C, b: UNDEF_C, V: UNDEF_C, I: UNDEF_C, P: NaN }));
 /* Net power ½(|a|² − |b|²) of a forward wave a and a backward wave b (peak phasors); a value within P_ZERO of the
    waves' own power is rounding, not a flow, and is returned as 0 (an open or a short gives exactly zero, never a tiny
    negative power read as "flows out"). */
@@ -156,14 +180,16 @@ function transducerGain(S, Gs, GL){
 }
 // Impedance seen for reflection G against Z0 (∞ for G = 1).
 function zFromGamma(G, Z0){ const den = csub(ONE, G); if(cabs(den) <= EPS_ZERO) return null; return cdiv(cscale(cadd(ONE, G), Z0), den); }
-// A single cascade driven by the source: overall S, source and load reflections, input quantities, node table, powers.
+/* A single cascade driven by the source: overall S, source and load reflections, input quantities, node table, powers.
+   pole: null, or where the reflections reinforce without limit ({ chain: 'M', node: k } inside the chain, node 'src'
+   between the source and the input); the waves, voltages, currents and powers are then undefined (DEFECT-RFC-012). */
 function solveCascade(devs, Vs, Zs, ZL, Z0){
-  const St = overallS(devs), src = source(Vs, Zs, Z0), GL = gammaLoad(ZL, Z0);
-  const setup = branchSetup(devs, GL), Gin = setup.Gin;
-  const a1 = cdiv(src.bs, csub(ONE, cmul(src.Gs, Gin)));
-  const nodes = propagate(devs, setup, a1, Z0), N = devs.length;
-  return { St, Gs: src.Gs, GL, Gin, Zin: zFromGamma(Gin, Z0), nodes, N, Pin: nodes[0].P, PL: nodes[N].P, Pavs: src.Pavs,
-           GT: transducerGain(St, src.Gs, GL), reflIn: PEAK * cabs(nodes[0].b) ** 2 };
+  const St = overallS(devs), src = source(Vs, Zs, Z0), GL = gammaLoad(ZL, Z0), N = devs.length;
+  const setup = branchSetup(devs, GL), pk = chainPole(devs, setup), Gin = pk < 0 ? setup.Gin : UNDEF_C;
+  const pole = pk >= 0 ? { chain: 'M', node: pk } : loopPole(src.Gs, Gin) ? { chain: 'M', node: 'src' } : null;
+  const nodes = pole ? undefNodes(N + 1) : propagate(devs, setup, cdiv(src.bs, csub(ONE, cmul(src.Gs, Gin))), Z0);
+  return { St, Gs: src.Gs, GL, Gin, Zin: cfinite(Gin) ? zFromGamma(Gin, Z0) : UNDEF_C, nodes, N, Pin: nodes[0].P, PL: nodes[N].P, Pavs: src.Pavs,
+           GT: pole ? NaN : transducerGain(St, src.Gs, GL), reflIn: pole ? NaN : PEAK * cabs(nodes[0].b) ** 2, pole };
 }
 // ── END TWO-PORTS ─────────────────────────────────────────────
 

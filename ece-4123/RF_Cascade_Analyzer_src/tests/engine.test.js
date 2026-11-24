@@ -7,7 +7,7 @@ const SRC = path.join(__dirname, '..');
 const ctx = {}; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(SRC, 'engine.js'), 'utf8') + '\n;this.E = { C, cabs, carg, polar, gammaLoad, gammaInterface, tauInterface, vswr, powerSplit, envelope, OPEN_LOAD, zLoad, ' +
   'combine, overallS, gammaIn, drive, solveCascade, properties, sigmaMax, TEACHING, galleryS, labPresetS, devPolar, fromDb, parseComplex, parseRealStrict, parseLoad, parseZ0, ' +
-  'fmtMag, dbOf, dbPow, fmtDbVal, fmtPct, fmtVswr, wrapDeg, csolve, dividerS, source, branchSetup, propagate, INPUT_MAXLEN };', ctx, { filename: 'engine.js' });
+  'fmtMag, dbOf, dbPow, fmtDbVal, fmtPct, fmtVswr, wrapDeg, csolve, dividerS, source, branchSetup, propagate, INPUT_MAXLEN, loopPole, chainPole, POLE_TOL };', ctx, { filename: 'engine.js' });
 const E = ctx.E;
 /* The Cascade view's solver (cascade.js, with the helpers it uses from ui.js and devices.js) in its own context, no DOM:
    these tests cover the divider that ships (divWaves/solveAt), not a separate engine copy (CQ-RFC-008). */
@@ -207,6 +207,26 @@ t('Random sweep: power identities over 3000 random passive circuits', () => {
     for(const nd of [r.nodesM].concat(div ? [r.nodesA, r.nodesB] : [])) for(let k = 1; k < nd.length; k++) ok(nd[k].P <= nd[k - 1].P + 1e-11 * sc, 'case ' + n + ': non-increasing');
   }
   console.log('      lossless balance: worst |P_in − ΣP_L|/P_avs = ' + worst.toExponential(2));
+});
+/* v1.8.2 (DEFECT-RFC-012): a loop whose reflections reinforce without limit is found where it is and the waves are
+   undefined, never NaN; a near-pole circuit stays finite. Hand cases: Γs·S11 = 1 at the input (Γs = 5/6, S11 = 1.2);
+   S22·Γ_L = 1 at the load (S22 = 1.5, Γ_L = 2/3, Z_L = 250 Ω on 50 Ω). */
+t('DEFECT-RFC-012: loop poles at the source and at the load are found; their waves are undefined (NaN-free flags)', () => {
+  const cust = (s11, s21, s12, s22) => ({ s11: E.C(s11), s21: E.C(s21), s12: E.C(s12), s22: E.C(s22) });
+  const a = E.solveCascade([cust(1.2, 1, 0, 0)], E.C(1, 0), E.C(550), Z(50), 50);
+  eq(a.pole, { chain: 'M', node: 'src' }); ok(Number.isNaN(a.Pin) && Number.isNaN(a.GT), 'undefined input power and G_T');
+  const b = E.solveCascade([E.labPresetS('amp', 12), cust(0, 1, 1, 1.5)], E.C(1, 0), E.C(50), Z(250), 50);
+  eq(b.pole, { chain: 'M', node: 2 });
+  const n = E.solveCascade([E.labPresetS('amp', 12), cust(0, 1, 1, 1.5)], E.C(1, 0), E.C(50), Z(249.99), 50);
+  ok(n.pole === null && isFinite(n.PL) && isFinite(n.Pin), 'near the pole: finite');
+  ok(E.loopPole(E.C(0.5), E.C(2)) && !E.loopPole(E.C(0.5), E.C(1.99)) && E.loopPole(E.C(Infinity), E.C(0)), 'loopPole');
+});
+t('DEFECT-RFC-012: the Cascade solver reports a branch pole with a divider and never returns NaN powers unflagged', () => {
+  X.resetExample(); const K = X.K; K.A = [X.newBlock('thru')]; K.B = [{ type: 'custom', p: {}, S: { s11: X.C(0), s21: X.C(1), s12: X.C(1), s22: X.C(1.5) } }];
+  K.div = { type: 'wilkinson', split: 50 }; K.zlA = X.zLoad(X.C(50)); K.zlB = X.zLoad(X.C(250)); K.cache = null;
+  const r = X.solveAt(1e9); eq(r.pole, { chain: 'B', node: 1 }); ok(r.nodesM.every(nd => Number.isNaN(nd.P)), 'main chain undefined');
+  K.zlB = X.zLoad(X.C(100)); const q = X.solveAt(1e9); ok(q.pole === null && [q.nodesM, q.nodesA, q.nodesB].every(l => l.every(nd => isFinite(nd.P))), 'regular: all finite');
+  ok(X.ratioText(NaN) === 'undefined' && X.fmtPow(NaN) === 'undefined', 'undefined readouts in words');
 });
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

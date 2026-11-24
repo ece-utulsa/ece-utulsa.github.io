@@ -1,10 +1,11 @@
 /* RF Cascade Analyzer — View 2, Devices: one device at a time, driven one port at a time (Forward: a1 = 1∠0°, a2 = 0;
    Reverse: a2 = 1∠0°, a1 = 0, slide 12), drawn as the incident / reflected / transmitted flow diagram (Introduction
-   deck, slide 14). The port-1 incident wave V1⁺ (grey) enters top-left and splits at a junction into S21, transmitted
-   straight on to the right, and S11, reflected down and back to the left; the port-2 incident wave V2⁺ enters bottom-right
+   deck, slide 14). The port-1 incident wave a1 (grey) enters top-left and splits at a junction into S21, transmitted
+   straight on to the right, and S11, reflected down and back to the left; the port-2 incident wave a2 enters bottom-right
    and splits into S12, transmitted on to the left, and S22, reflected up and back to the right. Braces gather the
    outgoing normalized waves, b1 = S11·a1 + S12·a2 on the left and b2 = S21·a1 + S22·a2 on the right, with their values
-   (v1.8.1: labelled b, the normalized waves, PPR-RFC-008); the device sits in the centre as a DUT box with its two port
+   (v1.8.1: labelled b, the normalized waves, PPR-RFC-008; v1.8.2: the incident waves labelled a1, a2, one wave notation
+   on the diagram as in the matrix, PPR-RFC-014); the device sits in the centre as a DUT box with its two port
    stubs. Each path is drawn in its S colour, as wide as its power ratio |S|² (W0 for 1; capped at 3 W0 with a break mark
    and a "×10" label), and labelled with its S value, Transmitted / Reflected, and its share of the incident power when the
    drive excites it. Paths the drive does not excite are faded but clearly visible. A path with |S| < S_BLOCK keeps the
@@ -40,8 +41,8 @@ const MAG_SIG = 3;               // waves from 1 up: 3 significant figures
 const KNOBS = { len: [0, 1, 0.01], att: [0, 40, 0.5], gain: [0, 30, 0.5], isoIL: [0, 3, 0.1], isoI: [0, ISO_MAX, 1] };   // knob [min, max, step]
 /* Layout (design units = px at 1280×720). The matrix rows and badges are stacked from the bottom up (gaps as in v1.2.0:
    badges 12 above the bottom, the numeric row 12 above the badges); the flow diagram takes the height left above them (at
-   most boxMax; in a taller drawing the whole stack is centred). Flow diagram: the top line (V1⁺ → S21) yPad below its top,
-   the bottom line (V2⁺ → S12) yPad above its bottom; V1⁺ from xIn1 to its junction xJ1, S21 on to xOutR; V2⁺ from xIn2
+   most boxMax; in a taller drawing the whole stack is centred). Flow diagram: the top line (a1 → S21) yPad below its top,
+   the bottom line (a2 → S12) yPad above its bottom; a1 from xIn1 to its junction xJ1, S21 on to xOutR; a2 from xIn2
    to its junction xJ2, S12 on to xOutL; S11 drops a fraction drop of the way down and returns to xOutL, S22 rises as much
    and returns to xOutR; the braces at xBrL / xBrR (their labels braceIn outside them, two lines braceUp / braceDn from
    the middle; brace curl braceC), the S12 value at xS12; the DUT box dutW × dutH in the centre with stubW-wide port
@@ -65,9 +66,10 @@ function geoD(H){
   return { by: L.top + lift, badge, num, mat, bb };
 }
 const FS_NUM = [16, 14];         // numeric matrix row: 16, or 14 if it would not fit at 16 (never wrapped)
-const DRIVE_PATHS = { fwd: ['s11', 's21'], rev: ['s12', 's22'] };   // paths excited by V1⁺ (Forward) or V2⁺ (Reverse)
+const DRIVE_PATHS = { fwd: ['s11', 's21'], rev: ['s12', 's22'] };   // paths excited by a1 (Forward) or a2 (Reverse)
 const FRACTIONS = [[1 / 8, 'λ/8'], [1 / 4, 'λ/4'], [3 / 8, '3λ/8'], [1 / 2, 'λ/2'], [5 / 8, '5λ/8'], [3 / 4, '3λ/4'], [7 / 8, '7λ/8'], [1, 'λ'], [0, '0']];
 const BADGES = [['reciprocal', 'Reciprocal'], ['symmetric', 'Symmetric'], ['lossless', 'Lossless'], ['passive', 'Passive']];
+const BADGE_OFF_DASH = '6 4';    // stroke-dasharray of a badge's border when its property does not hold (CQ-RFC-019)
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── STATE ─────────────────────────────────────────────────────
@@ -169,7 +171,7 @@ function drawFlowDiagram(H){
   s.push(el('rect', { x: dx - L.stubW, y: mid - sh / 2, width: L.stubW, height: sh, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': L.stubSw, class: 'stub' }),
     el('rect', { x: dx + L.dutW, y: mid - sh / 2, width: L.stubW, height: sh, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': L.stubSw, class: 'stub' }),
     el('rect', { x: dx, y: dy, width: L.dutW, height: L.dutH, fill: 'var(--panel)', stroke: 'var(--txt)', 'stroke-width': L.boxSw, class: 'box' }));
-  s.push(ed ? [txt(DESIGN_W / 2, mid - L.nameUp, DEV_NAME[D.dev], { anchor: 'middle', id: 'dutName' }), txt(DESIGN_W / 2, mid + L.nameDn, '(edited)', { anchor: 'middle', size: FS.small, fill: 'var(--mut)', weight: FW.normal, id: 'dutEdited' })]
+  s.push(ed ? [txt(DESIGN_W / 2, mid - L.nameUp, DEV_NAME[D.dev], { anchor: 'middle', id: 'dutName' }), mutedTxt(DESIGN_W / 2, mid + L.nameDn, '(edited)', { anchor: 'middle', id: 'dutEdited' })]
     : txt(DESIGN_W / 2, mid, DEV_NAME[D.dev], { anchor: 'middle', id: 'dutName' }));
   s.push(txt(dx - L.stubW / 2, dy + L.dutH + L.labUp, 'Port 1', { anchor: 'middle', weight: FW.semi, cls: 'port' }), txt(dx + L.dutW + L.stubW / 2, dy + L.dutH + L.labUp, 'Port 2', { anchor: 'middle', weight: FW.semi, cls: 'port' }));
   // the incident waves (grey, width W0; the undriven one faded; data-v its |a|: 1 driven, 0 not) and the four S paths, unexcited ones first
@@ -204,7 +206,7 @@ function drawFlowDiagram(H){
     grp(!live('s12'), lab('s12', L.xOutL, yU, typeText('s12'), 'start', 'lt_s12'), lab('s12', L.xS12, yU, 'S_12 = ' + val('s12'), 'middle', 'lv_s12')),
     grp(fwd, lab(null, (L.xJ2 + L.xIn2) / 2, yU, 'Incident', 'middle', 'li2', 'var(--grey)')));
   // the incident waves' names, and the braces gathering the outgoing normalized waves b2, b1 with their values
-  s.push(txt(L.edge, yTop, 'V_1⁺', { size: FS.big, weight: FW.bold, id: 'nV1p' }), txt(L.xIn2 + L.labSide, yBot, 'V_2⁺', { size: FS.big, weight: FW.bold, id: 'nV2p' }));
+  s.push(txt(L.edge, yTop, 'a_1', { size: FS.big, weight: FW.bold, id: 'nV1p' }), txt(L.xIn2 + L.labSide, yBot, 'a_2', { size: FS.big, weight: FW.bold, id: 'nV2p' }));
   s.push(brace(L.xBrR, yTop - wT, y22 + half('s22'), 1), brace(L.xBrL, y11 - half('s11'), yBot + wB, -1));
   const yR = (yTop - wT + y22 + half('s22')) / 2, yL = (y11 - half('s11') + yBot + wB) / 2;
   s.push(txt(L.xBrR + L.braceIn[0], yR - L.braceUp, 'b_2 =', { size: FS.big, weight: FW.bold, id: 'nV2m' }), txt(L.xBrR + L.braceIn[0], yR + L.braceDn, waveText(w.b2), { id: 'vV2m' }),
@@ -268,7 +270,7 @@ function badgeRow(S, y){
   const L = LY_D, P = properties(S), bw = L.badgeW, bh = L.badgeH, x0 = (DESIGN_W - BADGES.length * bw - (BADGES.length - 1) * L.badgeGap) / 2;
   return BADGES.map(([k, name], i) => { const on = P[k], x = x0 + i * (bw + L.badgeGap);
     return el('g', { class: 'badge', 'data-badge': k, 'data-on': on ? 1 : 0 },
-      el('rect', { x, y: y - bh / 2, width: bw, height: bh, rx: L.badgeR, fill: 'none', stroke: on ? 'var(--txt)' : 'var(--mut)', 'stroke-width': L.badgeSw, 'stroke-dasharray': on ? null : '6 4' }),
+      el('rect', { x, y: y - bh / 2, width: bw, height: bh, rx: L.badgeR, fill: 'none', stroke: on ? 'var(--txt)' : 'var(--mut)', 'stroke-width': L.badgeSw, 'stroke-dasharray': on ? null : BADGE_OFF_DASH }),
       txt(x + bw / 2, y, name + ' ' + (on ? '✓' : '✗'), { anchor: 'middle', size: FS.label, fill: on ? 'var(--txt)' : 'var(--mut)' })); });
 }
 // The whole Devices drawing.
@@ -359,7 +361,7 @@ function deviceControls(){
     amp: () => [knob('gain', 'Gain', 'dB', 'G')],
     iso: () => [knob('isoIL', 'Forward loss', 'dB', 'IL'),
       knob('isoI', 'Reverse isolation (top = ∞)', 'dB', 'I', { smax: ISO_MAX + 1,
-        toSlider: v => (v === Infinity ? ISO_MAX + 1 : v), fromSlider: q => (q > ISO_MAX ? Infinity : q), fmt: v => (v === Infinity ? 'infinite isolation' : v + ' dB'),
+        toSlider: v => (v === Infinity ? ISO_MAX + 1 : v), fromSlider: q => (q > ISO_MAX ? Infinity : q), fmt: v => (v === Infinity ? 'infinite isolation' : fmtDbVal(v, { trim: true })),
         numText: v => (v === Infinity ? '' : v), placeholder: INF, emptyValue: Infinity })] }[D.dev]();
   const ed = edited(), st = ed ? D.edits[D.dev] : sEntries(deviceS(D.dev, D[D.dev]));
   D.est = st;

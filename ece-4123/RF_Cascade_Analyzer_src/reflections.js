@@ -164,7 +164,7 @@ function distanceAxis(G, x2f){
   const L = LY_R, ya = G.yAxis - L.axisGap;
   // one tick at x with its label t (anchor; tx moves the label)
   const tk = (x, t, anchor, tx) => [el('line', { x1: x, y1: G.yAxis - L.tickTop, x2: x, y2: G.yAxis - L.tickTop + L.tickLen, stroke: 'var(--mut)', 'stroke-width': L.lineSw }),
-    txt(tx === undefined ? x : tx, G.yAxis + L.tickLab, t, { anchor, size: FS_TICK, fill: 'var(--mut)', weight: FW.normal })];
+    mutedTxt(tx === undefined ? x : tx, G.yAxis + L.tickLab, t, { anchor, size: FS_TICK })];
   return [el('line', { x1: L.plotL, y1: ya, x2: x2f, y2: ya, stroke: 'var(--mut)', 'stroke-width': L.lineSw }),
     R1_TICKS.map(([d, t]) => tk(xR1(G, d), t, 'middle')),
     tk(G.xi, 'interface', 'end', G.xi - L.tickIn),
