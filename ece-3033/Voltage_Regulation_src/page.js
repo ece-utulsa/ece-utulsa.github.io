@@ -7,7 +7,7 @@
      4. DOM HELPERS ............ $(), add(), el(), sv(), runs(), rich(), rel(), setRich(), stext(), mathEl(), arrow(),
                                  focusRect(), focusCircle(), arcPath(), figReset()
      5. CONTROL BUILDERS ....... row(), seg(), button(), slider(), pfButtons(), stepButtons(), pfSlider()
-     6. FIGURES ................ boxClear(), phasors(), figOneLine(), figPhasor(), vrAxes(), vrPath(), figCrossover(),
+     6. FIGURES ................ layout constants, boxClear(), phasors(), figOneLine(), keyRow(), figPhasor(), vrAxes(), vrPath(), figCrossover(),
                                  figWorked(), figKeys(), figLab()
      7. SLIDES ................. workedBuild(), workedSlide(), SL[], buildLeft()
      8. PLAYER ................. render(), stop(), playClip(), setVoice(), tick(), playLine(), setLine(), setSlide(), playSeq()
@@ -44,6 +44,7 @@ const HEAD = 11;                        // arrow-head length, user units
 const TAG_GAP = 26;                     // distance of a short phasor tag from its arrow tip, user units
 const DELTA_ARC_SMALL = 60;              // δ arc radius used when E_A is too short for the usual one, user units
 const DIM = 0.35;                       // opacity of de-emphasised shapes
+const FOCUS_W = 3, FOCUS_RX = 8;        // amber focus outline: stroke width and corner radius, user units
 const C = {ink: '#1b1f24', mute: '#55606b', grid: '#e3e7eb', axis: '#c9d0d6', vphi: '#c62828', ea: '#1e56c8',
   ia: '#1b7a3a', amber: '#9a5b00', ra: '#555555', white: '#ffffff', curve: '#5a6570'};
 const SVGNS = 'http://www.w3.org/2000/svg', MMLNS = 'http://www.w3.org/1998/Math/MathML';
@@ -219,9 +220,9 @@ function arrow(g, x1, y1, x2, y2, col, w, o = {}) {
   g.append(sv('line', line), sv('path', {d: 'M' + x2 + ',' + y2 + ' L' + p(-0.4) + ' L' + p(0.4) + 'z', fill: col, opacity: op_}));
 }
 // Amber focus rectangle.
-function focusRect(x, y, w, h) { return sv('rect', {x, y, width: w, height: h, rx: 8, fill: 'none', stroke: C.amber, 'stroke-width': 3}); }
+function focusRect(x, y, w, h) { return sv('rect', {x, y, width: w, height: h, rx: FOCUS_RX, fill: 'none', stroke: C.amber, 'stroke-width': FOCUS_W}); }
 // Amber focus circle.
-function focusCircle(cx, cy, r) { return sv('circle', {cx, cy, r, fill: 'none', stroke: C.amber, 'stroke-width': 3}); }
+function focusCircle(cx, cy, r) { return sv('circle', {cx, cy, r, fill: 'none', stroke: C.amber, 'stroke-width': FOCUS_W}); }
 // Circular arc of radius r about (cx, cy) from angle a0 to a1 (degrees, counter-clockwise, a1 > a0) as a path string.
 function arcPath(cx, cy, r, a0, a1) {
   const p = a => (cx + r * Math.cos(a * DEG)) + ' ' + (cy - r * Math.sin(a * DEG));
@@ -283,6 +284,26 @@ function pfSlider(onInput) {
 }
 
 /* ═══ 6. FIGURES ═══ */
+// Layout in figure user units (viewBox FIG_W wide): x from the left edge, y down from the top.
+const PAD = 10, RIGHT = 630;            // left edge of titles and notes; right edge of right-aligned text
+const TITLE_Y = 20, NOTE_Y = 44;        // baselines of a figure title and of the line under it
+const FS_TITLE = 16, FS_SOURCE = 18;    // text sizes of figure titles and of the E_A source symbol
+const W_FINE = 1.5, W_LINE = 2, W_CURVE = 2.5, W_BOLD = 3, W_PHASOR = 4;   // stroke widths
+const DASH_I = '6 4', DASH_VC = '7 5', DASH_LOCUS = '2 5', DASH_REF = '5 4', DASH_FOCUS = '6 6';   // dash patterns
+const FOCUS_R = 12, MARK_R = 5, DOT_R = 6, NODE_R = 4;   // radii: focus ring on a tip, VR = 0 marker, operating point / terminal, breaker contact
+const KEY_LEN = 24, KEY_TEXT = 32, KEY_ROW = 22;   // key: sample length, text offset from the sample start, row spacing
+// Slide 1. One-line diagram: wire height, source circle, reactor (humps), terminal dot, breaker contacts and open-blade lift, load box.
+const ONE = {wireY: 92, srcX: 70, srcR: 28, coilX: 170, coilHump: 16, coilN: 4, termX: 300, brkX0: 380, brkX1: 440, liftX: 8, liftY: 33, loadX: 488, loadW: 148, loadH: 60, fieldY: 150, noteDY: 30};
+// Slide 1. Bars: title baseline, axis 0 … vmax volts from x0 to x1, values right-aligned at xv, bar tops and height, grid span, tick-label and summary baselines, VR bracket height.
+const BARS = {titleY: 172, x0: 170, x1: 540, xv: 632, vmax: 4500, yE: 212, yT: 262, h: 34, top: 204, bottom: 372, tickY: 390, ticks: [0, 1000, 2000, 3000, 4000], refY: 198, noteDY: 26, vrY: 340, vrTick: 7, vrTextDY: 25, sumY: 436};
+// Slides 2 and 3. Origin, scale (px per volt), I_A arrow length, |V_φ| arc end (degrees), δ arc radius, axis span, key position, readout baseline.
+const PH = {ox: 70, oy: 316, k: 0.105, iLen: 100, arc: 126, dArc: 150, axisX0: 30, axisX1: 620, keyX: 340, keyY: 364, readY: 438, labelDY: 22, noteDY: 50};
+// Slide 4. Plot: figure height, plot box, VR range (%) and ticks, key rows (% on the VR axis).
+const XPLOT = {h: 250, x0: 70, x1: 610, y0: 28, y1: 212, vmin: -60, vmax: 100, ticks: [-50, 0, 50, 100], titleY: 18, keyV: -18, keyDV: 22};
+// Slides 5 to 7. Small phasor diagram: figure height, origin, scale, I_A arrow length, tag distance, |V_φ| arc end, axis span.
+const MINI = {h: 200, ox: 250, oy: 150, k: 0.05, iLen: 45, gap: 13, arc: 132, axisX0: 150, axisX1: 520, w: 0.8};
+// Lab. Phasors: origin, scale, I_A arrow length, |V_φ| arc end, axis span, title and key baselines; VR plot box, range (%) and ticks.
+const LABF = {ox: 150, oy: 250, k: 0.06, iLen: 60, arc: 138, axisX0: 20, axisX1: 630, titleY: 18, keyY: 44, openY: 66, w: 0.9, x0: 70, x1: 610, y0: 322, y1: 428, vmin: -60, vmax: 140, ticks: [-50, 0, 50, 100]};
 // Clearance (user units) between a text box centred at (cx, cy), half-size hw × hh, and the circle of radius rv about (ox, oy):
 // positive when the circle misses the box.
 function boxClear(cx, cy, hw, hh, ox, oy, rv) {
@@ -311,17 +332,17 @@ function phasors(g, p) {
     showD ? Math.max(Math.abs(c[0] - dl[0]) - hw - 8, Math.abs(c[1] - dl[1]) - hh - 10) : 99);
   // Of the candidate centres for a text box, the first with MARGIN of free space, else the one with the most.
   const pick = (cands, hw, hh, segs) => cands.find(c => clear(c, hw, hh, segs) > MARGIN) || cands.reduce((m, c) => clear(c, hw, hh, segs) > clear(m, hw, hh, segs) ? c : m);
-  if (p.loc) g.append(sv('path', {d: arcPath(vx, vy, rl, 90 - TH_PLOT + 1.1, 90 + TH_PLOT + 1.1), fill: 'none', stroke: C.ink, 'stroke-width': 2 * w, 'stroke-dasharray': '2 5', opacity: dim('loc')}));
-  if (p.vc) g.append(sv('path', {d: arcPath(ox, oy, rv, 0, p.arc), fill: 'none', stroke: C.vphi, 'stroke-width': 2 * w, 'stroke-dasharray': '7 5'}));
-  if (p.step >= 1) arrow(g, ox, oy, vx, vy, C.vphi, 4 * w, {opacity: dim('V')});
+  if (p.loc) g.append(sv('path', {d: arcPath(vx, vy, rl, 90 - TH_PLOT + 1.1, 90 + TH_PLOT + 1.1), fill: 'none', stroke: C.ink, 'stroke-width': W_LINE * w, 'stroke-dasharray': DASH_LOCUS, opacity: dim('loc')}));
+  if (p.vc) g.append(sv('path', {d: arcPath(ox, oy, rv, 0, p.arc), fill: 'none', stroke: C.vphi, 'stroke-width': W_LINE * w, 'stroke-dasharray': DASH_VC}));
+  if (p.step >= 1) arrow(g, ox, oy, vx, vy, C.vphi, W_PHASOR * w, {opacity: dim('V')});
   if (p.step >= 2) {
-    arrow(g, ox, oy, ix, iy, C.ia, 2.5 * w, {dash: '6 4', opacity: dim('I')});
+    arrow(g, ox, oy, ix, iy, C.ia, W_CURVE * w, {dash: DASH_I, opacity: dim('I')});
     const ty = iy + gap * Math.cos(r), near = th > 0 && oy - ty < fs;      // no room for the tag between I_A and the V_φ arrow
     if (tags) tag(near ? ix : ix + gap * Math.sin(r), near ? oy + fs + 4 : ty, 'I_A', C.ia);
   }
-  if (p.step >= 3) g.append(sv('line', {x1: vx, y1: vy, x2: rx, y2: ry, stroke: C.ra, 'stroke-width': 3 * w, opacity: dim('R')}));
+  if (p.step >= 3) g.append(sv('line', {x1: vx, y1: vy, x2: rx, y2: ry, stroke: C.ra, 'stroke-width': W_BOLD * w, opacity: dim('R')}));
   if (p.step >= 4) {
-    arrow(g, rx, ry, ex, ey, C.ink, 3 * w, {opacity: dim('X')});
+    arrow(g, rx, ry, ex, ey, C.ink, W_BOLD * w, {opacity: dim('X')});
     const txt = 'jX_SI_A' + (p.full ? ' = ' + f1(p.xs * Math.hypot(o.ir, o.ii)) + ' V' : '');
     const hw = txt.replace(/[_{}]/g, '').length * fs * 0.29, hh = fs * 0.7, mx = (rx + ex) / 2, my = (ry + ey) / 2;
     const L = Math.hypot(ex - rx, ey - ry) || 1, nx = -(ey - ry) / L, ny = (ex - rx) / L;   // unit normal, pointing away from the origin side
@@ -330,14 +351,14 @@ function phasors(g, p) {
     if (tags) g.append(stext(c[0], c[1] + fs * 0.35, txt, {weight: 700, size: fs, anchor: 'middle', halo: true}));
   }
   if (p.step >= 5) {
-    arrow(g, ox, oy, ex, ey, C.ea, 4 * w, {opacity: dim('E')});
+    arrow(g, ox, oy, ex, ey, C.ea, W_PHASOR * w, {opacity: dim('E')});
     // E_A tag: around the tip, starting outside the locus circle, clear of the circles and of the three arrows
     const a0 = Math.atan2(vy - ey, ex - vx), cands = [];
     for (const q of [gap + 4, gap + 14, gap + 26]) for (const da of [0, 35, -35, 70, -70, 110, -110, 150, -150, 180]) cands.push([ex + q * Math.cos(a0 + da * DEG), ey - q * Math.sin(a0 + da * DEG)]);
     const c = pick(cands, fs * 0.9, fs * 0.8, [[[ox, oy], [ex, ey]], [[rx, ry], [ex, ey]], [[ox, oy], [ix, iy]]]);
     if (tags) tag(c[0], c[1], 'E_A', C.ea);
     if (showD) {
-      g.append(sv('path', {d: arcPath(ox, oy, dArc, 0, o.d), fill: 'none', stroke: C.ea, 'stroke-width': 1.5 * w}));
+      g.append(sv('path', {d: arcPath(ox, oy, dArc, 0, o.d), fill: 'none', stroke: C.ea, 'stroke-width': W_FINE * w}));
       g.append(stext(dl[0], dl[1] + fs * 0.35, 'δ', {fill: C.ea, anchor: 'middle', size: fs, halo: true}));
     }
   }
@@ -345,84 +366,93 @@ function phasors(g, p) {
 }
 // Slide 1: one-line diagram with a breaker, and |E_A| and terminal-voltage bars.
 function figOneLine() {
-  const o = op(TH[st.k]), E = o.E, fig = figReset(FIG_H, 'One-line diagram and voltage bars: E_A ' + f1(E) + ' V, terminal ' + f1(st.open ? E : V_PHI) + ' V, breaker ' + (st.open ? 'open' : 'closed')), T = st.open ? E : V_PHI, f = st.focus || '';
-  const X0 = 170, X1 = 540, XV = 632, V_MAX = 4500, yE = 212, yT = 262, BAR = 34, yW = 92;   // bar axis 0 … V_MAX volts from X0 to X1; values end at XV
-  const x = v => X0 + v / V_MAX * (X1 - X0), dimE = (f === 'term' || f === 'vr') ? DIM : 1;
-  const line = (x1, y1, x2, y2, col, w, extra) => sv('line', Object.assign({x1, y1, x2, y2, stroke: col || C.ink, 'stroke-width': w || 2}, extra));
-  fig.append(stext(10, 20, 'One-line, per phase', {weight: 700, size: 16}),
-    sv('circle', {cx: 70, cy: yW, r: 28, fill: C.white, stroke: C.ea, 'stroke-width': 3}),
-    stext(70, yW + 6, 'E_A', {fill: C.ea, anchor: 'middle', weight: 700, size: 18}),
-    stext(10, yW + 58, 'field held at ' + fieldTxt(E) + ' no-load', {size: FS_SMALL, fill: C.mute}),
-    line(98, yW, 170, yW),
-    sv('path', {d: 'M170 ' + yW + ' q8 -16 16 0 q8 -16 16 0 q8 -16 16 0 q8 -16 16 0', fill: 'none', stroke: C.ink, 'stroke-width': 2}),
-    stext(202, yW - 26, 'jX_S = j' + X_S + ' Ω', {anchor: 'middle'}),
-    stext(202, yW + 30, st.open ? 'I_A = 0: no drop' : 'I_A = ' + f1(I_RATED) + ' A', {anchor: 'middle', size: FS_SMALL, fill: C.mute}),
-    line(234, yW, 380, yW), sv('circle', {cx: 300, cy: yW, r: 6, fill: C.vphi}),
-    stext(300, yW - 14, 'terminal', {anchor: 'middle', weight: 700, fill: C.vphi}),
-    sv('circle', {cx: 380, cy: yW, r: 4, fill: C.ink}), sv('circle', {cx: 440, cy: yW, r: 4, fill: C.ink}),
-    line(380, yW, st.open ? 432 : 440, st.open ? yW - 33 : yW, st.open ? C.vphi : C.ink, 3),
-    stext(410, yW + 30, 'breaker ' + (st.open ? 'OPEN' : 'CLOSED'), {anchor: 'middle', weight: 700}),
-    line(440, yW, 488, yW),
-    sv('g', {opacity: st.open ? DIM : 1}, [sv('rect', {x: 488, y: yW - 30, width: 148, height: 60, rx: 6, fill: C.white, stroke: C.ink, 'stroke-width': 2})]),
-    stext(562, yW - 5, 'Load', {anchor: 'middle', weight: 700}),
-    stext(562, yW + 16, S_RATED_MVA + ' MVA · ' + exName(st.k), {anchor: 'middle', size: FS_SMALL}),
-    stext(10, 172, 'Voltage magnitudes per phase: ' + (st.open ? 'no load, breaker open' : 'full load, breaker closed'), {weight: 700, size: 16}));
-  if (f === 'brk') fig.append(focusRect(332, yW - 44, 152, 84));
-  for (const v of [0, 1000, 2000, 3000, 4000]) fig.append(line(x(v), 204, x(v), 372, C.grid, 1), stext(x(v), 390, fmt(v, 0), {anchor: 'middle', size: FS_SMALL, fill: C.mute}));
-  fig.append(stext(XV, 390, 'volts', {anchor: 'end', size: FS_SMALL, fill: C.mute}),
-    stext(X0 - 12, yE + 10, '|E_A|', {anchor: 'end', weight: 700, size: 16, fill: C.ea}),
-    stext(X0 - 12, yE + 34, 'set by the field', {anchor: 'end', size: FS_SMALL, fill: C.mute}),
-    sv('rect', {x: X0, y: yE, width: x(E) - X0, height: BAR, rx: 4, fill: C.ea, opacity: dimE}),
-    stext(XV, yE + 23, f1(E) + ' V', {anchor: 'end', weight: 700, fill: C.ea}),
-    stext(X0 - 12, yT + 10, 'Terminal', {anchor: 'end', weight: 700, size: 16, fill: C.vphi}),
-    stext(X0 - 12, yT + 34, 'what the bus sees', {anchor: 'end', size: FS_SMALL, fill: C.mute}),
-    sv('rect', {x: X0, y: yT, width: x(T) - X0, height: BAR, rx: 4, fill: C.vphi}),
-    stext(XV, yT + 23, f1(T) + ' V', {anchor: 'end', weight: 700, fill: C.vphi}),
-    stext(X0, yT + BAR + 26, 'Terminal ' + (st.open ? '= |E_A|: no current, no drop' : E > V_PHI ? 'below |E_A| (drop across Z_S)' : 'ABOVE |E_A| (leading current)'), {size: FS_SMALL}),
-    line(x(V_PHI), 204, x(V_PHI), yT + BAR + 4, C.vphi, 1.5, {'stroke-dasharray': '5 4'}),
-    stext(x(V_PHI), 198, 'full-load |V_φ| = ' + f1(V_PHI) + ' V', {anchor: 'middle', size: FS_SMALL, fill: C.vphi}));
-  if (f === 'gap') fig.append(focusRect(Math.min(x(E), x(V_PHI)) - 12, yE - 6, Math.abs(x(V_PHI) - x(E)) + 24, yT - yE + BAR + 12));
-  if (f === 'term') fig.append(focusRect(X0 - 6, yT - 6, XV - X0 + 12, BAR + 12));
-  if (f === 'both') fig.append(focusRect(X0 - 6, yE - 6, XV - X0 + 12, yT - yE + BAR + 12));
+  const o = op(TH[st.k]), E = o.E, T = st.open ? E : V_PHI, f = st.focus || '', W = ONE, B = BARS, y = W.wireY;
+  const fig = figReset(FIG_H, 'One-line diagram and voltage bars: E_A ' + f1(E) + ' V, terminal ' + f1(T) + ' V, breaker ' + (st.open ? 'open' : 'closed'));
+  const x = v => B.x0 + v / B.vmax * (B.x1 - B.x0), dimE = (f === 'term' || f === 'vr') ? DIM : 1;
+  const line = (x1, y1, x2, y2, col, w, extra) => sv('line', Object.assign({x1, y1, x2, y2, stroke: col || C.ink, 'stroke-width': w || W_LINE}, extra));
+  const coilEnd = W.coilX + W.coilN * W.coilHump, coilMid = (W.coilX + coilEnd) / 2, brkMid = (W.brkX0 + W.brkX1) / 2, loadMid = W.loadX + W.loadW / 2;
+  const hump = ' q' + W.coilHump / 2 + ' -' + W.coilHump + ' ' + W.coilHump + ' 0';
+  fig.append(stext(PAD, TITLE_Y, 'One-line, per phase', {weight: 700, size: FS_TITLE}),
+    sv('circle', {cx: W.srcX, cy: y, r: W.srcR, fill: C.white, stroke: C.ea, 'stroke-width': W_BOLD}),
+    stext(W.srcX, y + FS_SOURCE / 3, 'E_A', {fill: C.ea, anchor: 'middle', weight: 700, size: FS_SOURCE}),
+    stext(PAD, W.fieldY, 'field held at ' + fieldTxt(E) + ' no-load', {size: FS_SMALL, fill: C.mute}),
+    line(W.srcX + W.srcR, y, W.coilX, y),
+    sv('path', {d: 'M' + W.coilX + ' ' + y + hump.repeat(W.coilN), fill: 'none', stroke: C.ink, 'stroke-width': W_LINE}),
+    stext(coilMid, y - W.noteDY + 4, 'jX_S = j' + X_S + ' Ω', {anchor: 'middle'}),
+    stext(coilMid, y + W.noteDY, st.open ? 'I_A = 0: no drop' : 'I_A = ' + f1(I_RATED) + ' A', {anchor: 'middle', size: FS_SMALL, fill: C.mute}),
+    line(coilEnd, y, W.brkX0, y), sv('circle', {cx: W.termX, cy: y, r: DOT_R, fill: C.vphi}),
+    stext(W.termX, y - 14, 'terminal', {anchor: 'middle', weight: 700, fill: C.vphi}),
+    sv('circle', {cx: W.brkX0, cy: y, r: NODE_R, fill: C.ink}), sv('circle', {cx: W.brkX1, cy: y, r: NODE_R, fill: C.ink}),
+    line(W.brkX0, y, st.open ? W.brkX1 - W.liftX : W.brkX1, st.open ? y - W.liftY : y, st.open ? C.vphi : C.ink, W_BOLD),
+    stext(brkMid, y + W.noteDY, 'breaker ' + (st.open ? 'OPEN' : 'CLOSED'), {anchor: 'middle', weight: 700}),
+    line(W.brkX1, y, W.loadX, y),
+    sv('rect', {x: W.loadX, y: y - W.loadH / 2, width: W.loadW, height: W.loadH, rx: DOT_R, fill: C.white, stroke: C.ink, 'stroke-width': W_LINE, opacity: st.open ? DIM : 1}),
+    stext(loadMid, y - 5, 'Load', {anchor: 'middle', weight: 700}),
+    stext(loadMid, y + 16, S_RATED_MVA + ' MVA · ' + exName(st.k), {anchor: 'middle', size: FS_SMALL}),
+    stext(PAD, B.titleY, 'Voltage magnitudes per phase: ' + (st.open ? 'no load, breaker open' : 'full load, breaker closed'), {weight: 700, size: FS_TITLE}));
+  if (f === 'brk') fig.append(focusRect(W.brkX0 - 48, y - 44, W.brkX1 - W.brkX0 + 92, 84));
+  for (const v of B.ticks) fig.append(line(x(v), B.top, x(v), B.bottom, C.grid, 1), stext(x(v), B.tickY, fmt(v, 0), {anchor: 'middle', size: FS_SMALL, fill: C.mute}));
+  // One bar with its two-line name on the left and its value on the right.
+  const bar = (top, name, sub, v, col, opacity) => fig.append(stext(B.x0 - 12, top + 10, name, {anchor: 'end', weight: 700, size: FS_TITLE, fill: col}),
+    stext(B.x0 - 12, top + B.h, sub, {anchor: 'end', size: FS_SMALL, fill: C.mute}),
+    sv('rect', {x: B.x0, y: top, width: x(v) - B.x0, height: B.h, rx: NODE_R, fill: col, opacity}),
+    stext(B.xv, top + 23, f1(v) + ' V', {anchor: 'end', weight: 700, fill: col}));
+  fig.append(stext(B.xv, B.tickY, 'volts', {anchor: 'end', size: FS_SMALL, fill: C.mute}));
+  bar(B.yE, '|E_A|', 'set by the field', E, C.ea, dimE);
+  bar(B.yT, 'Terminal', 'what the bus sees', T, C.vphi, 1);
+  fig.append(stext(B.x0, B.yT + B.h + B.noteDY, 'Terminal ' + (st.open ? '= |E_A|: no current, no drop' : E > V_PHI ? 'below |E_A| (drop across Z_S)' : 'ABOVE |E_A| (leading current)'), {size: FS_SMALL}),
+    line(x(V_PHI), B.top, x(V_PHI), B.yT + B.h + 4, C.vphi, W_FINE, {'stroke-dasharray': DASH_REF}),
+    stext(x(V_PHI), B.refY, 'full-load |V_φ| = ' + f1(V_PHI) + ' V', {anchor: 'middle', size: FS_SMALL, fill: C.vphi}));
+  const both = B.yT - B.yE + B.h + 12, wide = B.xv - B.x0 + 12;        // focus boxes: both bars high; bar start to value wide
+  if (f === 'gap') fig.append(focusRect(Math.min(x(E), x(V_PHI)) - 12, B.yE - 6, Math.abs(x(V_PHI) - x(E)) + 24, both));
+  if (f === 'term') fig.append(focusRect(B.x0 - 6, B.yT - 6, wide, B.h + 12));
+  if (f === 'both') fig.append(focusRect(B.x0 - 6, B.yE - 6, wide, both));
   if (st.open) {
-    const xa = x(V_PHI), xb = x(E), yy = 340, xm = Math.max(X0 + 60, Math.min(X1 - 30, (xa + xb) / 2));
-    fig.append(line(xa, yy, xb, yy, C.amber, 3), line(xa, yy - 7, xa, yy + 7, C.amber, 3), line(xb, yy - 7, xb, yy + 7, C.amber, 3),
-      stext(xm, yy + 25, 'VR = ' + sg(o.VR) + ' %', {anchor: 'middle', weight: 700, size: 16, fill: C.amber, halo: true}));
-    if (f === 'vr') fig.append(focusRect(Math.min(xa, xb, xm - 64) - 8, yy - 14, Math.max(xa, xb, xm + 64) - Math.min(xa, xb, xm - 64) + 16, 50));
+    const xa = x(V_PHI), xb = x(E), yy = B.vrY, t = B.vrTick, HALF = 64;   // HALF: half-width allowed for the VR text
+    const xm = Math.max(B.x0 + HALF, Math.min(B.x1 - HALF / 2, (xa + xb) / 2)), lo = Math.min(xa, xb, xm - HALF), hi = Math.max(xa, xb, xm + HALF);
+    fig.append(line(xa, yy, xb, yy, C.amber, W_BOLD), line(xa, yy - t, xa, yy + t, C.amber, W_BOLD), line(xb, yy - t, xb, yy + t, C.amber, W_BOLD),
+      stext(xm, yy + B.vrTextDY, 'VR = ' + sg(o.VR) + ' %', {anchor: 'middle', weight: 700, size: FS_TITLE, fill: C.amber, halo: true}));
+    if (f === 'vr') fig.append(focusRect(lo - 8, yy - 2 * t, hi - lo + 16, B.vrTextDY + 25));
   }
   if (st.sum) {
     const v = k => sg(op(TH[k]).VR) + ' %';
-    fig.append(stext(10, 436, 'Same ' + S_RATED_MVA + ' MVA:  *' + exName('lag') + ' ' + v('lag') + '  ·  unity ' + v('unity') + '  ·  ' + exName('lead') + ' ' + v('lead') + '*', {fill: C.amber}));
+    fig.append(stext(PAD, B.sumY, 'Same ' + S_RATED_MVA + ' MVA:  *' + exName('lag') + ' ' + v('lag') + '  ·  unity ' + v('unity') + '  ·  ' + exName('lead') + ' ' + v('lead') + '*', {fill: C.amber}));
   }
+}
+// One row of a figure key: a line sample (or, with dash = null, a VR = 0 marker) and its text.
+function keyRow(fig, x, y, col, dash, txt, w) {
+  const mid = y - FS_SMALL / 3;
+  fig.append(dash === null ? sv('circle', {cx: x + KEY_LEN / 2, cy: mid, r: MARK_R, fill: C.white, stroke: col, 'stroke-width': W_CURVE})
+    : sv('line', Object.assign({x1: x, y1: mid, x2: x + KEY_LEN, y2: mid, stroke: col, 'stroke-width': w || W_LINE}, dash ? {'stroke-dasharray': dash} : {})),
+    stext(x + KEY_TEXT, y, txt, {size: FS_SMALL, fill: col, weight: 700}));
 }
 // Slides 2 and 3: the E_A construction to scale; with locus = true, the tip circle and the |V_φ| circle as well.
 function figPhasor(locus) {
-  const th = st.th === undefined ? TH[st.k] : st.th, o = op(th), fig = figReset(FIG_H, 'Phasor diagram at ' + pfTxt(th) + ': E_A ' + polar(o.E, o.d) + ' V, VR ' + sg(o.VR) + ' %'), f = st.focus || '', step = locus ? BUILD_STEPS : st.step;
-  const ox = 70, oy = 316, k = 0.105;                                      // origin (user units) and scale, px per volt
+  const th = st.th === undefined ? TH[st.k] : st.th, o = op(th), f = st.focus || '', step = locus ? BUILD_STEPS : st.step, {ox, oy, k} = PH;
+  const fig = figReset(FIG_H, 'Phasor diagram at ' + pfTxt(th) + ': E_A ' + polar(o.E, o.d) + ' V, VR ' + sg(o.VR) + ' %');
   const dim = e => (!f || (locus && (e === 'V' || e === 'E')) || f === e || f === 'eq' || (f === 'x' && e === 'E') || (f === 'loc' && (e === 'E' || e === 'X')) || (f === 'vc' && e === 'V')) ? 1 : DIM;
-  fig.append(stext(10, 20, 'Phasor diagram, per phase, to scale · ' + pfTxt(th) + ', ' + S_RATED_MVA + ' MVA', {weight: 700, size: 16}),
-    sv('line', {x1: 30, y1: oy, x2: 620, y2: oy, stroke: C.axis}));
-  const g = phasors(fig, {o, th, ox, oy, k, xs: X_S, iLen: 100, step, dim, loc: locus && st.loc, vc: locus && st.vc, arc: 126, full: !locus, dArc: 150});
-  if (step >= 1) fig.append(stext(g.vx + 10, oy + 22, 'V_φ = ' + polar(V_PHI, 0) + ' V', {weight: 700, fill: C.vphi}));
-  if (step >= 2) fig.append(stext(10, 44, 'I_A arrow: direction only, θ = ' + deg1(th), {size: FS_SMALL, fill: C.ia}));
-  if (step >= 3 && (st.step === 3 || f === 'R')) fig.append(stext(g.vx + 10, oy + 50, 'R_AI_A = ' + f1(R_A * I_RATED) + ' V (too short to see)', {size: FS_SMALL}), focusCircle(g.vx, g.vy, 9));
-  if (step >= 4 && f === 'X') fig.append(stext(g.vx - 8, g.vy - 12, '90° ahead of I_A', {anchor: 'end', weight: 700, size: FS_SMALL, fill: C.amber, halo: true}));
-  const KX = 340, KY = 364;                                                // key block under the V_φ label: left edge and first baseline
+  fig.append(stext(PAD, TITLE_Y, 'Phasor diagram, per phase, to scale · ' + pfTxt(th) + ', ' + S_RATED_MVA + ' MVA', {weight: 700, size: FS_TITLE}),
+    sv('line', {x1: PH.axisX0, y1: oy, x2: PH.axisX1, y2: oy, stroke: C.axis}));
+  const g = phasors(fig, {o, th, ox, oy, k, xs: X_S, iLen: PH.iLen, step, dim, loc: locus && st.loc, vc: locus && st.vc, arc: PH.arc, full: !locus, dArc: PH.dArc});
+  if (step >= 1) fig.append(stext(g.vx + PAD, oy + PH.labelDY, 'V_φ = ' + polar(V_PHI, 0) + ' V', {weight: 700, fill: C.vphi}));
+  if (step >= 2) fig.append(stext(PAD, NOTE_Y, 'I_A arrow: direction only, θ = ' + deg1(th), {size: FS_SMALL, fill: C.ia}));
+  if (step >= 3 && (st.step === 3 || f === 'R')) fig.append(stext(g.vx + PAD, oy + PH.noteDY, 'R_AI_A = ' + f1(R_A * I_RATED) + ' V (too short to see)', {size: FS_SMALL}), focusCircle(g.vx, g.vy, FOCUS_R - 3));
+  if (step >= 4 && f === 'X') fig.append(stext(g.vx - 8, g.vy - FOCUS_R, '90° ahead of I_A', {anchor: 'end', weight: 700, size: FS_SMALL, fill: C.amber, halo: true}));
   if (locus && st.loc) {
-    fig.append(sv('line', {x1: KX, y1: KY + 39, x2: KX + 24, y2: KY + 39, stroke: C.ink, 'stroke-width': 2, 'stroke-dasharray': '2 5'}), stext(KX + 32, KY + 44, 'locus of the E_A tip', {size: FS_SMALL}));
-    if (f === 'loc') fig.append(sv('path', {d: arcPath(g.vx, g.vy, g.rl + 9, 26, 154), fill: 'none', stroke: C.amber, 'stroke-width': 3, 'stroke-dasharray': '6 6', opacity: 0.7}));
+    keyRow(fig, PH.keyX, PH.keyY + 2 * KEY_ROW, C.ink, DASH_LOCUS, 'locus of the E_A tip');
+    if (f === 'loc') fig.append(sv('path', {d: arcPath(g.vx, g.vy, g.rl + 9, 90 - TH_PLOT - 4, 90 + TH_PLOT + 4), fill: 'none', stroke: C.amber, 'stroke-width': W_BOLD, 'stroke-dasharray': DASH_FOCUS, opacity: 0.7}));
   }
   if (locus && st.vc) {
     const x0 = op(TH_X), cx = ox + x0.er * k, cy = oy - x0.ei * k;
-    fig.append(sv('line', {x1: KX, y1: KY + 17, x2: KX + 24, y2: KY + 17, stroke: C.vphi, 'stroke-width': 2, 'stroke-dasharray': '7 5'}), stext(KX + 32, KY + 22, 'circle of radius |V_φ|', {size: FS_SMALL, fill: C.vphi}),
-      sv('circle', {cx, cy, r: 5, fill: C.white, stroke: C.amber, 'stroke-width': 2.5}),
-      sv('circle', {cx: KX + 12, cy: KY - 5, r: 5, fill: C.white, stroke: C.amber, 'stroke-width': 2.5}), stext(KX + 32, KY, 'VR = 0 at ' + pfTxt(TH_X), {weight: 700, size: FS_SMALL, fill: C.amber}));
-    if (f === 'x') fig.append(focusCircle(cx, cy, 12));
+    keyRow(fig, PH.keyX, PH.keyY + KEY_ROW, C.vphi, DASH_VC, 'circle of radius |V_φ|');
+    keyRow(fig, PH.keyX, PH.keyY, C.amber, null, 'VR = 0 at ' + pfTxt(TH_X));
+    fig.append(sv('circle', {cx, cy, r: MARK_R, fill: C.white, stroke: C.amber, 'stroke-width': W_CURVE}));
+    if (f === 'x') fig.append(focusCircle(cx, cy, FOCUS_R));
   }
-  if (f === 'E' && step >= 5) fig.append(focusCircle(g.ex, g.ey, 12));
+  if (f === 'E' && step >= 5) fig.append(focusCircle(g.ex, g.ey, FOCUS_R));
   if (f === 'V') fig.append(focusRect(ox - 8, oy - 14, g.vx - ox + 16, 28));
-  if (f === 'I') fig.append(focusCircle(g.ix, g.iy, 12));
-  if (step >= 5) fig.append(stext(630, 438, 'E_A = ' + polar(o.E, o.d) + ' V  ·  *VR = ' + sg(o.VR) + ' %*', {anchor: 'end', fill: C.ea, weight: 700}));
+  if (f === 'I') fig.append(focusCircle(g.ix, g.iy, FOCUS_R));
+  if (step >= 5) fig.append(stext(RIGHT, PH.readY, 'E_A = ' + polar(o.E, o.d) + ' V  ·  *VR = ' + sg(o.VR) + ' %*', {anchor: 'end', fill: C.ea, weight: 700}));
 }
 // VR-against-power-factor axes inside the box X0…X1, Y0…Y1; returns the scale functions.
 function vrAxes(fig, X0, X1, Y0, Y1, vmin, vmax, ticks, xl) {
@@ -445,20 +475,19 @@ function figCrossover() {
     'sin φ = \\frac{' + f1(X_S * I_RATED) + '}{' + f1(2 * V_PHI) + '} = ' + fmt(X_S * I_RATED / (2 * V_PHI), 3) + '   →   φ = ' + deg1(Math.asin(X_S * I_RATED / (2 * V_PHI)) / DEG) + '   →   \\t{pf }' + fmt(Math.cos(Math.asin(X_S * I_RATED / (2 * V_PHI))), 3) + '\\t{ lead}'];
   eqs.append(rel('p', 'ftitle', 'With R_A neglected; I_A leads V_φ by φ'));
   E.forEach((src, i) => { if (st.step > i) eqs.append(el('div', {class: 'step' + (f === 'e' + (i + 1) ? ' on' : '')}, mathEl(src))); });
-  const fig = figReset(250, 'VR against load power factor at full load and at ' + Math.round(st.sf * 100) + ' % load'), X0 = 70, X1 = 610, Y0 = 28, Y1 = 212;
-  const ax = vrAxes(fig, X0, X1, Y0, Y1, -60, 100, [-50, 0, 50, 100], [[-60, '0.5 lag', 'start'], [TH.lag, '0.85 lag'], [0, 'unity'], [TH.lead, '0.85 lead'], [60, '0.5 lead', 'end']]);
+  const X = XPLOT, fig = figReset(X.h, 'VR against load power factor at full load and at ' + Math.round(st.sf * 100) + ' % load');
+  const ax = vrAxes(fig, X.x0, X.x1, X.y0, X.y1, X.vmin, X.vmax, X.ticks, [[-TH_PLOT, '0.5 lag', 'start'], [TH.lag, exName('lag')], [0, 'unity'], [TH.lead, exName('lead')], [TH_PLOT, '0.5 lead', 'end']]);
   // One VR curve with its VR = 0 marker.
-  const curve = (sf, col, w) => { fig.append(sv('path', {d: vrPath(ax, sf, X_S, R_A), fill: 'none', stroke: col, 'stroke-width': w}), sv('circle', {cx: ax.xm(cross(sf)), cy: ax.ym(0), r: 5, fill: C.white, stroke: col, 'stroke-width': 2.5})); };
-  fig.append(stext(X1, 18, 'VR against load power factor', {anchor: 'end', weight: 700, size: FS_SMALL}));
-  curve(1, C.curve, 2.5);
-  // Key in the lower left, where no curve runs (VR > 0 for every lagging load).
-  const key = (row, col, w, txt) => fig.append(sv('line', {x1: X0 + 14, y1: ax.ym(-18 - 22 * row) - 5, x2: X0 + 44, y2: ax.ym(-18 - 22 * row) - 5, stroke: col, 'stroke-width': w}), stext(X0 + 52, ax.ym(-18 - 22 * row), txt, {size: FS_SMALL, fill: col, weight: 700}));
-  key(0, C.curve, 2.5, 'full load');
+  const curve = (sf, col, w) => { fig.append(sv('path', {d: vrPath(ax, sf, X_S, R_A), fill: 'none', stroke: col, 'stroke-width': w}), sv('circle', {cx: ax.xm(cross(sf)), cy: ax.ym(0), r: MARK_R, fill: C.white, stroke: col, 'stroke-width': W_CURVE})); };
+  fig.append(stext(X.x1, X.titleY, 'VR against load power factor', {anchor: 'end', weight: 700, size: FS_SMALL}));
+  curve(1, C.curve, W_CURVE);
+  // The key sits in the lower left, where no curve runs (VR > 0 for every lagging load).
+  keyRow(fig, X.x0 + 14, ax.ym(X.keyV), C.curve, '', 'full load', W_CURVE);
   if (st.half) {
-    curve(st.sf, C.amber, 3);
-    key(1, C.amber, 3, Math.round(st.sf * 100) + ' % load');
+    curve(st.sf, C.amber, W_BOLD);
+    keyRow(fig, X.x0 + 14, ax.ym(X.keyV - X.keyDV), C.amber, '', Math.round(st.sf * 100) + ' % load', W_BOLD);
   }
-  if (f === 'plot') fig.append(focusRect(4, 3, FIG_W - 8, 244));
+  if (f === 'plot') fig.append(focusRect(4, 3, FIG_W - 8, X.h - 6));
 }
 // Slides 5 to 7: a worked example in five steps with a small phasor diagram, or the comparison table.
 function figWorked() {
@@ -479,10 +508,11 @@ function figWorked() {
     eqs.append(tbl);
     return;
   }
-  const fig = figReset(200, 'Phasor diagram for the worked example at ' + pfTxt(th)), ox = 250, oy = 150, k = 0.05;
-  fig.append(sv('line', {x1: 150, y1: oy, x2: 520, y2: oy, stroke: C.axis}));
-  const g = phasors(fig, {o, th, ox, oy, k, xs: X_S, iLen: 45, gap: 13, step: step >= 4 ? 5 : step >= 3 ? 4 : step >= 1 ? 2 : 0, vc: step >= 4, arc: 132, fs: FS_SMALL, w: 0.8});
-  if (step >= 1) fig.append(stext(g.vx + 8, oy + 18, 'V_φ', {weight: 700, size: FS_SMALL, fill: C.vphi}));
+  const M = MINI, fig = figReset(M.h, 'Phasor diagram for the worked example at ' + pfTxt(th));
+  fig.append(sv('line', {x1: M.axisX0, y1: M.oy, x2: M.axisX1, y2: M.oy, stroke: C.axis}));
+  // worked steps 1–2 show V_φ and I_A, step 3 adds the drops, step 4 adds E_A and the |V_φ| arc
+  const g = phasors(fig, {o, th, ox: M.ox, oy: M.oy, k: M.k, xs: X_S, iLen: M.iLen, gap: M.gap, step: step >= 4 ? 5 : step >= 3 ? 4 : step >= 1 ? 2 : 0, vc: step >= 4, arc: M.arc, fs: FS_SMALL, w: M.w});
+  if (step >= 1) fig.append(stext(g.vx + 8, M.oy + 18, 'V_φ', {weight: 700, size: FS_SMALL, fill: C.vphi}));
 }
 // Slide 8: the key equations as cards, then the summary line.
 function figKeys() {
@@ -501,23 +531,23 @@ function figKeys() {
 function figLab() {
   const ra = lab.ra ? R_A : 0, o = op(lab.th, lab.sf, lab.xs, ra);
   const fig = figReset(FIG_H, 'Lab phasor diagram and VR curve at ' + pfTxt(lab.th) + ': E_A ' + polar(o.E, o.d) + ' V, VR ' + sg(o.VR) + ' %');
-  const ox = 150, oy = 250, k = 0.06;                                      // origin (user units) and scale, px per volt
-  fig.append(stext(10, 18, 'Phasors, per phase, to scale · ' + pfTxt(lab.th) + ', ' + mva(lab.sf) + ' MVA, X_S = ' + lab.xs + ' Ω', {weight: 700}),
-    sv('line', {x1: 20, y1: oy, x2: 630, y2: oy, stroke: C.axis}));
-  [['V_φ', C.vphi, ''], ['I_A (direction)', C.ia, '6 4'], ['jX_SI_A', C.ink, ''], ['E_A', C.ea, '']].reduce((x, [name, col, dash]) => {
-    fig.append(sv('line', Object.assign({x1: x, y1: 39, x2: x + 26, y2: 39, stroke: col, 'stroke-width': 3}, dash ? {'stroke-dasharray': dash} : {})), stext(x + 31, 44, name, {size: FS_SMALL, fill: col, weight: 700}));
-    return x + 46 + name.replace(/[_{}]/g, '').length * FS_SMALL * 0.56;
-  }, 10);
-  if (lab.open) fig.append(stext(630, 66, 'Breaker OPEN: terminal = |E_A|', {anchor: 'end', weight: 700, size: FS_SMALL, fill: C.vphi}));
-  const g = phasors(fig, {o, th: lab.th, ox, oy, k, xs: lab.xs, iLen: 60, step: 5, dim: e => (lab.open && e !== 'E' && e !== 'loc') ? DIM : 1, loc: true, vc: true, arc: 138, w: 0.9, tags: false});
+  const F = LABF, {ox, oy, k} = F;
+  fig.append(stext(PAD, F.titleY, 'Phasors, per phase, to scale · ' + pfTxt(lab.th) + ', ' + mva(lab.sf) + ' MVA, X_S = ' + lab.xs + ' Ω', {weight: 700}),
+    sv('line', {x1: F.axisX0, y1: oy, x2: F.axisX1, y2: oy, stroke: C.axis}));
+  // colour key in one row; each entry advances by its sample, its text (estimated width) and a gap
+  [['V_φ', C.vphi, ''], ['I_A (direction)', C.ia, DASH_I], ['jX_SI_A', C.ink, ''], ['E_A', C.ea, '']].reduce((x, [name, col, dash]) => {
+    keyRow(fig, x, F.keyY, col, dash, name, W_BOLD);
+    return x + KEY_TEXT + 14 + name.replace(/[_{}]/g, '').length * FS_SMALL * 0.56;
+  }, PAD);
+  if (lab.open) fig.append(stext(RIGHT, F.openY, 'Breaker OPEN: terminal = |E_A|', {anchor: 'end', weight: 700, size: FS_SMALL, fill: C.vphi}));
+  const g = phasors(fig, {o, th: lab.th, ox, oy, k, xs: lab.xs, iLen: F.iLen, step: 5, dim: e => (lab.open && e !== 'E' && e !== 'loc') ? DIM : 1, loc: true, vc: true, arc: F.arc, w: F.w, tags: false});
   fig.append(stext(g.vx + 8, oy + 18, 'V_φ = ' + f1(V_PHI) + ' V', {weight: 700, size: FS_SMALL, fill: C.vphi}),
-    stext(630, 44, 'E_A = ' + polar(o.E, o.d) + ' V', {anchor: 'end', weight: 700, fill: C.ea}));
-  const X0 = 70, X1 = 610, Y0 = 322, Y1 = 428;
-  const ax = vrAxes(fig, X0, X1, Y0, Y1, -60, 140, [-50, 0, 50, 100], [[-60, '0.5 lag', 'start'], [0, 'unity'], [60, '0.5 lead', 'end']]);
-  fig.append(stext(X1, Y0 - 8, 'VR against power factor', {anchor: 'end', weight: 700, size: FS_SMALL}),
-    sv('path', {d: vrPath(ax, lab.sf, lab.xs, ra), fill: 'none', stroke: C.amber, 'stroke-width': 2.5}),
-    sv('circle', {cx: ax.xm(cross(lab.sf, lab.xs, ra)), cy: ax.ym(0), r: 4.5, fill: C.white, stroke: C.amber, 'stroke-width': 2}),
-    sv('circle', {cx: ax.xm(lab.th), cy: ax.ym(o.VR), r: 6, fill: C.amber}));
+    stext(RIGHT, F.keyY, 'E_A = ' + polar(o.E, o.d) + ' V', {anchor: 'end', weight: 700, fill: C.ea}));
+  const ax = vrAxes(fig, F.x0, F.x1, F.y0, F.y1, F.vmin, F.vmax, F.ticks, [[-TH_PLOT, '0.5 lag', 'start'], [0, 'unity'], [TH_PLOT, '0.5 lead', 'end']]);
+  fig.append(stext(F.x1, F.y0 - 8, 'VR against power factor', {anchor: 'end', weight: 700, size: FS_SMALL}),
+    sv('path', {d: vrPath(ax, lab.sf, lab.xs, ra), fill: 'none', stroke: C.amber, 'stroke-width': W_CURVE}),
+    sv('circle', {cx: ax.xm(cross(lab.sf, lab.xs, ra)), cy: ax.ym(0), r: MARK_R, fill: C.white, stroke: C.amber, 'stroke-width': W_LINE}),
+    sv('circle', {cx: ax.xm(lab.th), cy: ax.ym(o.VR), r: DOT_R, fill: C.amber}));
 }
 
 /* ═══ 7. SLIDES ═══ */
