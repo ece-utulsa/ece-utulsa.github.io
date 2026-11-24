@@ -2,7 +2,7 @@
    the gates, not the blind Test suite. They read the built page only through the DOM (text, data-q / data-v
    attributes, the URL hash); the page has no test hooks.
 
-   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v1.8.0.html] [--shots]
+   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/RF_Cascade_Analyzer_v<version>.html] [--shots]
    --shots also writes the 1280×720 presentation screenshots to ../screenshots/.
    Set CHROMIUM=/path/to/chromium to use a particular browser binary. */
 'use strict';
@@ -11,7 +11,12 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const ARGS = process.argv.slice(2), SHOTS = ARGS.includes('--shots');
-const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v1.8.0.html'));
+// the release fields build.py writes (CQ-RFC-018): version, date, and the changelog's versions, newest first
+const BUILD_PY = fs.readFileSync(path.join(__dirname, '..', 'build.py'), 'utf8');
+const VERSION = /^VERSION = '([^']+)'/m.exec(BUILD_PY)[1], RELEASED = /^RELEASED = '([^']+)'/m.exec(BUILD_PY)[1];
+const HISTORY = [...BUILD_PY.matchAll(/\\n {4}v(\d+\.\d+\.\d+) - /g)].map(m => 'v' + m[1]);
+const V = 'v' + VERSION, reEsc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const FILE = path.resolve(ARGS.find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'RF_Cascade_Analyzer_v' + VERSION + '.html'));
 const SHOT_DIR = path.join(__dirname, '..', 'screenshots');
 const URL0 = 'file://' + FILE;
 const STOPS = ['#view=reflections&vr=0', '#view=devices&device=through&drive=fwd', '#view=devices&device=atten&drive=fwd', '#view=devices&device=amp&drive=fwd',
@@ -142,23 +147,21 @@ const devGapIssues = page => page.evaluate(() => {
 
   console.log('Load');
   { const { ctx, page, log } = await open(browser);
-    check('version v1.8.0: header comment, Released, meta, title; changelog v1.8.0 on top, then v1.7.2 … v1.1.0 as history',
-      /Version: v1\.8\.0/.test(html) && /Released: 2026-10-26/.test(html) && /<meta name="version" content="v1\.8\.0">/.test(html) && /<title>RF Cascade Analyzer v1\.8\.0<\/title>/.test(html)
-      && /v1\.8\.0 - Cascade: the plot under the circuit is compact/.test(html) && /v1\.7\.2 - Cascade: the power divider drawn as a splitter/.test(html) && /v1\.7\.1 - Cascade: the circuit .* scales up with the window/.test(html) && /v1\.7\.0 - Cascade: v1\.1\.0's Lab brought back/.test(html)
-      && /v1\.6\.0 - Devices: drawn as the incident \/ reflected \/ transmitted flow diagram/.test(html) && /every device's S entries editable, keeping the device as "<Device> \(edited\)" with a reset\./.test(html)
-      && ['v1.8.0', 'v1.7.2', 'v1.7.1', 'v1.7.0', 'v1.6.0', 'v1.5.0', 'v1.4.1', 'v1.4.0', 'v1.3.0', 'v1.2.1', 'v1.2.0', 'v1.1.0'].every((v, n, a) => n === 0 || html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - '))
-      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && !/RF Cascade Analyzer v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[012])\b|content="v1\.(1\.0|2\.[01]|3\.0|4\.[01]|5\.0|6\.0|7\.[012])"/.test(html));
-    check('footer: v1.8.0 · released 2026-10-26 · Author: Claude Code', (await text(page, 'footer')).includes('v1.8.0 · released 2026-10-26 · Author: Claude Code'));
-    const stamp = async () => page.evaluate(() => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
+    check('version ' + V + ' (from build.py): header comment, Released, meta, title; changelog ' + V + ' on top, then the history in order',
+      new RegExp('Version: ' + reEsc(V) + '\\b').test(html) && html.includes('Released: ' + RELEASED) && html.includes('<meta name="version" content="' + V + '">') && html.includes('<title>RF Cascade Analyzer ' + V + '</title>')
+      && HISTORY[0] === V && HISTORY.length > 1 && HISTORY.every((v, n, a) => n === 0 || (html.indexOf(a[n - 1] + ' - ') >= 0 && html.indexOf(a[n - 1] + ' - ') < html.indexOf(v + ' - ')))
+      && /spec_RF_Cascade_Analyzer_v1\.1\.0/.test(html) && (html.match(/RF Cascade Analyzer v\d+\.\d+\.\d+/g) || []).every(t => t.endsWith(V)) && (html.match(/content="v\d+\.\d+\.\d+"/g) || []).every(t => t === 'content="' + V + '"'), HISTORY);
+    check('footer: ' + V + ' · released ' + RELEASED + ' · Author: Claude Code', (await text(page, 'footer')).includes(V + ' · released ' + RELEASED + ' · Author: Claude Code'));
+    const stamp = async () => page.evaluate(V => { const v = document.getElementById('verStamp'), r = v.getBoundingClientRect(), cs = getComputedStyle(v);
       const btns = [...document.querySelectorAll('#top button')].filter(b => b.getBoundingClientRect().width), last = btns[btns.length - 1].getBoundingClientRect(), top = document.getElementById('top').getBoundingClientRect();
       return { text: v.textContent, fs: parseFloat(cs.fontSize), mut: cs.color === getComputedStyle(document.querySelector('.note') || document.body).color || cs.color !== getComputedStyle(document.body).color,
-        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes('v1.8.0'),
-        oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; });
+        right: r.left >= last.right && r.right <= top.right + 0.5, shown: r.width > 0 && cs.visibility !== 'hidden', body: document.body.innerText.includes(V),
+        oneRow: btns.every(b => { const r = b.getBoundingClientRect(), r0 = btns[0].getBoundingClientRect(); return Math.abs((r.top + r.bottom) - (r0.top + r0.bottom)) < 2; }) }; }, V);
     let st = await stamp();
-    check('stamp "v1.8.0" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === 'v1.8.0' && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
+    check('stamp "' + V + '" in the top bar, right of the last button, 14 px, muted (windowed)', st.text === V && st.fs === 14 && st.right && st.shown && st.mut && st.oneRow, st);
     const wBtn = await page.evaluate(() => [...document.querySelectorAll('#top button')].map(b => Math.round(b.getBoundingClientRect().width)).join(','));
     await present(page); st = await stamp();
-    check('presentation (light): stamp visible right of Present; body.innerText contains "v1.8.0"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
+    check('presentation (light): stamp visible right of Present; body.innerText contains "' + V + '"; buttons one row', st.shown && st.right && st.body && st.oneRow && st.fs === 14, st);
     await page.keyboard.press('t'); await page.waitForTimeout(60); st = await stamp();
     check('presentation (dark): stamp still visible', st.shown && st.body && await page.evaluate(() => !document.body.classList.contains('light')));
     await page.keyboard.press('t'); await page.keyboard.press('Escape'); await page.waitForTimeout(200);
@@ -182,11 +185,11 @@ const devGapIssues = page => page.evaluate(() => {
     const qv = async q => { const a = await dq(page, q); return a && a['data-v'] !== undefined ? +a['data-v'] : null; };
     const flat = t => t.replace(/\s+/g, ' ');
     const A6 = [
-      ['150', '+0.50', '1.50', '1 + 0.50 = 1.50', 'Pₜ = Vₜ²·Z01/Z02 = 1.50² × 50/150 = 75 %', ['25 %', '75 %'], null, '3.0', 'VSWR = Vmax/Vmin = 1.5/0.50 = 3.0'],
-      ['16.7', '−0.50', '0.50', '1 + (−0.50) = 0.50', 'Pₜ = Vₜ²·Z01/Z02 = 0.50² × 50/16.7 = 75 %', ['25 %', '75 %'], null, '3.0', 'VSWR = Vmax/Vmin = 1.5/0.50 = 3.0'],
-      ['50', '0', '1.00', '1 + 0 = 1.00', 'Pₜ = 100 %', ['0 %', '100 %'], 'P_refl', '1.0', 'VSWR = Vmax/Vmin = 1.0/1.0 = 1.0'],
-      ['0', '−1.00', '0', '1 + (−1.00) = 0', 'Vₜ = 0 → Pₜ = 0 %', ['100 %', '0 %'], 'P_trans', '∞', 'VSWR = Vmax/Vmin = 2.0/0 = ∞'],
-      ['open', '+1.00', '2.00', '1 + 1.00 = 2.00', 'Pₜ = 0 % (Z02 = ∞)', ['100 %', '0 %'], 'P_trans', '∞', 'VSWR = Vmax/Vmin = 2.0/0 = ∞'] ];
+      ['150', '+0.50', '1.50', '1 + 0.50 = 1.50', 'Pₜ/P⁺ = |τ|²·Z01/Z02 = 1.50² × 50/150 = 75 %', ['25 %', '75 %'], null, '3.0', 'VSWR = Vmax/Vmin = 1.5/0.50 = 3.0'],
+      ['16.7', '−0.50', '0.50', '1 + (−0.50) = 0.50', 'Pₜ/P⁺ = |τ|²·Z01/Z02 = 0.50² × 50/16.7 = 75 %', ['25 %', '75 %'], null, '3.0', 'VSWR = Vmax/Vmin = 1.5/0.50 = 3.0'],
+      ['50', '0', '1.00', '1 + 0 = 1.00', 'Pₜ/P⁺ = 100 %', ['0 %', '100 %'], 'P_refl', '1.0', 'VSWR = Vmax/Vmin = 1.0/1.0 = 1.0'],
+      ['0', '−1.00', '0', '1 + (−1.00) = 0', 'Vₜ = 0 → Pₜ/P⁺ = 0 %', ['100 %', '0 %'], 'P_trans', '∞', 'VSWR = Vmax/Vmin = 2.0/0 = ∞'],
+      ['open', '+1.00', '2.00', '1 + 1.00 = 2.00', 'Pₜ/P⁺ = 0 % (Z02 = ∞)', ['100 %', '0 %'], 'P_trans', '∞', 'VSWR = Vmax/Vmin = 2.0/0 = ∞'] ];
     for(const [z, gm, tau, l1, l2, [pr, pt], ghost, vs, vline] of A6){
       await setInput(page, '#z02Box', z, 'change');
       const T = { g: await text(page, '#roGamma'), vs: await text(page, '#roVswr'), tau: await text(page, '#roTau'), r1: await text(page, '#readV'), r2: await text(page, '#readP'),
@@ -196,8 +199,8 @@ const devGapIssues = page => page.evaluate(() => {
         T.g === gm && T.vs === vs && T.tau === 'τ = 1 + Γ = ' + tau && flat(T.r1) === 'V⁺ + V⁻ = Vₜ ' + l1 && T.r1.includes('Vₜ\u00a0\u00a0 1') && T.r2 === l2
         && T.inc === 'Incident 100 %' && T.refl === 'Reflected |Γ|² = ' + pr && T.tr === 'Transmitted 1 − |Γ|² = ' + pt && gh === (ghost || '') && T.vl === null, T);
       const g = await qv('Gamma'), t = await qv('tau');
-      check('Z02 = ' + z + ': data hooks Gamma, tau, V_inc = 1, V_refl = Γ, V_trans = τ, V_tot (no value)', near(t, 1 + g, 1e-9) && (await qv('V_inc')) === 1 && near(await qv('V_refl'), g, 1e-12)
-        && near(await qv('V_trans'), t, 1e-12) && (await dq(page, 'V_tot'))['data-v'] === undefined && !!(await dq(page, 'Vmax')) && !!(await dq(page, 'Vmin')));
+      check('Z02 = ' + z + ': data hooks Gamma, tau, V_inc = 1, V_refl = Γ, V_trans = τ, V_tot = 1 + |Γ| (its peak, v1.8.1)', near(t, 1 + g, 1e-9) && (await qv('V_inc')) === 1 && near(await qv('V_refl'), g, 1e-12)
+        && near(await qv('V_trans'), t, 1e-12) && near(await qv('V_tot'), 1 + Math.abs(g), 1e-9) && !!(await dq(page, 'Vmax')) && !!(await dq(page, 'Vmin')));
       const G = await geo(), amp2 = Math.max(...G.tr.filter(p => p[0] <= G.tr[0][0] + 0.75 * (G.tr[0][0] - G.inc[G.inc.length - 1][0]) / 2 + 0.01).map(p => Math.abs(p[1] - G.yc)));
       const envAt = x => G.env.filter(p => Math.abs(p[0] - x) < 0.02).map(p => G.yc - p[1]);
       check('Z02 = ' + z + ': Region 2 amplitude and its envelope = |τ|; Region 1 envelope at the interface = |τ|', near(amp2, G.tau * G.A, 1) && envAt(G.tr[0][0]).every(v => near(v, G.tau * G.A, 0.05))
@@ -317,11 +320,11 @@ const devGapIssues = page => page.evaluate(() => {
       const got = await page.getAttribute('#numRow', 'data-text'), braces = await page.evaluate(() => document.getElementById('vV1m').textContent === document.getElementById('n_b1').textContent && document.getElementById('vV2m').textContent === document.getElementById('n_b2').textContent);
       check('B.4 ' + d + ' ' + dr + ': row 2 ' + want + '; the braces show b1, b2', got === want && braces, got); }
     await goto(page, '#view=devices&device=custom&drive=fwd');
-    check('labels: V1⁺, V1⁻, V2⁺, V2⁻ on the diagram; Port 1, Port 2 under the DUT stubs; the DUT box shows the device name', JSON.stringify(await Promise.all(['#nV1p', '#nV1m', '#nV2p', '#nV2m', '#dutName'].map(x => text(page, x))))
-      === JSON.stringify(['V1⁺', 'V1⁻ =', 'V2⁺', 'V2⁻ =', 'Custom']) && JSON.stringify(await page.$$eval('#stage .port', e => e.map(x => x.textContent))) === '["Port 1","Port 2"]');
+    check('labels: a1, b1, a2, b2 on the diagram (one wave notation, PPR-RFC-008, -014); Port 1, Port 2 under the DUT stubs; the DUT box shows the device name', JSON.stringify(await Promise.all(['#nV1p', '#nV1m', '#nV2p', '#nV2m', '#dutName'].map(x => text(page, x))))
+      === JSON.stringify(['a1', 'b1 =', 'a2', 'b2 =', 'Custom']) && JSON.stringify(await page.$$eval('#stage .port', e => e.map(x => x.textContent))) === '["Port 1","Port 2"]');
     check('matrix entries in the S colours; badges unchanged (Custom: R ✓ S ✗ L ✗ P ✓)', await page.evaluate(() => ['s11', 's21', 's12', 's22'].every(k => document.getElementById('n_' + k).getAttribute('fill') === 'var(--' + k + ')'))
       && (await page.evaluate(() => [...document.querySelectorAll('#stage .badge')].map(b => b.getAttribute('data-on')).join(''))) === '1001');
-    check('panel: power out = |b2|² = 36 %; the device title "Custom"; caption about normalized waves', (await text(page, '#roPower')) === '36 %' && (await page.evaluate(() => document.getElementById('roPower').previousSibling.textContent)) === 'power out = |b2|²');
+    check('panel: power out ÷ in = |b2|²/|a1|² = 36 %; the device title "Custom"; caption about normalized waves', (await text(page, '#roPower')) === '36 %' && (await page.evaluate(() => document.getElementById('roPower').previousSibling.textContent)) === 'power out ÷ in = |b2|²/|a1|²');
     await setInput(page, '#cs21', '0.8');
     { const F = await flow(); check('Custom: linked S12 follows S21 (0.80); the S12 row is locked', near(F.s12.v, 0.8, 1e-9) && near(F.s21.v, 0.8, 1e-9) && await page.isDisabled('#cs12')); }
     await page.goto(URL0 + '#view=devices&device=iso&drive=rev'); await page.waitForTimeout(150);
@@ -355,7 +358,9 @@ const devGapIssues = page => page.evaluate(() => {
     check('spectrum at each junction, value at the 1 GHz marker: in 0.0, 1|2 +12.0, 2|3 +12.0, load +9.0 dB (of P_avs)', JSON.stringify(sp) === JSON.stringify(['in 0.0 dB', '1|2 +12.0 dB', '2|3 +12.0 dB', 'load +9.0 dB']), sp);
     check('results at 1 GHz (v1.1.0 numbers): P_avs 2.5000 mW, P_L 19.8582 mW (12.98 dBm), G_T 9.0 dB; whole chain S21 2.818∠0.0° (+9 dB)',
       await panelHas('2.5000 mW (3.98 dBm)') && await panelHas('19.8582 mW (12.98 dBm)') && await panelHas('7.9433 (9.0 dB)') && (await text(page, '#chainS .sline .sv')) === '2.818∠0.0° (+9 dB)');
-    const curve = await page.evaluate(() => document.querySelector('[data-q="plotL"]').getAttribute('d').split('L').length);
+    // the load curve's points: its drawn part and (v1.8.1) its clipped part, drawn dotted on the frame edge; distinct x
+    const curve = await page.evaluate(() => { const p = document.querySelector('[data-q="plotL"]'), c = p.nextElementSibling && p.nextElementSibling.classList.contains('clipped') ? p.nextElementSibling.getAttribute('d') : '';
+      return new Set((p.getAttribute('d') + c).split(/[ML]/).filter(Boolean).map(t => t.trim().split(' ')[0])).size; });
     check('the response across the band is drawn at 201 frequencies (load and reflected curves, the marker)', curve === 201 && !!(await page.$('[data-q="plotR"]')) && near(+(await page.getAttribute('[data-q="marker"]', 'data-v')), 1e9, 1));
     await setInput(page, '#fmN', '1.1');
     const x = (1.1 - 1 / 1.1) / 0.2, t2 = 10 * Math.log10(1 / (1 + x ** 6)), dbT = d => (d > 0 ? '+' : '') + d.toFixed(1) + ' dB', wantT = dbT(9 + t2);
@@ -379,9 +384,9 @@ const devGapIssues = page => page.evaluate(() => {
     await page.click('#stage [data-add="main:0"]'); await page.waitForTimeout(60);
     check('the "+" before block 1 opens the menu: 9 block types and the power divider', (await page.$$('.addmenu button')).length === 10 && !!(await page.$('#add_div')));
     await click(page, '#add_thru');
-    check('a Through line inserted at the front: λ/4 at f0, S21 = 1∠−90° at 1 GHz', (await keyv())[0] === 'ℓ = λ/4' && (await text(page, '#kTitle')) === 'Block 1 · Through line' && (await page.inputValue('#ks21')) === '1∠-90');
+    check('a Through line inserted at the front: λ/4 at f0, S21 = 1∠−90° at 1 GHz', (await keyv())[0] === 'ℓ = λ/4' && (await text(page, '#kTitle')) === 'Block 1 · Through line' && (await page.inputValue('#ks21')) === '1∠−90');
     await setInput(page, '#fmN', '1.2');
-    check('…and S21 = 1∠−108° at 1.2 GHz (βℓ grows with frequency)', (await page.inputValue('#ks21')) === '1∠-108', await page.inputValue('#ks21'));
+    check('…and S21 = 1∠−108° at 1.2 GHz (βℓ grows with frequency)', (await page.inputValue('#ks21')) === '1∠−108', await page.inputValue('#ks21'));
     await page.click('#stage [data-del="main:0"]'); await page.waitForTimeout(60); await setInput(page, '#fmN', '1');
     await page.click('#stage [data-add="main:2"]'); await page.waitForTimeout(60); await click(page, '#add_div');
     sp = await spec(['specM0', 'specM2', 'specA0', 'specA1', 'specB0', 'specB1']);
@@ -390,7 +395,7 @@ const devGapIssues = page => page.evaluate(() => {
       && (await page.$$('#stage .load')).length === 2 && (await keyv()).length === 4, sp);
     check('the divider is drawn as a splitter: the input line splits into two output lines with arrows to branches A and B; "−3.0 dB" for the equal split',
       !!(await page.$('#stage .divbox ~ .split, #stage .split')) && (await page.$$('#stage .shead')).length === 2 && (await text(page, '#divDb')) === '−3.0 dB' && (await text(page, '#divType_t')) === 'Wilkinson');
-    check('divider results: 50 % into each branch, nothing dissipated', await panelHas('into branch A') && (await page.evaluate(() => document.getElementById('cres').innerText)).includes('(50.0%)'));
+    check('divider results: 50 % into each branch, nothing dissipated', await panelHas('into branch A') && (await page.evaluate(() => document.getElementById('cres').innerText)).includes('(50.0% of the divider input)'));
     await setInput(page, '#split', '75');
     sp = await spec(['specA1', 'specB1']);
     check('split 75 %: load A +7.8 dB, load B +3.0 dB (+12 − 1.25 − 3 and +12 − 6.02 − 3); the splitter reads −1.2 dB (A) and −6.0 dB (B)', JSON.stringify(sp) === JSON.stringify(['load A +7.8 dB', 'load B +3.0 dB'])
@@ -500,7 +505,7 @@ const devGapIssues = page => page.evaluate(() => {
     const t2 = 1 / (1 + (0.8 / 0.5) ** 6), want = 10 * Math.log10(t2) + 20 - 3;
     check('High-pass fc 0.8 GHz at 0.5 GHz: load ' + want.toFixed(1) + ' dB', (await text(page, '#specM3')) === 'load ' + (want > 0 ? '+' : '') + want.toFixed(1) + ' dB', await text(page, '#specM3'));
     await click(page, '#seg_rad');
-    check('Radians: S fields and results in rad', /∠-?[\d.]+$/.test(await page.inputValue('#ks21')) && (await page.evaluate(() => document.getElementById('cres').innerText)).includes(' rad'));
+    check('Radians: S fields and results in rad', /∠[-−]?[\d.]+$/.test(await page.inputValue('#ks21')) && (await page.evaluate(() => document.getElementById('cres').innerText)).includes(' rad'));
     await ctx.close(); }
 
   console.log('Overlaps, sizes and layout');
@@ -609,6 +614,206 @@ const devGapIssues = page => page.evaluate(() => {
     const r = await open(browser, { reducedMotion: 'reduce' }); const c = await r.page.getAttribute('#vTot', 'd'); await r.page.waitForTimeout(250);
     check('reduced motion loads paused (static curves)', c === await r.page.getAttribute('#vTot', 'd') && (await r.page.textContent('#pauseBtn')) === 'Play');
     await r.ctx.close(); }
+
+  console.log('v1.8.1 fixes (developer checks of the briefed items)');
+  { const { ctx, page, log } = await open(browser);
+    const err = id => page.evaluate(id => { const e = document.getElementById(id + 'Err'); return e ? e.textContent : null; }, id);
+    const cres = () => page.evaluate(() => document.getElementById('cres').innerText);
+    // DEFECT-RFC-001 / CQ-RFC-007 / SEC-RFC-005: the marker box follows the current band
+    await goto(page, '#view=cascade'); await click(page, '#cReset'); await click(page, '#seg_cs');
+    await setInput(page, '#bandC', '60'); await setInput(page, '#bandW', '100');
+    await setInput(page, '#fmN', '80');
+    let r = { inv: await page.getAttribute('#fmN', 'aria-invalid'), res: await text(page, '#resTitle'), slider: await page.evaluate(() => [document.getElementById('fm').min, document.getElementById('fm').max].join('..')) };
+    check('DEFECT-RFC-001: band 10–110 GHz: marker 80 GHz accepted (Results at 80.000 GHz), slider 10..110', r.inv === 'false' && r.res === 'Results at 80.000 GHz' && r.slider === '10..110', r);
+    await setInput(page, '#fmN', '5'); r = { inv: await page.getAttribute('#fmN', 'aria-invalid'), msg: await err('fmN'), res: await text(page, '#resTitle') };
+    check('DEFECT-RFC-001: 5 GHz (out of band) refused in words naming the band; Results stay at 80.000 GHz', r.inv === 'true' && /Refused: allowed from 10 to 110 GHz; keeping 80/.test(r.msg) && r.res === 'Results at 80.000 GHz', r);
+    // DEFECT-RFC-011: a plot click lands on a swept frequency
+    await click(page, '#cReset'); await click(page, '#seg_band');
+    const bb = await page.evaluate(() => { const r = document.querySelector('[data-plot]').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; });
+    await page.mouse.click(bb[0] + bb[2] * 0.3137, bb[1] + bb[3] / 2); await page.waitForTimeout(80);
+    const fm = +(await page.getAttribute('[data-q="marker"]', 'data-v')), idx = (fm - 0.5e9) / 1e9 * 200;
+    check('DEFECT-RFC-011: a plot click moves the marker to a swept frequency (index ' + idx.toFixed(6) + ')', Math.abs(idx - Math.round(idx)) < 1e-6, fm);
+    // DEFECT-RFC-002 / -007 / SEC-RFC-006: Z02 box grammar and refusals in words
+    await goto(page, '#view=reflections&vr=0'); await setInput(page, '#z02Box', '150', 'change');
+    const z02 = [];
+    for(const w of ['0x10', '1e309', 'Infinity', 'abc', '-50', '75+j30', '', '5000', '0.5']){ await setInput(page, '#z02Box', w, 'change');
+      z02.push([w, await page.getAttribute('#z02Box', 'aria-invalid'), await err('z02Box'), await text(page, '#z02Label')]); }
+    check('DEFECT-RFC-002/-007: Z02 box refuses 0x10, 1e309, Infinity, abc, −50, 75+j30, empty, 5000, 0.5 with the cause in words; Z02 stays 150 Ω',
+      z02.every(([, inv, m, lab]) => inv === 'true' && /^Refused: .+; keeping 150 Ω$/.test(m) && lab === 'Region 2 · Z02 = 150 Ω'), z02);
+    await setInput(page, '#z02Box', 'open', 'change'); const o1 = await text(page, '#z02Label'); await setInput(page, '#z02Box', '1.5e2', 'change');
+    check('Z02 box: "open" and "1.5e2" accepted', o1 === 'Region 2 · Z02 = ∞ (open)' && (await text(page, '#z02Label')) === 'Region 2 · Z02 = 150 Ω' && (await err('z02Box')) === '');
+    // DEFECT-RFC-008: PageDown on the Z02 slider navigates and never steps it
+    await goto(page, '#view=reflections&vr=0'); await page.focus('#z02'); const pos = await page.inputValue('#z02');
+    await page.keyboard.press('PageDown'); await page.waitForTimeout(120); const hs = await page.evaluate(() => location.hash); await page.keyboard.press('PageUp'); await page.waitForTimeout(120);
+    check('DEFECT-RFC-008: PageDown on the Z02 slider goes to Devices; back, Z02 is unchanged', hs.startsWith('#view=devices') && (await page.inputValue('#z02')) === pos && (await text(page, '#z02Label')) === 'Region 2 · Z02 = 150 Ω');
+    // SEC-RFC-001 / DEFECT-RFC-010: bounded entries, refused with a named cause, in linear time
+    await goto(page, '#view=cascade'); await click(page, '#stage [data-src]');
+    const ml = await page.getAttribute('#zs', 'maxlength'); const t0 = Date.now(); await setInput(page, '#zs', '9'.repeat(65)); const dt = Date.now() - t0;
+    check('SEC-RFC-001: Zs field maxlength 65; a 65-character entry refused "too long", quickly', ml === '65' && /too long \(over 64 characters\)/.test(await err('zs')) && dt < 500, [ml, await err('zs'), dt]);
+    await setInput(page, '#zs', '50');
+    // DEFECT-RFC-009: Custom shows "(edited)" once it differs from the Teaching example
+    await goto(page, '#view=devices&device=custom&drive=fwd'); const t1 = await text(page, '#devTitle'); await setInput(page, '#cs11m', '0.5');
+    check('DEFECT-RFC-009: Custom → "Custom (edited)" after an S edit, with a reset', t1 === 'Custom' && (await text(page, '#devTitle')) === 'Custom (edited)' && (await text(page, '#dutEdited')) === '(edited)' && !!(await page.$('#devReset')));
+    await click(page, '#devReset');
+    await setInput(page, '#cs21m', '5'); check('CQ-RFC-013: |S| box limit equals the slider\'s (2): 5 refused in words', /Refused: allowed from 0 to 2; keeping 0.6/.test(await err('cs21m')), await err('cs21m'));
+    // PPR-RFC-004, -008, -011
+    check('PPR-RFC-004: the wave caption says a wave carries ½|a|²', (await page.evaluate(() => document.getElementById('panel').innerText)).includes('A wave carries ½|a|² of power; |b|²/|a|² is the power ratio.'));
+    await goto(page, '#view=devices&device=amp&drive=fwd');
+    check('PPR-RFC-011: Devices Amplifier note names the linear small-signal model', (await page.evaluate(() => document.getElementById('panel').innerText)).includes('Linear, small-signal model'));
+    // PPR-RFC-001: an active load
+    await goto(page, '#view=cascade'); await click(page, '#cReset'); await click(page, '#stage [data-load="L"]'); await setInput(page, '#zl', '-25');
+    let c = await cres();
+    check('PPR-RFC-001: ZL = −25 Ω: no "−∞ dB"/"−∞ dBm"; P_L in words with its direction; G_T without dB; the active circuit named once',
+      !/−∞ dBm|−∞ dB/.test(c) && /flows out of the load: an active load \(P < 0: no dB value\)/.test(c) && /G_T < 0: power flows out of the load; no dB value/.test(c) && /^Active circuit:/m.test(c)
+      && !((await text(page, '#specM3')) || '').includes('∞'), [c.slice(0, 300), await text(page, '#specM3')]);
+    // PPR-RFC-005: mismatch loss
+    await click(page, '#cReset'); await click(page, '#stage [data-src]'); await setInput(page, '#zs', '25'); c = await cres();
+    check('PPR-RFC-005, -015: Zs = 25 Ω: P_in 4.4444 mW, P_avs 5.0000 mW, not accepted P_avs − P_in 555.5556 µW (11.1% of P_avs), named as a power; reflected wave named (re Z0)',
+      c.includes('4.4444 mW') && c.includes('5.0000 mW') && /not accepted, P_avs − P_in\s+555\.5556 µW \(−2\.55 dBm\), 11\.1% of P_avs/.test(c) && !/mismatch loss/.test(c) && c.includes('reflected wave ½|b₁|² (re Z0)'), c.slice(0, 600));
+    // CQ-RFC-014 / DEFECT-RFC-005: P_avs undefined for a lossless source
+    await setInput(page, '#zs', '0+j50'); c = await cres();
+    check('DEFECT-RFC-005: Zs = j50: P_avs "undefined: |Γs| = 1 (lossless source)", no −∞ dBm', /undefined: \|Γs\| = 1 \(lossless source\), no finite available power/.test(c) && !c.includes('−∞ dBm'), c.slice(0, 500));
+    // PPR-RFC-006: divider % basis
+    await click(page, '#cReset'); await page.click('#stage [data-add="main:1"]'); await page.waitForTimeout(60); await click(page, '#add_div'); c = await cres();
+    check('PPR-RFC-006: divider rows name their basis; the footnote says divider % are of the power into the divider', /% of the divider input/.test(c) && /Divider % are of the power into the divider/.test(await page.evaluate(() => document.getElementById('panel').innerText)));
+    // PPR-RFC-010, -012
+    await click(page, '#stage [data-div]');
+    check('PPR-RFC-012: Wilkinson note: the resistor dissipates only power coming back from the branches', (await page.evaluate(() => document.getElementById('panel').innerText)).includes('only power coming back from the branches'));
+    await click(page, '#cReset'); await page.selectOption('#kType', 'phase'); await page.waitForTimeout(60);
+    check('PPR-RFC-010: "Phase lag φ"; an ideal phase shifter, not a time delay', (await page.evaluate(() => document.getElementById('panel').innerText)).includes('an ideal phase shifter, not a time delay') && !!(await page.$('label[for="kp_ph"]')) && (await text(page, 'label[for="kp_ph"]')) === 'Phase lag φ');
+    // DEFECT-RFC-006: data-v on V_tot, V1+, V2+, specM*, chainLine*
+    await click(page, '#cReset'); await click(page, '#seg_chain');
+    const dv = await page.evaluate(() => ['specM0', 'specM1', 'specM2', 'specM3', 'chainLineF0M', 'chainLineF4M', 'chainLineM'].map(q => { const e = document.querySelector('#stage [data-q="' + q + '"]'); return e && e.getAttribute('data-v'); }));
+    await goto(page, '#view=devices&device=through&drive=fwd'); const dv2 = await page.evaluate(() => ['V1+', 'V2+'].map(q => document.querySelector('[data-q="' + q + '"]').getAttribute('data-v')));
+    check('DEFECT-RFC-006: data-v on specM0..3, chainLineF0M..F4M, chainLineM, V1+, V2+', dv.every(v => v !== null) && JSON.stringify(dv2) === '["1","0"]', [dv, dv2]);
+    // CQ-RFC-003 / SEC-RFC-002: no innerHTML; drawings as nodes
+    await goto(page, '#view=cascade');
+    check('CQ-RFC-003: the shipped script has no innerHTML (drawings built as nodes)', !/\.innerHTML\b/.test(html.slice(html.indexOf('<script>'))));
+    // CQ-RFC-002 (part): no inline style attribute on the "+" menu
+    await page.click('#stage [data-add="main:1"]'); await page.waitForTimeout(80);
+    check('CQ-RFC-002: the "+" menu is positioned through the CSSOM (allowed under a hash-only style-src), not a style attribute in the source', await page.evaluate(() => { const m = document.querySelector('.addmenu'); return !!m && m.style.left !== '' && m.style.top !== ''; })
+      && !/setAttribute\('style'|'style':|style: '/.test(html.slice(html.indexOf('<script>'))));
+    await page.keyboard.press('Escape'); await page.waitForTimeout(60);
+    // CQ-RFC-011: no aria-live on the whole panel; tabpanel; Cascade drawing not role=img
+    check('CQ-RFC-011: panel not aria-live; #main is the tabpanel labelled by the current tab; Cascade drawing role="group"',
+      await page.evaluate(() => !document.getElementById('panel').hasAttribute('aria-live') && document.getElementById('main').getAttribute('role') === 'tabpanel'
+        && document.getElementById('main').getAttribute('aria-labelledby') === 'tab_cascade' && document.querySelector('#stage svg').getAttribute('role') === 'group'));
+    check('v1.8.1 section: no console errors, no network', log.console.length === 0 && log.requests.every(u => u.startsWith('file:')), log);
+    await ctx.close(); }
+
+  console.log('v1.8.2 fixes (developer checks of the briefed items)');
+  { const { ctx, page, log } = await open(browser);
+    const err = id => page.evaluate(id => { const e = document.getElementById(id + 'Err'); return e ? e.textContent : null; }, id);
+    const cres = () => page.evaluate(() => document.getElementById('cres').innerText);
+    // no "NaN" anywhere on the page: panel text or any attribute of the drawing
+    const nanCount = () => page.evaluate(() => (document.body.innerText.match(/NaN/g) || []).length
+      + [...document.querySelectorAll('#stage *')].filter(e => [...e.attributes].some(a => /NaN/.test(a.value))).length);
+    const reset = async () => { await goto(page, '#view=cascade'); await click(page, '#cReset'); };
+    const toCustom = async i => { await click(page, '#stage [data-blk="main:' + i + '"]'); await page.selectOption('#kType', 'custom'); await page.waitForTimeout(60); };
+    // DEFECT-RFC-012 / -016 (J5 A rule 1): Z = −Z0 at the load, a branch load or the source is refused, naming the model limit
+    await reset(); await click(page, '#stage [data-load="L"]'); await setInput(page, '#zl', '-50');
+    let m = await err('zl');
+    check('DEFECT-RFC-012: Z_L = −50 (Z0 50) refused: Γ_L infinite, the Z0 wave model cannot represent it, try another Z0; no "steady state" claim; no NaN',
+      /^Refused: Z_L = −Z0 makes Γ_L infinite, which the wave model referenced to Z0 cannot represent \(try another Z0\); keeping/.test(m) && !/steady state/.test(m) && (await nanCount()) === 0, m);
+    await reset(); await click(page, '#stage [data-src]'); await setInput(page, '#z0', '75'); await setInput(page, '#zs', '-75'); m = await err('zs');
+    check('DEFECT-RFC-016: Z_s = −75 (Z0 75) refused naming Γs infinite (not "not a complex impedance")', /^Refused: Z_s = −Z0 makes Γs infinite/.test(m) && !/not a complex/.test(m), m);
+    await setInput(page, '#zs', '-50'); check('Z_s = −50 with Z0 = 75 is accepted (not a pole of the Z0 frame)', (await err('zs')) === '' && (await nanCount()) === 0);
+    await setInput(page, '#z0', '50'); m = await err('z0');
+    check('DEFECT-RFC-012: Z0 = 50 refused while Z_s = −50 (the reflection would be infinite), cause named', /^Refused: this Z0 equals −Z_s/.test(m), m);
+    await reset(); await page.click('#stage [data-add="main:3"]'); await page.waitForTimeout(60); await click(page, '#add_div');
+    for(const b of ['A', 'B']){ await click(page, '#stage [data-load="' + b + '"]'); await setInput(page, '#zl', '-50');
+      check('DEFECT-RFC-012: divider Load ' + b + ' = −50 refused (Γ_L' + b + ' infinite)', new RegExp('^Refused: Z_L' + b + ' = −Z0 makes Γ_L' + b + ' infinite').test(await err('zl')), await err('zl')); }
+    // DEFECT-RFC-012 (J5 A rule 2): physical loop poles are accepted and stated in words; readouts "undefined"; no NaN
+    await reset(); await toCustom(0); await setInput(page, '#ks11', '1.2'); await setInput(page, '#ks21', '1'); await click(page, '#stage [data-src]'); await setInput(page, '#zs', '550');
+    let c = await cres();
+    check('DEFECT-RFC-012: Γs·S11 = 1 (S11 1.2, Z_s 550 Ω): "No finite steady state at the input …", powers, V, I and G_T undefined, no G_T sign text, no NaN',
+      /^No finite steady state at the input, between the source and the circuit: the reflections there reinforce without limit \(Γ·Γ′ = 1\)\. The voltages, currents and powers are undefined\./m.test(c)
+      && /P\s*in into the circuit\s+undefined/.test(c) && /transducer gain\s+undefined/.test(c) && !/G_T < 0/.test(c) && !/^Active circuit/m.test(c) && (await nanCount()) === 0, c.slice(0, 700));
+    await reset(); await toCustom(2); await setInput(page, '#ks22', '1.5'); await click(page, '#stage [data-load="L"]'); await setInput(page, '#zl', '250');
+    c = await cres();
+    check('DEFECT-RFC-012: S22·Γ_L = 1 (S22 1.5, Z_L 250 Ω): "No finite steady state at the load", no NaN (panel, both plots)',
+      /^No finite steady state at the load:/m.test(c) && (await nanCount()) === 0 && (await click(page, '#seg_band'), (await nanCount()) === 0)
+      && (await page.$$eval('#stage .legend', e => e.map(x => x.textContent))).every(t => t.endsWith('(no steady state: not drawn)')), c.slice(0, 300));
+    await setInput(page, '#zl', '249.99'); c = await cres();
+    check('near the pole (Z_L 249.99 Ω): finite values, no pole statement', !/No finite steady state/.test(c) && !/undefined/.test(c.split('Load')[1] || 'undefined') && (await nanCount()) === 0, c.slice(0, 300));
+    // DEFECT-RFC-013: named upper limits
+    await reset(); await click(page, '#stage [data-src]');
+    for(const [id, v, re] of [['vsMag', '1e308', /^Refused: above 1000 V peak/], ['zs', '1e300', /^Refused: \|Z_s\| above 1 MΩ/], ['zs', '1e7+j1', /^Refused: \|Z_s\| above 1 MΩ/]]){
+      await setInput(page, '#' + id, v); check('DEFECT-RFC-013: ' + id + ' = ' + v + ' refused with the limit named', re.test(await err(id)) && (await nanCount()) === 0, await err(id)); await setInput(page, '#' + id, id === 'zs' ? '50' : '1'); }
+    await setInput(page, '#vsMag', '1000'); check('V_s = 1000 V (the limit) accepted, no NaN', (await err('vsMag')) === '' && (await nanCount()) === 0);
+    await click(page, '#stage [data-load="L"]'); await setInput(page, '#zl', '1e308'); check('DEFECT-RFC-013: Z_L = 1e308 refused, "type open" named', /^Refused: \|Z_L\| above 1 MΩ .*type open/.test(await err('zl')), await err('zl'));
+    await setInput(page, '#zl', 'open'); check('Z_L "open" still accepted', (await err('zl')) === '');
+    await reset(); await toCustom(0);
+    for(const k of ['ks11', 'ks12', 'ks21', 'ks22']){ await setInput(page, '#' + k, '1e308'); check('DEFECT-RFC-013: ' + k + ' = 1e308 refused (|S| above 1000)', /^Refused: \|S\| above 1000 \(60 dB/.test(await err(k)) && (await nanCount()) === 0, await err(k)); }
+    await reset(); await click(page, '#stage [data-blk="main:0"]'); await setInput(page, '#kp_G', '60'); await setInput(page, '#ks11', '0');
+    check('an Amplifier at 60 dB edited into Custom keeps |S21| = 1000 (inside the S limit)', (await err('ks11')) === '' && (await page.inputValue('#ks21')).startsWith('1000'), await page.inputValue('#ks21'));
+    // DEFECT-RFC-014: a band too narrow to sweep is refused; no NaN attribute, no console error
+    await reset(); await click(page, '#seg_cs');
+    for(const v of ['1e-17', '1e-300', '5e-324']){ await setInput(page, '#bandW', v);
+      check('DEFECT-RFC-014: span ' + v + ' GHz refused, the minimum named; keeping 1', /^Refused: a band this narrow cannot be resolved: the span must be at least one part in 10⁹ of the centre \(1e−9 GHz here\); keeping 1$/.test(await err('bandW')) && (await nanCount()) === 0, await err('bandW')); }
+    await setInput(page, '#bandW', '1e-6'); check('span 1e-6 GHz (1 kHz) accepted; no NaN', (await err('bandW')) === '' && (await nanCount()) === 0);
+    await click(page, '#seg_ss'); await setInput(page, '#bandE', '2'); await setInput(page, '#bandS', '1.9999999999999');
+    check('DEFECT-RFC-014: Start one ulp-ish below Stop refused as unresolvable', /cannot be resolved/.test(await err('bandS')), await err('bandS'));
+    // CQ-RFC-020 / DEFECT-RFC-015: band refusals name the value in use
+    await reset(); await click(page, '#seg_cs'); await setInput(page, '#bandW', '0.2'); await setInput(page, '#bandW', '50');
+    check('CQ-RFC-020: Span 0.2 accepted then 50 refused "keeping 0.2"', /; keeping 0\.2$/.test(await err('bandW')), await err('bandW'));
+    await setInput(page, '#bandC', '1.2'); await setInput(page, '#bandC', '');
+    check('CQ-RFC-020: Centre 1.2 then empty refused "keeping 1.2"', /; keeping 1\.2$/.test(await err('bandC')), await err('bandC'));
+    await reset(); await click(page, '#seg_ss'); await setInput(page, '#bandS', '0.8'); await setInput(page, '#bandS', '5');
+    check('CQ-RFC-020: Start 0.8 then 5 refused "keeping 0.8"', /; keeping 0\.8$/.test(await err('bandS')), await err('bandS'));
+    await setInput(page, '#bandE', '1.7'); await setInput(page, '#bandE', '');
+    check('CQ-RFC-020: Stop 1.7 then empty refused "keeping 1.7"', /; keeping 1\.7$/.test(await err('bandE')), await err('bandE'));
+    await click(page, '#seg_cs');
+    // PPR-RFC-013: G_T undefined with P_avs; the incident-power ratio under its own name
+    for(const zs of ['0', '0+j50', '-25']){ await reset(); await click(page, '#stage [data-src]'); await setInput(page, '#zs', zs); c = await cres();
+      check('PPR-RFC-013: Z_s = ' + zs + ': "G_T transducer gain undefined: P_avs is undefined, |Γs| …"; P_L / P⁺ (to the incident power) shown with a number; footnote names it',
+        /transducer gain\s+undefined: P_avs is undefined, \|Γs\| [=>] 1/.test(c) && /P\s*L\s*\/ P⁺ \(to the incident power\)\s+\d/.test(c)
+        && (await page.evaluate(() => document.getElementById('panel').innerText)).includes('G_T is undefined (P_avs is undefined); the plots\' ratios are of the incident power P⁺.'), c.slice(0, 900)); }
+    await reset(); await page.click('#stage [data-add="main:1"]'); await page.waitForTimeout(60); await click(page, '#add_div'); await click(page, '#stage [data-src]'); await setInput(page, '#zs', '0'); c = await cres();
+    check('PPR-RFC-013: divider, Z_s = 0: "(P_LA / P_avs)" and "(P_LB / P_avs)" read undefined, never a number', /\(P_LA \/ P_avs\)\s+undefined/.test(c) && /\(P_LB \/ P_avs\)\s+undefined/.test(c), c.slice(0, 1200));
+    // PPR-RFC-016: the band-plot legend names the reflected wave as Results does
+    await reset(); await click(page, '#seg_band');
+    check('PPR-RFC-016: band-plot legend "reflected wave (re Z0)"', (await page.$$eval('#stage .legend', e => e.map(x => x.textContent))).includes('reflected wave (re Z0)'));
+    await click(page, '#seg_chain');
+    check('v1.8.2 section: no console errors, no network', log.console.length === 0 && log.requests.every(u => u.startsWith('file:')), log);
+    await ctx.close(); }
+  // VIS-RFC-009: at 1024×768 windowed nothing in the top bar is clipped; help and the version stamp are on screen
+  { const { ctx, page } = await open(browser, { viewport: { width: 1024, height: 768 } });
+    for(const hs of ['#view=reflections&vr=0', '#view=devices&device=through&drive=fwd', '#view=cascade']){ await goto(page, hs);
+      const t = await page.evaluate(() => { const top = document.getElementById('top'), r = id => document.getElementById(id).getBoundingClientRect();
+        return { sw: top.scrollWidth, cw: top.clientWidth, help: r('helpBtn').right, ver: r('verStamp').right, verW: r('verStamp').width, w: window.innerWidth }; });
+      check('VIS-RFC-009: 1024×768 ' + hs + ': top bar not overflowing; "?" and the version stamp inside the window', t.sw <= t.cw && t.help <= t.w && t.ver <= t.w && t.verW > 0, t); }
+    await ctx.close(); }
+  // CQ-RFC-006: one redraw per interaction (view changes, presentation)
+  { const { ctx, page } = await open(browser, { viewport: { width: 1280, height: 720 } });
+    await page.evaluate(() => { window.__n = 0; new MutationObserver(m => m.forEach(r => { r.addedNodes.forEach(n => { if(n.tagName === 'svg') window.__n++; }); })).observe(document.getElementById('stage'), { childList: true }); });
+    const count = async act => { await page.evaluate(() => { window.__n = 0; }); await act(); await page.waitForTimeout(300); return page.evaluate(() => window.__n); };
+    const n = [await count(() => goto(page, '#view=devices&device=through&drive=fwd')), await count(() => goto(page, '#view=cascade')), await count(() => goto(page, '#view=reflections&vr=0')),
+      await count(() => present(page)), await count(() => page.keyboard.press('Escape'))];
+    check('CQ-RFC-006: one drawing per interaction: to Devices, to Cascade, to Reflections, presentation on, off', n.every(x => x === 1), n);
+    await ctx.close(); }
+  // Visual: 1024×768 windowed and presentation (VIS-RFC-001, -003, -004), focus rings (VIS-RFC-002)
+  for(const pres of [false, true]){
+    const { ctx, page } = await open(browser, { viewport: { width: 1024, height: 768 } });
+    if(pres) await present(page);
+    await goto(page, '#view=devices&device=custom&drive=fwd');
+    const dv = await page.evaluate(() => { const p = document.getElementById('panel').getBoundingClientRect(); return ['drive_fwd', 'drive_rev', 'dev_custom'].map(id => { const r = document.getElementById(id).getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return r.right <= p.left + 0.5 && hit === document.getElementById(id); }); });
+    check('VIS-RFC-001 (' + (pres ? 'presentation' : 'windowed') + ' 1024×768): Forward, Reverse and the device buttons sit left of the panel and are not covered', dv.every(Boolean), dv);
+    const sizes = [];
+    for(const v of ['#view=reflections&vr=0', '#view=devices&device=through&drive=fwd', '#view=cascade']){ await goto(page, v);
+      sizes.push(await page.evaluate(() => Math.min(...[...document.querySelectorAll('#stage svg text')].filter(t => t.textContent.trim() && t.getBoundingClientRect().width > 0).map(t => {
+        const m = t.getScreenCTM(); return parseFloat(getComputedStyle(t).fontSize) * m.a; })))); }
+    check('VIS-RFC-003 (' + (pres ? 'presentation' : 'windowed') + ' 1024×768): smallest drawn text ≥ 11 px on screen (Reflections, Devices, Cascade)', sizes.every(x => x >= 11 - 0.01), sizes.map(x => x.toFixed(2)));
+    const tg = await page.evaluate(() => [...document.querySelectorAll('#stage [data-del]')].map(g => { const r = g.querySelector('.hitarea').getBoundingClientRect(); return Math.min(r.width, r.height); }));
+    check('VIS-RFC-004 (' + (pres ? 'presentation' : 'windowed') + ' 1024×768): every remove (✕) button\'s hit area ≥ 24 px', tg.length > 0 && tg.every(x => x >= 24 - 0.01), tg.map(x => x.toFixed(1)));
+    if(!pres){
+      const ring = async sel => { await page.focus(sel); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab'); await page.waitForTimeout(50);
+        return page.evaluate(sel => { const g = document.querySelector(sel), f = g.querySelector('.fring'); return { focused: document.activeElement === g, stroke: getComputedStyle(f).stroke, sel: g.querySelector('.block,.load') ? getComputedStyle(g.querySelector('.block,.load')).stroke : null }; }, sel); };
+      const a = await ring('#stage [data-load="L"]'), b = await ring('#stage [data-blk="main:0"]');
+      check('VIS-RFC-002: Load and the selected Block 1 show a focus ring (text colour) outside the shape, distinct from the selection outline', a.focused && b.focused && a.stroke !== 'none' && b.stroke !== 'none' && b.stroke !== b.sel, [a, b]);
+    }
+    await ctx.close(); }
 
   if(SHOTS){
     console.log('Screenshots (1280×720 presentation and 1920×1080 windowed; Projector theme, Devices also dark)');
