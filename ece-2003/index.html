@@ -17,6 +17,7 @@
   --panel-hi:#1B3A44;
   --phosphor:#7CE0A8;     /* primary accent — scope trace          */
   --amber:#E8B33C;        /* secondary — tools / input waveform    */
+  --lecture:#8FC7F2;      /* lectures — the numbered lecture series */
   --ink:#DEEAEE;
   --muted:#87A3AC;
   --radius:3px;
@@ -154,6 +155,7 @@ main{max-width:1180px;margin:0 auto;padding:0 var(--gutter) 90px}
   transition:transform .16s ease,border-color .16s ease,background .16s ease;
 }
 .card-tool{border-left-color:var(--amber)}
+.card-lecture{border-left-color:var(--lecture)}
 a.card:hover,.card-dl:hover{transform:translateY(-2px);background:var(--panel-hi);border-color:var(--muted)}
 a.card:hover .card-go,.card-dl:hover .card-go{color:var(--phosphor)}
 /* cards with a download: the whole card opens the tool, the download button sits above that link */
@@ -172,6 +174,7 @@ a.card:hover .card-go,.card-dl:hover .card-go{color:var(--phosphor)}
   color:var(--phosphor);margin-bottom:10px;
 }
 .card-tool .card-kind{color:var(--amber)}
+.card-lecture .card-kind{color:var(--lecture)}
 .card h3{
   font-family:"Archivo",sans-serif;
   font-weight:700;font-size:19px;line-height:1.2;
@@ -231,6 +234,7 @@ footer a{color:var(--phosphor)}
     <input id="search" type="search" placeholder="Filter by name, topic, or tag…" aria-label="Filter tools and animations">
     <div class="chips" role="group" aria-label="Filter by type">
       <button class="chip" data-kind="all" aria-pressed="true">All</button>
+      <button class="chip" data-kind="lecture" aria-pressed="false">Lectures</button>
       <button class="chip" data-kind="animation" aria-pressed="false">Animations</button>
       <button class="chip" data-kind="tool" aria-pressed="false">Tools</button>
     </div>
@@ -252,7 +256,7 @@ footer a{color:var(--phosphor)}
 
    file   : path relative to this page, or null if not wired up yet
    title  : display name
-   kind   : "animation" | "tool"
+   kind   : "lecture" | "animation" | "tool"
    group  : section heading (see GROUP_ORDER below)
    blurb  : one line, what it does for the student
    download: true adds a "Download" button that saves the file (a standalone,
@@ -386,14 +390,24 @@ const TOOLS = [
     tags:["pf correction"] },
 
   /* --- Laplace and the s-domain ------------------------------------- */
-  { file:"Laplace as an Algebra Tool Fall2026.html",
-    title:"Laplace as an Algebra Tool", kind:"animation", group:"Laplace & the s-Domain",
-    blurb:"Trading differential equations for algebra in s.",
-    tags:["Laplace"] },
+  { file:"Laplace_L1_What_the_Transform_Does_v1.0.1.html",
+    title:"Lecture 1 · What the Laplace Transform Does", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"Why the transform turns a circuit's differential equation into algebra, then u(t), e^(−at) and δ(t) straight from the definition. Narrated, with a Your-turn problem. v1.0.1.",
+    tags:["Laplace","definition","transform pairs"] },
 
-  { file:"Factoring the Denominator.html",
-    title:"Factoring the Denominator", kind:"animation", group:"Laplace & the s-Domain",
-    blurb:"Finding the poles before you can expand anything.",
+  { file:"Laplace_L2_Table_and_Properties_v1.0.1.html",
+    title:"Lecture 2 · The Table and Its Properties", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"The seven transform pairs circuits use, and the three properties that stretch them: linearity, frequency shift and time shift. Narrated, with a Your-turn problem. v1.0.1.",
+    tags:["Laplace","transform table","properties"] },
+
+  { file:"Laplace_L3_Circuit_Element_Models_v1.0.1.html",
+    title:"Lecture 3 · From Derivatives to Circuit Models", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"The derivative property becomes s-domain models for the capacitor and the inductor, then the initial and final value theorems check an answer. Narrated, with a Your-turn problem. v1.0.1.",
+    tags:["Laplace","s-domain models","initial value","final value"] },
+
+  { file:"Factoring_the_Denominator_v1.1.1.html",
+    title:"Lecture 4 · Factoring the Denominator", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"Finding the poles before you can expand anything: the discriminant decides. Narrated, with Your-turn problems. v1.1.1.",
     tags:["poles","factoring"] },
 
   { file:"Partial Fraction Exp Properness Fall2026.html",
@@ -401,25 +415,35 @@ const TOOLS = [
     blurb:"Checking degree before expanding, and what to do when it fails.",
     tags:["PFE","properness"] },
 
-  { file:"Inverse Laplace - Simple Poles Fall2026.html",
-    title:"Inverse Laplace — Simple Poles", kind:"animation", group:"Laplace & the s-Domain",
-    blurb:"Distinct real poles and the residues that go with them.",
+  { file:"Inverse_Laplace_Simple_Poles_v1.2.1.html",
+    title:"Lecture 5 · Inverse Laplace — Simple Poles", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"Distinct real poles and the residues that go with them. Narrated, with a Your-turn problem. v1.2.1.",
     tags:["PFE","simple"] },
 
-  { file:"Invers Laplace - Repeated Poles Fall2026.html",
-    title:"Inverse Laplace — Repeated Poles", kind:"animation", group:"Laplace & the s-Domain",
-    blurb:"Multiple poles at one location and the extra terms they require.",
+  { file:"Inverse_Laplace_Repeated_Poles_v1.2.1.html",
+    title:"Lecture 6 · Inverse Laplace — Repeated Poles", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"Multiple poles at one location and the extra terms they require. Narrated, with a Your-turn problem. v1.2.1.",
     tags:["PFE","repeated"] },
 
-  { file:"Inverse Laplace - Complex Poles Fall2026.html",
-    title:"Inverse Laplace — Complex Poles", kind:"animation", group:"Laplace & the s-Domain",
-    blurb:"Conjugate pairs, and reading damped sinusoids straight off them.",
+  { file:"Inverse_Laplace_Complex_Poles_v1.2.1.html",
+    title:"Lecture 7 · Inverse Laplace — Complex Poles", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"Conjugate pairs, and reading damped sinusoids straight off them. Narrated, with a Your-turn problem. v1.2.1.",
     tags:["PFE","complex"] },
 
-  { file:"S-Domain Circuit Analysis.html",
-    title:"S-Domain Circuit Analysis", kind:"animation", group:"Laplace & the s-Domain",
-    blurb:"Analysing the circuit directly in s, initial conditions included.",
+  { file:"S-Domain_Circuit_Analysis_v1.1.1.html",
+    title:"Lecture 8 · S-Domain Circuit Analysis", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"Analysing the circuit directly in s, initial conditions included. Narrated, with a Your-turn problem. v1.1.1.",
     tags:["s-domain"] },
+
+  { file:"Laplace_L9_Mesh_Analysis_s-Domain_v1.0.1.html",
+    title:"Lecture 9 · Mesh Analysis in the s-Domain", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"A two-mesh circuit solved entirely in s: mesh equations, Cramer's rule, and a check at t = 0⁺. Narrated, with a Your-turn problem. v1.0.1.",
+    tags:["s-domain","mesh"] },
+
+  { file:"Laplace_L10_Node_Analysis_s-Domain_v1.0.1.html",
+    title:"Lecture 10 · Node-Voltage Analysis in the s-Domain", kind:"lecture", group:"Laplace & the s-Domain",
+    blurb:"A circuit that already holds energy: initial conditions as sources, node equations, and the jump an impulse causes. Narrated, with a Your-turn problem. v1.0.1.",
+    tags:["s-domain","nodal"] },
 
   /* --- calculators and plotters ------------------------------------- */
   { file:"../ece-4123/Circuit_Math_Toolkit.html",
@@ -495,8 +519,8 @@ function matches(t, q){
 
 function cardHTML(t){
   const tags = (t.tags||[]).map(x => `<span class="tag">${x}</span>`).join("");
-  const kindLabel = t.kind === "tool" ? "Tool" : "Animation";
-  const cls = "card" + (t.kind === "tool" ? " card-tool" : "") + (t.file ? "" : " card-todo");
+  const kindLabel = t.kind === "tool" ? "Tool" : t.kind === "lecture" ? "Lecture" : "Animation";
+  const cls = "card" + (t.kind === "tool" ? " card-tool" : t.kind === "lecture" ? " card-lecture" : "") + (t.file ? "" : " card-todo");
   const inner = `
     <span class="card-kind">${kindLabel}</span>
     <h3>${t.title}</h3>
@@ -542,10 +566,11 @@ function render(){
     }).join("");
   }
 
+  const lectures = TOOLS.filter(t => t.kind === "lecture").length;
   const anims = TOOLS.filter(t => t.kind === "animation").length;
   const tools = TOOLS.filter(t => t.kind === "tool").length;
   readoutEl.textContent =
-    `${items.length}/${TOOLS.length} shown · ${anims} animations · ${tools} tools`;
+    `${items.length}/${TOOLS.length} shown · ${lectures} lectures · ${anims} animations · ${tools} tools`;
 }
 
 searchEl.addEventListener("input", render);
