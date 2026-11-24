@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <!--
   Synchronous Generator Phasor Lab
-  Version: v2.2.7
-  Released: 2026-11-19
-  Changelog: v2.2.7 — fix pass on the v2.2.6 Visual gate (Claude Code). Motor view, round rotor, R_A = 0, construction lines: the three parts of the height relation "−E_A sin δ" / "= X_S I_A cos θ" / "∝ P" are placed as one block beside the bracket with the Generator view's spacing (second line starts 1 px after the end of the first, third under the first, 16 px rows), and no part sits on the row of the −jX_S I_A drop label when that label is within 96 px of it, nor on the row next to it when the drop label is directly over or under it (VIS-SG-014). New placeGroup draws the block; placeLabel now returns the box it drew; the drop label is tagged so the block can keep off its row. Search: the bracket-side columns, then straight up and down, then rings kept on the bracket side; the left-of-triangle position is no longer offered for the motor relation. The Generator view's labels are placed exactly as in v2.2.6. Printed text unchanged. No other change.
+  Version: v2.2.8
+  Released: 2026-11-20
+  Changelog: v2.2.8 — two items from the Rulings Tracker (Claude Code). SG-3 / E5: the page ships a Content-Security-Policy meta tag, the template validated on v2.2.6 (script hashes for this build, default-src 'none'). SG-4 / VIS-SG-013: every negative number shown uses the true minus sign U+2212: Q, Regulation, power and voltage readouts, plot axis ticks, the slider and entry-range labels and notes (fV, fP, fNum and tickText now write U+2212; the typed entry boxes keep the keyboard hyphen in their own value). No other change.
+  v2.2.7 — fix pass on the v2.2.6 Visual gate (Claude Code). Motor view, round rotor, R_A = 0, construction lines: the three parts of the height relation "−E_A sin δ" / "= X_S I_A cos θ" / "∝ P" are placed as one block beside the bracket with the Generator view's spacing (second line starts 1 px after the end of the first, third under the first, 16 px rows), and no part sits on the row of the −jX_S I_A drop label when that label is within 96 px of it, nor on the row next to it when the drop label is directly over or under it (VIS-SG-014). New placeGroup draws the block; placeLabel now returns the box it drew; the drop label is tagged so the block can keep off its row. Search: the bracket-side columns, then straight up and down, then rings kept on the bracket side; the left-of-triangle position is no longer offered for the motor relation. The Generator view's labels are placed exactly as in v2.2.6. Printed text unchanged. No other change.
   v2.2.6 — fix pass on the v2.2.5 gates (Claude Code). Motor view, round rotor, R_A = 0, construction lines: the height relation is printed signed, "−E_A sin δ = X_S I_A cos θ ∝ P", which is true for the negative δ on screen and agrees with the KVL strip E_A = V_φ − jX_S I_A (PPR-SG-013; relabel only, the drawing is unchanged; the Condenser view uses the same signed form if its height bracket is ever drawn; the Generator view keeps "E_A sin δ = X_S I_A cos θ ∝ P" / "∝ real current"). setSubText is declared once: the v2.2.4 declaration, which a later declaration shadowed and which never ran, is removed; the body that has run since v2.2.3 (split on "_" followed by letters or digits, linear in its input) is kept, and it builds only text nodes and attribute-free <sub> elements (CQ-SG-701, SEC-SG-601). The v2.2.4 entry below is corrected to say so. The construction-line comments name the drop phasor as drawn in each view, jX_S I_A for a generator and −jX_S I_A for a motor or condenser (CQ-SG-702; comments only). No other change.
   v2.2.5 — PPR-SG-010, ruling J4 option A, 2026-11-17 (Claude Code). Motor and Condenser views (round rotor and salient pole): the drawn drop phasors are −jX_S I_A and −R_A I_A, and are now labelled so on the diagram and in the legend ("−jX_S I_A", "−R_A I_A"; salient pole "−jX_d I_d − jX_q I_q"), matching the KVL strip term by term and Experiment 12 step 1. The drawing itself, the Generator view and the physics are unchanged. No other change.
   v2.2.4 — fix pass on the v2.2.3 gates (Claude Code). Capability plot: each half-plane name ("lagging pf" / "leading pf") is placed on the P side where the machine shown operates (P ≥ 0 generator, P ≤ 0 motor, either side for the condenser) (PPR-SG-007). Theory: the unity-load and regulation statements, and "a generator has a positive δ", are scoped to X_S ≫ R_A, as in every real machine; the lab lets R_A approach X_S, where they can reverse (PPR-SG-011). Excitation pill: a reversed field is named as such, never as a field above its limit (PPR-SG-012). Phasor labels: the origin dot is a label obstacle, and in the dark view the glow of the three phasors is too (VIS-SG-002). Pin reference, Fit, the theme button and the guide's Restart / Hide / close carry their meaning in visible text (a note under Pin reference; "Fit diagram", "Restart experiment", "Leave guide"), with no tooltip-only instruction (VIS-SG-008). The status chip and the R_A note print I_f, P_max, R_A and V_φ with subscripts, built as text nodes and <sub> elements (VIS-SG-012). Correction (v2.2.6, CQ-SG-701): v2.2.4 added a second setSubText declaration that was shadowed by the existing v2.2.3 one; the body in force was the v2.2.3 body, which already built text nodes and <sub> elements, so the output was as stated but the function described here never ran. Panel titles, the mini buttons and the nav badge are 0.72rem (11.52 px), so every page label is at least 11.5 px as the v2.2.3 entry says (CQ-SG-602). The v2.2.3 entry below now lists every shipped change (CQ-SG-601).
@@ -18,9 +19,21 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src 'sha256-6I3nW/S5LYFIpy/Z8kaqmMsIrYsVP9u8fj6RnBDEP9U=' 'sha256-FOEemPox7fEiSE82OIUN1FuPJ33QoRloVqZU7yNJIr8=';
+  style-src 'unsafe-inline';
+  font-src data:;
+  img-src 'self' data:;
+  connect-src 'none';
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none';
+  upgrade-insecure-requests;
+">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="version" content="v2.2.7">
-<title>Synchronous Generator Phasor Lab v2.2.7</title>
+<meta name="version" content="v2.2.8">
+<title>Synchronous Generator Phasor Lab v2.2.8</title>
 <script>
 /* Theme is applied before first paint: saved choice, else the system preference. */
 (function () {
@@ -253,7 +266,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 <body>
 
 <div class="topnav">
-    <div class="brand"><i></i>Synchronous Generator Phasor Lab <small>ECE-3033 · v2.2.7</small></div>
+    <div class="brand"><i></i>Synchronous Generator Phasor Lab <small>ECE-3033 · v2.2.8</small></div>
     <div class="nav-right">
         <div class="tabs" id="pageTabs">
             <button class="active" data-page="theoryPage" aria-current="page">Theory</button>
@@ -520,7 +533,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
 
 <script>
 /* ============================================================
-   SYNCHRONOUS GENERATOR PHASOR LAB v2.2.7 — University of Tulsa ECE-3033
+   SYNCHRONOUS GENERATOR PHASOR LAB v2.2.8 — University of Tulsa ECE-3033
    Sign conventions (per phase, V_φ on the real axis):
      Generator:  E_A = V_φ + I_A (R_A + jX_S)     E_A leads V_φ by δ
      Motor:      E_A = V_φ − I_A (R_A + jX_S)     E_A lags  V_φ by δ
@@ -897,9 +910,9 @@ function driveHandover(m) {
 /* ═══ END 3. PHYSICS ═══ */
 
 /* ═══ 4. FORMATTING + THEME ═══ */
-const fV = v => Math.abs(v) >= KV_BREAK ? (v / KILO).toFixed(DEC.KV) + ' kV' : v.toFixed(DEC.V) + ' V';       // volts
+const fV = v => (Math.abs(v) >= KV_BREAK ? (v / KILO).toFixed(DEC.KV) + ' kV' : v.toFixed(DEC.V) + ' V').replace('-', MINUS);       // volts; a negative value is written with U+2212 (v2.2.8, VIS-SG-013)
 const fA = a => a >= KILO ? (a / KILO).toFixed(DEC.KA) + ' kA' : a.toFixed(DEC.A) + ' A';                    // amps
-const fP = (w, u) => { const k = w / W_PER_KW; return Math.abs(k) >= KILO ? (k / KILO).toFixed(DEC.MW) + ' M' + u : k.toFixed(DEC.KW) + ' k' + u; };   // power (u = 'W' or 'VAR')
+const fP = (w, u) => { const k = w / W_PER_KW; return (Math.abs(k) >= KILO ? (k / KILO).toFixed(DEC.MW) + ' M' + u : k.toFixed(DEC.KW) + ' k' + u).replace('-', MINUS); };   // power (u = 'W' or 'VAR'); negative with U+2212 (v2.2.8)
 const fPf = s => s.Iabs < SOLVER.I_EPS ? EMPTY : Math.abs(s.pf).toFixed(DEC.PF) + (s.lagging ? ' lag' : s.leading ? ' lead' : '');   // power factor with lag / lead
 const fAng = d => (Math.abs(d) < ANG_ZERO ? 0 : d).toFixed(DEC.ANG).replace('-', '−') + '°';                                    // angle in degrees
 
@@ -909,7 +922,8 @@ function fField(s) {
     while (v < 0 && d < DEC.TICK && +v.toFixed(d) === 0) d++;
     return v.toFixed(d).replace('-', '−');
 }
-const fNum = (v, d) => String(+v.toFixed(d));                                                                                   // entry-box / slider-label number, no trailing zeros
+const fEntry = (v, d) => String(+v.toFixed(d));                                                                                 // number written into a typed entry box, no trailing zeros (keyboard hyphen, so it can be typed over and parsed)
+const fNum = (v, d) => fEntry(v, d).replace('-', MINUS);                                                                        // number shown as text (slider labels, ranges, notes), no trailing zeros; negative with U+2212 (v2.2.8, VIS-SG-013)
 
 /* Text for the power-factor control: "0.80 lagging". */
 function pfText(thDeg) {
@@ -1406,7 +1420,7 @@ function tickValues(lo, hi, px, minPx) {
     return out;
 }
 /* Text of a tick value. */
-function tickText(v) { return +v.toFixed(DEC.TICK) + ''; }
+function tickText(v) { return (+v.toFixed(DEC.TICK) + '').replace('-', MINUS); }
 /* Style of the tick labels. */
 function tickStyle() { return { size: PLOT.TICK_SIZE, color: C.mut, weight: WEIGHT.MED, mono: true, halo: false }; }
 /* Left margin of a side plot whose frame is hpx high (px): room for the rotated axis title, a gap and the widest
@@ -1682,7 +1696,7 @@ function readoutsHTML(s, alone) {
     let given, found;
     if (alone) {
         const inBand = s.V >= SOLVER.V_BAND_LO * M.V && s.V <= SOLVER.V_BAND_HI * M.V;
-        const tLoad = ro('Load', fNum(loadPct(), DEC.PCT) + ' %'), tVR = ro('Regulation', (s.VR >= 0 ? '+' : '') + (s.VR * PCT).toFixed(DEC.PCT) + ' %');
+        const tLoad = ro('Load', fNum(loadPct(), DEC.PCT) + ' %'), tVR = ro('Regulation', (s.VR >= 0 ? '+' : '') + (s.VR * PCT).toFixed(DEC.PCT).replace('-', MINUS) + ' %');
         const tPct = ro('V<sub>φ</sub> / rated', (PCT * s.V / M.V).toFixed(DEC.PCT) + ' %', inBand ? 'var(--ok)' : 'var(--warn)');
         // Solve for E_A: the terminal voltage is given (s.V is exactly M.V). Solve for V_φ: the field is given.
         const forE = M.solveFor === 'E';
@@ -1690,7 +1704,7 @@ function readoutsHTML(s, alone) {
         found = forE ? [tE, tD, tIf, tVR, tP, tQ, tS] : [tV, tVT, tPct, tVR, tE, tD, tP, tQ, tS];
     } else {
         given = [tV, tVT].concat(modeNow() === 'cond' ? [] : [tP], [exc ? tIf : tPf, tZ]);
-        found = [tE, tD].concat(tI, [exc ? tPf : tIf, tQ, tS, ro('E<sub>A</sub> cos δ', fV(s.Ef * Math.cos(s.delta)).replace('-', '−'), 'var(--ph-e)'),
+        found = [tE, tD].concat(tI, [exc ? tPf : tIf, tQ, tS, ro('E<sub>A</sub> cos δ', fV(s.Ef * Math.cos(s.delta)), 'var(--ph-e)'),
                                      ro('P<sub>max</sub>', s.pmaxPh != null ? fP(PHASES * s.pmaxPh, 'W') : EMPTY)]);
     }
     return '<div class="ro-h">Given</div><div class="ro-g">' + given.join('') + '</div><div class="ro-h">Results</div><div class="ro-g">' + found.join('') + '</div>';
@@ -1930,7 +1944,7 @@ function syncEntries(force) {
     for (const [id, lim, get, , dec, scale, , unit] of ENTRIES) {
         const n = el(id), k = scale();
         el(id.replace('Num', 'Range')).textContent = 'Allowed: ' + fNum(lim.min * k, dec) + ' to ' + fNum(lim.max * k, dec) + unit;
-        if (force || document.activeElement !== n) { n.value = fNum(get() * k, dec); n.setAttribute('aria-invalid', false); }
+        if (force || document.activeElement !== n) { n.value = fEntry(get() * k, dec); n.setAttribute('aria-invalid', false); }
     }
 }
 
