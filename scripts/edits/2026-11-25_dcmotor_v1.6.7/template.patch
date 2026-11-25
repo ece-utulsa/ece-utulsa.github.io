@@ -1,5 +1,5 @@
 --- template_v1.6.6.html	2026-11-25 08:22:51.153623117 -0600
-+++ template_v1.6.7.html	2026-11-25 08:22:51.147467495 -0600
++++ template_v1.6.7.html	2026-11-25 08:24:09.255432705 -0600
 @@ -2,8 +2,8 @@
  <html lang="en"><head>
  <meta charset="UTF-8">
@@ -1062,18 +1062,19 @@
      }
      x.strokeStyle = TH.axis; x.lineWidth = 1.2;
      x.beginPath(); x.moveTo(X0, Y1); x.lineTo(X0, Y0); x.lineTo(X1, Y0); if (spec.y2Label) x.lineTo(X1, Y1); x.stroke();
-@@ -2941,6 +3133,10 @@
+@@ -2941,6 +3133,11 @@
          if (k >= 1) path(0, k);
          if (k < n - 1) { x.setLineDash([6, 5]); x.globalAlpha = 0.7; path(k, n - 1); x.globalAlpha = 1; }
          x.setLineDash([]);
 +        if (s.marker) for (let j = 0; j < MARKERS_PER_SERIES; j++) {    // shape markers: series differ by more than hue (VIS-DCM-021)
-+            const i = Math.round((n - 1) * (j + 0.5) / MARKERS_PER_SERIES);
++            const ph = (MARKER_SHAPES.indexOf(s.marker) + 1) / (MARKER_SHAPES.length + 1);   // staggered, so curves that overlap still show both shapes
++            const i = Math.round((n - 1) * (j + ph) / MARKERS_PER_SERIES);
 +            drawMarker(x, s.marker, px(s.xs[i]), py(s.ys[i], s.axis), s.color);
 +        }
      }
      const mks = (spec.marks || []).filter(m => m.x >= xMin - 1e-9 && m.x <= xMax + 1e-9);
      for (const m of mks) {
-@@ -2954,7 +3150,7 @@
+@@ -2954,7 +3151,7 @@
         position that collides with nothing already placed (a label with no free spot is dropped) */
      const occ = [];
      let dropped = 0;
@@ -1082,7 +1083,7 @@
      const inPlot = (r) => r.x0 >= X0 - 2 && r.x1 <= X1 + 2 && r.y0 >= Y1 - 4 && r.y1 <= Y0 + 2;
      // curve samples in pixels (for picking empty spots)
      const pix = [];
-@@ -2988,7 +3184,7 @@
+@@ -2988,7 +3185,7 @@
          const nw = richW(x, spec.note, fs - 1, 600);
          const right = !(LG && LG.corner === 'BR');
          const r = { x0: right ? X1 - 6 - nw : X0 + 6, x1: right ? X1 - 6 : X0 + 6 + nw, y0: Y0 - 18, y1: Y0 - 3 };
@@ -1091,7 +1092,7 @@
      }
      // reserve the operating-point dots so labels do not cover them
      for (const m of mks) { const X = px(m.x), Y = py(m.y, m.axis), rr = (m.r || 5) + 2; occ.push({ x0: X - rr, x1: X + rr, y0: Y - rr, y1: Y + rr }); }
-@@ -3001,7 +3197,7 @@
+@@ -3001,7 +3198,7 @@
          for (let row = v.row || 0; row < 5 && !done; row++) for (const sd of sides) {
              const yy = Y1 + 8 + row * 14, x0 = sd > 0 ? X + 4 : X - 4 - lw;
              const r = { x0, x1: x0 + lw, y0: yy - 7, y1: yy + 7 };
@@ -1100,7 +1101,7 @@
          }
          if (!done) dropped++;
      }
-@@ -3033,6 +3229,7 @@
+@@ -3033,6 +3230,7 @@
              const lx = LG.x0 + 6 + c * LG.colW, ly = LG.y0 + 12 + rI * 18;
              x.strokeStyle = s.color; x.lineWidth = 2.4; if (s.dash) x.setLineDash(s.dash);
              x.beginPath(); x.moveTo(lx, ly); x.lineTo(lx + 18, ly); x.stroke(); x.setLineDash([]);
@@ -1108,7 +1109,7 @@
              richText(x, s.label, lx + 24, ly, TH.ink2, 'left', 600, fs);
          });
      }
-@@ -3050,7 +3247,7 @@
+@@ -3050,7 +3248,7 @@
          for (const [bx, by] of cands) {
              const r = { x0: bx, x1: bx + lw, y0: by, y1: by + lh };
              if (r.x0 < X0 || r.x1 > X1) continue;
@@ -1117,7 +1118,7 @@
              pick = [bx, by]; break;
          }
          if (!pick) pick = [Math.min(Math.max(X0, X + 12), X1 - lw), Y1 + 6];
-@@ -3084,7 +3281,7 @@
+@@ -3084,7 +3282,7 @@
      return { i: k, p: pts[k], atEnd: k >= pts.length - 2 };
  }
  /* Label of the maximum-efficiency marker */
@@ -1126,7 +1127,7 @@
  
  /* Small Simulation-page plot (same engine, tabs). Speed axes zoom to the operating band
     (same rule as the Performance tab) and the plot has a hover readout. */
-@@ -3098,7 +3295,7 @@
+@@ -3098,7 +3296,7 @@
      if (S.plot === 'ts') {
          const ymin = zmin(pts.map(p => p.rpm));
          return { pts, x: p => p.Tshaft,
@@ -1135,7 +1136,7 @@
              dots: p => [{ y: p.rpm, color: COL.speed }],
              spec: { xLabel: 'Torque  τ (N·m)', yLabel: 'Speed  n (rpm)', yColor: COL.speed,
              xMax: mx(pts.map(p => p.Tem)) * 1.08, yMin: ymin, yMax: mx(pts.map(p => p.rpm)) * 1.04,
-@@ -3108,7 +3305,7 @@
+@@ -3108,7 +3306,7 @@
              vlines: [{ x: M.Tload_r, label: 'rated τ' }], legendRight: true, note: ymin > 0 ? 'speed axis zoomed' : '' } };
      }
      if (S.plot === 'ti') return { pts, x: p => p.Ia,
@@ -1144,7 +1145,7 @@
          dots: p => [{ y: p.Tshaft, color: COL.tq }, { y: p.Tem, color: COL.dev }],
          spec: { xLabel: 'Armature current  I_A (A)', yLabel: 'Torque  τ (N·m)', yColor: COL.tq,
              xMax: mx(pts.map(p => p.Ia)) * 1.05, yMax: mx(pts.map(p => p.Tem)) * 1.1,
-@@ -3119,18 +3316,18 @@
+@@ -3119,18 +3317,18 @@
          const xmin = zmin(pts.map(p => p.rpm));
          return { pts, x: p => p.rpm,
              tip: p => [`n = ${Math.round(p.rpm)} rpm`, { t: `P_in = ${fmt(p.Pin, 'W')}`, c: COL.in }, { t: `P_out = ${fmt(p.Pout, 'W')}`, c: COL.out }],
@@ -1168,7 +1169,7 @@
              dots: p => [{ y: p.rpm, color: COL.speed }, { y: p.Ia, axis: 'y2', color: COL.ia }],
              spec: { xLabel: 'Load torque (× rated)', yLabel: 'Speed  n (rpm)', yColor: COL.speed, y2Label: 'I_A (A)', y2Color: COL.ia,
              xMax: mx(xs) * 1.05, yMin: ymin, yMax: mx(pts.map(p => p.rpm)) * 1.04, y2Max: mx(pts.map(p => p.Ia)) * 1.1,
-@@ -3140,14 +3337,14 @@
+@@ -3140,14 +3338,14 @@
              legendRight: true, note: ymin > 0 ? 'speed axis zoomed' : '' } };
      }
      const em = etaMax(pts);
@@ -1188,7 +1189,7 @@
  }
  /* Draw the Simulation-page plot; hidden labels are named in the panel header */
  function drawPlot() {
-@@ -3168,13 +3365,12 @@
+@@ -3168,13 +3366,12 @@
      const c = cv.plots; if (!c || !c.tf) return;
      const r = c.c.getBoundingClientRect(), mx = e.clientX - r.left;
      SIMHOVER = (mx < c.tf.X0 || mx > c.tf.X1) ? null : c.tf.xMin + (mx - c.tf.X0) / (c.tf.X1 - c.tf.X0) * (c.tf.xMax - c.tf.xMin);
@@ -1203,7 +1204,7 @@
  /* More than one connection selected */
  function compareMode() { return S.types.length > 1; }
  let famNote = '';                    // family values that were not drawn, in plain words
-@@ -3183,9 +3379,13 @@
+@@ -3183,9 +3380,13 @@
      famNote = '';
      if (S.fam === 'none' || compareMode()) return [];
      const all = String(S.famVals || '').split(/[,\s]+/).filter(s => s !== '').map(Number);
@@ -1219,7 +1220,7 @@
      if (ok.length > FAMILY_MAX) famNote += `Only the first ${FAMILY_MAX} family values are drawn (${ok.length} given).`;
      return vals.map((v, i) => {
          const p = typeParams(S.types[0]);
-@@ -3204,7 +3404,7 @@
+@@ -3204,7 +3405,7 @@
      const list = S.types.map((mt, i) => {
          const pp = PPS[i];
          const ext = (pp && !(pp.Tshaft < 0)) ? pp.Ia : 0;
@@ -1228,7 +1229,7 @@
          const L = { mt, sw, pts: visible(sw, S.showFull), pp: PPS[i], color: TYPE_COL[mt], label: TYPE_SHORT[mt], solidTo: solidIdx(sw) };
          Object.assign(L, characteristics(mt, sw));
          return L;
-@@ -3213,13 +3413,13 @@
+@@ -3213,13 +3414,13 @@
      PERF = { list, cmp: compareMode(), sw: pr.sw, pts: pr.pts, fams: familySweeps(), solidTo: pr.solidTo };
      renderResults();
      renderTable();
@@ -1244,7 +1245,7 @@
      for (const L of capped) note.push(note.length ? ' ' : '', B(TYPE_SHORT[L.mt] + ':'), ` no-load speed n_nl = ${Math.round(L.sw.noLoad.rpm)} rpm (${fx(L.sw.noLoad.rpm / S.nr, 1)}× rated); the curves are drawn from ${CURVE_SPEED_X}× rated speed downward.`);
      if (!runs.length && !capped.length && ser) note.push(B('Series motor:'), ` speed climbs steeply as load is removed. Here the no-load speed is ${Math.round(ser.sw.noLoad.rpm)} rpm (${fx(ser.sw.noLoad.rpm / S.nr, 1)}× rated), held down only by the rotational losses (core, friction and windage). Real series motors are never run unloaded.`);
      if (famNote) note.push(note.length ? ' ' : '', B('Family:'), ' ' + famNote);
-@@ -3237,7 +3437,12 @@
+@@ -3237,7 +3438,12 @@
      const C = machineCtx(ME, p);
      const Ist = Math.min(C.Iastall, S.ilim * M.Ia_r);
      const tst = C.fluxEff(Ist) * Ist;
@@ -1258,7 +1259,7 @@
  }
  /* Power balance P_in − losses − P_out (zero for every solved point) */
  function balanceOf(r) { return r.Pin - (r.Pfcu + r.Pacu + r.Pbrush + r.Pcore + r.Pfric + r.Pwind + r.Pstray) - r.Pout; }
-@@ -3249,27 +3454,49 @@
+@@ -3249,27 +3455,49 @@
  }
  /* Plain-words statements about an operating point outside normal, steady motoring (shared by both tabs) */
  function stateWarnings(r) {
@@ -1321,7 +1322,7 @@
          const bold = f => (r, x) => B(f(r, x));
          const rows = [
              ['grp', 'Electrical'],
-@@ -3279,7 +3506,7 @@
+@@ -3279,7 +3507,7 @@
              ['Armature current I_A', r => W(r.Ia), 'A'],
              ['Field MMF (÷N_F)', r => W(r.mmf), 'A'],
              [B('Back-EMF E_A'), bold(r => W(r.Eb)), 'V', 'hl'],
@@ -1330,7 +1331,7 @@
              ['grp', 'Mechanical'],
              [B('Speed n'), bold(r => W(r.rpm)), 'rpm', 'hl'],
              ['Developed torque τ_ind', r => W(r.Tem), 'N·m'],
-@@ -3301,7 +3528,7 @@
+@@ -3301,7 +3529,7 @@
              ['No-load speed n_nl (τ_load = 0)', (r, x) => (x.runaway ? '> ' : '') + W(x.nnl), 'rpm'],
              ['Full-load speed n_fl (rated τ)', (r, x) => x.nfl > 0 ? W(x.nfl) : 'stall', 'rpm'],
              [B('Speed regulation SR'), bold((r, x) => isFinite(x.SR) ? fx(x.SR, 1) : '—'), '%', 'hl'],
@@ -1339,7 +1340,7 @@
              ['Starting torque ÷ rated torque', (r, x) => fx(x.tst / M.Tload_r, 2), '×'],
          ];
          const head = h('tr', null, h('th'),
-@@ -3330,7 +3557,7 @@
+@@ -3330,7 +3558,7 @@
          setKids(out, h('div', { className: 'res-head' }, h('span', null, `Operating point · ${TYPE_NAME[mt]}`), srcTag), pointWarn(r),
              h('table', { className: 'res-tab' }, h('tbody', null, row('Terminal voltage V_T', W(r.V), 'V'), row('Load torque τ_load (set)', W(r.Tload), 'N·m'),
                  row('No-load speed n_nl (τ_load = 0)', '> ' + W(C0.nnl), 'rpm'),
@@ -1348,7 +1349,7 @@
          return;
      }
      setKids(out,
-@@ -3346,7 +3573,7 @@
+@@ -3346,7 +3574,7 @@
                  hasSe ? row('I_{S}R_{S} drop', W(r.Ise * r.Rs), 'V') : null,
                  row('Brush drop V_BD', W(r.Vb), 'V'),
                  row(B('Back-EMF E_A'), B(W(r.Eb)), 'V = KΦω_m', 'hl'),
@@ -1357,7 +1358,7 @@
                  row('Field MMF ÷ N_F', W(r.mmf), 'A (shunt-equivalent)')),
              tab(grp('Mechanical'),
                  row('Speed n', W(r.rpm), 'rpm'),
-@@ -3358,7 +3585,7 @@
+@@ -3358,7 +3586,7 @@
                  grp('Characteristics'),
                  row('No-load speed n_nl (τ_load = 0)', (C0.runaway ? '> ' : '') + W(C0.nnl), 'rpm'),
                  row('Speed regulation SR', isFinite(C0.SR) ? fx(C0.SR, 2) : '—', '% = (n_nl − n_fl)/n_fl', 'hl'),
@@ -1366,7 +1367,7 @@
                  grp('Efficiency'),
                  row(B('η = P_out/P_in'), B(fx(r.eta, 2)), '%', 'hl')),
              tab(grp('Power flow'),
-@@ -3372,13 +3599,13 @@
+@@ -3372,13 +3600,13 @@
                  row('− friction', W(r.Pfric), 'W', 'loss'),
                  row('− windage', W(r.Pwind), 'W', 'loss'),
                  row('− stray load', W(r.Pstray), 'W', 'loss'),
@@ -1382,7 +1383,7 @@
      const body = h('tbody');
      let tot = 0;
      const R0 = v => fx(Math.round(v), 0);
-@@ -3388,7 +3615,7 @@
+@@ -3388,7 +3616,7 @@
          const idx = Array.from({ length: n }, (_, i) => Math.round(i * (pts.length - 1) / (n - 1 || 1)));
          for (const i of idx) {
              const p = pts[i];
@@ -1391,7 +1392,7 @@
              body.appendChild(h('tr', { className: p.inLimit ? '' : 'beyond' },
                  PERF.cmp ? h('td', { style: { color: T.color, textAlign: 'left' } }, lit(TYPE_SHORT[T.mt])) : null,
                  cells.map(c => h('td', null, lit(c)))));
-@@ -3423,9 +3650,9 @@
+@@ -3423,9 +3651,9 @@
  /* Zoomed floor regardless of the zoom setting (0 when the band is wide) */
  function zoomMinRaw(vals) {
      const lo = Math.min(...vals), hi = Math.max(...vals);
@@ -1404,7 +1405,7 @@
  }
  /* All plotted points of the Performance data */
  const flat = (D) => D.list.flatMap(L => L.pts).concat(D.fams.flatMap(f => f.pts));
-@@ -3433,15 +3660,15 @@
+@@ -3433,15 +3661,15 @@
  function opMarks(D, xf, yf, labelf) {
      const lim = S.ilim * M.Ia_r;
      return D.list.filter(L => !(L.pp.Tshaft < 0) && !L.pp.runaway).map(L => ({ x: xf(L.pp), y: yf(L.pp), color: D.cmp ? L.color : accent(),
@@ -1423,7 +1424,7 @@
  }
  /* chart definitions: x(p) maps a sweep point to the chart's x value (for hover);
     cmp(p) is the one-line value shown per connection in compare mode */
-@@ -3452,104 +3679,116 @@
+@@ -3452,104 +3680,116 @@
          let series;
          if (D.cmp) series = cmpSeries(D, p => p.Tshaft, p => p.rpm);
          else series = famSeries(D, p => p.Tshaft, p => p.rpm).concat([
@@ -1585,7 +1586,7 @@
          const subEl = el(id).parentElement.querySelector('.ph-sub');
          if (HOVER && HOVER.chart === id) {
              if (PERF.cmp) {
-@@ -3562,28 +3801,29 @@
+@@ -3562,28 +3802,29 @@
              }
          } else if (HOVER && !PERF.cmp) {
              const p = PERF.pts[HOVER.idx];      // echo the hovered point on the other charts
@@ -1619,7 +1620,7 @@
      el('ratedTL').textContent = fmtUsed(M.Tload_r) + ' N·m';
      // equation strip
      const q = (s) => OP.runaway ? '—' : s;          // runaway: no operating-point values
-@@ -3597,7 +3837,7 @@
+@@ -3597,7 +3838,7 @@
                    compound_l: 'V_T = E_A + I_A(R_A + R_S) + V_BD', compound_s: 'V_T = E_A + I_{A}R_{A} + I_{L}R_{S} + V_BD' }[OP.mt];
      setKids(el('schemKvl'), kvl);
      el('eqVb').textContent = OP.Vb.toFixed(1) + ' V';
@@ -1628,7 +1629,7 @@
      el('eqTdev').textContent = q(OP.Tem.toFixed(1) + ' N·m');
      el('eqPdev').textContent = q(fmtW1(OP.Pconv));
      el('eqProt').textContent = q(fmtW1(OP.Pcore + OP.Pfric + OP.Pwind));
-@@ -3637,18 +3877,18 @@
+@@ -3637,18 +3878,18 @@
  // ── 19. ANIMATION LOOP AND START-UP ──────────────────────────────────────────
  let last = performance.now();
  let dirty = true;                     // static Simulation canvases need a redraw
@@ -1651,7 +1652,7 @@
      }
      requestAnimationFrame(frame);
  }
-@@ -3658,9 +3898,9 @@
+@@ -3658,9 +3899,9 @@
             schem: setupCanvas('schemCanvas'), plots: setupCanvas('plotCanvas') };
      for (const id of ['cTS', 'cTI', 'cPS', 'cP4']) PCV[id] = setupCanvas(id);
      el('plotCanvas').addEventListener('mousemove', simPlotHover);
