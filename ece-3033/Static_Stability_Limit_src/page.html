@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!--
+  Static Stability Limit — ECE 3033 Lecture 2
+  Version: v2.0.0
+  Released: not released (build for principal review, 2026-11-25)
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  Changelog: v2.0.0 — redesign to the 2026-11-25 design (spec Static_Stability_Limit_v2.0.0_spec.md), in the Voltage
+  Regulation v2.0.0 pattern: narrated lecture of 7 slides (38 voiced lines; slide 6 "Worked cases" is new), the v1.2.0 Lab
+  with a narrated introduction (3 lines), and Experiments E1–E4 as v1.2.0 plus E5 (the v1.2.0 slide-6 problem).
+  Built from Static_Stability_Limit_src/ with build.py.
+  v1.2.0 — seven-slide interactive lecture with Lab and Experiments (demo release 2026-11-22).
+  Model: G3, 25 MVA, 13.8 kV, 4 poles, 1800 r/min (ω_m = 188.5 rad/s), X_S = 1.0 pu = 7.62 Ω, on the infinite bus
+  V_φ = 7.97 kV; E_A = V_φ × I_F / 5.00 A (no saturation). R_A and the rotational losses are ignored on every slide but slide 2:
+  P = 3 V_φ E_A sin δ / X_S, Q = 3 V_φ (E_A cos δ − V_φ) / X_S, I_A = (E_A − V_φ) / jX_S. Slide 2 losses are
+  illustrative: friction and windage 150 kW, core 200 kW, stray 0.01 × P_out, copper 3 I_A² R_A with R_A = 0.07 Ω,
+  with I_A from the lossless phasor relation at the set field current. The Lab's power-flow panel keeps the
+  unity-power-factor loss model. The loss of synchronism (slide 1 and the Lab) is qualitative (rotor angle run away at a rate
+  that grows with P_in − P_max sin δ, breaker trip after one pole slip); transient stability is not modelled.
+  Narration: en-GB-SoniaNeural, rate −4 %, one mp3 clip per line (mono, 24 kHz, 32 kbit/s), embedded as data.
+-->
+<html lang="en" class="lec">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-__SCRIPT_HASH__'; style-src 'sha256-__STYLE_HASH__'; media-src data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v2.0.0">
+<title>Static Stability Limit — ECE 3033 Lecture 2 v2.0.0</title>
+<style>__CSS__</style>
+</head>
+<body>
+<header>
+  <h1>Static Stability Limit</h1><span class="badge">ECE 3033 · Lecture 2 · v2.0.0</span>
+  <details id="model"><summary>Model</summary><div class="pop">
+    <p>Machine G3: 25 MVA, 13.8 kV, 4 poles, 1800 r/min (ω<sub>m</sub> = 188.5 rad/s), X<sub>S</sub> = 7.62 Ω (1.0 pu), on the infinite bus: V<sub>φ</sub> = 7.97 kV, 60 Hz. E<sub>A</sub> = V<sub>φ</sub> × I<sub>F</sub> / 5.00 A (no saturation).</p>
+    <p>Slide 2 uses illustrative losses: friction and windage 150.0 kW, core 200.0 kW, stray 0.01 × P<sub>out</sub>, copper 3I<sub>A</sub>²R<sub>A</sub> with R<sub>A</sub> = 0.07 Ω. I<sub>A</sub> comes from the lossless phasor relation at the set field current. Its arrow widths are not to scale. The Lab's power-flow panel uses the same losses at unity power factor, with widths that follow MW.</p>
+    <p>On every other slide R<sub>A</sub> and the rotational losses are ignored (R<sub>A</sub> ≪ X<sub>S</sub>), so the input power equals P<sub>conv</sub> = P<sub>out</sub> = 3V<sub>φ</sub>E<sub>A</sub> sin δ / X<sub>S</sub>. Each lecture diagram has one fixed scale; I<sub>A</sub> is drawn on its own scale.</p>
+    <p>The loss of synchronism (slide 1 and the Lab) is qualitative: when the input power exceeds P<sub>max</sub> the rotor angle is run away at a rate that grows with (P<sub>in</sub> − P<sub>max</sub> sin δ), slowed so it can be followed, and the breaker trips after one pole slip. Transient stability (swings after a sudden change) is not modelled. In the Lab δ moves to a new steady value with a short display lag. The 25 MW rating is thermal; powers above it are shown to see the trend.</p>
+  </div></details>
+  <nav class="tabs" aria-label="Pages">
+    <button type="button" data-page="lec" aria-pressed="true">Lecture</button>
+    <button type="button" data-page="lab" aria-pressed="false">Lab</button>
+    <button type="button" data-page="exp" aria-pressed="false">Experiments</button>
+  </nav>
+</header>
+
+<!-- ═══ LECTURE ═══ -->
+<main id="lec">
+  <section class="card" id="left" aria-label="Slide text"></section>
+  <section class="col">
+    <div class="card" id="stage">
+      <div id="eqs"></div>
+      <svg id="fig" viewBox="0 0 640 450" role="img" aria-label="Figure"></svg>
+      <div id="below"></div>
+    </div>
+    <div class="card" id="cap" aria-live="polite"></div>
+    <div class="card" id="capMeasure" aria-hidden="true"></div>
+  </section>
+  <aside class="card col" id="side" aria-label="Controls">
+    <h3>CONTROLS</h3>
+    <div id="ctl"></div>
+    <div id="transport">
+      <div class="tr"><button type="button" class="btn grow" id="play">▶ Play narration</button><button type="button" class="btn" id="voice" aria-pressed="true">voice on</button></div>
+      <p class="warn" id="voiceMsg" role="status" hidden>The voice could not start in this browser. The narration continues as timed captions.</p>
+      <div class="tr"><button type="button" class="btn" id="prev" aria-label="Previous line">◀</button><span class="val" id="lineNo"></span><button type="button" class="btn" id="next" aria-label="Next line">▶</button><div class="prog"><span id="bar"></span></div></div>
+      <div class="tr"><button type="button" class="btn grow" id="slPrev">◀ Slide</button><span class="val">slide <span id="slPos"></span></span><button type="button" class="btn grow" id="slNext">Slide ▶</button></div>
+    </div>
+  </aside>
+</main>
+
+<!-- ═══ LAB (as v1.2.0, plus the narrated introduction) ═══ -->
+<div id="app" class="lab" hidden>
+  <div id="labMain">
+    <div id="labStage">
+      <div class="it on" id="itFlow">
+        <svg id="flow" viewBox="0 0 900 432" role="img" aria-label="Power flow: input power into generator G3, rotational losses leaving the rotor side, converted power, copper loss leaving the stator side, output power to the infinite bus."><g id="flowG"></g></svg>
+      </div>
+      <div class="it on" id="itPhasor">
+        <svg id="phasor" viewBox="0 0 760 470" role="img" aria-label="Phasor diagram: V phi along the reference axis, j X S I A added at its tip, E A closing the triangle at the torque angle delta, armature current I A on its own scale, and the vertical side shared by two right triangles."><g id="phG"></g></svg>
+      </div>
+      <div class="it on" id="itCurve">
+        <svg id="curve" viewBox="0 0 640 400" role="img" aria-label="Power against torque angle delta from 0 to 180 degrees, with the input power line, the operating point and the peak P max at 90 degrees."><g id="cvG"></g></svg>
+      </div>
+      <div class="it on" id="itDial">
+        <svg id="dial" viewBox="0 0 220 226" role="img" aria-label="Rotor angle dial: the pointer shows the torque angle delta; green sector up to 90 degrees, red beyond."><g id="dlG"></g></svg>
+      </div>
+      <div class="it on" id="itAlarm" role="status" aria-live="polite">
+        <div class="lamps">
+          <span class="lamp" id="lmOk"><i></i>In step</span>
+          <span class="lamp" id="lmLow"><i></i>δ above 30°: low margin</span>
+          <span class="lamp" id="lmOver"><i></i>δ past 90°: beyond the limit</span>
+          <span class="lamp" id="lmSlip"><i></i>Pole slip · breaker trip</span>
+        </div>
+        <div id="banner"></div>
+      </div>
+      <div class="it chips on" id="itRo" role="status">
+        <span class="ro">δ <b id="rD"></b></span><span class="ro">pf <b id="rPf"></b></span><span class="ro">I<sub>A</sub> <b id="rIa"></b> A</span><span class="ro">E<sub>A</sub> <b id="rEa"></b> kV</span><span class="ro">Q <b id="rQ"></b></span><span class="ro">P<sub>max</sub> <b id="rPm"></b> MW</span><span class="ro">Margin <b id="rMg"></b> MW</span>
+      </div>
+    </div>
+  </div>
+  <div class="panel" id="labSide" aria-label="Controls">
+    <h2 id="sideH">G3 controls</h2>
+    <div class="grp open" data-g="pm">
+      <div class="chead"><label class="cl" for="pmS">Input power P<sub>in</sub></label><span class="cbt"><button class="sm" id="pmM" aria-label="Lower the input power 0.1 megawatt">−</button><button class="sm" id="pmP" aria-label="Raise the input power 0.1 megawatt">+</button><span class="ro" id="pmO"></span></span></div>
+      <input type="range" id="pmS" min="0" max="35" step="0.5" value="20">
+    </div>
+    <div class="grp open" data-g="field">
+      <div class="chead"><label class="cl" for="ifS">Field current I<sub>F</sub></label><span class="cbt"><button class="sm" id="ifM" aria-label="Lower the field current 0.05 ampere">−</button><button class="sm" id="ifP" aria-label="Raise the field current 0.05 ampere">+</button><span class="ro" id="ifO"></span></span></div>
+      <input type="range" id="ifS" min="5" max="8.5" step="0.1" value="6">
+    </div>
+    <div class="grp open" data-g="listen">
+      <div class="brow"><button id="labListen" data-listen="▶ Listen: how to use the Lab">▶ Listen: how to use the Lab</button><span class="ro" id="labNo"></span></div>
+      <p class="note" id="labCap" aria-live="polite"></p>
+    </div>
+    <div id="pin">
+      <div class="btns" role="group" aria-label="Reset, time and sound"><button id="resetBtn" class="danger">↺ Reset</button><button id="pauseBtn" aria-pressed="false">❚❚ Pause</button><button id="soundBtn" aria-pressed="false">🔈 Alarm sound: off</button></div>
+      <div id="callout" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EXPERIMENTS (E1–E4 as v1.2.0; E5 is the v1.2.0 slide-6 problem) ═══ -->
+<section id="page-exp" aria-label="Experiments" hidden><article class="doc" id="sheet">
+  <h1>Experiments</h1>
+  <p>Five short investigations, about 40 minutes. Each <b>▶ Set up</b> puts the Lab in the right state. Predict before you look.</p>
+  <div class="sheetHead"><label>Name<input type="text" data-k="name" autocomplete="name"></label><label>Section<input type="text" data-k="section"></label><label>Date<input type="date" data-k="date"></label></div>
+  <div class="btns"><button id="exportBtn" class="pri">⇩ Export my answers</button><button id="clearBtn">Clear my answers</button></div>
+  <p id="sheetStatus" role="status" aria-live="polite"></p>
+
+  <div class="exp-card"><p class="num">Experiment 1</p><h3>Losses and load</h3>
+    <p>Goal: see which loss grows with load. Use the power-flow panel (illustrative losses, unity power factor).</p>
+    <button class="try" data-try='{"pm":5,"iF":6}'>▶ Set up</button>
+    <ol><li>Set the input power to 5, 15 and 25 MW in turn. Record P<sub>out</sub> and the efficiency.</li></ol>
+    <table class="rec"><tr><th>P<sub>in</sub> (MW)</th><th>P<sub>out</sub> (MW)</th><th>Efficiency (%)</th></tr>
+      <tr><td>5.0</td><td><input type="text" data-k="e1a" aria-label="P out at 5 megawatts in"></td><td><input type="text" data-k="e1a2" aria-label="Efficiency at 5 megawatts in"></td></tr>
+      <tr><td>15.0</td><td><input type="text" data-k="e1b" aria-label="P out at 15 megawatts in"></td><td><input type="text" data-k="e1b2" aria-label="Efficiency at 15 megawatts in"></td></tr>
+      <tr><td>25.0</td><td><input type="text" data-k="e1c" aria-label="P out at 25 megawatts in"></td><td><input type="text" data-k="e1c2" aria-label="Efficiency at 25 megawatts in"></td></tr></table>
+    <ol class="qs"><li>Predict first: which loss grows fastest with load, and why? Then say what you saw.<textarea data-k="e1q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>P<sub>out</sub> ≈ 4.6, 14.4 and 24.2 MW; efficiency ≈ 91.9, 96.2 and 96.8 %. Friction and windage and core loss stay at 150.0 and 200.0 kW. The copper loss 3I<sub>A</sub>²R<sub>A</sub> grows as the square of the current: about 7.8, 76.5 and 215.1 kW. The fixed losses weigh most at light load, so the efficiency is lowest there.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 2</p><h3>Torque angle and power factor against power</h3>
+    <p>Goal: at a fixed field, follow δ and the power factor as the load rises, and find the unity power factor load.</p>
+    <button class="try" data-try='{"pm":5,"iF":6}'>▶ Set up</button>
+    <ol><li>The field stays at 6.00 A. Raise the input power in steps of 5 MW to 25 MW; read δ and the power factor each time.</li><li>Find the load at which the power factor is unity.</li></ol>
+    <ol class="qs"><li>Predict first: does the power factor become more lagging or less as the load rises? Then give δ and pf at 5 and 25 MW.<textarea data-k="e2q1"></textarea></li>
+      <li>The unity power factor load and its δ.<textarea data-k="e2q2"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>δ grows from 9.6° at 5 MW to 56.4° at 25 MW. G3 is lagging (supplying reactive power) at light load, unity at about 16.6 MW (δ = 33.6°, where E<sub>A</sub> cos δ = V<sub>φ</sub>), and leading above it. The field did not change; only the power did.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 3</p><h3>The limit against field current</h3>
+    <p>Goal: measure P<sub>max</sub> at four field currents and compare with 3V<sub>φ</sub>E<sub>A</sub>/X<sub>S</sub>.</p>
+    <button class="try" data-try='{"pm":10,"iF":5}'>▶ Set up</button>
+    <ol><li>At each field current read P<sub>max</sub> from the readouts (or raise the input power until G3 slips, then Reset).</li><li>Plot P<sub>max</sub> against I<sub>F</sub> on paper.</li></ol>
+    <table class="rec"><tr><th>I<sub>F</sub> (A)</th><th>E<sub>A</sub> (kV)</th><th>P<sub>max</sub> (MW)</th></tr>
+      <tr><td>5.00</td><td><input type="text" data-k="e3a" aria-label="E A at 5 amperes"></td><td><input type="text" data-k="e3a2" aria-label="P max at 5 amperes"></td></tr>
+      <tr><td>6.00</td><td><input type="text" data-k="e3b" aria-label="E A at 6 amperes"></td><td><input type="text" data-k="e3b2" aria-label="P max at 6 amperes"></td></tr>
+      <tr><td>7.00</td><td><input type="text" data-k="e3c" aria-label="E A at 7 amperes"></td><td><input type="text" data-k="e3c2" aria-label="P max at 7 amperes"></td></tr>
+      <tr><td>8.00</td><td><input type="text" data-k="e3d" aria-label="E A at 8 amperes"></td><td><input type="text" data-k="e3d2" aria-label="P max at 8 amperes"></td></tr></table>
+    <ol class="qs"><li>What shape is the plot, and why?<textarea data-k="e3q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>E<sub>A</sub> = 7.97, 9.56, 11.15 and 12.75 kV; P<sub>max</sub> = 25.0, 30.0, 35.0 and 40.0 MW. A straight line through the origin: P<sub>max</sub> = 3V<sub>φ</sub>E<sub>A</sub>/X<sub>S</sub> is proportional to E<sub>A</sub>, and E<sub>A</sub> to I<sub>F</sub> (no saturation in this model).</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 4</p><h3>Margin</h3>
+    <p>Goal: find the field current that carries 20 MW at δ = 25°.</p>
+    <button class="try" data-try='{"pm":20,"iF":6}'>▶ Set up</button>
+    <ol><li>The input power stays at 20 MW. Raise the field until δ reads 25°.</li></ol>
+    <ol class="qs"><li>Predict first with P = P<sub>max</sub> sin δ: what P<sub>max</sub> is needed? Then give the I<sub>F</sub> you found and the margin in MW.<textarea data-k="e4q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>At 6.00 A, 20 MW sits at δ = 41.8°. δ = 25° needs P<sub>max</sub> = 20 / sin 25° = 47.3 MW, which is I<sub>F</sub> ≈ 9.46 A (9.45 A gives 25.0°). The margin is then about 27.3 MW.</p></details></div>
+
+  <div class="exp-card" id="e5"><p class="num">Experiment 5</p><h3>Set the field for 18 MW at δ = 28°</h3>
+    <p>Goal: choose the field current that gives a required torque angle, then read the new limit.</p>
+    <button class="try" data-try='{"pm":18,"iF":6}'>▶ Set up</button>
+    <p>G3 must carry 18 MW with δ = 28°, inside the normal band. Find E<sub>A</sub>, the field current I<sub>F</sub>, and the new P<sub>max</sub>.</p>
+    <div class="eq5" data-eq="p"></div><div class="eq5" data-eq="ea"></div><div class="eq5" data-eq="pmax"></div>
+    <p>G3: V<sub>φ</sub> = 7.97 kV, X<sub>S</sub> = 7.62 Ω, R<sub>A</sub> ignored.</p>
+    <ol class="qs"><li>Predict first: will the field current have to rise or fall from 6.00 A, and why?<textarea data-k="e5q1"></textarea></li></ol>
+    <div id="itTurn">
+        <div class="trow"><label for="eIn"><b>E<sub>A</sub> (kV)</b></label><input type="text" id="eIn" data-k="e5ea" aria-label="Experiment 5, E A in kilovolts" inputmode="decimal" maxlength="10" autocomplete="off" aria-describedby="turnMsg"><label for="ifIn"><b>I<sub>F</sub> (A)</b></label><input type="text" id="ifIn" data-k="e5if" aria-label="Experiment 5, I F in amperes" inputmode="decimal" maxlength="10" autocomplete="off" aria-describedby="turnMsg"><label for="pmIn"><b>P<sub>max</sub> (MW)</b></label><input type="text" id="pmIn" data-k="e5pm" aria-label="Experiment 5, P max in megawatts" inputmode="decimal" maxlength="10" autocomplete="off" aria-describedby="turnMsg"><button id="chkBtn" class="pri">Check</button><button id="hintBtn">Hint</button><button id="solBtn">Show solution</button></div>
+        <p id="turnMsg" role="status" aria-live="polite"></p>
+        <div id="sol" hidden></div>
+    </div>
+    <div id="itCurve6">
+      <svg viewBox="0 0 640 400" role="img" aria-label="Power against torque angle: the curve at 6.00 amperes dashed, an 18 megawatt line and a line at delta equals 28 degrees crossing at the target point."><g id="c6G"></g></svg>
+    </div>
+    <p class="note">The dashed curve is G3 at 6.00 A. The new curve appears when you solve the problem.</p></div>
+</article></section>
+<script>__JS__</script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+/* ═══ TOKENS (light ground; dark text). First line: Lecture (as Voltage Regulation v2.0.0). Second line: Lab and Experiments (as v1.2.0). ═══ */
+:root{--bg:#eef1f4;--card:#fff;--ink:#1b1f24;--mute:#55606b;--line:#d5dbe0;--teal:#0f6b63;--tealbg:#e3f0ee;--vphi:#c62828;--ea:#1e56c8;--ia:#1b7a3a;--amber:#9a5b00;--amberbg:#fdf3e3;--inset:#e9ecef;
+  --panel:#ffffff;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--edge:#55636b;--acc:#0f6e6c;--err:#c2412f;--warn:#8a5700;--ok:#18744a;
+  --sans:"Segoe UI","Helvetica Neue",Arial,sans-serif;--mono:Consolas,"Courier New",monospace;--math:"Cambria Math","STIX Two Math",Cambria,serif}
+html{font-size:15px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{display:flex;flex-direction:column;min-height:560px;background:var(--bg);color:var(--ink);font:1rem/1.42 var(--sans)}
+button{font:600 .93rem var(--sans);color:var(--ink);cursor:pointer;touch-action:manipulation}
+button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+/* ═══ HEADER ═══ */
+header{flex:none;position:relative;display:flex;align-items:center;gap:12px;padding:6px 14px;background:var(--card);border-bottom:1px solid var(--line)}
+header h1{font-size:1.2rem;margin:0}
+.badge{font:.87rem var(--mono);color:var(--mute)}
+#model summary{cursor:pointer;font-weight:700;color:var(--teal);font-size:.87rem}
+#model .pop{position:absolute;right:12px;top:100%;z-index:6;width:min(560px,92vw);background:var(--card);border:1px solid var(--mute);border-radius:10px;padding:10px 14px;font-size:13px}
+#model .pop p{margin:0 0 6px}
+nav.tabs{margin-left:auto;display:flex;gap:6px}
+nav.tabs button{padding:5px 12px;border:1px solid var(--ink);border-radius:6px;background:var(--card)}
+nav.tabs button[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
+/* ═══ LECTURE GRID: text column | stage + caption | controls ═══ */
+#lec{flex:1;min-height:0;display:grid;grid-template-columns:clamp(266px,23vw,312px) minmax(0,1fr) clamp(240px,21vw,288px);gap:8px;padding:8px}
+#lec *{min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 13px;min-height:0}
+.col{display:flex;flex-direction:column;gap:8px;min-height:0}
+/* ═══ LECTURE: TEXT COLUMN ═══ */
+#left{overflow-y:auto}
+.eyebrow{font:700 .86rem var(--mono);letter-spacing:.06em;color:var(--teal);margin:0 0 4px}
+.eyebrow.gap{margin-top:10px}
+#left h2{font-size:1.3rem;line-height:1.2;margin:0 0 8px}
+.key{background:var(--tealbg);border-radius:8px;padding:8px 11px;font-weight:600;line-height:1.38}
+.eq{margin-top:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;text-align:center}
+.cue{display:inline-block;margin:4px 4px 0 0;padding:3px 8px;border:2px solid var(--line);border-radius:6px;font-size:.87rem;font-weight:600;background:var(--card)}
+.cue.on{border-color:var(--amber);color:var(--amber)}
+#left p{margin:8px 0 0;font-size:.93rem}
+#left p.small,.small{font-size:.86rem;color:var(--mute)}
+.v{font-style:italic}
+.v sub.up{font-style:normal}
+#lec sub,#lec sup{font-size:.75em;line-height:0}
+math{font-family:var(--math);font-size:1.1rem}
+/* ═══ LECTURE: STAGE ═══ */
+#stage{flex:1;display:flex;flex-direction:column;gap:6px;padding:8px;overflow:hidden}
+#fig{flex:1;min-height:0;width:100%;display:block}
+#fig text{font-family:var(--sans)}
+#eqs,#below{flex:none}
+.step{border:3px solid var(--amber);border-radius:8px;padding:1px 8px;margin-top:6px}
+.step .note{display:block;font-size:.86rem;color:var(--mute);font-weight:400}
+.eqgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+.kcard{border:2px solid var(--line);border-radius:10px;background:#f6f8fa;padding:8px 10px;text-align:center}
+.kcard.on{border-color:var(--amber);background:var(--amberbg)}
+.kcard math{font-size:1.2rem}
+table.cmp{border-collapse:collapse;margin:4px auto 0;border:2px solid var(--amber);background:var(--card)}
+table.cmp th,table.cmp td{padding:4px 12px;text-align:center;font-size:.95rem}
+table.cmp tr.lit{background:var(--amberbg)}
+table.cmp tr.wait{visibility:hidden}
+#cap{flex:none;font-size:1.05rem;line-height:1.42;border-left:4px solid var(--amber)}
+#capMeasure{position:absolute;visibility:hidden;pointer-events:none;left:0;top:0}
+/* ═══ LECTURE: CONTROLS ═══ */
+#side{overflow-y:auto}
+#side h3{font:700 .86rem var(--mono);color:var(--teal);margin:0;letter-spacing:.06em}
+.row{display:flex;justify-content:space-between;align-items:center;margin:6px 0;gap:8px}
+.btn{padding:6px 10px;border-radius:6px;border:1px solid var(--mute);background:var(--card);min-height:36px}
+.grow{flex:1}
+.val{font:.93rem var(--mono);background:var(--inset);border-radius:5px;padding:2px 8px;white-space:nowrap}
+#ctl input[type=range]{width:100%;accent-color:var(--teal);height:26px;margin:0}
+.scale{display:flex;justify-content:space-between;font-size:.86rem;color:var(--mute)}
+.warn{color:var(--vphi);font-weight:700;font-size:.9rem;margin:6px 0 0}
+#transport{margin-top:auto;border-top:1px solid var(--ink);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.tr{display:flex;gap:6px;align-items:center}
+.tr .btn{white-space:nowrap;padding-left:7px;padding-right:7px}
+.prog{flex:1;height:6px;background:#dde2e6;border-radius:3px;overflow:hidden}
+#bar{display:block;height:100%;width:0;background:var(--teal)}
+/* ═══ LECTURE: COMPACT (a 1366×768 laptop at 125 % zoom is 1093×614 CSS px) ═══ */
+@media (max-width:1200px),(max-height:700px){
+  html{font-size:13px}
+  .card{padding:9px 10px}
+  header{padding:4px 12px}
+  .btn{min-height:32px;padding:4px 9px}
+  .row{margin:4px 0}
+}
+@media (max-width:1060px){
+  #lec{grid-template-columns:256px minmax(0,1fr) 232px}
+}
+/* ═══ LAB AND EXPERIMENTS: BASE (v1.2.0 type and buttons) ═══ */
+#app,#page-exp{color:var(--txt);font:14px/1.4 var(--sans)}
+#app button,#page-exp button{font:600 14px var(--sans);min-height:30px;padding:3px 9px;border-radius:6px;border:1px solid var(--edge);background:var(--panel);color:var(--txt);user-select:none}
+#app button:hover,#page-exp button:hover{background:var(--soft)}
+#app button.pri,#page-exp button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+#app button.danger{border-color:var(--err);color:var(--err)}
+#app button[aria-pressed="true"]{background:var(--acc);color:#fff;border-color:var(--acc)}
+#app button:disabled{opacity:.45;cursor:not-allowed}
+/* ═══ LAB GRID ═══ */
+#app{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 316px;gap:8px;padding:8px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:0;min-width:0}
+.panel h2{font-size:12px;margin:0 0 4px;color:var(--acc);text-transform:uppercase;letter-spacing:1px}
+.note{font-size:13px;color:var(--mut);margin:3px 0}
+.ro{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:800;font-size:14px;background:var(--inset);border-radius:6px;padding:3px 8px;white-space:pre}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;align-items:center}
+/* ═══ LAB: STAGE ═══ */
+#labMain{display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0}
+#labStage{flex:1;min-height:0;display:grid;gap:8px;overflow:hidden;grid-template:"flow flow dial alarm" auto "flow flow dial ro" minmax(0,30fr) "phasor curve curve curve" minmax(0,42fr)/minmax(0,44fr) minmax(0,14fr) 150px minmax(0,26fr)}
+.it{display:none;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;overflow:hidden}
+.it.on{display:flex}
+.it>svg{flex:1 1 0;min-height:0;width:100%}
+#itCurve{grid-area:curve} #itFlow{grid-area:flow} #itPhasor{grid-area:phasor} #itDial{grid-area:dial} #itAlarm{grid-area:alarm} #itRo{grid-area:ro}
+.chips{flex-direction:row;flex-wrap:wrap;gap:6px;align-items:center;align-content:flex-start}
+.chips .ro{font-weight:600;font-size:12.5px;padding:3px 6px} .chips b{font-weight:800}
+.lamps{display:flex;flex-wrap:wrap;gap:6px 16px}
+.lamp{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--mut)}
+.lamp i{width:16px;height:16px;border-radius:50%;background:#c9d1d5;border:2px solid var(--edge)}
+#lmOk.on{color:var(--ok)} #lmOk.on i{background:var(--ok)}
+#lmLow.on{color:var(--warn)} #lmLow.on i{background:#f2a900}
+#lmOver.on,#lmSlip.on{color:var(--err)} #lmOver.on i,#lmSlip.on i{background:var(--err)}
+#banner{min-height:30px;border-radius:8px;padding:5px 10px;font-weight:800;font-size:14px;text-align:center;margin-top:6px}
+#banner.on{background:var(--err);color:#fff}
+.flash{animation:flash 1s steps(1,end) infinite}
+@keyframes flash{0%{opacity:1}50%{opacity:.3}}
+body.paused .flash{animation-play-state:paused}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}}
+/* ═══ LAB: SIDEBAR ═══ */
+#labSide{display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.grp{display:none;border-bottom:1px solid var(--line);padding-bottom:6px}
+.grp.open{display:block}
+.chead{display:flex;justify-content:space-between;align-items:center;gap:4px}
+.cl{margin:4px 0 2px;font-weight:700;font-size:15px}
+.cbt{display:flex;gap:4px;align-items:center}
+#app .cbt button.sm{padding:0;min-height:28px;width:28px;font-size:16px}
+.cbt .ro{min-width:82px;text-align:right}
+.grp input[type=range]{display:block;width:100%;accent-color:var(--acc);height:24px;margin:2px 0 0}
+.brow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:5px 0}
+#labCap{min-height:5.6em}
+#labNo:empty{display:none}
+#pin{margin-top:auto;border-top:2px solid var(--edge);padding-top:6px}
+#pin .btns{margin:0 0 5px;flex-wrap:nowrap;gap:4px}
+#app #pin .btns button{flex:1 1 auto;padding:3px 4px;font-size:12.5px}
+#callout{margin:0 0 5px;padding:4px 8px;border-radius:8px;background:var(--soft);border-left:5px solid var(--acc);font-size:13px;font-weight:700;line-height:1.35;height:68px;overflow:hidden}
+#callout.bad{background:#fbe9e6;border-left-color:var(--err);color:#8f2a1d}
+#callout.good{background:#e3f3ea;border-left-color:var(--ok);color:#10512f}
+#callout.warn{background:#fff3d6;border-left-color:var(--warn);color:#6b4300}
+/* ═══ EXPERIMENTS WORKSHEET (a document: this page scrolls) ═══ */
+#page-exp{flex:1;min-height:0;overflow:auto;padding:10px}
+.doc{max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 24px}
+.doc h1{font-size:22px;margin:0 0 4px}
+.doc p,.doc li{font-size:15px}
+.doc p.note{font-size:13px}
+.exp-card{border:1px solid var(--line);border-radius:12px;padding:10px 16px;margin:12px 0;background:#fbfcfd}
+.exp-card h3{margin:0 0 4px;font-size:17px}
+.num{font:700 12px var(--mono);color:var(--acc);letter-spacing:2px;text-transform:uppercase;margin:0}
+#page-exp textarea,#page-exp input[type=text],#page-exp input[type=date]{font:15px var(--sans);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;width:100%;color:var(--txt);background:var(--panel)}
+#page-exp textarea{min-height:64px;margin-top:4px}
+.sheetHead{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.sheetHead label{font-weight:700;font-size:13px}
+#sheetStatus{font-weight:700;font-size:13.5px;margin:8px 0}
+#sheetStatus.bad{color:var(--err)} #sheetStatus.good{color:var(--ok)}
+.doc details summary{cursor:pointer;font-weight:700;color:var(--acc);margin-top:6px}
+table.rec{border-collapse:collapse;margin:8px 0}
+table.rec th,table.rec td{border:1px solid var(--line);padding:4px 8px;font-size:14px}
+#page-exp table.rec input{width:110px}
+/* ═══ EXPERIMENT 5 (the v1.2.0 slide-6 problem) ═══ */
+.eq5{display:inline-block;background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:4px 12px;margin:2px 8px 2px 0}
+.eq5 math{font-size:16px}
+#itTurn p{margin:2px 0 6px;font-size:14px}
+.trow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#page-exp .trow input{width:78px;padding:5px 8px}
+#page-exp .trow input[aria-invalid="true"]{border:2px solid var(--err)}
+#itTurn #turnMsg{white-space:pre-wrap;font-weight:700;min-height:20px;margin:6px 0 0}
+#turnMsg.bad{color:var(--err)} #turnMsg.good{color:var(--ok)} #turnMsg.mid{color:var(--warn)}
+#sol{font:600 13px var(--mono);background:var(--inset);border-radius:8px;padding:5px 10px;margin-top:4px;white-space:pre-wrap}
+#itCurve6{max-width:640px;margin:8px 0 0}
+#itCurve6 svg{display:block;width:100%;height:auto}
+/* ═══ NARROW OR SHORT WINDOWS: the page scrolls instead of squeezing (as v1.2.0) ═══ */
+@media (max-width:999px),(max-height:559px){
+  html,body{height:auto} body{display:block;min-height:0}
+  #lec{height:560px}
+  #app{display:block}
+  #app>*{margin-bottom:8px}
+  #labStage{display:block;overflow:visible}
+  #labStage .it{margin-bottom:8px}
+  #labStage .it>svg{flex:none;height:auto}
+}
+/* ═══ 1000 TO 1199 px WIDE (1366 × 768 at 125 % zoom). The Lecture keeps its three columns and does not scroll.
+   Lab and Experiments (html without .lec): the page scrolls, as in the block above and as in v1.2.0. ═══ */
+@media (min-width:1000px) and (max-width:1199px) and (min-height:560px){
+  html:not(.lec),html:not(.lec) body{height:auto} html:not(.lec) body{display:block;min-height:0}
+  html:not(.lec) #app{display:block}
+  html:not(.lec) #app>*{margin-bottom:8px}
+  html:not(.lec) #labStage{display:block;overflow:visible}
+  html:not(.lec) #labStage .it{margin-bottom:8px}
+  html:not(.lec) #labStage .it>svg{flex:none;height:auto}
+}
