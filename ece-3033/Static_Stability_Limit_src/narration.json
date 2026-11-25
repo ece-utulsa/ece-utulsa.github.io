@@ -1,0 +1,59 @@
+{
+ "s1": [
+  "Here is our generator, G three: twenty-five M V A at thirteen point eight kilovolts, connected to an infinite bus. The prime mover is delivering fifteen megawatts and the field current is fixed at six amps. The torque angle, delta, is thirty degrees.",
+  "Now let the prime mover open up, slowly. At twenty megawatts, delta is forty-one point eight degrees. At twenty-five, fifty-six point four. Every megawatt that goes in comes out at the bus, and the operating point climbs the power-angle curve.",
+  "At thirty megawatts, delta reaches ninety degrees. This is the top of the curve: P max, thirty point zero megawatts. With this field current, G three cannot deliver any more.",
+  "Now push the input to thirty-two megawatts. Past ninety degrees, more angle means less output, so the extra input power has nowhere to go. It speeds up the rotor, delta runs away, the machine slips a pole, and the breaker trips.",
+  "That peak is the static stability limit: the largest real power the generator can deliver to the bus without losing synchronism, when the load changes slowly. Static means slow. A sudden change, and the swings that follow it, are transient stability, which this lecture does not model.",
+  "The limit is not fixed. More field current raises E A, and with it P max. A larger synchronous reactance lowers it. In normal operation delta is kept between about twenty and thirty degrees, to leave a margin. The next slides show where P max comes from."
+ ],
+ "s2": [
+  "Before we find the limit, follow the power through G three. The prime mover puts in twenty-five megawatts.",
+  "Friction and windage take one hundred fifty kilowatts, and the core two hundred. Both stay fixed at fixed speed and voltage. Stray loss takes about two hundred forty-two kilowatts more. What is left crosses the air gap: the converted power, twenty-four point four megawatts.",
+  "In the armature, the copper loss, three I A squared R A, takes another two hundred thirty-four kilowatts, and twenty-four point two megawatts reaches the bus.",
+  "That is ninety-six point seven percent. The losses are small, so from here on we ignore R A and the rotational losses. The input power and the output power are the same, and we call it P."
+ ],
+ "s3": [
+  "Slide two gave us the output power: three V phi I A cos theta. Now we connect it to the torque angle, using G three's phasor diagram at fifteen megawatts, with seven amps of field current.",
+  "V phi lies on the axis: the infinite bus is the reference. The armature current, I A, lags it by the power-factor angle, theta.",
+  "At the tip of V phi, add the drop across the synchronous reactance, j X S I A. It is at ninety degrees to the current.",
+  "E A closes the triangle: E A equals V phi plus j X S I A. It leads V phi by the torque angle, delta.",
+  "Drop a vertical from the tip of E A to the axis. In the blue triangle its length is E A sine delta: here, four point seven eight kilovolts.",
+  "The reactance drop is at right angles to the current, and the vertical is at right angles to V phi. So the angle between them is theta: the same theta as at the origin.",
+  "In the grey triangle, the same vertical is X S I A cos theta. One line, read two ways: E A sine delta equals X S I A cos theta.",
+  "That one equation links the field, through E A, to the power the machine delivers. The next slide turns it into P max."
+ ],
+ "s4": [
+  "Start from slide three: E A sine delta equals X S I A cos theta.",
+  "Divide by X S. The in-phase part of the current, I A cos theta, equals E A sine delta over X S.",
+  "The output power is three V phi I A cos theta. Substitute, and P equals three V phi E A sine delta over X S. With the field fixed, P is just the height E A sine delta, scaled.",
+  "As the prime mover pushes harder, delta grows and the tip of E A climbs its arc. The height, and the power, rise until delta reaches ninety degrees.",
+  "Sine delta cannot be larger than one, so the power peaks at delta equals ninety degrees: P max equals three V phi E A over X S. For G three at six amps, thirty point zero megawatts.",
+  "Divide by the mechanical speed, and the same limit is a torque: tau max equals P max over omega m, one hundred fifty-nine point two kilonewton metres. This is the pull-out torque.",
+  "Real machines run at twenty to thirty degrees, well below the peak. The power slider is now yours: try it."
+ ],
+ "s5": [
+  "Now hold the power at twenty megawatts and change the field. Because P is fixed, E A sine delta is fixed: the tip of E A must stay on this horizontal line.",
+  "At six amps, E A is nine point five six kilovolts and delta is forty-one point eight degrees. The power factor is almost unity, slightly leading.",
+  "Raise the field to eight amps. E A grows to twelve point seven five kilovolts, its tip slides right along the line, and delta falls to thirty degrees. P max rises from thirty to forty megawatts.",
+  "The current changes too. Left of the unity power factor line, at about six point four amps, G three runs leading and absorbs reactive power. Right of it, G three runs lagging and supplies it.",
+  "So more field buys margin: a smaller torque angle and a higher limit, paid for with more field current and more reactive power."
+ ],
+ "s6": [
+  "Three worked cases, all at twenty megawatts, all with the same two steps: P max equals three V phi E A over X S, and delta is the arc sine of P over P max.",
+  "At five amps, E A equals V phi: seven point nine seven kilovolts. P max is twenty-five megawatts, delta is fifty-three point one degrees, and the margin is only five megawatts. G three runs at zero point eight nine four, leading.",
+  "At six amps, E A is nine point five six kilovolts. P max is thirty megawatts, delta is forty-one point eight degrees, and the margin is ten megawatts, at zero point nine nine one leading.",
+  "At eight amps, E A is twelve point seven five kilovolts. P max is forty megawatts, delta is thirty degrees, and the margin is twenty megawatts. Now G three runs lagging, at zero point nine zero one.",
+  "Only eight amps brings delta down to the normal band. The field current is the operator's handle on the stability margin."
+ ],
+ "s7": [
+  "Ten lines carry the whole lecture. On the left: the power flow, the field, and the normal range of delta.",
+  "On the right: the phasor diagram, the power-angle curve, and its peak, P max at ninety degrees, with the pull-out torque.",
+  "Now open the Lab, and test them on G three yourself."
+ ],
+ "lab": [
+  "This is G three on the infinite bus. Set the input power and the field current, and watch delta, the power factor, the current and the margin.",
+  "A warning appears when delta passes thirty degrees, and another past ninety. Push the input past P max, and G three slips a pole and the breaker trips.",
+  "The power-flow panel shows where the losses go. Then work through the experiments: each Set up button puts the Lab in the right state."
+ ]
+}
