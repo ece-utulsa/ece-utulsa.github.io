@@ -1,0 +1,79 @@
+{
+ "slides": [
+  [
+   "Here is our generator carrying full rated load, two point five M V A, at zero point eight five lagging. The field has been set so the terminal voltage is two thousand four hundred one point eight volts per phase. The induced voltage, E A, is larger: four thousand one point four volts. The difference is the voltage drop across the synchronous impedance.",
+   "Now open the breaker, and touch nothing else. The field current and the speed stay where they were. With no current there is no drop, so the terminal voltage rises to E A, and it stays there. That rise, as a percentage of the full-load voltage, is the voltage regulation: plus sixty-six point six percent.",
+   "Close the breaker and try unity power factor, with the same apparent power. The field is set a little lower, and E A is three thousand two hundred fifty-five point four volts. Remove the load, and the rise is smaller: plus thirty-five point five percent.",
+   "Now a leading load. Look at the two bars before we open the breaker. The terminal voltage is higher than E A. With a leading current, the voltage across the synchronous reactance adds to the terminal voltage instead of subtracting from it.",
+   "Open the breaker. The terminal voltage falls to E A, two thousand two hundred sixty-three point seven volts. The voltage regulation is negative: minus five point seven percent.",
+   "So voltage regulation tells the power engineer how far the terminal voltage moves when the load is removed and nobody touches the field, and its sign depends on the power factor of the load. The next slides show why."
+  ],
+  [
+   "Voltage regulation compares the terminal voltage at no load with the terminal voltage at full load, as a percentage of the full-load value.",
+   "To find the no-load voltage we need E A at full load. Start with the terminal voltage, V phi, as the reference phasor.",
+   "The load sets the armature current. Its magnitude comes from the apparent power, and its angle from the power factor. Here, zero point eight five lagging.",
+   "The current flows through the armature resistance. That gives a small drop, R A I A, in phase with the current. At this scale it is too short to see.",
+   "It also flows through the synchronous reactance. That gives j X S I A, which is always ninety degrees ahead of the current.",
+   "Add them tip to tail, and you have E A. Its length is the no-load voltage. Its angle, delta, plays no part in voltage regulation: only the lengths matter.",
+   "One more point. E A is set by the field current. For the same apparent power at a different power factor, the field must be set differently to hold rated terminal voltage, so E A changes. At zero point eight five lagging the field is one point six seven times its no-load value; at unity, one point three six; at zero point eight five leading, only zero point nine four. That is why voltage regulation depends on the power factor."
+  ],
+  [
+   "Here is the same construction, with the power factor now free to change. The apparent power is fixed, so the current always has the same length. Only its angle changes.",
+   "The drop across the synchronous impedance always has the same length too. So as the power factor changes, the tip of E A slides along this circle, centred on the tip of V phi.",
+   "Now add a second circle, centred on the origin, with a radius equal to V phi. Any E A that ends on this circle has the same length as V phi.",
+   "With a lagging load, the tip of E A lies outside the second circle. E A is longer than V phi, and voltage regulation is positive.",
+   "At unity power factor the tip is still outside, but closer. Voltage regulation is smaller, but still positive.",
+   "As the load becomes leading, the tip moves toward the circle. At zero point eight eight five leading it lands on it. E A equals V phi, and voltage regulation is zero.",
+   "Beyond that, E A is shorter than V phi, and voltage regulation is negative. The sign of voltage regulation is decided by which side of this circle E A ends on."
+  ],
+  [
+   "When is voltage regulation exactly zero? When E A and V phi have the same length.",
+   "Ignore the small armature resistance for a moment. With the current leading by an angle phi, E A has a real part, V phi minus X S I A sine phi, and an imaginary part, X S I A cosine phi.",
+   "Square and add. The length of E A squared is V phi squared, minus two V phi X S I A sine phi, plus X S I A squared.",
+   "Set that equal to V phi squared, and solve. Sine phi equals X S I A, divided by two V phi.",
+   "For our machine that is two thousand one hundred fifty-one point two, over four thousand eight hundred three point six: zero point four four eight. Phi is twenty-six point six degrees, a power factor of zero point eight nine four leading. With the armature resistance included, the answer is zero point eight eight five leading.",
+   "The answer depends on the load. Here is voltage regulation against power factor at full load and at half load. At half load the current halves, and the zero crossing moves close to unity: zero point nine seven zero leading. A larger synchronous reactance pushes it the other way, further into leading.",
+   "One caution. This model ignores saturation, so a real machine's voltage regulation is smaller. The sign behaves the same way."
+  ],
+  [
+   "Worked example: zero point eight five lagging, at the full two point five M V A. The terminal voltage is the reference: two thousand four hundred one point eight volts, at zero degrees.",
+   "The current is three hundred forty-seven point zero amps. At zero point eight five lagging, its angle is minus thirty-one point eight degrees.",
+   "The resistive drop is forty-one point six volts, along the current. The reactive drop is two thousand one hundred fifty-one point two volts, at fifty-eight point two degrees: ninety degrees ahead of the current.",
+   "Add the three phasors. E A is three thousand five hundred seventy point four, plus j one thousand eight hundred six point six volts. That is four thousand one point four volts, at twenty-six point eight degrees.",
+   "So the voltage regulation is four thousand one point four, minus two thousand four hundred one point eight, over two thousand four hundred one point eight: plus sixty-six point six percent."
+  ],
+  [
+   "Now unity power factor, with the same two point five M V A. The terminal voltage is again two thousand four hundred one point eight volts, at zero degrees.",
+   "The current is still three hundred forty-seven point zero amps, now in phase with the terminal voltage, at zero degrees.",
+   "The resistive drop is forty-one point six volts, at zero degrees. The reactive drop is two thousand one hundred fifty-one point two volts, straight up, at ninety degrees.",
+   "Add them. E A is two thousand four hundred forty-three point four, plus j two thousand one hundred fifty-one point two volts: three thousand two hundred fifty-five point four volts, at forty-one point four degrees.",
+   "The voltage regulation is three thousand two hundred fifty-five point four, minus two thousand four hundred one point eight, over two thousand four hundred one point eight: plus thirty-five point five percent. Smaller, but still positive."
+  ],
+  [
+   "Finally, zero point eight five leading, with the same two point five M V A, and the same terminal voltage reference.",
+   "The current is three hundred forty-seven point zero amps again, now leading, at plus thirty-one point eight degrees.",
+   "The resistive drop is forty-one point six volts, along the current. The reactive drop is two thousand one hundred fifty-one point two volts, at one hundred twenty-one point eight degrees. It now points back toward the origin.",
+   "Add them. E A is one thousand three hundred four point zero, plus j one thousand eight hundred fifty point four volts: two thousand two hundred sixty-three point seven volts, at fifty-four point eight degrees. Shorter than V phi.",
+   "The voltage regulation is two thousand two hundred sixty-three point seven, minus two thousand four hundred one point eight, over two thousand four hundred one point eight: minus five point seven percent.",
+   "Compare the three cases. Same apparent power and the same current, but very different field settings. At zero point eight five leading, E A is small and delta is fifty-four point eight degrees. The most power the machine could deliver is two point six megawatts, against the two point one it is carrying. It is much closer to its static stability limit, the subject of Lecture 2."
+  ],
+  [
+   "Here are the key results. Voltage regulation compares the no-load and full-load terminal voltages, with the field current and the speed held constant.",
+   "E A comes from the phasor sum: V phi, plus R A I A, plus j X S I A. Only its length enters voltage regulation.",
+   "Lagging and unity loads give positive voltage regulation. A leading load can make it negative. With the armature resistance neglected, it is zero when sine phi equals X S I A over two V phi.",
+   "Now try it yourself: the Lab tab lets you change the load and the machine, and the Experiments tab gives you five things to find."
+  ]
+ ],
+ "lab": [
+  "This is the lab. Every setting you choose is a new full-load operating point, with the field set to give rated terminal voltage.",
+  "Move the power factor and watch the tip of E A slide along the grey path. Outside the red circle, voltage regulation is positive; inside, it is negative. The curve below shows the same thing as a graph.",
+  "Change the load and the synchronous reactance, then open the breaker to see the terminal voltage go to E A. Watch for the red warning: once delta passes ninety degrees, the operating point cannot be held."
+ ],
+ "exp": [
+  "Experiment one. Start at unity power factor, then move toward leading until voltage regulation is zero. Read the power factor, then check it with the formula from slide four.",
+  "Experiment two. Halve the load to one point two five M V A. Find the voltage regulation at zero point eight five lagging, unity, and zero point eight five leading, and find the new zero crossing. Explain the change.",
+  "Experiment three. Return to full load. Repeat the three cases with X S of three point one ohms, then nine point three ohms. Which machine regulates its voltage better, and does the answer depend on the load?",
+  "Experiment four. Set the armature resistance to ignored, and repeat the three standard cases. How much does R A change the answer?",
+  "Experiment five. Set X S to nine point three ohms at full load, and move toward leading. At what power factor does delta reach ninety degrees, and the red warning appear? What has happened to the field current?"
+ ]
+}

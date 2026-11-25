@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!--
+  Voltage Regulation — ECE 3033 Lecture 3
+  Version: v2.0.0
+  Released: not released (build for principal review, 2026-11-24)
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  Changelog: v2.0.0 — redesign to the 2026-11-24 design (spec Voltage_Regulation_v2.0.0_spec.md): narrated lecture of
+  8 slides (55 voiced lines), Lab tab and Experiments tab (E1–E5). Built from Voltage_Regulation_src/ with build.py.
+  v1.2.0 — three-slide interactive lecture (demo release 2026-11-22).
+  Model: three-phase, Y, 2.5 MVA, 4160 V, 60 Hz, R_A = 0.12 Ω, X_S = 6.2 Ω per phase (Lab: 3.1 / 6.2 / 9.3 Ω, R_A in
+  or ignored). Per phase, V_φ = 4160/√3 V at full load is the reference; I_A = S/(3 V_φ) at the load power factor,
+  kept unrounded. E_A = V_φ + R_A I_A + jX_S I_A. The field and the speed are held at the full-load setting (no voltage
+  regulator, no saturation, steady state), so V_nl = |E_A| and VR = (|E_A| − |V_φ|) / |V_φ| × 100 %.
+  Field ratio I_F/I_F,nl = |E_A|/|V_φ| (unsaturated). P_max = 3 |V_φ| |E_A| / X_S. Angles in degrees; a negative
+  current angle is lagging.
+  Narration: en-GB-SoniaNeural, rate −4 %, one mp3 clip per line (mono, 24 kHz, 32 kbit/s), embedded as data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-__SCRIPT_HASH__'; style-src 'sha256-__STYLE_HASH__'; media-src data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v2.0.0">
+<title>Voltage Regulation — ECE 3033 Lecture 3 v2.0.0</title>
+<style>__CSS__</style>
+</head>
+<body>
+<header>
+  <h1>Voltage Regulation</h1><span class="badge">ECE 3033 · Lecture 3 · v2.0.0</span>
+  <nav class="tabs" aria-label="Pages">
+    <button type="button" data-page="lec" aria-pressed="true">Lecture</button>
+    <button type="button" data-page="lab" aria-pressed="false">Lab</button>
+    <button type="button" data-page="exp" aria-pressed="false">Experiments</button>
+  </nav>
+</header>
+<main>
+  <section class="card" id="left" aria-label="Slide text"></section>
+  <section class="col">
+    <div class="card" id="stage">
+      <div id="eqs"></div>
+      <svg id="fig" viewBox="0 0 640 450" role="img" aria-label="Figure"></svg>
+    </div>
+    <div class="card" id="cap" aria-live="polite"></div>
+    <div class="card" id="capMeasure" aria-hidden="true"></div>
+  </section>
+  <aside class="card col" id="side" aria-label="Controls">
+    <h3>CONTROLS</h3>
+    <div id="ctl"></div>
+    <div id="transport">
+      <div class="tr"><button type="button" class="btn grow" id="play">▶ Play narration</button><button type="button" class="btn" id="voice" aria-pressed="true">voice on</button></div>
+      <p class="warn" id="voiceMsg" role="status" hidden>The voice could not start in this browser. The narration continues as timed captions.</p>
+      <div class="tr"><button type="button" class="btn" id="prev" aria-label="Previous line">◀</button><span class="val" id="lineNo"></span><button type="button" class="btn" id="next" aria-label="Next line">▶</button><div class="prog"><span id="bar"></span></div></div>
+      <div class="tr"><button type="button" class="btn grow" id="slPrev">◀ Slide</button><span class="val">slide <span id="slPos"></span></span><button type="button" class="btn grow" id="slNext">Slide ▶</button></div>
+    </div>
+  </aside>
+</main>
+<script>__JS__</script>
+</body>
+</html>
