@@ -1,5 +1,5 @@
 --- template_v1.6.6.html	2026-11-25 08:22:51.153623117 -0600
-+++ template_v1.6.7.html	2026-11-25 08:24:09.255432705 -0600
++++ template_v1.6.7.html	2026-11-25 08:30:24.922966077 -0600
 @@ -2,8 +2,8 @@
  <html lang="en"><head>
  <meta charset="UTF-8">
@@ -423,10 +423,10 @@
  /* WCAG relative luminance of a #rrggbb colour */
  function luminance(hex) {
      return rgbOf(hex).map(v => { v /= RGB_MAX; return v <= LUM_LIN ? v / LUM_DIV : Math.pow((v + LUM_OFF) / (1 + LUM_OFF), LUM_GAMMA); })
-@@ -1420,6 +1498,14 @@
+@@ -1419,6 +1497,14 @@
+ }
  /* WCAG contrast ratio of two #rrggbb colours */
  function contrast(a, b) { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + LUM_FLARE) / (Math.min(x, y) + LUM_FLARE); }
- /* Darken an accent colour in steps until text in it reaches CONTRAST_MIN on the light tinted background */
 +/* Dark view: the accent lightened until it reads at CONTRAST_MIN as text on the tinted dark panel, and dark
 +   button text reads at CONTRAST_MIN on its darker stop (VIS-DCM-022) */
 +function inkOnDark(hex) {
@@ -435,9 +435,9 @@
 +    for (let i = 0; i < 1 / SHADE_STEP && !fits(c); i++) c = shade(c, SHADE_STEP);
 +    return c;
 +}
+ /* Darken an accent colour in steps until text in it reaches CONTRAST_MIN on the light tinted background */
  function inkOnLight(hex) {
      let c = hex;
-     for (let i = 0; i < 1 / SHADE_STEP && contrast(c, ACCENT_LIGHT_REF) < CONTRAST_MIN; i++) c = shade(c, -SHADE_STEP);
 @@ -1476,7 +1562,6 @@
  const TYPE_NAME = { shunt: 'Shunt', series: 'Series', compound_l: 'Compound · long shunt', compound_s: 'Compound · short shunt' };
  const TYPE_SHORT = { shunt: 'shunt', series: 'series', compound_l: 'cum. compound (long)', compound_s: 'cum. compound (short)' };
@@ -878,10 +878,10 @@
  let flowPaused = false;               // Pause-flow button on the Power Flow panel (independent of the Tweaks panel)
  /* Power-flow arrow for the present operating point; dt (s) advances the flow chevrons */
 -function drawSankey(dt) {
++let SANKEY = null;                    // { base, over, geo, cw, ch } cached power-flow layers and chevron geometry
 +/* Power-flow canvas, per frame. The drawing is built into two cached layers only when the operating
 +   point, size or theme changes (rebuild = true): the trunk below the chevrons and everything drawn over
 +   them. An animated frame copies the layers and draws the chevrons only (CQ-DCM-004). */
-+let SANKEY = null;                    // { base, over, geo, cw, ch } cached layers and chevron geometry
 +function drawSankey(dt, rebuild) {
      const c = cv.sankey; if (!c || !c.w) return;
 -    const { x, w, h } = c;
