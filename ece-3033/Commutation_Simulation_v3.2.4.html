@@ -1,0 +1,2592 @@
+<!DOCTYPE html>
+<!--
+  Commutation Simulation — ECE 3033 (DC machines: commutation in a simple DC motor)
+  Version: v3.2.4
+  Released: not released (build for gates, 2026-11-25; v3.2.3 stays live until a publish file)
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  Changelog: v3.2.4 — fix pass on the v3.2.3 gate reports (briefing 2026-11-23 + addendum 1): worksheet length limit
+  at entry and cause-naming load messages (DEFECT-COM-015); v3.2.2 worksheet records no longer read (CQ-COM-022,
+  SEC-COM-009); focus rings visible and >= 3:1, page text >= 4.5:1 (VIS-COM-002..004); stage and Run on screen together
+  at 1024 px and 125 % zoom (VIS-COM-005); section delimiters in the // ── NAME ── form, TOC in both scripts, named
+  constants for the drawing tokens, slip rings, brushes and wires cached (CQ-COM-001..004); constants into §1, limit
+  texts from their constants, shared pressed-state helpers, purpose comments (CQ-COM-013, -019, -020, -021); text on
+  the dead spot after Reverse, the armature supply and fixed field, the torque axis and the supply-current sign
+  (PPR-COM-014..017); Visual Minors VIS-COM-006, -008..012 (see PR). VIS-COM-001 held by the principal. CSP not shipped (held).
+  v3.2.3 — fix pass on the v3.2.0 gate reports (briefing 2026-11-20, rulings COM-1..COM-8): system fonts and
+  no run-time requests; light view by default; one fixed clockwise ψ frame; torque on a common base (× one loop at I);
+  field model, ψ origin, coil-current sign and motion model stated; worksheet storage validated with visible warnings;
+  freeze control for the current arrows; keyboard, tab and label fixes; no HTML parsing of variable text; constants
+  block, TOC and section delimiters; static 3-D geometry cached. CSP not shipped (held). Built on v3.2.2 rev 1.
+  v3.2.2 — guided-tour text follows the supply polarity (PPR-COM-013; rev 1 DEFECT-COM-014).
+  v3.2.1 — machine ③ Right now card states the conductor marks from the supply polarity (PPR-COM-001).
+  v3.2.0 and earlier — history in git (PRs #22, #60, #61).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v3.2.4">
+<title>Commutation Simulation v3.2.4</title>
+<script>
+// ── 0. TABLE OF CONTENTS ─────────────────────────────────────
+//    1. PRE-PAINT VIEW     light view unless the dark view was chosen earlier (ruling COM-2); set before first paint
+//                          so there is no flash
+// ── END 0. TABLE OF CONTENTS ─────────────────────────────────
+// ── 1. PRE-PAINT VIEW ────────────────────────────────────────
+document.documentElement.setAttribute('data-theme', 'light'); try { if (localStorage.getItem('commutation-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}
+// ── END 1. PRE-PAINT VIEW ────────────────────────────────────
+</script>
+<style>
+:root{
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --bg:#f3f5f8; --panel:#ffffff; --panel2:#eef1f5; --inset:#ffffff;
+  --line:#dfe4ea; --line2:#c9d1db;
+  --ink:#18202b; --muted:#566170; --muted2:#5f6a77;   /* v3.2.4: muted2 #7d8794 → #5f6a77, ≥ 4.5:1 on every page background (VIS-COM-004) */
+  --amber:#e8b33c; --focus:#7a4a00;   /* focus ring ≥ 3:1 on the page, the panels and the amber pressed buttons (VIS-COM-003) */
+  --out:#ad4e00;   /* current OUT of page  (•); v3.2.4 darker for text contrast (was #d96200) */
+  --into:#076d96;  /* current INTO page    (×); v3.2.4 darker for text contrast (was #0a86b8) */
+  --comm:#b02fc9;  /* reversing / commutating */
+  --force:#157a3a; /* force & torque; v3.2.4 darker for text contrast (was #1b9447) */
+  --N:#d1343b; --S:#2d62d8;
+  --accent:#8a5406;  /* amber used as text/lines; v3.2.4 darker so it holds 4.5:1 on the amber tints (was #9a5f07) */
+  --on-amber:#1a1405; --txt2:#2f3946; --txt3:#3a4451; --overlay:rgba(255,255,255,.94);
+  --bad:#cc2b2b; --bad-txt:#9d1f1f; --flow:#18202b; --field:#7646c4; --field-bg:rgba(118,70,196,.08);
+  color-scheme:light;
+}
+html[data-theme="dark"]{
+  --bg:#0c1117; --panel:#121a23; --panel2:#17212c; --inset:#0a0f15;
+  --line:#223040; --line2:#2d3d50;
+  --ink:#e6edf4; --muted:#8a99ab; --muted2:#8494a6; --focus:#e8b33c;
+  --out:#ff9a3c; --into:#38c8f0; --comm:#e46cf5; --force:#58e07c;
+  --N:#e85a5e; --S:#3e7bfa;
+  --accent:#e8b33c; --on-amber:#1a1405; --txt2:#c9d3de; --txt3:#c4cdd8; --overlay:rgba(18,26,35,.9);
+  --bad:#ff6b6b; --bad-txt:#ffb4b4; --flow:#ffffff; --field:#c8a0ff; --field-bg:rgba(200,160,255,.10);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+.mono{font-family:var(--mono)}
+
+/* ---------- header ---------- */
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;
+  padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{display:flex;gap:12px;align-items:center}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--amber);box-shadow:0 0 10px var(--amber)}
+.brand h1{font-family:var(--sans);font-weight:800;font-size:19px;letter-spacing:-.01em}
+.brand p{font-size:13px;color:var(--muted)}
+.brand .ver{font-family:var(--mono);font-size:11px;color:var(--muted2);margin-left:6px}
+.modes{display:flex;gap:4px;flex-wrap:wrap;background:var(--inset);padding:4px;border-radius:8px;border:1px solid var(--line)}
+.modes button{border:0;background:transparent;color:var(--muted);padding:7px 13px;border-radius:6px;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:13px}
+.modes button:hover{color:var(--ink)}
+.modes button[aria-pressed="true"]{background:var(--amber);color:var(--on-amber)}
+.modes button .n{margin-right:4px}   /* v3.2.4: full opacity, the number is text (VIS-COM-004) */
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:320px 1fr;gap:12px;padding:12px;max-width:1700px;margin:0 auto}
+.side{display:flex;flex-direction:column;gap:10px;min-width:0}
+.stage{display:flex;flex-direction:column;gap:12px;min-width:0}
+.views{display:grid;grid-template-columns:1.45fr 1fr;gap:12px;height:clamp(380px,60vh,700px)}
+.camBar{position:absolute;left:8px;bottom:8px;display:flex;gap:3px;flex-wrap:wrap}
+.camBar button{background:var(--overlay);border:1px solid var(--line2);color:var(--muted);border-radius:5px;padding:3px 8px;cursor:pointer;font-family:var(--mono);font-size:11px}
+.camBar button:hover{color:var(--ink);border-color:var(--muted)}
+.revBtn{position:absolute;right:10px;top:46px;background:rgba(232,179,60,.12);border:1px solid rgba(232,179,60,.6);color:var(--accent);border-radius:7px;padding:6px 11px;cursor:pointer;font-weight:700;font-size:13px}
+.revBtn:hover{background:rgba(232,179,60,.22)}
+.revBtn.on{background:var(--amber);color:var(--on-amber)}
+.panel{background:var(--inset);border:1px solid var(--line2);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0;position:relative}
+.phead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 12px;border-bottom:1px solid var(--line);
+  font-family:var(--sans);font-weight:800;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);flex-shrink:0;min-height:36px}
+.phead .sub{font-family:var(--mono);font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11.5px}
+.panel canvas{display:block;flex:1;width:100%;min-height:0;touch-action:none}
+.graphs{height:250px}
+.subtabs{display:flex;gap:3px}
+.subtabs button{border:1px solid var(--line2);background:transparent;color:var(--muted);border-radius:5px;padding:3px 9px;cursor:pointer;font-family:var(--mono);font-size:11px;text-transform:none;letter-spacing:0;font-weight:500}
+.subtabs button[aria-pressed="true"]{background:var(--panel2);color:var(--ink);border-color:var(--muted2)}
+.subtabs button:disabled{opacity:.35;cursor:not-allowed}
+.graphs .phead{flex-wrap:wrap}
+.status{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.02em;text-transform:none;padding:2px 8px;border-radius:5px;border:1px solid var(--line2);color:var(--force)}
+.status.comm{color:var(--comm);border-color:rgba(228,108,245,.45);background:rgba(228,108,245,.08)}
+.status.bad{color:var(--bad);border-color:rgba(255,107,107,.45);background:rgba(255,107,107,.08)}
+
+/* ---------- side cards ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+.card h3{font-family:var(--sans);font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.tour{border-left:3px solid var(--amber)}
+.tour .step{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.tour h4{font-family:var(--sans);font-size:16px;font-weight:700;margin:2px 0 6px}
+.tour p{font-size:13.5px;color:var(--txt2)}
+.tour p b{color:var(--ink)}
+.tour .nav{display:flex;gap:6px;margin-top:10px}
+.btn{border:1px solid var(--line2);background:var(--panel2);border-radius:6px;padding:7px 10px;cursor:pointer;font-weight:600;font-size:13px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--amber);color:var(--on-amber);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.on{background:rgba(232,179,60,.15);border-color:rgba(232,179,60,.55);color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:6px;align-items:center}
+.row + .row{margin-top:7px}
+.grow{flex:1}
+.lbl{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:3px}
+.lbl span{font-family:var(--mono);color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{width:100%;background:var(--inset);color:var(--ink);border:1px solid var(--line2);border-radius:6px;padding:6px 8px;font:inherit;font-size:13px}
+.seg3{display:flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.seg3 button{flex:1;border:0;background:var(--inset);color:var(--muted);padding:6px 4px;cursor:pointer;font-size:12px;font-weight:600}
+.seg3 button + button{border-left:1px solid var(--line2)}
+.seg3 button[aria-pressed="true"]{background:var(--panel2);color:var(--ink)}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:12.5px;color:var(--txt3)}
+.checks label{display:flex;gap:6px;align-items:center;cursor:pointer;min-height:24px}   /* 24 px targets (VIS-COM-009) */
+.checks input{accent-color:var(--accent)}
+.now p{font-size:13px;color:var(--txt2)}
+.now p b{color:var(--ink)}
+.now .tag{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:4px;margin-right:4px}
+.readouts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.ro{background:var(--inset);border:1px solid var(--line);border-radius:6px;padding:4px 6px;text-align:center}
+.ro .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2)}
+.ro .v{font-family:var(--mono);font-weight:600;font-size:14px}
+.legend{display:grid;gap:3px;font-size:12px;color:var(--txt3)}
+.legend .sw{display:inline-flex;width:18px;height:18px;border-radius:50%;border:2px solid;align-items:center;justify-content:center;margin-right:6px;vertical-align:middle;font-size:11px;font-weight:800;background:var(--inset)}
+.legend .bar{display:inline-block;width:18px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.dead{display:none;margin-top:8px;font-size:12.5px;color:var(--bad-txt);background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.35);border-radius:6px;padding:6px 8px}
+.dead.show{display:block}
+
+/* ---------- warnings, notes, rich-text colours (v3.2.3) ---------- */
+.warn{margin:8px 0;font-size:13px;color:var(--bad-txt);background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.45);border-radius:6px;padding:7px 10px}
+.warn.small{margin:0;padding:3px 8px;font-size:12px;max-width:340px}
+.modeNote{display:none;margin-top:8px;font-size:12px;color:var(--txt2)}
+.modeNote.show{display:block}
+#steadySlip{display:none}
+#steadySlip.show{display:inline}
+.keyNote{font-size:12px;color:var(--txt3);margin-top:6px}
+:is(.now,.tour) p b.o{color:var(--out)} :is(.now,.tour) p b.i{color:var(--into)} :is(.now,.tour) p b.c{color:var(--comm)}
+:is(.now,.tour) p b.f{color:var(--force)} :is(.now,.tour) p b.bad{color:var(--bad)}
+.gN{color:var(--N)} .gS{color:var(--S)} .gC{color:var(--comm)}
+[hidden]{display:none!important}
+.graphs{height:280px}  /* v3.2.3: the header wraps to two lines; keep the canvas height of v3.2.2 */
+
+/* ---------- pages ---------- */
+.page{display:none}
+.page.active{display:block}
+.topRight{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pageTabs{display:flex;gap:2px;background:var(--inset);padding:3px;border-radius:8px;border:1px solid var(--line)}
+.pageTabs button{border:0;background:transparent;color:var(--muted);padding:6px 12px;border-radius:6px;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:13px}
+.pageTabs button:hover{color:var(--ink)}
+.pageTabs button[aria-selected="true"]{background:var(--panel2);color:var(--ink);box-shadow:inset 0 -2px 0 var(--amber)}
+.themeBtn{border:1px solid var(--line2);background:var(--panel2);color:var(--ink);border-radius:7px;padding:6px 11px;cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:600}
+.themeBtn:hover{border-color:var(--muted)}
+.machineBar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;max-width:1700px;margin:0 auto;padding:12px 12px 0}
+.mbLabel{font-family:var(--sans);font-weight:800;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.backChip{margin-left:auto;border:1px solid rgba(232,179,60,.6);background:rgba(232,179,60,.12);color:var(--accent);border-radius:7px;padding:6px 11px;cursor:pointer;font-weight:700;font-size:13px}
+.backChip:hover{background:rgba(232,179,60,.22)}
+.ro.wide{grid-column:1/-1}
+.simFoot{max-width:1700px;margin:4px auto 40px;padding:0 14px;font-size:13px;color:var(--muted)}
+.simFoot a,.doc a{color:var(--accent)}
+
+/* ---------- tutorial / experiments documents ---------- */
+.doc{max-width:900px;margin:0 auto;padding:26px 18px 80px}
+.doc h1{font-family:var(--sans);font-size:30px;font-weight:800;letter-spacing:-.015em;line-height:1.15}
+.doc .subtitle{font-family:var(--mono);font-size:13px;color:var(--accent);margin:6px 0 22px}
+.doc .toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.doc .toc a{font-size:12.5px;text-decoration:none;border:1px solid var(--line2);border-radius:999px;padding:3px 10px;color:var(--muted)}
+.doc .toc a:hover{color:var(--ink);border-color:var(--muted)}
+.doc .lede{font-size:16.5px;color:var(--ink)}
+.doc figure{margin:14px 0 18px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.doc figure svg{display:block;width:100%;height:auto;max-height:320px}
+.doc figcaption{font-size:13px;color:var(--muted);margin-top:8px}
+.doc .try{display:inline-flex;gap:6px;align-items:center;margin:2px 0 14px;border:1px solid rgba(232,179,60,.6);background:rgba(232,179,60,.12);color:var(--accent);border-radius:7px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:13px}
+.doc .try:hover{background:rgba(232,179,60,.22)}
+.doc details{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:8px 0 14px}
+.doc details summary{cursor:pointer;font-weight:600;color:var(--ink);font-size:14px}
+.doc details[open] summary{margin-bottom:6px}
+.doc details p,.doc details li{font-size:14.5px}
+.doc .note{font-size:13.5px;color:var(--muted);border-left:3px solid var(--line2);padding-left:10px}
+.sheetHead{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin:0 0 10px}
+.sheetHead label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.sheetTools{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+.exp-card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:10px;padding:14px 16px;margin:16px 0}
+.exp-num{font-family:var(--mono);font-size:11.5px;color:var(--accent);letter-spacing:.04em}
+.exp-title{font-family:var(--sans);font-size:19px;font-weight:800;margin:2px 0 6px}
+.exp-goal{font-size:14.5px;color:var(--txt2);margin-bottom:8px}
+.exp-card h4{font-family:var(--sans);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+.exp-card ol,.exp-card ul{padding-left:22px}
+.exp-card li{font-size:14.5px;color:var(--txt3);margin-bottom:5px}
+.doc table.rec{width:auto;min-width:60%;font-size:13.5px}
+.doc table.rec td,.doc table.rec th{padding:4px 7px}
+.doc table.rec td.k{font-family:var(--mono);color:var(--ink);white-space:nowrap}
+.doc input.cell,.doc textarea,.sheetHead input{width:100%;min-width:70px;background:var(--inset);color:var(--ink);border:1px solid var(--line2);border-radius:5px;padding:4px 6px;font:inherit;font-size:13.5px}
+.doc textarea{min-height:52px;resize:vertical;display:block;margin-top:4px}
+.doc .qs li{margin-bottom:10px}
+.tblWrap{overflow-x:auto}
+@media (max-width:560px){ .sheetHead{grid-template-columns:1fr} .doc h1{font-size:25px} }
+@media print{
+  .top,.machineBar,.sheetTools,.doc .try,.toc,.simFoot{display:none!important}
+  body,html{background:#fff!important}
+  .doc{padding:0;max-width:none}
+  .exp-card{border-color:#bbb}
+  .exp-card table,.exp-card .qs li,.exp-card ol li{break-inside:avoid}
+  .exp-card h4,.exp-title{break-after:avoid}
+  .doc details{border:0;padding:0}
+  .doc input.cell,.doc textarea,.sheetHead input{border:0;border-bottom:1px solid #999;border-radius:0}
+}
+
+/* ---------- legacy explainer styles, reused by the documents ---------- */
+.doc h2{font-family:var(--sans);font-size:24px;font-weight:800;letter-spacing:-.01em;margin:34px 0 10px}
+.doc h3{font-family:var(--sans);font-size:17px;font-weight:700;margin:24px 0 6px;color:var(--accent)}
+.doc p,.doc li{color:var(--txt3);font-size:15.5px;margin-bottom:10px}
+.doc ul,.doc ol{padding-left:22px}
+.doc b{color:var(--ink)}
+.doc .big{border-left:3px solid var(--amber);background:var(--panel);padding:12px 16px;border-radius:0 8px 8px 0;font-size:17px;color:var(--ink)}
+.doc .eq{font-family:var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;text-align:center;margin:10px 0 14px;color:var(--accent)}
+.doc table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:14px}
+.doc th,.doc td{border:1px solid var(--line2);padding:7px 9px;text-align:left;color:var(--txt3)}
+.doc th{background:var(--panel);color:var(--ink);font-weight:600}
+.o{color:var(--out);font-weight:700}.i{color:var(--into);font-weight:700}.c{color:var(--comm);font-weight:700}.f{color:var(--force);font-weight:700}
+:where(button,select,input,textarea,summary,a):focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.panel canvas:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+/* v3.2.4: inside a clipping container the ring is drawn inside the control, so it is never cut off (VIS-COM-002, -012) */
+.seg3 button:focus-visible,.tblWrap :focus-visible{outline-offset:-3px}
+#cvGraph{cursor:ew-resize}
+
+/* v3.2.4 (VIS-COM-005): from 900 px to 1100 px (1024 × 768, and 1366 × 768 at 125 % zoom) the sidebar stays beside the
+   stage, narrower, so Run and the step buttons are on screen together with the machine they drive. */
+@media (max-width:1100px) and (min-width:900px){
+  .app{grid-template-columns:280px 1fr}
+}
+@media (max-width:899.98px){
+  .app{grid-template-columns:1fr}
+  .side{order:2}
+  .views{grid-template-columns:1fr;height:auto}
+  .views .panel{height:min(100vw,560px)}
+}
+@media (max-width:560px){
+  .top{padding:10px 16px}
+  .app{padding:10px 8px}
+  .modes button{padding:6px 8px;font-size:12px}
+  .graphs{height:330px}
+  .graphs .phead{flex-wrap:wrap;padding:6px 10px}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="dot"></span>
+    <div>
+      <h1>Commutation Simulation <span class="ver">v3.2.4</span></h1>
+      <p>How a split ring keeps the current — and the torque — going the same way</p>
+    </div>
+  </div>
+  <div class="topRight">
+    <nav class="pageTabs" role="tablist" aria-label="Page" id="pageTabs">
+      <button role="tab" id="tab-tutorial" aria-controls="page-tutorial" data-page="tutorial">Tutorial</button>
+      <button role="tab" id="tab-sim" aria-controls="page-sim" data-page="sim">Simulation</button>
+      <button role="tab" id="tab-experiments" aria-controls="page-experiments" data-page="experiments">Experiments</button>
+    </nav>
+    <button class="themeBtn" id="themeBtn" aria-pressed="false">☾ Dark view</button>
+    <span class="warn small" id="themeWarn" role="status" hidden>Your choice of view could not be saved in this browser, so the page will open in the light view next time.</span>
+  </div>
+</header>
+
+<main class="page" id="page-sim" role="tabpanel" aria-labelledby="tab-sim">
+<div class="machineBar">
+  <span class="mbLabel">Machine</span>
+  <div class="modes" id="machineSeg" role="group" aria-label="Machine">
+    <button data-mode="slip" aria-pressed="false"><span class="n">①</span>Plain loop (slip rings)</button>
+    <button data-mode="comm" aria-pressed="true"><span class="n">②</span>Loop + commutator</button>
+    <button data-mode="four" aria-pressed="false"><span class="n">③</span>Four-coil machine</button>
+  </div>
+  <button class="backChip" id="backChip" hidden>↩ Back</button>
+</div>
+<div class="app">
+  <aside class="side">
+    <div class="card tour" id="tourCard">
+      <div class="step" id="tourStep">Guided tour</div>
+      <h4 id="tourTitle">Start here</h4>
+      <p id="tourText"></p>
+      <div class="nav">
+        <button class="btn" id="tourPrev">◀ Back</button>
+        <button class="btn primary grow" id="tourNext">Start the tour ▶</button>
+      </div>
+    </div>
+
+    <div class="card now">
+      <h3>Right now</h3>
+      <p id="nowText" aria-live="polite"></p>
+      <div class="readouts">
+        <div class="ro"><div class="k" id="kPlus">+ brush on</div><div class="v" id="rPlus">a</div></div>
+        <div class="ro"><div class="k" id="kMinus">− brush on</div><div class="v" id="rMinus">b</div></div>
+        <div class="ro"><div class="k">Coil current</div><div class="v" id="rCoil">+I</div></div>
+        <div class="ro"><div class="k">Torque, × one loop at I</div><div class="v" id="rTorque" style="color:var(--force)">CW</div></div>
+        <div class="ro wide"><div class="k">Rotor angle ψ, clockwise (graph x-axis)</div><div class="v" id="rAng">0°</div></div>
+      </div>
+      <div class="dead" id="deadMsg">The rotor is stopped in the neutral zone, where B ≈ 0, so the loop gets <b>no torque</b> and the motor can't restart on its own. That is the weakness of a single loop. <button class="btn" id="nudge" style="margin-top:6px;padding:4px 9px">Give it a push</button></div>
+    </div>
+
+    <div class="card">
+      <h3>Motion</h3>
+      <div class="row">
+        <button class="btn" id="stepBack" title="Back 45°, against the direction the supply drives the rotor (←)" aria-label="Step back 45 degrees">◀ 45°</button>
+        <button class="btn primary grow" id="play" title="Run or pause (Space)">▶ Run</button>
+        <button class="btn" id="stepFwd" title="Forward 45°, in the direction the supply drives the rotor (→)" aria-label="Step forward 45 degrees">45° ▶</button>
+      </div>
+      <div class="row" style="margin-top:9px">
+        <div class="seg3 grow" id="motionSeg" role="group" aria-label="Motion">
+          <button data-m="free" aria-pressed="true" title="The rotor turns under its own torque">Own torque</button>
+          <button data-m="steady" aria-pressed="false" title="The rotor is turned at a constant speed">Steady speed</button>
+        </div>
+      </div>
+      <p class="modeNote" id="steadyNote">Steady speed: the rotor is turned at a constant speed in the direction the supply drives it (a kinematic view; no drive torque is modelled).<span id="steadySlip"> With slip rings an outside drive is turning it through the reversed torque, so the torque averages zero.</span></p>
+      <div style="margin-top:9px">
+        <label class="lbl" for="speed">Speed (slow motion) <span id="dSpeed">0.5×</span></label>
+        <input type="range" id="speed" min="0.1" max="1.5" step="0.05" value="0.5">
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn grow" id="pauseComm" aria-pressed="false" title="Freeze the rotor each time a gap is under a brush">⏸ Stop at each commutation</button>
+      </div>
+      <p class="keyNote" id="keysNote">Keys: Space runs or pauses; ← and → step 45°, → the way the supply drives the rotor. Drag the rotor in the end view to turn it by hand.</p>
+    </div>
+
+    <div class="card">
+      <h3>Show</h3>
+      <div class="checks">
+        <label><input type="checkbox" id="cFlow" checked> Current arrows</label>
+        <label><input type="checkbox" id="cForce" checked> Force arrows</label>
+        <label><input type="checkbox" id="cField" checked> Magnetic field</label>
+        <label><input type="checkbox" id="cLabels" checked> Labels</label>
+        <label><input type="checkbox" id="cFlowMove" checked> Move current arrows</label>
+      </div>
+      <div id="followBox" style="margin-top:9px">
+        <label class="lbl" for="follow">Follow one coil</label>
+        <select id="follow"><option value="0">Coil 1</option><option value="1">Coil 2</option><option value="2">Coil 3</option><option value="3">Coil 4</option></select>
+      </div>
+      <div class="row" style="margin-top:9px">
+        <button class="btn grow" id="polBtn" aria-pressed="false">⇄ Reverse the current</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Key</h3>
+      <div class="legend">
+        <div><span class="sw" style="border-color:var(--out);color:var(--out)">•</span>current <b>out of</b> the page (toward you)</div>
+        <div><span class="sw" style="border-color:var(--into);color:var(--into)">×</span>current <b>into</b> the page (away from you)</div>
+        <div><span class="sw" style="border-color:var(--comm);color:var(--comm)">○</span>current reversing (coil shorted by brush)</div>
+        <div><span class="bar" style="background:var(--flow)"></span>arrows = direction current flows (moving unless frozen)</div>
+        <div><span class="bar" style="background:var(--force)"></span>force on conductor, F = I L × B</div>
+      </div>
+      <p class="keyNote">Coil current +: a → 1′ → 1 → b (②), segment k → coil k → k+1 (③). Torque: × one loop at I, + = clockwise.</p>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <p class="warn" id="loopErr" role="alert" hidden>The simulation stopped because of a drawing error. Reload the page to restart it; your worksheet answers are not affected.</p>
+    <div class="views">
+      <div class="panel">
+        <div class="phead"><span id="altTitle">3-D view</span>
+          <div class="subtabs" id="viewSeg" role="group" aria-label="View">
+            <button data-v="3d" aria-pressed="true">3-D</button>
+            <button data-v="circuit" aria-pressed="false">Circuit</button>
+          </div>
+        </div>
+        <canvas id="cvAlt" aria-label="3-D view of the machine. Drag to orbit, scroll to zoom."></canvas>
+        <div class="camBar" id="camBar">
+          <button data-cam="front" title="Look straight down the shaft">Front</button>
+          <button data-cam="side" title="Look from the side">Side</button>
+          <button data-cam="top" title="Look from above">Top</button>
+          <button data-cam="reset" title="Back to the starting view">Reset</button>
+          <button data-zoom="1.15" title="Zoom in" aria-label="Zoom in">＋</button>
+          <button data-zoom="0.87" title="Zoom out" aria-label="Zoom out">－</button>
+        </div>
+        <button class="revBtn" id="revBtn2" aria-pressed="false" title="Swap the supply terminals">⇄ Reverse current</button>
+      </div>
+      <div class="panel">
+        <div class="phead"><span>End view <span class="sub">· from the brush end</span></span><span class="status" id="status" role="status">CONDUCTING</span></div>
+        <canvas id="cvEnd" aria-label="End view of the machine"></canvas>
+      </div>
+    </div>
+    <div class="panel graphs">
+      <div class="phead"><span>One revolution → <span class="sub">· x-axis: rotor angle ψ, clockwise · the coil sees AC, the supply sees DC</span></span><span class="sub" id="graphNote"></span></div>
+      <canvas id="cvGraph" aria-label="Current and torque over one revolution"></canvas>
+    </div>
+  </section>
+</div>
+
+<p class="simFoot">Background and derivations: <a href="#tutorial">Tutorial</a> · Lab worksheet: <a href="#experiments">Experiments</a></p>
+</main>
+
+<section class="page" id="page-tutorial" role="tabpanel" aria-labelledby="tab-tutorial">
+<article class="doc">
+  <h1>Commutation, step by step</h1>
+  <p class="subtitle">Force on a wire → torque on a loop → why the current must reverse → how the split ring does it</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#t-force">1 · Force</a><a href="#t-torque">2 · Torque</a><a href="#t-slip">3 · Slip rings</a><a href="#t-split">4 · Split ring</a>
+    <a href="#t-switch">5 · The switch-over</a><a href="#t-views">6 · AC or DC?</a><a href="#t-many">7 · Many coils</a>
+    <a href="#t-machine">8 · Machine equations</a><a href="#t-check">Check yourself</a><a href="#t-notes">Model notes</a>
+  </nav>
+
+  <p class="big">A motor needs every conductor under the <b style="color:var(--N)">N</b> pole to carry current one way and every conductor under the <b style="color:var(--S)">S</b> pole to carry it the other way, <b>no matter which piece of copper happens to be there</b>. The coil keeps moving from one pole to the other, so its current has to be reversed every half turn. The commutator is the switch that does that reversing, and it is turned by the shaft itself.</p>
+
+  <h2 id="t-force">1. The force on one wire</h2>
+  <div class="eq">F = I L × B &nbsp;&nbsp;→&nbsp;&nbsp; |F| = B I L when the wire is perpendicular to the field</div>
+  <p>Throughout this tool you look along the shaft, so the wires run into and out of the page. The field points <b>down</b>, from the N pole (top) through the rotor to the S pole (bottom). A wire under N carrying current <span class="o">out of the page (•)</span> is pushed <b>right</b>. A wire under S carrying current <span class="i">into the page (×)</span> is pushed <b>left</b>. Those two pushes are on opposite sides of the shaft, so they both turn the rotor <b>clockwise</b>.</p>
+  <figure>
+    <svg viewBox="0 0 560 300" role="img" aria-label="Rotor between N and S poles with the field pointing down; the top conductor carries current out of the page and is pushed right, the bottom conductor carries current into the page and is pushed left, so the rotor turns clockwise.">
+      <defs>
+        <marker id="mkF" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--force)"/></marker>
+        <marker id="mkB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--field)"/></marker>
+        <marker id="mkA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/></marker>
+      </defs>
+      <rect x="170" y="8" width="220" height="44" rx="6" style="fill:var(--N);fill-opacity:.18;stroke:var(--N)"/>
+      <text x="280" y="37" text-anchor="middle" style="fill:var(--N);font:800 20px system-ui,sans-serif">N</text>
+      <rect x="170" y="248" width="220" height="44" rx="6" style="fill:var(--S);fill-opacity:.18;stroke:var(--S)"/>
+      <text x="280" y="277" text-anchor="middle" style="fill:var(--S);font:800 20px system-ui,sans-serif">S</text>
+      <circle cx="280" cy="150" r="74" style="fill:var(--panel2);stroke:var(--line2);stroke-width:1.5"/>
+      <g style="stroke:var(--field);stroke-width:1.4;stroke-opacity:.8">
+        <line x1="215" y1="58" x2="215" y2="240" marker-end="url(#mkB)"/><line x1="345" y1="58" x2="345" y2="240" marker-end="url(#mkB)"/>
+        <line x1="248" y1="58" x2="248" y2="240" marker-end="url(#mkB)"/><line x1="312" y1="58" x2="312" y2="240" marker-end="url(#mkB)"/>
+      </g>
+      <text x="356" y="150" style="fill:var(--field);font:700 15px ui-monospace,monospace">B</text>
+      <circle cx="280" cy="94" r="13" style="fill:var(--inset);stroke:var(--out);stroke-width:2.6"/><circle cx="280" cy="94" r="4.2" style="fill:var(--out)"/>
+      <circle cx="280" cy="206" r="13" style="fill:var(--inset);stroke:var(--into);stroke-width:2.6"/>
+      <path d="M273,199 L287,213 M287,199 L273,213" style="stroke:var(--into);stroke-width:2.6"/>
+      <line x1="298" y1="94" x2="372" y2="94" style="stroke:var(--force);stroke-width:3.5" marker-end="url(#mkF)"/>
+      <line x1="262" y1="206" x2="188" y2="206" style="stroke:var(--force);stroke-width:3.5" marker-end="url(#mkF)"/>
+      <text x="382" y="99" style="fill:var(--force);font:700 14px ui-monospace,monospace">F</text>
+      <text x="200" y="230" text-anchor="middle" style="fill:var(--force);font:700 14px ui-monospace,monospace">F</text>
+      <path d="M392,112 A118,118 0 0 1 392,188" style="fill:none;stroke:var(--accent);stroke-width:3" marker-end="url(#mkA)"/>
+      <text x="420" y="155" style="fill:var(--accent);font:700 13px ui-monospace,monospace">turns CW</text>
+      <text x="20" y="96" style="fill:var(--out);font:600 12.5px ui-monospace,monospace">• out of page</text>
+      <text x="20" y="114" style="fill:var(--muted);font:500 12px ui-monospace,monospace">under N → pushed right</text>
+      <text x="20" y="200" style="fill:var(--into);font:600 12.5px ui-monospace,monospace">× into page</text>
+      <text x="20" y="218" style="fill:var(--muted);font:500 12px ui-monospace,monospace">under S → pushed left</text>
+    </svg>
+    <figcaption>Using F = I L × B with L along the current and B pointing down: for the • wire, L × B points right; for the × wire, it points left. Reverse <i>either</i> I or B and the force reverses.</figcaption>
+  </figure>
+  <button class="try" data-try='{"mode":"comm","theta":60,"view":"3d"}'>▶ Show me in the simulator</button>
+
+  <h2 id="t-torque">2. From force to torque</h2>
+  <p>Each side of the loop sits at radius <b>r</b> from the shaft and is pushed along the tangent, so it contributes a torque <b>F r</b>. A single loop has two active sides, so:</p>
+  <div class="eq">τ = 2 F r = 2 B I L r &nbsp;&nbsp;(both sides under a pole face)</div>
+  <p>Real machines have a narrow <b>radial</b> air gap. The field crosses it at right angles to the rotor surface and is nearly constant under each pole face. The torque is therefore flat while the sides are under the poles, and it drops to zero in the <b>neutral zone</b> between poles, where B ≈ 0. (Flat poles with a uniform field would make the torque vary as a sine of the rotor angle instead. The simulation models the radial gap.)</p>
+  <details><summary>Worked example</summary>
+    <p>B = 0.5 T, I = 2 A, active length L = 0.10 m, radius r = 0.04 m.<br>
+    Force on each side: F = B I L = 0.5 × 2 × 0.10 = <b>0.10 N</b>.<br>
+    Torque on the loop: τ = 2 F r = 2 × 0.10 × 0.04 = <b>0.008 N·m</b>. That is tiny, which is why real armatures use many turns in many slots.</p>
+  </details>
+
+  <h2 id="t-slip">3. Why a plain loop fails (machine ①)</h2>
+  <p>Connect the loop to the supply through two full <b>slip rings</b>, and each end of the loop is always wired to the same terminal. Side 1 always carries current out of the page. That is fine while side 1 is under N. Half a turn later, though, side 1 is under S, with the <b>same</b> current in a <b>reversed</b> field, so the force reverses. The torque changes sign every half turn, and on DC the rotor rocks back and forth and settles at the neutral line.</p>
+  <button class="try" data-try='{"mode":"slip","theta":60,"view":"3d","motion":"free","run":true}'>▶ Watch it rock and settle</button>
+
+  <h2 id="t-split">4. Split the ring (machine ②)</h2>
+  <p>Cut the ring into two halves, segments <b>a</b> and <b>b</b>, insulated from each other. The halves turn with the loop, and the brushes stay put. So whichever half is currently on the right touches the + brush, whichever end of the loop it belongs to. Each time the loop passes the horizontal (neutral) line, the gap passes under the brushes and the connections swap:</p>
+  <div class="tblWrap"><table>
+    <tr><th></th><th>Before the gap passes</th><th>After the gap passes</th></tr>
+    <tr><td>+ brush touches</td><td>segment a</td><td>segment b</td></tr>
+    <tr><td>Current in the loop runs</td><td>a → side 1′ → side 1 → b</td><td>b → side 1 → side 1′ → a &nbsp;(<b>reversed</b>)</td></tr>
+    <tr><td>Side under N carries</td><td><span class="o">• out</span> (that’s side 1)</td><td><span class="o">• out</span> (now it’s side 1′)</td></tr>
+    <tr><td>Torque</td><td class="f">clockwise</td><td class="f">clockwise</td></tr>
+  </table></div>
+  <p>The current <b>in the loop</b> reversed. The current <b>in space</b> (• under N, × under S) did not. That is the whole idea.</p>
+  <button class="try" data-try='{"mode":"comm","theta":60,"view":"3d","motion":"steady","run":true}'>▶ Run the commutator motor</button>
+
+  <h2 id="t-switch">5. Inside the switch-over</h2>
+  <p>The brush is a little wider than the insulating gap, so for a moment it touches <b>both</b> segments. The coil is then shorted through the brush, and its current runs down through zero and builds up the other way (shown in <span class="c">magenta</span>). This is <b>commutation</b>. In this model the brush spans 18° of the commutator and the gap 3°, so the coil is shorted for about <b>15°</b> of rotation each time.</p>
+  <figure>
+    <svg viewBox="0 0 640 230" role="img" aria-label="Coil current is a square wave with sloped edges at 0, 180 and 360 degrees, where the brush shorts the coil; the supply current is constant.">
+      <g style="fill:var(--comm);fill-opacity:.16">
+        <rect x="60" y="18" width="11.7" height="176"/><rect x="328.3" y="18" width="23.4" height="176"/><rect x="608.3" y="18" width="11.7" height="176"/>
+      </g>
+      <g style="stroke:var(--line2);stroke-width:1"><line x1="60" y1="66" x2="620" y2="66"/><line x1="60" y1="160" x2="620" y2="160"/></g>
+      <g style="fill:none;stroke-width:3;stroke-linejoin:round">
+        <path d="M60,66 L71.7,96" style="stroke:var(--comm)"/><path d="M71.7,96 L328.3,96" style="stroke:var(--into)"/>
+        <path d="M328.3,96 L351.7,36" style="stroke:var(--comm)"/><path d="M351.7,36 L608.3,36" style="stroke:var(--out)"/>
+        <path d="M608.3,36 L620,66" style="stroke:var(--comm)"/>
+        <path d="M60,140 L620,140" style="stroke:var(--flow)"/>
+      </g>
+      <g style="fill:var(--muted);font:500 11.5px ui-monospace,monospace" text-anchor="end">
+        <text x="52" y="40">+I</text><text x="52" y="70">0</text><text x="52" y="100">−I</text><text x="52" y="144">+I</text><text x="52" y="164">0</text>
+      </g>
+      <g style="fill:var(--muted);font:500 11px ui-monospace,monospace" text-anchor="middle">
+        <text x="60" y="214">0°</text><text x="200" y="214">90°</text><text x="340" y="214">180°</text><text x="480" y="214">270°</text><text x="620" y="214">360°</text>
+      </g>
+      <text x="80" y="30" style="fill:var(--ink);font:600 12px ui-monospace,monospace">current in the coil (AC)</text>
+      <text x="80" y="132" style="fill:var(--ink);font:600 12px ui-monospace,monospace">current from the supply (DC)</text>
+      <text x="340" y="186" text-anchor="middle" style="fill:var(--comm);font:600 11px ui-monospace,monospace">brush shorts the coil</text>
+    </svg>
+    <figcaption>One revolution of the single-loop commutator motor. Each reversal is a ramp, not a jump, because the current transfers from one segment to the other as the brush’s contact area shifts.</figcaption>
+  </figure>
+  <p><b>Where</b> this happens matters. The segments are positioned so that the switch occurs while the coil sides are in the <b>neutral zone</b>, where B ≈ 0. The coil produces no torque there anyway. Just as important, no voltage is induced in it there (e = B L v ≈ 0), so shorting it drives no large circulating current. If the brushes were rotated away from the neutral line, the switch would happen under a pole: the shorted coil would briefly fight the motor, and the brush would <b>spark</b>. In real machines, armature reaction shifts the neutral plane under load. Large machines add <b>interpoles</b> or compensating windings to keep commutation clean.</p>
+  <button class="try" data-try='{"mode":"comm","theta":60,"view":"3d","motion":"steady","run":true,"pauseComm":true}'>▶ Freeze at each commutation</button>
+
+  <h2 id="t-views">6. AC or DC? It depends where you stand</h2>
+  <p>Sitting on the rotor, the coil sees an <b>alternating</b> current: a square-ish wave that flips every time a coil side passes from one pole to the next. Sitting with the brushes, the supply sees a <b>steady DC</b> current. The commutator is a mechanical reversing switch, synchronized to the rotor because it is built onto the rotor. In a motor it acts as an <b>inverter</b> (DC in, AC to the coils). In a generator it acts as a <b>rectifier</b> (AC from the coils, DC out).</p>
+  <div class="eq">f<sub>coil</sub> = P n / 120 &nbsp;&nbsp;(P poles, n in r/min)</div>
+  <p>A 2-pole machine at 1800 r/min puts 30 Hz AC in every armature coil, even though nothing outside the machine is AC.</p>
+
+  <h2 id="t-many">7. Why real machines use many coils (machine ③)</h2>
+  <p>One loop gives a torque that drops to zero twice per turn. If the rotor stops in that dead spot, it cannot restart. With four coils and four segments (a–d), the coils are connected end to end in a closed ring. The brushes split that ring into <b>two parallel paths</b>, each carrying half the current. Only the coils passing the neutral line are being commutated at any moment, while the others sit under the poles carrying their full ½I, so the torque never reaches zero. In this model it stays between 1.0 and 2.0 times the torque of one loop at current I: four coils at ½I reach twice the single loop’s peak, and even with two coils commutating it never falls below one loop’s worth.</p>
+  <p>This is a 2-pole <b>simplex lap</b> winding. A simplex lap winding has as many parallel paths as poles (a = P), so each conductor carries I<sub>A</sub>/a. Adding more coils and segments shrinks the ripple further. A real armature with dozens of segments gives a torque that is practically constant.</p>
+  <button class="try" data-try='{"mode":"four","theta":45,"view":"circuit","follow":0}'>▶ See the two parallel paths</button>
+
+  <h2 id="t-machine">8. Connecting to the DC machine equations</h2>
+  <p>Add up the torque of every conductor under a pole. With Z conductors in total, each carrying I<sub>A</sub>/a, each at radius r in field B over length L:</p>
+  <div class="eq">τ = Z (I<sub>A</sub>/a) B L r</div>
+  <p>The flux per pole is the field times the pole’s share of the rotor surface, φ = B (2π r L / P), so B L r = φ P / (2π). Substituting:</p>
+  <div class="eq">τ<sub>ind</sub> = K φ I<sub>A</sub> &nbsp;&nbsp; E<sub>A</sub> = K φ ω &nbsp;&nbsp; K = Z P / (2π a)</div>
+  <p>These are the two equations that the rest of the DC machine course is built on. Commutation is what lets each conductor’s contribution add instead of cancel. To see them at work, open the DC Motor Power-Flow &amp; Performance Lab on the <a href="./">ECE 3033 tools page</a>.</p>
+
+  <h2 id="t-check">Check yourself</h2>
+  <details><summary>1. You reverse both the supply and the field. Which way does the motor turn?</summary>
+    <p>The <b>same</b> way as before. F = I L × B changes sign once for I and once for B, so the force, and the torque, are unchanged. To reverse a DC motor you reverse <i>one</i> of them, usually the armature.</p></details>
+  <details><summary>2. A 2-pole motor runs at 1200 r/min. What is the frequency of the current in one armature coil?</summary>
+    <p>f = P n / 120 = 2 × 1200 / 120 = <b>20 Hz</b>.</p></details>
+  <details><summary>3. Why put the brushes where commutation happens in the neutral zone?</summary>
+    <p>There B ≈ 0, so the shorted coil makes no torque (none is lost) and has no EMF induced in it (no large circulating current, no sparking). Under a pole it would briefly push the wrong way and spark at the brush.</p></details>
+  <details><summary>4. A 4-pole simplex lap-wound armature has Z = 360 conductors, φ = 0.02 Wb per pole and I<sub>A</sub> = 50 A. Find the torque, and E<sub>A</sub> at 1500 r/min.</summary>
+    <p>Simplex lap: a = P = 4, so K = Z P / (2π a) = 360 × 4 / (2π × 4) = 57.3.<br>
+    τ = K φ I<sub>A</sub> = 57.3 × 0.02 × 50 = <b>57.3 N·m</b>.<br>
+    ω = 1500 × 2π / 60 = 157.1 rad/s, so E<sub>A</sub> = K φ ω = 57.3 × 0.02 × 157.1 = <b>180 V</b>.</p></details>
+
+  <h2 id="t-notes">Model notes</h2>
+  <ul>
+    <li>Radial air-gap field: B = 0 within ±10° of each neutral line, rising smoothly to full strength by ±30° from it (the pole tips are drawn at ±28°).</li>
+    <li>Rotor angle ψ is measured <b>clockwise</b>, looking from the brush end, from ψ = 0° with side 1 (coil 1) on the right-hand neutral line. It is one fixed frame: reversing the supply never changes ψ, so a rotor turning counter-clockwise simply runs to lower ψ. The course notes’ ωt = 0 (brushes on segments a and c in the four-loop figures) is <b>ψ = 315°</b> here, and their ωt = 90° is ψ = 45°.</li>
+    <li>Torque is shown as a multiple of the torque of <b>one loop at current I</b> with both sides under full field (2 B I L r); + = clockwise. The four-coil machine peaks at 2.00: four coils at ½I each.</li>
+    <li>Coil current is positive when it flows a → side 1′ → side 1 → b (machine ②), or from segment k through coil k to segment k+1 (machine ③). The COIL CURRENT readout and the circuit view’s i labels use this sign.</li>
+    <li>The supply is treated as a constant current, I, so the graphs show commutation alone (no back-EMF or armature reaction).</li>
+    <li>The poles’ field is fixed and does not depend on the brush supply (as with permanent magnets or a separately excited field), so “the supply” always means the armature supply. In a shunt or series motor fed from one supply, reversing that supply reverses both I<sub>A</sub> and the field, and the motor keeps its direction: there you reverse the armature or the field connections, not both.</li>
+    <li>Coil currents come from solving the actual circuit at each angle (brush contact resistance ∝ 1/contact area, the classic “resistance commutation” model). That is why the reversal is a ramp rather than an instant flip. The slip-ring contacts are treated as near-perfect connections, and every node has a tiny leak to ground so the circuit equations always have a solution; neither changes a value you can read.</li>
+    <li>The 4-coil machine is the 2-pole simplex lap winding from the course notes: four slots, two coil sides per slot, coil <i>k</i> joined between segments <i>k</i> and <i>k</i>+1.</li>
+    <li>Motion is schematic. <b>Own torque</b>: the rotor has inertia and light damping only (no back-EMF, no load), so speeds are slow-motion and qualitative, with no speed–torque claim; when it is almost still (below 0.4°/s) with almost no torque, it is set exactly to rest. <b>Steady speed</b>: the rotor is turned at a constant speed in the direction the supply drives it (a kinematic view; no drive torque is modelled); with slip rings (①) an outside drive is turning it through the reversed torque, so the torque averages zero. If the browser falls behind (a frame longer than 50 ms), the simulation slows down rather than jumping ahead.</li>
+    <li>The 3-D view’s zoom (0.45× to 3×) and tilt (±89°) are limited; a note appears in the view when you reach a limit.</li>
+  </ul>
+</article>
+</section>
+
+<section class="page" id="page-experiments" role="tabpanel" aria-labelledby="tab-experiments">
+<article class="doc" id="sheet">
+  <h1>Experiments</h1>
+  <p class="subtitle">Seven short investigations with the simulator · about 45 minutes in all</p>
+  <div class="sheetHead">
+    <label>Name<input data-k="name" autocomplete="name"></label>
+    <label>Section<input data-k="section"></label>
+    <label>Date<input data-k="date" type="date"></label>
+  </div>
+  <div class="sheetTools">
+    <button class="btn" id="printSheet">⎙ Print or save as PDF</button>
+    <button class="btn" id="clearSheet">Clear my answers</button>
+    <span class="note" id="sheetNote" style="align-self:center">Answers are saved in this browser only.</span>
+  </div>
+  <p class="warn" id="sheetWarn" role="alert" hidden></p>
+  <p class="warn" id="sheetLimit" role="status" hidden></p>
+  <p class="note">Each <b>Set up</b> button opens the simulator in the right state. Use <b>↩ Back</b> (top right of the simulator) to return here. The <b>Rotor angle ψ</b> readout and the graph’s x-axis both measure the rotor angle <b>clockwise</b>, looking from the brush end, from ψ = 0° with side 1 on the right-hand neutral line. Reversing the supply never changes ψ: a rotor turning counter-clockwise simply runs to lower ψ. The course notes’ ωt = 0 is ψ = 315° here. The <b>Torque</b> readout is a multiple of the torque of one loop at current I. You can drag across the graph to jump to any angle.</p>
+
+  <div class="exp-card" id="exp1">
+    <div class="exp-num">Experiment 1</div>
+    <div class="exp-title">Slip rings: the torque reverses</div>
+    <p class="exp-goal">Show that a loop fed through slip rings gets torque that changes direction every half turn.</p>
+    <button class="try" data-try='{"mode":"slip","theta":0,"view":"3d"}' data-back="exp1">▶ Set up</button>
+    <h4>Procedure</h4>
+    <ol><li>Starting at ψ = 0°, press <b>45° ▶</b> one step at a time.</li>
+      <li>At each angle, read the end view and the <b>Right now</b> card, and fill in the table.</li></ol>
+    <div class="tblWrap"><table class="rec" data-key="e1" data-rows="0°,45°,90°,135°,180°,225°,270°,315°" data-cols="Side 1 is under (N / S / neutral)|Side 1 current (• / ×)|Torque (CW / CCW / 0)"></table></div>
+    <h4>Questions</h4>
+    <ol class="qs">
+      <li>How many times per revolution does the torque change direction? Why?<textarea data-k="e1q1"></textarea></li>
+      <li>Choose <b>Own torque</b> and press <b>Run</b>. Describe the motion. Where does the rotor come to rest, and why there?<textarea data-k="e1q2"></textarea></li>
+    </ol>
+    <details><summary>What you should see</summary>
+      <p>Side 1 always carries • (slip rings never swap the ends). It is in the neutral zone at 0° and 180°, under S from 45° to 135° and under N from 225° to 315°. The torque is 0 at 0° and 180°, CCW (backwards) from 45° to 135°, and CW from 225° to 315°. It reverses twice per revolution, each time a side changes poles with the same current. Left on its own from a start outside the zero-field bands, the rotor swings and comes to rest inside the band around ψ = 0°, with the loop near horizontal. Inside a band the field is zero, so there is no torque at all: a side is pushed back only once it leaves the band around 0°. A rotor placed inside either band (around 0° or 180°) stays put; around 180° the band edges push the rotor away rather than back.</p></details>
+  </div>
+
+  <div class="exp-card" id="exp2">
+    <div class="exp-num">Experiment 2</div>
+    <div class="exp-title">Catch the commutation instant</div>
+    <p class="exp-goal">Find where the split ring reverses the coil current, and what the brushes are doing at that moment.</p>
+    <button class="try" data-try='{"mode":"comm","theta":60,"view":"3d","motion":"steady","pauseComm":true}' data-back="exp2">▶ Set up</button>
+    <h4>Procedure</h4>
+    <ol><li><b>Stop at each commutation</b> is on. Note which segment is on the + brush, then press <b>Run</b>.</li>
+      <li>When the rotor freezes, fill in a row. Press <b>Run</b> again for the next stop.</li></ol>
+    <div class="tblWrap"><table class="rec" data-key="e2" data-rows="Before (running),Stop 1,Stop 2" data-cols="ψ (°)|+ brush on|Coil current|Status badge"></table></div>
+    <h4>Questions</h4>
+    <ol class="qs">
+      <li>At what angles does commutation happen? Where are the coil sides then, relative to the poles?<textarea data-k="e2q1"></textarea></li>
+      <li>Why is it important that the switch happens there and not under a pole?<textarea data-k="e2q2"></textarea></li>
+    </ol>
+    <details><summary>What you should see</summary>
+      <p>Before the first stop the + brush is on <b>a</b> and the coil carries +I. The rotor freezes at ψ = 0°, then 180°. At each stop the + brush reads <b>a + b</b> (it bridges the gap), the coil current is 0, and the badge reads COMMUTATING. After the first stop the + brush is on <b>b</b>, and after the second it is back on <b>a</b>. Both stops have the coil sides on the horizontal neutral line, where B ≈ 0. There the coil makes no torque and has no EMF induced in it, so it can be shorted and reversed without losing torque or sparking.</p></details>
+  </div>
+
+  <div class="exp-card" id="exp3">
+    <div class="exp-num">Experiment 3</div>
+    <div class="exp-title">AC in the coil, DC at the supply</div>
+    <p class="exp-goal">Measure how often the coil current reverses, and how long each reversal takes.</p>
+    <button class="try" data-try='{"mode":"comm","theta":60,"view":"3d","motion":"steady","run":true}' data-back="exp3">▶ Set up</button>
+    <h4>Procedure</h4>
+    <ol><li>Watch the three graphs for at least one revolution.</li>
+      <li>Drag across the graph near ψ = 180°. Find the first and last angles where the + brush reads two segments.</li></ol>
+    <div class="tblWrap"><table class="rec" data-key="e3" data-rows="Coil-current reversals per revolution,Supply-current reversals per revolution,Commutation starts at ψ =,Commutation ends at ψ =,Width of one commutation (°)" data-cols="Value"></table></div>
+    <h4>Questions</h4>
+    <ol class="qs">
+      <li>The real machine runs at 1800 r/min. What is the frequency of the current in the coil?<textarea data-k="e3q1"></textarea></li>
+      <li>In a motor, is the commutator acting as a rectifier or an inverter? Explain.<textarea data-k="e3q2"></textarea></li>
+    </ol>
+    <details><summary>What you should see</summary>
+      <p>The coil current reverses <b>2</b> times per revolution; the supply current <b>never</b> reverses. The + brush reads two segments from about ψ = 173° to 187°, so each commutation lasts about <b>15°</b> (brush width 18° minus the 3° gap). At 1800 r/min a 2-pole coil carries f = P n / 120 = <b>30 Hz</b>. In a motor DC goes in and AC comes out to the coil, so the commutator is an <b>inverter</b>. In a generator it is a rectifier.</p></details>
+  </div>
+
+  <div class="exp-card" id="exp4">
+    <div class="exp-num">Experiment 4</div>
+    <div class="exp-title">Reverse the motor</div>
+    <p class="exp-goal">See what changes, and what does not, when the supply is reversed while the motor runs. Here the field is fixed and “the supply” is the armature supply to the brushes.</p>
+    <button class="try" data-try='{"mode":"comm","theta":60,"view":"3d","motion":"free","run":true}' data-back="exp4">▶ Set up</button>
+    <h4>Procedure</h4>
+    <ol><li>Let the rotor reach a steady speed and fill in the <i>Before</i> column.</li>
+      <li>Press <b>⇄ Reverse current</b>. Watch it brake and spin up again, then fill in <i>After</i>. If it stops in the dead spot instead (Experiment 5), press <b>Give it a push</b>.</li></ol>
+    <div class="tblWrap"><table class="rec" data-key="e4" data-rows="Rotor turns (CW / CCW),Conductors under N carry (• / ×),Force arrows point (CW / CCW),Commutation happens at ψ =" data-cols="Before|After"></table></div>
+    <h4>Questions</h4>
+    <ol class="qs">
+      <li>Why does the rotor slow down before it turns the other way?<textarea data-k="e4q1"></textarea></li>
+      <li>If you reversed the field <i>and</i> the supply, which way would it turn? Why?<textarea data-k="e4q2"></textarea></li>
+    </ol>
+    <details><summary>What you should see</summary>
+      <p>Before: CW rotation, • under N, forces CW. After: CCW rotation, × under N, forces CCW. Commutation is still on the neutral line (0° and 180°), so the new direction is just as steady. The rotor’s momentum carries it on briefly while the reversed torque acts as a brake. Now and then the braked rotor drifts back into the zero-field band and stays there: that is the dead spot of Experiment 5, and <b>Give it a push</b> restarts it. Reversing both I and B reverses the force twice, so the motor would keep turning the original way.</p></details>
+  </div>
+
+  <div class="exp-card" id="exp5">
+    <div class="exp-num">Experiment 5</div>
+    <div class="exp-title">The dead spot</div>
+    <p class="exp-goal">Show why a single loop cannot always start, and why more coils fix it.</p>
+    <button class="try" data-try='{"mode":"comm","theta":0,"view":"3d","motion":"free"}' data-back="exp5">▶ Set up (one loop at ψ = 0°)</button>
+    <button class="try" data-try='{"mode":"four","theta":0,"view":"3d","motion":"free","follow":0}' data-back="exp5">▶ Set up (four coils at ψ = 0°)</button>
+    <h4>Procedure</h4>
+    <ol><li>With one loop at ψ = 0°, press <b>Run</b>. Record the torque and whether it starts.</li>
+      <li>Repeat with the four-coil machine at the same angle.</li></ol>
+    <div class="tblWrap"><table class="rec" data-key="e5" data-rows="One loop,Four coils" data-cols="Torque at ψ = 0°|Starts on its own? (yes / no)"></table></div>
+    <h4>Questions</h4>
+    <ol class="qs">
+      <li>Over what range of angles does the single loop make no torque at all? What fraction of a revolution is that?<textarea data-k="e5q1"></textarea></li>
+      <li>Why does the four-coil machine start from the same position?<textarea data-k="e5q2"></textarea></li>
+    </ol>
+    <details><summary>What you should see</summary>
+      <p>One loop: torque 0 and it stays put, so the dead-spot warning appears (use <b>Give it a push</b>). Four coils: torque <b>CW 1.00</b> (one loop’s worth, its smallest value) and it starts. The field is exactly zero while both sides of the single loop are within ±10° of a neutral line, so it makes no torque at all over 2 × 20° = 40° of 360°, about <b>11%</b> of a revolution. The readout shows 0 a little further out, to about ±11.7°, because torques below 0.02 are shown as 0: about 47° of 360° (13%) on screen. In the four-coil machine, coils 1 and 3 are commutating at ψ = 0°, but coils 2 and 4 are squarely under the poles carrying their full ½I.</p></details>
+  </div>
+
+  <div class="exp-card" id="exp6">
+    <div class="exp-num">Experiment 6</div>
+    <div class="exp-title">Torque ripple</div>
+    <p class="exp-goal">Compare how smooth the torque is with one loop and with four coils.</p>
+    <button class="try" data-try='{"mode":"comm","theta":60,"view":"3d","motion":"steady"}' data-back="exp6">▶ Set up (one loop)</button>
+    <button class="try" data-try='{"mode":"four","theta":45,"view":"3d","motion":"steady","follow":0}' data-back="exp6">▶ Set up (four coils)</button>
+    <h4>Procedure</h4>
+    <ol><li>Drag across the torque graph and read the <b>Torque</b> readout. Record the largest and smallest values.</li>
+      <li>Ripple = (max − min) / max × 100%.</li></ol>
+    <div class="tblWrap"><table class="rec" data-key="e6" data-rows="One loop,Four coils" data-cols="Max torque|Min torque|Ripple (%)|Min occurs at ψ ="></table></div>
+    <h4>Questions</h4>
+    <ol class="qs">
+      <li>The dashed line on the four-coil torque graph is the followed coil alone. How does it compare with the one-loop torque?<textarea data-k="e6q1"></textarea></li>
+      <li>Predict what would happen to the ripple with 16 coils and 16 segments.<textarea data-k="e6q2"></textarea></li>
+    </ol>
+    <details><summary>What you should see</summary>
+      <p>One loop: max 1.00, min 0, ripple <b>100%</b>, minimum at 0° and 180°. Four coils: max 2.00, min 1.00, ripple <b>50%</b>, minimum around 0°, 90°, 180° and 270°, whenever a pair of coils is in the neutral zone. The dashed line (the followed coil alone) has the one-loop shape at half its height, because the coil carries ½I instead of I: the one-loop trace reaches the grid line at 1, and the dashed line peaks half-way up to it (0.50). The four coils’ humps are shifted 90° from each other and add up to twice the one-loop peak. More coils overlap more of these humps, so the ripple keeps shrinking: with 16 coils only a small fraction are ever being commutated at once.</p></details>
+  </div>
+
+  <div class="exp-card" id="exp7">
+    <div class="exp-num">Experiment 7</div>
+    <div class="exp-title">Two parallel paths</div>
+    <p class="exp-goal">Trace how the supply current divides through a closed lap winding.</p>
+    <button class="try" data-try='{"mode":"four","theta":45,"view":"circuit","follow":0}' data-back="exp7">▶ Set up</button>
+    <h4>Procedure</h4>
+    <ol><li>In the circuit view, read the current label next to each coil at ψ = 315°.</li>
+      <li>Drag across the graph to ψ = 0° and read them again.</li></ol>
+    <div class="tblWrap"><table class="rec" data-key="e7" data-rows="Coil 1,Coil 2,Coil 3,Coil 4" data-cols="Current at ψ = 315°|Current at ψ = 0°"></table></div>
+    <h4>Questions</h4>
+    <ol class="qs">
+      <li>Which coils form each of the two paths from the + brush to the − brush at ψ = 315°?<textarea data-k="e7q1"></textarea></li>
+      <li>Why does each coil carry ½I? At ψ = 0°, which coils are being commutated, and how does the current still reach the − brush?<textarea data-k="e7q2"></textarea></li>
+    </ol>
+    <details><summary>What you should see</summary>
+      <p>At ψ = 315°: coils 1 and 2 carry +½I, coils 3 and 4 carry −½I. The + brush is on segment a and the − brush on c. One path is a → coil 1 → b → coil 2 → c, and the other is a → coil 4 → d → coil 3 → c (traversed backwards, hence the minus sign). A 2-pole simplex lap winding has a = 2 parallel paths
+, so each carries I/2. At ψ = 0°, coils 1 and 3 read 0: they are shorted by the brushes and reversing. Coils 2 and 4 still carry ½I each, and the brushes, touching two segments each, carry the current straight past the shorted coils.</p></details>
+  </div>
+</article>
+</section>
+
+<script>
+// ── 0. TABLE OF CONTENTS ─────────────────────────────────────
+//   COMMUTATION SIMULATION v3.2.4 — application script (author: Claude Code; version history in the opening comment)
+//    1. CONSTANTS          conventions; model, circuit, torque base, display thresholds, dynamics, timing,
+//                          camera, canvas, type, colour, interaction and storage, per-view geometry
+//    2. HELPERS            angle, number and rotor-angle helpers
+//    3. PALETTE            canvas colours read from the CSS tokens of the active view
+//    4. MACHINE MODEL      machines, field profile, conductors, commutator geometry, nodal solver, torque table
+//    5. STATE AND DYNAMICS state, physics step, commutation stop, tweens, 45° steps
+//    6. CANVAS HELPERS     canvases, cached layers, arrows, labels, flow chevrons, shared symbols, rich text
+//    7. END VIEW           static stator layer, rotor, brushes, forces, conductors, torque dial
+//    8. 3-D VIEW           orbit camera, cached static geometry, painter's-order drawing
+//    9. CIRCUIT VIEW       slip-ring schematic and four-segment ring diagram
+//   10. GRAPHS             one revolution of coil current, supply current and torque
+//   11. TEXT               Right now card, readouts, status badge
+//   12. GUIDED TOUR        twelve steps, text per supply polarity
+//   13. UI WIRING          buttons, keyboard, orbit camera, rotor drag, graph scrub
+//   14. MAIN LOOP          requestAnimationFrame loop; a drawing error stops it with a message
+//   15. PAGES AND THEME    page tabs, Set up buttons, light view (default) and dark view
+//   16. WORKSHEET          record tables, validated storage, visible save warnings
+//   17. START-UP
+// ── END 0. TABLE OF CONTENTS ─────────────────────────────────
+
+// ── 1. CONSTANTS ─────────────────────────────────────────────
+/* Conventions (end view, looking along the shaft from the brush end):
+     x right, y up; internal rotor angle θ counter-clockwise from +x (deg).
+     N pole on top, S pole on bottom, field points DOWN through the rotor. Out of page (•) = toward viewer.
+   Rotor angle shown to the student (ruling COM-5, PED-13): ψ = −θ, one fixed frame, clockwise-positive,
+     ψ = 0° with side 1 (coil 1) on the right-hand neutral line. Reversing the supply never changes ψ.
+   Torque: internal τ is counter-clockwise-positive; every readout, graph and label shows −τ / T_ONE_LOOP,
+     i.e. + = clockwise, in multiples of the torque of one loop at current I (ruling COM-6).
+   Force on a conductor: F = I L × B → tangential, τ = −c·s·g
+     c = current out of page (units of I), s = +1 under N / −1 under S, g = field profile ∈ [0, 1].
+   Coil k: positive current flows seg k → primed side (×) → back end → unprimed side (•) → seg k+1. */
+const DEG = Math.PI / 180;             // rad per degree
+const MINUS = '−';                     // U+2212, the minus sign used in displayed numbers
+const MS_PER_S = 1000;                 // ms per s
+const TAU = 2 * Math.PI;               // rad, one full circle (canvas arcs)
+const TURN = 360, HALF_TURN = 180;     // deg
+const QUARTER_TURN = 90;               // deg
+
+/* model geometry (deg of rotor or commutator arc) */
+const FIELD_DEAD_DEG = 10;   // B = 0 within ±10° of each neutral line (ruling COM-3)
+const FIELD_FULL_DEG = 30;   // B at full strength beyond ±30° from the neutral line (pole tips drawn at ±28°)
+const BRUSH_HALF_DEG = 9;    // brush half-width: each brush spans 18° of the commutator
+const GAP_HALF_DEG = 1.5;    // half the insulating gap: each gap is 3°
+const COIL_PITCH_DEG = 90;   // four-coil machine: coil k+1 sits 90° after coil k
+const LEAD_SLIP_DEG = 30;    // drawing only: slip-ring loop lead lands 30° ahead of its coil side
+const LEAD_FOUR_DEG = 18;    // drawing only: four-coil leads land 18° either side of the coil's gap
+
+/* nodal circuit, normalised (conductances in S, currents in units of the supply current I) */
+const G_COIL = 40;           // coil conductance
+const G_BRUSH = 1;           // brush-to-segment conductance at full contact (∝ contact area)
+const G_SLIP = 1e3;          // slip-ring contact: a near-perfect connection (disclosed in Model notes)
+const G_REG = 1e-7;          // tiny leak to ground on every node so the matrix is never singular (disclosed)
+const I_SUPPLY = 1;          // constant-current supply, I
+const CONTACT_MIN = 1e-4;    // brush contact fraction below which a segment is not touching
+const TORQUE_LUT_N = 1440;   // torque table points per turn (0.25° steps)
+
+/* torque base (ruling COM-6): one loop at current I with both sides under full field, τ = 2 B I L r */
+const T_ONE_LOOP = 2;        // model torque units (B I L r = 1)
+const TORQUE_AXIS_FULL = 2;  // × one loop: top of the torque graph and a full torque dial (four-coil peak)
+const T_GRID = 1;            // × one loop: the torque graph's inner grid lines (one loop at I), named in the row title
+
+/* display thresholds */
+const T_ZERO_SHOW = 0.02;    // × one loop: smaller torques are shown as 0 / NO TORQUE (Exp 5 states this)
+const I_ZERO_SHOW = 0.04;    // × nominal coil current: smaller currents are shown as 0
+const I_FULL_SHOW = 0.97;    // × nominal: larger currents are shown as the full nominal value
+const I_MARK_MIN = 0.18;     // × nominal: below this a conductor shows "reversing", not • or ×
+const I_GLOW_MIN = 0.05;     // × nominal: conductor glow drawn above this
+const G_NEUTRAL_SHOW = 0.02; // field fraction below which a side is described as "in the neutral zone"
+const CONTACT_NAME_MIN = 0.02; // brush contact fraction above which a segment is named on a readout
+const FORCE_ARROW_MIN = 0.03;  // conductor torque (× its nominal) below which no force arrow is drawn
+const SPLIT_ARROW_MIN = 0.04;  // brush-to-segment current (× I) below which no arrow is drawn
+
+/* dynamics ("Own torque" is schematic: inertia and light damping, no back-EMF; disclosed in Model notes) */
+const K_ACC = 300;           // deg/s² per unit of torque normalised to the machine's own peak
+const DAMP = 1.8;            // 1/s, viscous damping
+const W_STEADY = 75;         // deg/s at speed 1× in "Steady speed" (kinematic: no drive torque modelled)
+const STOP_OMEGA = 0.4;      // deg/s: below this, with |torque| < STOP_TORQUE, the rotor is set exactly to rest
+const STOP_TORQUE = 1e-3;    // torque (× machine peak) for that rest snap
+const PHYS_HZ = 240;         // physics sub-steps per simulated second
+const FRAME_DT_MAX = 0.05;   // s: longest frame step; a stalled browser slows the simulation instead of jumping
+const NUDGE_OMEGA = 120;     // deg/s kick from "Give it a push"
+const SPEED_DEFAULT = 0.5;   // slow-motion factor at load (matches the slider's value attribute)
+const OMEGA_STILL = 1;       // deg/s: end view says "rotor stopped" below this
+const OMEGA_DEAD = 0.5;      // deg/s: dead-spot message shown below this
+const OMEGA_DIR_3D = 2;      // deg/s: the 3-D rotation arrow follows the speed above this, else the torque
+const COMM_CROSS_MAX = 60;   // deg: a gap jump larger than this in one sub-step is a wrap, not a crossing
+
+/* timing and steps */
+const STEP_DEG = 45;         // "45°" step buttons and arrow keys
+const STEP_S = 0.75;         // s, duration of one step
+const GRID_EPS = 1e-6;       // deg, tolerance when snapping to the 45° grid
+const TWEEN_BASE_S = 0.5;    // s, fixed part of a tour tween
+const TWEEN_DEG_PER_S = 110; // deg/s, tour tween angular rate
+const TWEEN_RATE_MIN = 0.4;  // tween playback rate floor (× real time)
+const TWEEN_RATE_GAIN = 1.6; // tween playback rate per unit of the speed slider
+const TOUR_TWEEN_DELAY_MS = 450; // ms before a tour step starts turning
+const CAM_TWEEN_S = 0.7;     // s, camera preset move
+const LIMIT_NOTE_MS = 1500;  // ms a "view limit" note stays on the 3-D view
+const START_THETA = { slip: 60, comm: 60, four: 45 }; // internal θ (deg) when a machine is chosen: ψ = 300°, 300°, 315°
+
+/* orbit camera */
+const CAM0 = { yaw: 40, pitch: -20, zoom: 1 };
+const CAM_PRESETS = { reset: CAM0, front: { yaw: 0, pitch: 0, zoom: 1.05 }, side: { yaw: 90, pitch: -8, zoom: 1 }, top: { yaw: 20, pitch: -80, zoom: 1 } };
+const ORBIT_DEG_PER_PX = 0.45; // deg of yaw or pitch per pixel dragged
+const PITCH_MAX = 89;        // deg, camera tilt limit (disclosed when reached)
+const ZOOM_MIN = 0.45, ZOOM_MAX = 3; // zoom limits (disclosed when reached)
+const WHEEL_ZOOM = 0.0012;   // zoom exponent per wheel delta unit
+const CAM = { dist: 7.4, focalW: 0.95, focalH: 1.25, originX: 0.5, originY: 0.46, zShift: 0.35, near: 0.5, cull: 0.05 }; // model units / fractions of the canvas
+const LIGHT_DIR = [-0.35, 0.65, -0.68]; // direction to the light (normalised below)
+const SHADE_AMBIENT = 0.45, SHADE_DIFFUSE = 0.55;
+
+/* canvas and type */
+const DPR_MAX = 2;           // backing store capped at 2× device pixels
+const CRISP_PX = 0.5;        // px: half-pixel offset that puts a 1 px canvas line on a pixel row (crisp, not blurred)
+const HEAD_HALF_RAD = 0.45;  // rad, half-angle of an arrowhead
+const ARROW_HEAD_K = 3.2;    // default head size × line width
+const ROT_HEAD_BACK = 3;     // points back from the tip of the 3-D rotation arrow that set its head direction
+const CHEV_MIN_V = 0.5, CHEV_MIN_LEN = 4; // px/s and px below which no chevrons are drawn
+
+/* colour */
+const CUR_COLOR_GAIN = 1.05; // a current within 5 % of nominal already shows its full colour
+
+/* interaction and storage */
+const DRAG_REACH = 1.05;     // × R: a rotor drag must start inside the rotor
+const SHEET_MAX_CHARS = 5000; // characters: the longest worksheet answer a field accepts and storage keeps (one limit)
+const FONT_MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'; // system stack (ruling COM-1)
+const FS = { xs: 11, s: 11, sm: 11, m: 11,   /* v3.2.4: no canvas text below 11 px (VIS-COM-008; was 9.5, 10, 10.5) */
+             ml: 11.5, f: 12, l: 12.5, xl: 13, xxl: 14, pole: 14, pole3d: 20 }; // px
+const FW = { reg: 500, semi: 600, bold: 700, heavy: 800 };
+const HALO_LW = 3.5, HALO_A = 0.88;  // text halo outline width (px) and opacity
+const HINT_W = 520;          // px: wider 3-D canvases show the full orbit hint
+
+/* colours shared by both views (copper and the field winding look the same in light and dark) */
+const COPPER = {
+  base: '#c98544', dark: '#7b5530', mid: '#a0703c', edge: '#3a2a18', mark: '#e8c08a', text: '#1d1206',
+  edgeRGB: [40, 25, 10], hiRGB: [255, 214, 150], winding: '#7a5a2e55',
+};
+const POLE_FILL_HEX_A = '30', POLE_EDGE_HEX_A = 'aa'; // hex alpha suffixes for the end-view pole shapes
+
+/* end view geometry: lengths × R (rotor radius) unless marked px */
+const GEO_END = {
+  fitW: 1.72, fitH: 1.66, padY: 8, offY: 6,                   // R = min(w/2/fitW, (h/2 − padY)/fitH); centre offY px low
+  yokeOut: 1.64, yokeIn: 1.5, gapOut: 1.48,
+  poleFace: 1.07, poleShoulder: 1.26, poleTipDeg: 28, poleStepDeg: 4, poleLW: 1.5,
+  poleBody: [[-0.44, 1.32], [-0.44, 1.52], [0.44, 1.52], [0.44, 1.32]],
+  windIn: [0.46, 1.33], windOut: [0.66, 1.49], poleLabelY: 1.2, poleFontK: 0.2,
+  fieldLines: 3, fieldLineStep: 0.26, fieldLineA: 0.16,
+  gapArrowOut: 1.065, gapArrowIn: 1.005, gapArrowSpread: 50, gapArrowStep: 16.6, gapArrowA: 0.55, gapArrowLW: 1.2, gapArrowHead: 4,
+  bX: 1.12, bLabelY: 0.62, bArrowY0: 0.5, bArrowY1: 0.25, bA: 0.75, bArrowLW: 1.6, bArrowHead: 6,
+  neutralA: 0.07, neutralHalf: 1.66, neutralDash: [5, 5], neutralLineA: 0.45, neutralLabelX: 1.27, neutralLabelDy: 9, neutralLabelA: 0.8,
+  rotorHiOff: 0.3, rotorHiR: 0.1, rotorLW: 1.5,
+  cond: { single: 0.84, layer0: 0.88, layer1: 0.71 }, condR1: 0.1, condR4: 0.075,
+  comOut1: 0.4, comOut4: 0.42, comIn: 0.22, shaftK: 0.62, segInsK: 1.6,
+  slotIn1: 0.71, slotIn4: 0.6, slotHalfK: 1.25, slotLW: 1,
+  leadBulge: 0.05, leadStep: 0.1, leadA: 0.85, leadLW: 2.6, leadGrayA: 0.18, leadChevV: 38, leadChevA: 0.95, leadChevGap: 26, leadChevSize: 5,
+  ringDash: [3, 3], ringLW: 2, ringMarkR: 3, ringNoteX: 10, ringNoteY1: 28, ringNoteY2: 14,
+  segFontK: 0.36, segFontMin: 11,
+  brushLen: 0.2, brushHK: 1.05, behindA: 0.6, splitOut: 0.17, splitIn: 0.025, splitYK: 0.9,
+  splitA0: 0.45, splitAK: 0.55, splitLW0: 1, splitLWK: 1.6, splitHead0: 4, splitHeadK: 3,
+  supplyEnd: 0.66, termR: 9, termLabelDy: 0.5, termLW: 1.5, wireLW: 2, supplyChevV: 30, supplyChevGap: 14, supplyChevSize: 4.5,
+  forceLen: 0.42, forceGap: 2, forceLW: 3, forceHead: 9,
+  followRing: 4, followA: 0.9, followLW: 1.5, glowR: 5, glowA: 0.22, condLW: 2.6, dotK: 0.32, crossK: 0.5, ringK: 0.42, condRingLW: 1.5,
+  labelOff1: 13, labelOff4: 10,
+  dialDx: 46, dialDy: 44, dialR: 22, dialRingA: 0.15, dialRingLW: 2, dialSpan: 1.4, dialLW0: 2, dialLWK: 4, dialHeadOff: 5, dialHead: 11, dialLabelDy: 3, dialValueDy: 9,
+  statusX: 10, statusY: 14,
+};
+
+/* 3-D view geometry (model units: rotor radius ≈ 1) */
+const GEO_3D = {
+  zFront: -1.1, zBack: 1.1, comZ0: -1.36, comZ1: -1.84, comR: 0.42, hubR: 0.2,
+  cond: { single: 0.86, layer0: 0.88, layer1: 0.72 },
+  poleFace: 1.24, poleShoulder: 1.42, poleTipDeg: 28, poleStepDeg: 8, poleBody: [[-0.5, 1.5], [-0.5, 2.05], [0.5, 2.05], [0.5, 1.5]],
+  poleCentreY: 1.55, poleSideA: 0.16, poleSideEdgeA: 0.35, poleCapA: 0.24, poleCapEdgeA: 0.7, poleCapLW: 1.2, poleLabelY: 1.78, poleLabelDz: 0.01,
+  fieldX: [-0.55, 0.55], fieldZ: [-0.6, 0.55], fieldTop: 1.15, fieldStep: 0.46, fieldSeg: 0.4, fieldA: 0.28, fieldLW: 1.2, fieldHeadY: -1.18, fieldHeadFrom: -1.0, fieldHeadA: 0.55, fieldHead: 7,
+  shaftZ: [-2.3, 1.6], shaftLW: 5, outlineR: 0.98, outlineStep: 15, outlineA: 0.2, axialA: 0.08, axialDeg: [45, 135, 225, 315],
+  bandStep: 10, bandEps: 0.01, bandEdgeA: 0.5, bandEdgeLW: 0.6, capEdgeA: 0.4, capEdgeLW: 0.5, segInsetDeg: 4,
+  ringZ: [[-1.34, -1.56], [-1.7, -1.92]], ringMarkR: 0.005, ringMarkLW: 2.5, ringHiK: 0.25,
+  segLabelK: 0.62, segLabelDz: 0.01,
+  brushHz: 0.13, brushHt: 0.08, brushGap: 0.005, brushLen: 0.42, brushEdgeLW: 0.8, brushLabelY: 0.26,
+  wireX: 1.55, wireY: -2.05, wireZ: -1.62, wireInX: 0.22, wireLW: 2,
+  leadMidBulge: 0.05, leadZ: -1.24, leadZk: 0.02, leadPts: 10, leadSwing: 0.12, sidePts: 8, backPts: 14, backBulge0: 0.2, backBulgeK: 0.07,
+  slipLead: [[0.55, 15, -1.24], [0.3, 25]], slipLeadDz: 0.02,
+  coilA: 0.97, coilGrayA: 0.5, leadLW: [3, 2], sideLW: [5, 4], labelDr: 0.17, labelDz: 0.1,
+  forceLen: 0.6, forceLW: 4, forceHead: 12, forceLabelOff: 0.15,
+  rotZ: -2.12, rotR: 0.36, rotStartDeg: 110, rotSpanDeg: 250, rotPts: 30, rotLW: 3.2, rotHead: 12, rotLabelY: -0.72,
+  minLW: 0.6, chevV: 60, chevGap: 34, chevSize: [6, 4.5], chevA: [0.97, 0.45], wireChevV: 45, wireChevGap: 30, wireChevSize: 5,
+  battGap: 4, labelY: -0.62, labelZslip: -1.63, labelDzCom: 0.05, labelDy: 2, supplyLabelDy: 24, hintX: 10, hintY: 14,
+  bias: { pole: -0.01, ring: -0.01, seg: -0.05, force: -0.05, forceHead: -0.06, forceLabel: -0.07, rotHead: -0.08, rotLabel: -0.09, text: -0.02, head: -0.05 },
+};
+
+/* circuit view geometry: lengths × Rm (half the smaller canvas side) unless marked px */
+const GEO_CIRC = {
+  offY: 4, comOut: 0.5, comIn: 0.38, coilR: 0.78,
+  slipHalfH: 0.55, slipHalfW: 0.75, slipCoilDy: 26, slipWireLW: 2.5, slipCoilLW: 3, slipPts: 120, slipBump0: 0.15, slipBumpW: 0.7, slipBumps: 5, slipBumpPx: 22,
+  ringRx: 14, ringRy: 24, ringLabelDx: 36, battEnd: 6, slipChevV: 50, slipChevGap: [30, 34], slipChevSize: [5, 6],
+  slipTitleDy: 8, slipNoteY: [-6, 12, 28],
+  coilPts: 90, coilEnv0: 0.15, coilEnvW: 0.7, coilBumpPx: 7, coilBumps1: 6, coilBumps4: 3,
+  glowLW: 10, glowA: 0.18, coilLW: [3.4, 2.4], coilChevV: 55, coilChevGap: 30, coilChevSize: 5.5, labelDr: 26, labelDy: 7,
+  segInsDeg: 3, brushK: 1.1, brushLen: 0.12, brushLblIn: 0.06, brushLblDy: 9, brushWireEnd: 12, brushWireLW: 2, brushChevV: 40, brushChevGap: 16, brushChevSize: 4.5,
+  battPlate: 4, supplyDy: 24, footDy: 12,
+};
+
+/* battery symbols (px): long thin plate = + terminal */
+const BATT_3D = { off: 4, longHalf: 13, shortHalf: 7, longLW: 2.5, shortLW: 5, lblDx: 15, lblDy: -15 };
+const BATT_SLIP = { off: 6, longHalf: 14, shortHalf: 8, longLW: 3, shortLW: 5, lblDx: 18, lblDy: -18 };
+const BATT_RING = { off: 4, longHalf: 12, shortHalf: 7, longLW: 3, shortLW: 5 };
+
+/* copper colour (lerp from base × k toward the highlight by lit × gain) per view */
+const COPPER_END = { k: 0.75, gain: 0.6 }, COPPER_3D = { k: 0.85, gain: 0.55 }, COPPER_CIRC = { k: 0.8, gain: 0.6 };
+
+/* graphs */
+const NG = 360;              // graph points per revolution (1° steps)
+const GEO_GRAPH = { L: 54, Rp: 14, T0: 8, B: 22, gap: 10, lo: -1.3, hi: 1.75, tickDx: 6, xLabelDy: 12, narrowW: 600, stepWide: 45, stepNarrow: 90,
+  titlePad: 4, titleH: 14, titleDy: 2, titleTextDx: 8, titleTextDy: 9, titleA: 0.82, bandA: 0.07, commA: 0.16, grayA: 0.05,
+  traceLW: 2.4, supplyLW: 2.2, coilTraceLW: 1.4, coilTraceA: 0.45, coilDash: [4, 3], cursorA: 0.85, cursorLW: 1.2, dotR: 4.5 };
+// ── END 1. CONSTANTS ─────────────────────────────────────────
+
+// ── 2. HELPERS ───────────────────────────────────────────────
+/** a mod m, always in [0, m) */
+const mod = (a, m) => ((a % m) + m) % m;
+/** wrap an angle (deg) into [−180, 180) */
+const wrap180 = a => mod(a + HALF_TURN, TURN) - HALF_TURN;
+/** clamp x into [a, b] */
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+/** smoothstep on [0, 1] (0 → 0, 1 → 1, zero slope at both ends) */
+const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+/** linear interpolation from a to b by t */
+const lerp = (a, b, t) => a + (b - a) * t;
+/** '#rrggbb' → [r, g, b] (0..255) */
+const hexRGB = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+/** [r, g, b] and opacity → CSS rgba() string */
+const rgba = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+/** student rotor angle ψ (deg, clockwise-positive, 0..360) from internal θ (ruling COM-5: one fixed frame) */
+const psiOf = th => mod(-th, TURN);
+/** internal θ (deg, counter-clockwise) from ψ */
+const thetaOf = psi => -psi;
+/** displayed torque (+ = clockwise, × one loop at I) from internal CCW-positive model torque (ruling COM-6) */
+const torqueCW = T => -T / T_ONE_LOOP;
+// ── END 2. HELPERS ───────────────────────────────────────────
+
+// ── 3. PALETTE ───────────────────────────────────────────────
+/* Canvas-only colours for each view; colours that also appear in the page come from its CSS tokens (one source). */
+const THEMES = {
+  dark: {
+    amber: '#e8b33c', poleNtxt: '#ff9ea1', poleStxt: '#9dbcff', plus: '#ff6b6b', minus: '#7aa7ff', plusLbl: '#ff8a8a', minusLbl: '#94b8ff', cuText: '#d9a46a',
+    wire: '#8c97a6', brushFill: '#4b5463', brushEdge: '#8b96a6', brushEdge3: '#2a3038', brush3RGB: [110, 118, 132],
+    yoke: '#18212b', yokeEdge: '#2b3846', rotorHi: '#26303c', rotorLo: '#161d26', rotorEdge: '#3c4a5a',
+    slot: '#0b1016', slotEdge: '#2f3b49', shaft: '#56606c', shaft3: '#6b7684', condFill: '#0c1014', termFill: '#0d131a',
+    gFrame: '#223040', gZero: '#2f3e50', gGrid: '#1a2532',
+    flowRGB: [255, 255, 255], fieldRGB: [200, 160, 255], grayRGB: [140, 155, 175], haloRGB: [10, 15, 21],
+  },
+  light: {
+    amber: '#8f5d08', poleNtxt: '#8f1f24', poleStxt: '#1f469e', plus: '#cc2b2b',   /* v3.2.4: amber text #b5760b → #8f5d08; pole letters darker than the pole tint (VIS-COM-006) */
+    minus: '#2457c5', plusLbl: '#cc2b2b', minusLbl: '#2457c5', cuText: '#8f5418',
+    wire: '#6b7584', brushFill: '#aab2bd', brushEdge: '#5f6977', brushEdge3: '#5f6977', brush3RGB: [176, 184, 196],
+    yoke: '#dde2e8', yokeEdge: '#b3bcc7', rotorHi: '#f7f8fa', rotorLo: '#d8dee6', rotorEdge: '#98a3b1',
+    slot: '#c5ccd5', slotEdge: '#949fad', shaft: '#8d97a4', shaft3: '#7d8794', condFill: '#ffffff', termFill: '#ffffff',
+    gFrame: '#cfd6df', gZero: '#a9b2be', gGrid: '#e6eaef',
+    flowRGB: [24, 32, 43], fieldRGB: [118, 70, 196], grayRGB: [95, 105, 120], haloRGB: [255, 255, 255],
+  },
+};
+const CSS_TOKENS = { out: '--out', into: '--into', comm: '--comm', force: '--force', N: '--N', S: '--S', ink: '--ink', mut: '--muted', mut2: '--muted2', bad: '--bad' };
+const COL = {}, RGB = {};
+let THEME = 'light', THEME_VER = 0;
+/** fill COL/RGB for the view now set on <html data-theme> (call after the attribute changes) */
+function loadPalette() {
+  Object.assign(COL, THEMES[THEME]);
+  const cs = getComputedStyle(document.documentElement);
+  for (const [k, v] of Object.entries(CSS_TOKENS)) COL[k] = cs.getPropertyValue(v).trim();
+  COL.flow = rgba(COL.flowRGB);
+  for (const k of ['out', 'into', 'comm', 'force', 'N', 'S', 'amber']) RGB[k] = hexRGB(COL[k]);
+  RGB.copper = hexRGB(COPPER.base);
+}
+/** colour for a signed current t (× nominal, ∈ [−1, 1]): + out-of-page colour, − into-page colour, 0 magenta */
+function curRGB(t) {
+  const a = smooth(Math.min(1, Math.abs(t) * CUR_COLOR_GAIN));
+  const end = t >= 0 ? RGB.out : RGB.into;
+  return RGB.comm.map((v, i) => Math.round(lerp(v, end[i], a)));
+}
+/** curRGB as a CSS colour with opacity a */
+const curCol = (t, a = 1) => rgba(curRGB(t), a);
+/** copper segment colour: lit (0..1, share of I through the segment) brightens it toward the highlight */
+const copperCol = (lit, view) => rgba(RGB.copper.map((v, i) => Math.round(lerp(v * view.k, COPPER.hiRGB[i], clamp(lit, 0, 1) * view.gain))));
+// ── END 3. PALETTE ───────────────────────────────────────────
+
+// ── 4. MACHINE MODEL ─────────────────────────────────────────
+/* Tpeak: the machine's own peak torque in model units; used only to scale "Own torque" dynamics. */
+const MODES = {
+  slip: { coils: 1, segs: 2, slip: true,  nominal: 1,   Tpeak: 2, segNames: ['ring a', 'ring b'] },
+  comm: { coils: 1, segs: 2, slip: false, nominal: 1,   Tpeak: 2, segNames: ['a', 'b'] },
+  four: { coils: 4, segs: 4, slip: false, nominal: 0.5, Tpeak: 4, segNames: ['a', 'b', 'c', 'd'] },
+};
+const BRUSH = [{ ang: 0, node: 'R' }, { ang: HALF_TURN, node: 'L' }]; // brushes fixed at 0° (right) and 180° (left)
+
+/** radial gap field fraction g ∈ [0, 1] at conductor angle phi (deg): 0 within ±10° of neutral, full beyond ±30° */
+function gField(phi) { const a = mod(phi, HALF_TURN); const d = Math.min(a, HALF_TURN - a); return smooth((d - FIELD_DEAD_DEG) / (FIELD_FULL_DEG - FIELD_DEAD_DEG)); }
+/** +1 under the N pole (upper half), −1 under the S pole */
+function poleSign(phi) { return Math.sin(phi * DEG) >= 0 ? 1 : -1; }
+
+/** the conductors of machine m at rotor angle th (deg): coil index, primed side flag, angle, slot layer */
+function conductors(m, th) {
+  if (m.coils === 1) return [
+    { coil: 0, primed: false, ang: th, layer: 0 },
+    { coil: 0, primed: true, ang: th + HALF_TURN, layer: 0 }];
+  const out = [];
+  for (let k = 0; k < m.coils; k++) {
+    out.push({ coil: k, primed: false, ang: th + COIL_PITCH_DEG * k, layer: 0 });
+    out.push({ coil: k, primed: true, ang: th + COIL_PITCH_DEG * (k + 2), layer: 1 });
+  }
+  return out;
+}
+/** commutator segment pitch (deg) */
+const segD = m => TURN / m.segs;
+/** [start, end] angles (deg) of segment k at rotor angle th */
+function segSpan(m, k, th) { const D = segD(m); return [th + D * (k - 1), th + D * k]; }
+/** centre angle (deg) of segment k at rotor angle th */
+function segCenter(m, k, th) { const D = segD(m); return th + D * k - D / 2; }
+/** angles (deg) of the insulating gaps that commutate coil k */
+function coilGaps(m, k, th) { return m.coils === 1 ? [th, th + HALF_TURN] : [th + COIL_PITCH_DEG * k]; }
+/** drawing only: where a coil side's front lead lands on the commutator (deg) */
+function leadLanding(m, cond, th) {
+  if (m.coils === 1) return cond.ang + LEAD_SLIP_DEG;
+  const gap = th + COIL_PITCH_DEG * cond.coil;
+  return cond.primed ? gap - LEAD_FOUR_DEG : gap + LEAD_FOUR_DEG;
+}
+
+/** fraction (0..1) of a brush centred at b (deg) covered by the copper of a segment spanning s..e (deg) */
+function overlap(s, e, b) {
+  const L = (e - s) - 2 * GAP_HALF_DEG; if (L <= 0) return 0;
+  const s0 = mod(s + GAP_HALF_DEG - (b - BRUSH_HALF_DEG), TURN), W = 2 * BRUSH_HALF_DEG;
+  let ov = 0;
+  for (const off of [0, -TURN]) { const a = s0 + off, z = a + L; ov += Math.max(0, Math.min(z, W) - Math.max(a, 0)); }
+  return ov / W;
+}
+
+/** solve A x = b by Gaussian elimination with partial pivoting (A small and dense) */
+function gauss(A, b) {
+  const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = c + 1; r < n; r++) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
+  }
+  const x = new Array(n).fill(0);
+  for (let r = n - 1; r >= 0; r--) { let s = M[r][n]; for (let k = r + 1; k < n; k++) s -= M[r][k] * x[k]; x[r] = s / M[r][r]; }
+  return x;
+}
+
+/** nodal solution: segment nodes 0..n−1, right-brush terminal n, left-brush terminal = ground.
+    The supply forces current pol·I into the right brush. Returns coil currents i[k] (× I) and brush contacts. */
+function solve(m, th, pol) {
+  const n = m.segs, R = n, N = n + 1;
+  const G = Array.from({ length: N }, () => new Array(N).fill(0)), b = new Array(N).fill(0);
+  /** stamp conductance g between nodes i and j (−1 = ground) */
+  const add = (i, j, g) => { if (i >= 0) G[i][i] += g; if (j >= 0) G[j][j] += g; if (i >= 0 && j >= 0) { G[i][j] -= g; G[j][i] -= g; } };
+  /** node index of a brush terminal ('R' = right terminal node, 'L' = ground) */
+  const tnode = t => t === 'R' ? R : -1;
+  for (let k = 0; k < m.coils; k++) add(k, (k + 1) % n, G_COIL);
+  const contacts = [];
+  if (m.slip) {
+    add(0, R, G_SLIP); add(1, -1, G_SLIP);
+    contacts.push({ seg: 0, brush: 0, f: 1, g: G_SLIP }, { seg: 1, brush: 1, f: 1, g: G_SLIP });
+  } else {
+    for (let k = 0; k < n; k++) {
+      const [s, e] = segSpan(m, k, th);
+      BRUSH.forEach((br, bi) => { const f = overlap(s, e, br.ang); if (f > CONTACT_MIN) { add(k, tnode(br.node), G_BRUSH * f); contacts.push({ seg: k, brush: bi, f, g: G_BRUSH * f }); } });
+    }
+  }
+  for (let i = 0; i < N; i++) G[i][i] += G_REG;
+  b[R] = pol * I_SUPPLY;
+  const V = gauss(G, b);
+  const i = []; for (let k = 0; k < m.coils; k++) i.push((V[k] - V[(k + 1) % n]) * G_COIL);
+  contacts.forEach(c => { const vt = c.brush === 0 ? V[R] : 0; c.cur = (vt - V[c.seg]) * c.g; });
+  return { i, contacts, V };
+}
+
+/** full state of machine modeKey at rotor angle th (deg) and supply polarity pol (±1):
+    conductor currents and torques, total torque T (model units, CCW +), which coils are commutating */
+function evalAt(modeKey, th, pol) {
+  const m = MODES[modeKey];
+  const sol = solve(m, th, pol);
+  let T = 0;
+  const conds = conductors(m, th).map(c => {
+    const cur = c.primed ? -sol.i[c.coil] : sol.i[c.coil];
+    const g = gField(c.ang), s = poleSign(c.ang), tau = -cur * s * g;
+    T += tau;
+    return Object.assign({}, c, { cur, g, s, tau });
+  });
+  const comm = []; let anyComm = false;
+  for (let k = 0; k < m.coils; k++) {
+    let on = false;
+    if (!m.slip) for (const gp of coilGaps(m, k, th)) for (const br of BRUSH) if (Math.abs(wrap180(gp - br.ang)) < BRUSH_HALF_DEG - GAP_HALF_DEG) on = true; // brush bridges both segments
+    comm.push(on); anyComm = anyComm || on;
+  }
+  return { m, sol, conds, T, comm, anyComm };
+}
+
+/* Torque is linear in the supply current, so one table per machine (at pol = +1, 0.25° steps)
+   replaces a full nodal solve on every physics sub-step. */
+const LUT = {};
+/** model torque (CCW +) of machine modeKey at th (deg) and polarity pol, from the cached table */
+function torqueAt(modeKey, th, pol) {
+  let t = LUT[modeKey];
+  if (!t) { t = LUT[modeKey] = new Float64Array(TORQUE_LUT_N + 1); for (let j = 0; j <= TORQUE_LUT_N; j++) t[j] = evalAt(modeKey, j * TURN / TORQUE_LUT_N, 1).T; }
+  const u = mod(th, TURN) * TORQUE_LUT_N / TURN, j = Math.min(TORQUE_LUT_N - 1, Math.floor(u)), fr = u - j;
+  return pol * (t[j] + (t[j + 1] - t[j]) * fr);
+}
+// ── END 4. MACHINE MODEL ─────────────────────────────────────
+
+// ── 5. STATE AND DYNAMICS ────────────────────────────────────
+const S = {
+  mode: 'comm', theta: START_THETA.comm, omega: 0, playing: false, motion: 'free', speed: SPEED_DEFAULT, pol: 1,
+  follow: 0, view: '3d', flow: true, flowMove: true, force: true, field: true, labels: true, pauseComm: false,
+  tween: null, drag: null, scrub: false, tour: -1, flowT: 0, limitUntil: 0,
+  cam: Object.assign({}, CAM0), camTween: null
+};
+let E = evalAt(S.mode, S.theta, S.pol);
+let GRAPH = null;
+/** element by id */
+const $ = id => document.getElementById(id);
+
+/* render-on-demand bookkeeping: frames are drawn only while something moves or after an input */
+let DIRTY = true, STAGE_VISIBLE = true;
+/** mark the canvases for one redraw */
+const invalidate = () => { DIRTY = true; };
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
+/** internal rotation sense the supply drives: +1 CCW, −1 CW (with + on the right the motor turns CW) */
+const rotDir = () => -S.pol;
+
+/** advance the rotor by dt seconds (simulated): own-torque dynamics or constant driven speed */
+function physicsStep(dt) {
+  const th0 = S.theta;
+  if (S.motion === 'free') {
+    const T = torqueAt(S.mode, S.theta, S.pol) / MODES[S.mode].Tpeak;
+    S.omega += (K_ACC * T - DAMP * S.omega) * dt;
+    if (Math.abs(S.omega) < STOP_OMEGA && Math.abs(T) < STOP_TORQUE) S.omega = 0;
+  } else S.omega = rotDir() * W_STEADY;
+  S.theta += S.omega * dt;
+  if (S.pauseComm) checkCommCrossing(th0);
+}
+/** "Stop at each commutation": if a gap crossed a brush centre between th0 and now, stop there */
+function checkCommCrossing(th0) {
+  const m = MODES[S.mode]; if (m.slip) return;
+  for (let k = 0; k < m.coils; k++) {
+    const g0 = coilGaps(m, k, th0), g1 = coilGaps(m, k, S.theta);
+    for (let j = 0; j < g0.length; j++) for (const br of BRUSH) {
+      const a = wrap180(g0[j] - br.ang), b = wrap180(g1[j] - br.ang);
+      // a step can land exactly on the brush centre (b === 0), so count that as a crossing too
+      if ((a * b < 0 || (b === 0 && a !== 0)) && Math.abs(a - b) < COMM_CROSS_MAX) { S.theta -= b; setPlaying(false); return; }
+    }
+  }
+}
+/** animate the rotor to internal angle target (deg) in the driven direction (tour steps) */
+function tweenTo(target, dur) {
+  const d = rotDir();
+  let delta = target - S.theta;
+  delta = d < 0 ? -mod(-delta, TURN) : mod(delta, TURN);
+  if (Math.abs(delta) < GRID_EPS) return;
+  S.tween = { from: S.theta, delta, t: 0, dur: dur || (TWEEN_BASE_S + Math.abs(delta) / TWEEN_DEG_PER_S) };
+  S.omega = 0;
+}
+/** one 45° step in (sign = +1) or against (−1) the direction the supply drives, snapping to the 45° grid */
+function stepBy(sign) {
+  const d = rotDir() * sign, base = S.tween ? S.tween.from + S.tween.delta : S.theta;
+  S.tween = null; S.theta = base;
+  const target = d > 0 ? Math.floor(base / STEP_DEG + GRID_EPS) * STEP_DEG + STEP_DEG : Math.ceil(base / STEP_DEG - GRID_EPS) * STEP_DEG - STEP_DEG;
+  setPlaying(false);
+  S.tween = { from: base, delta: target - base, t: 0, dur: STEP_S };
+}
+// ── END 5. STATE AND DYNAMICS ────────────────────────────────
+
+// ── 6. CANVAS HELPERS ────────────────────────────────────────
+/** wrap a canvas: backing store follows its CSS size (capped at DPR_MAX); o.ver bumps on every resize */
+function mkCanvas(id) {
+  const c = $(id), x = c.getContext('2d'), o = { c, x, w: 0, h: 0, dpr: 1, ver: 0 };
+  /** resize the backing store to the element's box */
+  const fit = () => {
+    const r = c.getBoundingClientRect(), dpr = Math.min(DPR_MAX, window.devicePixelRatio || 1); if (!r.width) return;
+    const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
+    if (W === c.width && H === c.height && o.w === r.width && o.h === r.height) return;
+    c.width = W; c.height = H; x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    o.w = r.width; o.h = r.height; o.dpr = dpr; o.ver++; invalidate();
+  };
+  new ResizeObserver(fit).observe(c); fit();
+  return o;
+}
+/** an offscreen layer that matches a canvas and is rebuilt only when its key changes */
+function mkLayer() { return { c: document.createElement('canvas'), key: null }; }
+/** draw layer L onto canvas o, repainting it with paint() first if key, size or view changed */
+function useLayer(L, o, key, paint) {
+  key = key + '|' + o.ver + '|' + THEME_VER;
+  if (L.key !== key) {
+    L.c.width = o.c.width; L.c.height = o.c.height;
+    const lx = L.c.getContext('2d'); lx.setTransform(o.dpr, 0, 0, o.dpr, 0, 0); lx.clearRect(0, 0, o.w, o.h);
+    paint(lx); L.key = key;
+  }
+  o.x.save(); o.x.setTransform(1, 0, 0, 1, 0, 0); o.x.drawImage(L.c, 0, 0); o.x.restore();
+}
+/** screen point at radius r and angle deg (CCW from +x, y down on screen) about (cx, cy) */
+const P = (cx, cy, r, deg) => [cx + Math.cos(deg * DEG) * r, cy - Math.sin(deg * DEG) * r];
+/** filled arrowhead with its tip at (tx, ty) pointing along ang (rad) */
+function arrowHead(x, tx, ty, ang, size, color) {
+  x.fillStyle = color; x.beginPath();
+  x.moveTo(tx, ty);
+  x.lineTo(tx - size * Math.cos(ang - HEAD_HALF_RAD), ty - size * Math.sin(ang - HEAD_HALF_RAD));
+  x.lineTo(tx - size * Math.cos(ang + HEAD_HALF_RAD), ty - size * Math.sin(ang + HEAD_HALF_RAD));
+  x.closePath(); x.fill();
+}
+/** straight arrow from (x1, y1) to (x2, y2) */
+function arrow(x, x1, y1, x2, y2, color, lw, head) {
+  x.strokeStyle = color; x.lineWidth = lw; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2, y2); x.stroke();
+  arrowHead(x, x2, y2, Math.atan2(y2 - y1, x2 - x1), head || lw * ARROW_HEAD_K, color);
+}
+/** canvas text in the system monospace stack; halo draws a background-coloured outline first for legibility.
+    ctx.font is re-parsed on every set, so the last font string is remembered per context. */
+function label(x, txt, px, py, color, size, weight, align, halo) {
+  const f = `${weight || FW.semi} ${size}px ${FONT_MONO}`;
+  if (x._font !== f) { x.font = f; x._font = f; }
+  x.textAlign = align || 'center'; x.textBaseline = 'middle';
+  if (halo) { x.lineJoin = 'round'; x.lineWidth = HALO_LW; x.strokeStyle = rgba(COL.haloRGB, HALO_A); x.strokeText(txt, px, py); }
+  x.fillStyle = color; x.fillText(txt, px, py);
+}
+const CHEVRON = [[1, 0], [-0.7, 0.75], [-0.25, 0], [-0.7, -0.75]]; // chevron outline, × size
+/** chevrons along a 2-D polyline; v = signed speed (px/s), +: along the point order. Frozen when S.flowT stops. */
+function flowChevrons(x, pts, v, color, spacing, size) {
+  if (Math.abs(v) < CHEV_MIN_V || pts.length < 2) return;
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const L = cum[cum.length - 1]; if (L < CHEV_MIN_LEN) return;
+  const n = Math.max(1, Math.round(L / spacing)), sp = L / n;
+  const off = mod(S.flowT * v, sp);
+  /* every chevron goes into one path and one fill (no per-chevron save/rotate/restore) */
+  x.fillStyle = color; x.beginPath();
+  let s = 1;
+  for (let j = 0; j < n; j++) {
+    const d = off + j * sp; while (s < cum.length - 1 && cum[s] < d) s++;
+    const t = (d - cum[s - 1]) / ((cum[s] - cum[s - 1]) || 1);
+    const px = lerp(pts[s - 1][0], pts[s][0], t), py = lerp(pts[s - 1][1], pts[s][1], t);
+    let a = Math.atan2(pts[s][1] - pts[s - 1][1], pts[s][0] - pts[s - 1][0]); if (v < 0) a += Math.PI;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    CHEVRON.forEach(([u0, w0], q) => { const u = u0 * size, w = w0 * size, X = px + u * ca - w * sa, Y = py + u * sa + w * ca; q ? x.lineTo(X, Y) : x.moveTo(X, Y); });
+    x.closePath();
+  }
+  x.fill();
+}
+/** stroke a polyline */
+function strokePts(x, pts) { x.beginPath(); pts.forEach((p, i) => i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1])); x.stroke(); }
+/** battery symbol centred at (cx, cy): long thin plate (+) on the side of the + brush */
+function drawBattery(x, cx, cy, plusRight, g) {
+  const lx = plusRight ? g.off : -g.off;
+  x.strokeStyle = COL.ink;
+  x.lineWidth = g.longLW; strokePts(x, [[cx + lx, cy - g.longHalf], [cx + lx, cy + g.longHalf]]);
+  x.lineWidth = g.shortLW; strokePts(x, [[cx - lx, cy - g.shortHalf], [cx - lx, cy + g.shortHalf]]);
+}
+/** "+" and "−" terminal labels either side of a battery at (cx, cy) */
+function drawTermLabels(x, cx, cy, plusRight, g) {
+  label(x, plusRight ? '−' : '+', cx - g.lblDx, cy + g.lblDy, plusRight ? COL.minus : COL.plus, FS.xxl, FW.heavy);
+  label(x, plusRight ? '+' : '−', cx + g.lblDx, cy + g.lblDy, plusRight ? COL.plus : COL.minus, FS.xxl, FW.heavy);
+}
+/** share of the supply current (0..1) passing through segment k via the brushes */
+const contactLit = k => clamp(E.sol.contacts.filter(c => c.seg === k).reduce((a, c) => a + Math.abs(c.cur), 0) / I_SUPPLY, 0, 1);
+/** radius of conductor c from a per-view table {single, layer0, layer1} */
+const condRadius = (m, c, t) => m.coils === 1 ? t.single : (c.layer === 0 ? t.layer0 : t.layer1);
+/** current as text (× nominal t): "0", "+I", "−0.53I", "+½I", "−0.48·½I" — one formatter for every readout and label */
+const fmtI = (t, m) => { const a = Math.abs(t); if (a < I_ZERO_SHOW) return '0'; const s = t > 0 ? '+' : '−'; return m.coils === 1 ? s + (a > I_FULL_SHOW ? '' : a.toFixed(2)) + 'I' : s + (a > I_FULL_SHOW ? '' : a.toFixed(2) + '·') + '½I'; };
+
+/* Rich text without HTML parsing: **bold**, {o:…} out-of-page colour, {i:…} into-page, {c:…} reversing,
+   {f:…} force/torque, {bad:…} warning. Only text nodes and <b> with these classes are ever created. */
+const RICH_RE = /\{(o|i|c|f|bad):([^}]*)\}|\*\*([^*]+)\*\*/g;
+/** replace el's content with the rich-text string src */
+function richText(el, src) {
+  const frag = document.createDocumentFragment();
+  let last = 0, m;
+  RICH_RE.lastIndex = 0;
+  while ((m = RICH_RE.exec(src))) {
+    if (m.index > last) frag.appendChild(document.createTextNode(src.slice(last, m.index)));
+    const b = document.createElement('b');
+    if (m[1]) { b.className = m[1]; b.textContent = m[2]; } else b.textContent = m[3];
+    frag.appendChild(b); last = RICH_RE.lastIndex;
+  }
+  if (last < src.length) frag.appendChild(document.createTextNode(src.slice(last)));
+  el.replaceChildren(frag);
+}
+// ── END 6. CANVAS HELPERS ────────────────────────────────────
+
+// ── 7. END VIEW ──────────────────────────────────────────────
+const cvEnd = mkCanvas('cvEnd'), cvAlt = mkCanvas('cvAlt'), cvGraph = mkCanvas('cvGraph');
+let endGeom = null;
+const endLayer = mkLayer();
+
+/** everything that does not turn with the rotor (yoke, poles, field, neutral axis, rotor disc), drawn once into a layer */
+function paintStator(x, cx, cy, R) {
+  const g = GEO_END;
+  /* yoke */
+  x.fillStyle = COL.yoke; x.strokeStyle = COL.yokeEdge; x.lineWidth = 1;
+  x.beginPath(); x.arc(cx, cy, R * g.yokeOut, 0, TAU); x.arc(cx, cy, R * g.yokeIn, 0, TAU, true); x.fill(); x.stroke();
+
+  /* neutral zones in the air gap (B = 0 within ±FIELD_DEAD_DEG) */
+  for (const c0 of [0, HALF_TURN]) {
+    x.fillStyle = rgba(RGB.comm, g.neutralA);
+    x.beginPath(); x.arc(cx, cy, R * g.gapOut, -(c0 - FIELD_DEAD_DEG) * DEG, -(c0 + FIELD_DEAD_DEG) * DEG, true); x.arc(cx, cy, R, -(c0 + FIELD_DEAD_DEG) * DEG, -(c0 - FIELD_DEAD_DEG) * DEG, false); x.closePath(); x.fill();
+  }
+
+  /* poles */
+  for (const [sgn, name, col, tcol] of [[1, 'N', COL.N, COL.poleNtxt], [-1, 'S', COL.S, COL.poleStxt]]) {
+    const pts = [];
+    for (let a = g.poleTipDeg; a <= HALF_TURN - g.poleTipDeg; a += g.poleStepDeg) pts.push(P(cx, cy, R * g.poleFace, sgn > 0 ? a : -a));
+    /** pole-local point (px, py) × R, mirrored for the S pole */
+    const q = (px, py) => [cx + px * R, cy - sgn * py * R];
+    const tip2 = HALF_TURN - g.poleTipDeg;
+    pts.push(P(cx, cy, R * g.poleShoulder, sgn > 0 ? tip2 : -tip2));
+    for (const [bx, by] of g.poleBody) pts.push(q(bx, by));
+    pts.push(P(cx, cy, R * g.poleShoulder, sgn > 0 ? g.poleTipDeg : -g.poleTipDeg));
+    x.beginPath(); pts.forEach((p, i) => i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1])); x.closePath();
+    x.fillStyle = col + POLE_FILL_HEX_A; x.fill(); x.strokeStyle = col + POLE_EDGE_HEX_A; x.lineWidth = g.poleLW; x.stroke();
+    // field winding stubs
+    for (const sx of [-1, 1]) {
+      const [a1, b1] = q(sx * g.windIn[0], g.windIn[1]), [a2, b2] = q(sx * g.windOut[0], g.windOut[1]);
+      x.fillStyle = COPPER.winding; x.fillRect(Math.min(a1, a2), Math.min(b1, b2), Math.abs(a2 - a1), Math.abs(b2 - b1));
+    }
+    const [lx, ly] = q(0, g.poleLabelY);
+    label(x, name, lx, ly, tcol, Math.max(FS.pole, R * g.poleFontK), FW.heavy);
+  }
+
+  /* field lines (behind the rotor drawing, faint) */
+  if (S.field) {
+    x.save();
+    for (let k = -g.fieldLines; k <= g.fieldLines; k++) {
+      const px = cx + k * R * g.fieldLineStep, half = Math.sqrt(Math.max(0, (R * g.poleFace) ** 2 - (k * R * g.fieldLineStep) ** 2));
+      x.strokeStyle = rgba(COL.fieldRGB, g.fieldLineA); x.lineWidth = 1;
+      x.beginPath(); x.moveTo(px, cy - half); x.lineTo(px, cy + half); x.stroke();
+    }
+    // radial gap arrows, N → rotor at the top and rotor → S at the bottom
+    for (const base of [QUARTER_TURN, TURN - QUARTER_TURN]) for (let d = -g.gapArrowSpread; d <= g.gapArrowSpread; d += g.gapArrowStep) {
+      const a = base + d;
+      const p1 = P(cx, cy, R * g.gapArrowOut, a), p2 = P(cx, cy, R * g.gapArrowIn, a);
+      const [s, e] = base === QUARTER_TURN ? [p1, p2] : [p2, p1];
+      arrow(x, s[0], s[1], e[0], e[1], rgba(COL.fieldRGB, g.gapArrowA), g.gapArrowLW, g.gapArrowHead);
+    }
+    x.restore();
+    label(x, 'B', cx + R * g.bX, cy - R * g.bLabelY, rgba(COL.fieldRGB, g.bA), FS.xl, FW.bold);
+    arrow(x, cx + R * g.bX, cy - R * g.bArrowY0, cx + R * g.bX, cy - R * g.bArrowY1, rgba(COL.fieldRGB, g.bA), g.bArrowLW, g.bArrowHead);
+  }
+
+  /* neutral axis */
+  x.setLineDash(g.neutralDash); x.strokeStyle = rgba(RGB.comm, g.neutralLineA); x.lineWidth = 1;
+  x.beginPath(); x.moveTo(cx - R * g.neutralHalf, cy); x.lineTo(cx + R * g.neutralHalf, cy); x.stroke(); x.setLineDash([]);
+  if (S.labels) for (const sx of [-1, 1]) {
+    label(x, 'neutral', cx + sx * R * g.neutralLabelX, cy - g.neutralLabelDy, rgba(RGB.comm, g.neutralLabelA), FS.s, FW.semi);
+    label(x, 'B ≈ 0', cx + sx * R * g.neutralLabelX, cy + g.neutralLabelDy, rgba(RGB.comm, g.neutralLabelA), FS.s, FW.semi);
+  }
+
+  /* rotor disc (rotationally symmetric, so it can live in the static layer) */
+  const rg = x.createRadialGradient(cx - R * g.rotorHiOff, cy - R * g.rotorHiOff, R * g.rotorHiR, cx, cy, R);
+  rg.addColorStop(0, COL.rotorHi); rg.addColorStop(1, COL.rotorLo);
+  x.fillStyle = rg; x.strokeStyle = COL.rotorEdge; x.lineWidth = g.rotorLW;
+  x.beginPath(); x.arc(cx, cy, R, 0, TAU); x.fill(); x.stroke();
+}
+
+/** end view (from the brush end): the static layer plus slots, leads, commutator, brushes, forces, conductors, dial */
+function drawEnd() {
+  const { x, w, h } = cvEnd; if (!w) return;
+  const g = GEO_END;
+  x.clearRect(0, 0, w, h);
+  const m = MODES[S.mode], th = S.theta, one = m.coils === 1;
+  const cx = w / 2, cy = h / 2 + g.offY;
+  const R = Math.min(w / 2 / g.fitW, (h / 2 - g.padY) / g.fitH);
+  endGeom = { cx, cy, R };
+  const nom = m.nominal;
+  useLayer(endLayer, cvEnd, `${S.field}|${S.labels}`, lx => paintStator(lx, cx, cy, R));
+
+  /** conductor radius (px) in this view */
+  const condR = c => condRadius(m, c, g.cond) * R;
+  const cr = R * (one ? g.condR1 : g.condR4);
+  const Rc2 = R * (one ? g.comOut1 : g.comOut4), Rc1 = R * g.comIn;
+
+  /* slots */
+  const slotAngles = one ? [th, th + HALF_TURN] : Array.from({ length: m.coils }, (_, k) => th + COIL_PITCH_DEG * k);
+  const r0s = one ? g.slotIn1 : g.slotIn4;
+  for (const a of slotAngles) {
+    x.save(); x.translate(cx, cy); x.rotate(-a * DEG);
+    x.fillStyle = COL.slot; x.strokeStyle = COL.slotEdge; x.lineWidth = g.slotLW;   // set here: v3.2.2 inherited the torque dial's width from the previous frame
+    x.beginPath(); x.rect(R * r0s, -cr * g.slotHalfK, R * (1 - r0s) + 1, cr * 2 * g.slotHalfK); x.fill(); x.stroke();
+    x.restore();
+  }
+
+  /* leads (front end-connections) from coil sides to the commutator */
+  for (const c of E.conds) {
+    const followed = one || c.coil === S.follow;
+    const landA = leadLanding(m, c, th);
+    const p0 = P(cx, cy, condR(c), c.ang), p2 = P(cx, cy, Rc2 + 1, landA);
+    const pm = P(cx, cy, (condR(c) + Rc2) / 2 + R * g.leadBulge, (c.ang + landA) / 2);
+    const ctl = [2 * pm[0] - (p0[0] + p2[0]) / 2, 2 * pm[1] - (p0[1] + p2[1]) / 2];
+    x.strokeStyle = followed ? curCol(c.cur / nom, g.leadA) : rgba(COL.grayRGB, g.leadGrayA);
+    x.lineWidth = followed ? g.leadLW : 1;
+    x.beginPath(); x.moveTo(p0[0], p0[1]); x.quadraticCurveTo(ctl[0], ctl[1], p2[0], p2[1]); x.stroke();
+    if (followed && S.flow) {
+      const pts = []; for (let t = 0; t <= 1 + GRID_EPS; t += g.leadStep) { const u = 1 - t; pts.push([u * u * p2[0] + 2 * u * t * ctl[0] + t * t * p0[0], u * u * p2[1] + 2 * u * t * ctl[1] + t * t * p0[1]]); }
+      // pts: segment → conductor. Positive coil current flows seg→primed, unprimed→seg.
+      const coilI = E.sol.i[c.coil] / nom;
+      flowChevrons(x, pts, (c.primed ? coilI : -coilI) * g.leadChevV, rgba(COL.flowRGB, g.leadChevA), g.leadChevGap, g.leadChevSize);
+    }
+  }
+
+  /* commutator / slip ring */
+  if (m.slip) {
+    x.fillStyle = COPPER.dark; x.beginPath(); x.arc(cx, cy, Rc2, 0, TAU); x.arc(cx, cy, Rc1, 0, TAU, true); x.fill();
+    x.strokeStyle = COPPER.base; x.lineWidth = g.ringLW; x.beginPath(); x.arc(cx, cy, Rc2, 0, TAU); x.stroke();
+    x.setLineDash(g.ringDash); x.strokeStyle = COPPER.mid; x.lineWidth = 1; x.beginPath(); x.arc(cx, cy, (Rc1 + Rc2) / 2, 0, TAU); x.stroke(); x.setLineDash([]);
+    if (S.labels) { label(x, 'centre: two full slip rings', g.ringNoteX, h - g.ringNoteY1, COL.cuText, FS.s, FW.semi, 'left'); label(x, '(one behind the other)', g.ringNoteX, h - g.ringNoteY2, COL.cuText, FS.xs, FW.reg, 'left'); }
+    // rotation marker so the rings visibly turn
+    const mk = P(cx, cy, (Rc1 + Rc2) / 2, th); x.fillStyle = COPPER.mark; x.beginPath(); x.arc(mk[0], mk[1], g.ringMarkR, 0, TAU); x.fill();
+  } else {
+    const ins = GAP_HALF_DEG * g.segInsK;
+    for (let k = 0; k < m.segs; k++) {
+      const [s, e] = segSpan(m, k, th);
+      x.beginPath(); x.arc(cx, cy, Rc2, -(s + ins) * DEG, -(e - ins) * DEG, true); x.arc(cx, cy, Rc1, -(e - ins) * DEG, -(s + ins) * DEG, false); x.closePath();
+      x.fillStyle = copperCol(contactLit(k), COPPER_END);
+      x.fill(); x.strokeStyle = COPPER.edge; x.lineWidth = 1; x.stroke();
+      const lp = P(cx, cy, (Rc1 + Rc2) / 2, segCenter(m, k, th));
+      label(x, m.segNames[k], lp[0], lp[1], COPPER.text, Math.max(g.segFontMin, Rc2 * g.segFontK), FW.heavy);
+    }
+  }
+  x.fillStyle = COL.shaft; x.beginPath(); x.arc(cx, cy, Rc1 * g.shaftK, 0, TAU); x.fill();
+
+  /* brushes (fixed) with current-in / current-out arrows */
+  BRUSH.forEach((br, bi) => {
+    const isPlus = (br.node === 'R') === (S.pol > 0);
+    const dirx = br.ang === 0 ? 1 : -1;
+    const bh = Rc2 * Math.tan(BRUSH_HALF_DEG * DEG) * g.brushHK;
+    const r0 = Rc2, r1 = Rc2 + R * g.brushLen;
+    x.globalAlpha = m.slip && bi === 1 ? g.behindA : 1;
+    x.fillStyle = COL.brushFill; x.strokeStyle = COL.brushEdge; x.lineWidth = 1;
+    x.beginPath(); x.rect(cx + dirx * r0 - (dirx < 0 ? R * g.brushLen : 0), cy - bh, R * g.brushLen, bh * 2); x.fill(); x.stroke();
+    x.globalAlpha = 1;
+    // split current arrows: brush → each segment it touches
+    if (!m.slip && S.flow) {
+      for (const c of E.sol.contacts.filter(c => c.brush === bi)) {
+        const segMid = clamp(wrap180(segCenter(m, c.seg, th) - br.ang), -BRUSH_HALF_DEG, BRUSH_HALF_DEG);
+        const yoff = -Math.sin(segMid * DEG) * Rc2 * g.splitYK;
+        const mag = Math.abs(c.cur) / I_SUPPLY;
+        if (mag < SPLIT_ARROW_MIN) continue;
+        const into = c.cur > 0;   // + : from the brush into the segment
+        const xo = cx + dirx * (r0 + R * g.splitOut), xi = cx + dirx * (r0 + R * g.splitIn);
+        x.globalAlpha = g.splitA0 + g.splitAK * mag;
+        arrow(x, into ? xo : xi, cy + yoff, into ? xi : xo, cy + yoff, COL.flow, g.splitLW0 + g.splitLWK * mag, g.splitHead0 + g.splitHeadK * mag);
+        x.globalAlpha = 1;
+      }
+    }
+    // supply lead + terminal label
+    const lx0 = cx + dirx * r1, lx1 = cx + dirx * (R * g.supplyEnd);
+    x.strokeStyle = COL.wire; x.lineWidth = g.wireLW; x.beginPath(); x.moveTo(lx0, cy); x.lineTo(lx1, cy); x.stroke();
+    const pcol = isPlus ? COL.plus : COL.minus;
+    x.fillStyle = COL.termFill; x.strokeStyle = pcol; x.lineWidth = g.termLW;
+    x.beginPath(); x.arc(lx1 + dirx * g.termR, cy, g.termR, 0, TAU); x.fill(); x.stroke();
+    label(x, isPlus ? '+' : '−', lx1 + dirx * g.termR, cy + g.termLabelDy, pcol, FS.xxl, FW.heavy);
+    // into the + brush, out of the − brush
+    if (S.flow) flowChevrons(x, [[lx1, cy], [lx0, cy]], isPlus ? g.supplyChevV : -g.supplyChevV, COL.flow, g.supplyChevGap, g.supplyChevSize);
+  });
+
+  /* force arrows */
+  if (S.force) for (const c of E.conds) {
+    const mag = Math.abs(c.tau) / nom;
+    if (mag < FORCE_ARROW_MIN) continue;
+    const p = P(cx, cy, condR(c), c.ang);
+    const tang = [-Math.sin(c.ang * DEG), -Math.cos(c.ang * DEG)]; // screen-space CCW tangent
+    const sgn = Math.sign(c.tau), L = R * g.forceLen * mag, off = cr + g.forceGap;
+    const sx = p[0] + tang[0] * sgn * off, sy = p[1] + tang[1] * sgn * off;
+    arrow(x, sx, sy, sx + tang[0] * sgn * L, sy + tang[1] * sgn * L, COL.force, g.forceLW, g.forceHead);
+  }
+
+  /* conductors: • out of page, × into page, ring = reversing */
+  for (const c of E.conds) {
+    const p = P(cx, cy, condR(c), c.ang);
+    const t = c.cur / nom, col = curCol(t);
+    const followed = one || c.coil === S.follow;
+    if (followed && !one) { x.strokeStyle = rgba(COL.flowRGB, g.followA); x.lineWidth = g.followLW; x.beginPath(); x.arc(p[0], p[1], cr + g.followRing, 0, TAU); x.stroke(); }
+    const at = Math.min(1, Math.abs(t));
+    if (at > I_GLOW_MIN) { x.fillStyle = curCol(t, g.glowA * at); x.beginPath(); x.arc(p[0], p[1], cr + g.glowR, 0, TAU); x.fill(); } // cheap glow (shadowBlur is costly)
+    x.fillStyle = COL.condFill; x.strokeStyle = col; x.lineWidth = g.condLW;
+    x.beginPath(); x.arc(p[0], p[1], cr, 0, TAU); x.fill(); x.stroke();
+    x.strokeStyle = col; x.fillStyle = col;
+    if (t > I_MARK_MIN) { x.beginPath(); x.arc(p[0], p[1], cr * g.dotK, 0, TAU); x.fill(); }
+    else if (t < -I_MARK_MIN) { const s = cr * g.crossK; x.lineWidth = g.condLW; x.beginPath(); x.moveTo(p[0] - s, p[1] - s); x.lineTo(p[0] + s, p[1] + s); x.moveTo(p[0] + s, p[1] - s); x.lineTo(p[0] - s, p[1] + s); x.stroke(); }
+    else { x.lineWidth = g.condRingLW; x.beginPath(); x.arc(p[0], p[1], cr * g.ringK, 0, TAU); x.stroke(); }
+    if (S.labels) {
+      const lp = P(cx, cy, condR(c) - cr - (one ? g.labelOff1 : g.labelOff4), c.ang);
+      label(x, (c.coil + 1) + (c.primed ? '′' : ''), lp[0], lp[1], followed ? COL.ink : COL.mut, one ? FS.xl : FS.sm, FW.bold, 'center', true);
+    }
+  }
+
+  /* torque dial (bottom-right): arc length ∝ |torque| / TORQUE_AXIS_FULL (common base) */
+  const Tn = torqueCW(E.T);
+  const gx = w - g.dialDx, gy = h - g.dialDy, gr = g.dialR;
+  x.strokeStyle = rgba(RGB.force, g.dialRingA); x.lineWidth = g.dialRingLW; x.beginPath(); x.arc(gx, gy, gr, 0, TAU); x.stroke();
+  if (Math.abs(Tn) >= T_ZERO_SHOW) {
+    const cw = Tn > 0, frac = Math.min(1, Math.abs(Tn) / TORQUE_AXIS_FULL), span = Math.PI * g.dialSpan * frac;
+    const a0 = -Math.PI / 2, a1 = cw ? a0 + span : a0 - span;
+    x.strokeStyle = COL.force; x.lineWidth = g.dialLW0 + g.dialLWK * frac;
+    x.beginPath(); x.arc(gx, gy, gr, a0, a1, !cw); x.stroke();
+    const ex = gx + Math.cos(a1) * gr, ey = gy + Math.sin(a1) * gr;
+    arrowHead(x, ex + (cw ? -Math.sin(a1) : Math.sin(a1)) * g.dialHeadOff, ey + (cw ? Math.cos(a1) : -Math.cos(a1)) * g.dialHeadOff, a1 + (cw ? Math.PI / 2 : -Math.PI / 2), g.dialHead, COL.force);
+  }
+  label(x, 'torque', gx, gy - g.dialLabelDy, COL.force, FS.xs, FW.semi);
+  label(x, Math.abs(Tn) < T_ZERO_SHOW ? 'zero' : (Tn > 0 ? 'CW' : 'CCW'), gx, gy + g.dialValueDy, COL.force, FS.s, FW.bold);
+
+  /* rotation status (top-left) */
+  const spd = Math.abs(S.omega);
+  label(x, S.tween || S.drag ? 'turned by hand' : spd < OMEGA_STILL ? 'rotor stopped' : `rotor turning ${S.omega < 0 ? 'CW' : 'CCW'}`, g.statusX, g.statusY, COL.mut, FS.m, FW.semi, 'left');
+}
+// ── END 7. END VIEW ──────────────────────────────────────────
+
+// ── 8. 3-D VIEW ──────────────────────────────────────────────
+/** orbit camera for a w × h canvas: proj maps a model point to [sx, sy, depth, scale]; rotN rotates a normal */
+function cam3(w, h) {
+  const c = S.cam, yaw = c.yaw * DEG, pitch = c.pitch * DEG, f = Math.min(w * CAM.focalW, h * CAM.focalH) * c.zoom, D = CAM.dist;
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const ox = w * CAM.originX, oy = h * CAM.originY;
+  /** model point → camera space */
+  const rot = p => { const zz = p[2] + CAM.zShift; const x1 = p[0] * cy + zz * sy, z1 = -p[0] * sy + zz * cy; const y2 = p[1] * cp - z1 * sp, z2 = p[1] * sp + z1 * cp; return [x1, y2, z2]; };
+  /** model point → screen [x, y, depth, perspective scale] */
+  const proj = p => { const [x1, y2, z2] = rot(p); const s = f / (D + Math.max(-D + CAM.near, z2)); return [ox + x1 * s, oy - y2 * s, z2, s]; };
+  /** model normal → camera space */
+  const rotN = n => { const x1 = n[0] * cy + n[2] * sy, z1 = -n[0] * sy + n[2] * cy; return [x1, n[1] * cp - z1 * sp, n[1] * sp + z1 * cp]; };
+  return { proj, rotN, f, D };
+}
+/** point on a cylinder: radius r, angle a (deg), axial z */
+const cyl = (r, a, z) => [r * Math.cos(a * DEG), r * Math.sin(a * DEG), z];
+const LIGHT = (() => { const n = Math.hypot(...LIGHT_DIR); return LIGHT_DIR.map(c => c / n); })();
+/** Lambert shade of colour rgb for a model-space normal n */
+const shade = (rgb, n) => { const d = Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]); const k = SHADE_AMBIENT + SHADE_DIFFUSE * d; return rgba(rgb.map(v => Math.round(v * k))); };
+
+/* Scene primitives in model space. Per frame they are only projected and depth-sorted. */
+/** polygon primitive (back-face culled when normal is given) */
+const pPoly = (pts, fill, stroke, lw, normal) => ({ k: 'p', pts, fill, stroke, lw, normal });
+/** line primitive; bias shifts its depth for sorting */
+const pLine = (a, b, color, lw, bias) => ({ k: 'l', a, b, color, lw, bias: bias || 0 });
+/** text primitive (drawn with a halo) */
+const pText = (p, txt, color, size, bias) => ({ k: 't', p, txt, color, size, bias: bias == null ? GEO_3D.bias.text : bias });
+/** arrowhead primitive at tip, pointing away from `from` */
+const pHead = (tip, from, color, size, bias) => ({ k: 'h', tip, from, color, size, bias: bias == null ? GEO_3D.bias.head : bias });
+/** polyline as line primitives */
+const pPath = (out, pts, color, lw) => { for (let i = 0; i < pts.length - 1; i++) out.push(pLine(pts[i], pts[i + 1], color, lw)); };
+
+/** project primitives with camera cam into screen items (with depth) for the painter's sort */
+function project(prims, cam, items) {
+  for (const q of prims) {
+    if (q.k === 'p') {
+      if (q.normal) { const n = cam.rotN(q.normal); if (n[2] > CAM.cull) continue; }
+      const pp = q.pts.map(cam.proj);
+      items.push({ k: 'p', pp, d: pp.reduce((a, p) => a + p[2], 0) / pp.length, fill: q.fill, stroke: q.stroke, lw: q.lw });
+    } else if (q.k === 'l') {
+      const pa = cam.proj(q.a), pb = cam.proj(q.b);
+      items.push({ k: 'l', pp: [pa, pb], d: (pa[2] + pb[2]) / 2 + q.bias, color: q.color, lw: q.lw });
+    } else if (q.k === 't') {
+      const p = cam.proj(q.p); items.push({ k: 't', d: p[2] + q.bias, x: p[0], y: p[1], txt: q.txt, color: q.color, size: q.size });
+    } else {
+      const pt = cam.proj(q.tip), pb = cam.proj(q.from);
+      items.push({ k: 'h', d: pt[2] + q.bias, x: pt[0], y: pt[1], ang: Math.atan2(pt[1] - pb[1], pt[0] - pb[0]), color: q.color, size: q.size });
+    }
+  }
+}
+
+/** static 3-D geometry (poles, field arrows, shaft, rotor outline), rebuilt only when the view colours or Field toggle change */
+let STATIC3D = { key: null, prims: [] };
+function static3D() {
+  const key = THEME_VER + '|' + S.field;
+  if (STATIC3D.key === key) return STATIC3D.prims;
+  const g = GEO_3D, out = [];
+  /* poles: extruded cross-section */
+  for (const [sgn, col, tcol] of [[1, COL.N, COL.poleNtxt], [-1, COL.S, COL.poleStxt]]) {
+    const sec = [];
+    for (let a = g.poleTipDeg; a <= HALF_TURN - g.poleTipDeg; a += g.poleStepDeg) sec.push([g.poleFace * Math.cos(a * DEG), sgn * g.poleFace * Math.sin(a * DEG)]);
+    const tip2 = HALF_TURN - g.poleTipDeg;
+    sec.push([g.poleShoulder * Math.cos(tip2 * DEG), sgn * g.poleShoulder * Math.sin(tip2 * DEG)]);
+    for (const [bx, by] of g.poleBody) sec.push([bx, sgn * by]);
+    sec.push([g.poleShoulder * Math.cos(g.poleTipDeg * DEG), sgn * g.poleShoulder * Math.sin(g.poleTipDeg * DEG)]);
+    const rgb = hexRGB(col);
+    for (let i = 0; i < sec.length; i++) {
+      const a = sec[i], b = sec[(i + 1) % sec.length];
+      let nx = b[1] - a[1], ny = -(b[0] - a[0]);
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2 - sgn * g.poleCentreY;
+      if (nx * mx + ny * my < 0) { nx = -nx; ny = -ny; }
+      const nn = Math.hypot(nx, ny);
+      out.push(pPoly([[a[0], a[1], g.zFront], [b[0], b[1], g.zFront], [b[0], b[1], g.zBack], [a[0], a[1], g.zBack]], rgba(rgb, g.poleSideA), rgba(rgb, g.poleSideEdgeA), 1, [nx / nn, ny / nn, 0]));
+    }
+    out.push(pPoly(sec.map(p => [p[0], p[1], g.zFront]), rgba(rgb, g.poleCapA), rgba(rgb, g.poleCapEdgeA), g.poleCapLW, [0, 0, -1]));
+    out.push(pPoly(sec.map(p => [p[0], p[1], g.zBack]).reverse(), rgba(rgb, g.poleCapA), rgba(rgb, g.poleCapEdgeA), g.poleCapLW, [0, 0, 1]));
+    for (const z of [g.zFront - g.poleLabelDz, g.zBack + g.poleLabelDz]) out.push(pText([0, sgn * g.poleLabelY, z], sgn > 0 ? 'N' : 'S', tcol, FS.pole3d, g.bias.pole));
+  }
+  /* field arrows (N → S, downward) */
+  if (S.field) for (const fx of g.fieldX) for (const fz of g.fieldZ) {
+    for (let y = g.fieldTop; y > -g.fieldTop; y -= g.fieldStep) out.push(pLine([fx, y, fz], [fx, y - g.fieldSeg, fz], rgba(COL.fieldRGB, g.fieldA), g.fieldLW));
+    out.push(pHead([fx, g.fieldHeadY, fz], [fx, g.fieldHeadFrom, fz], rgba(COL.fieldRGB, g.fieldHeadA), g.fieldHead));
+  }
+  /* shaft + faint rotor outline */
+  out.push(pLine([0, 0, g.shaftZ[0]], [0, 0, g.shaftZ[1]], COL.shaft3, g.shaftLW));
+  for (const z of [g.zFront, g.zBack]) for (let a = 0; a < TURN; a += g.outlineStep) out.push(pLine(cyl(g.outlineR, a, z), cyl(g.outlineR, a + g.outlineStep, z), rgba(COL.grayRGB, g.outlineA), 1));
+  for (const a of g.axialDeg) out.push(pLine(cyl(g.outlineR, a, g.zFront), cyl(g.outlineR, a, g.zBack), rgba(COL.grayRGB, g.axialA), 1));
+  STATIC3D = { key, prims: out };
+  return out;
+}
+
+/** copper band (commutator segment or slip ring) from angle a0 to a1 (deg) between z0 and z1, colour rgb */
+function band3D(out, a0, a1, z0, z1, rgb) {
+  const g = GEO_3D;
+  for (let a = a0; a < a1 - g.bandEps; a += g.bandStep) {
+    const b = Math.min(a + g.bandStep, a1), am = (a + b) / 2, n = [Math.cos(am * DEG), Math.sin(am * DEG), 0];
+    out.push(pPoly([cyl(g.comR, a, z0), cyl(g.comR, b, z0), cyl(g.comR, b, z1), cyl(g.comR, a, z1)], shade(rgb, n), rgba(COPPER.edgeRGB, g.bandEdgeA), g.bandEdgeLW, n));
+    out.push(pPoly([cyl(g.comR, a, z1), cyl(g.comR, b, z1), cyl(g.hubR, b, z1), cyl(g.hubR, a, z1)], shade(rgb, [0, 0, -1]), rgba(COPPER.edgeRGB, g.capEdgeA), g.capEdgeLW, [0, 0, -1]));
+    out.push(pPoly([cyl(g.comR, a, z0), cyl(g.comR, b, z0), cyl(g.hubR, b, z0), cyl(g.hubR, a, z0)], shade(rgb, [0, 0, 1]), rgba(COPPER.edgeRGB, g.capEdgeA), g.capEdgeLW, [0, 0, 1]));
+  }
+}
+/** supply wire polyline from brush bi's tip to the battery (model space) */
+function wire3D(b) { const g = GEO_3D; return [b.tip, [b.dir * g.wireX, 0, b.zcen], [b.dir * g.wireX, g.wireY, b.zcen], [b.dir * g.wireInX, g.wireY, g.wireZ]]; }
+/** copper colour rgb lifted toward the highlight by GEO_3D.ringHiK (the front slip ring) */
+const copperHi = rgb => rgb.map((v, i) => Math.round(lerp(v, COPPER.hiRGB[i], GEO_3D.ringHiK)));
+/** conductor radius (model units) of conductor c of machine m in the 3-D view */
+const condR3 = (m, c) => condRadius(m, c, GEO_3D.cond);
+/** axial position (model units) of brush bi on machine m */
+const brushZ = (m, bi) => m.slip ? (GEO_3D.ringZ[bi][0] + GEO_3D.ringZ[bi][1]) / 2 : (GEO_3D.comZ0 + GEO_3D.comZ1) / 2;
+/** straight coil side at angle a (deg), radius r, from axial z0 to z1, as GEO_3D.sidePts + 1 points */
+function coilSide3D(a, r, z0, z1) { const n = GEO_3D.sidePts, o = []; for (let i = 0; i <= n; i++) o.push(cyl(r, a, lerp(z0, z1, i / n))); return o; }
+/** project a model polyline to screen points with camera cam */
+const projPts = (cam, pts) => pts.map(p => { const q = cam.proj(p); return [q[0], q[1]]; });
+
+/** frame-fixed 3-D parts of machine m: slip-ring bands, brush boxes (shaded), supply wires and the brush positions.
+    They never change between frames, so they are built once per machine and view colours (CQ-COM-004). */
+let FIXED3D = { key: null, prims: [], brushes: [] };
+function fixed3D(m) {
+  const key = THEME_VER + '|' + S.mode;
+  if (FIXED3D.key === key) return FIXED3D;
+  const g = GEO_3D, prims = [], brushes = [];
+  if (m.slip) {
+    band3D(prims, 0, TURN, g.ringZ[0][0], g.ringZ[0][1], copperHi(RGB.copper));
+    band3D(prims, 0, TURN, g.ringZ[1][0], g.ringZ[1][1], RGB.copper);
+  }
+  BRUSH.forEach((br, bi) => {
+    const dir = br.ang === 0 ? 1 : -1, zc = brushZ(m, bi), hz = g.brushHz, ht = g.brushHt, r0 = g.comR + g.brushGap, r1 = g.comR + g.brushLen;
+    /** brush-local point: radial r, tangential t, axial z */
+    const v = (r, t, z) => [dir * r, t, z];
+    const faces = [
+      [[v(r0, -ht, zc - hz), v(r1, -ht, zc - hz), v(r1, ht, zc - hz), v(r0, ht, zc - hz)], [0, 0, -1]],
+      [[v(r0, -ht, zc + hz), v(r1, -ht, zc + hz), v(r1, ht, zc + hz), v(r0, ht, zc + hz)], [0, 0, 1]],
+      [[v(r0, ht, zc - hz), v(r1, ht, zc - hz), v(r1, ht, zc + hz), v(r0, ht, zc + hz)], [0, 1, 0]],
+      [[v(r0, -ht, zc - hz), v(r1, -ht, zc - hz), v(r1, -ht, zc + hz), v(r0, -ht, zc + hz)], [0, -1, 0]],
+      [[v(r1, -ht, zc - hz), v(r1, ht, zc - hz), v(r1, ht, zc + hz), v(r1, -ht, zc + hz)], [dir, 0, 0]],
+    ];
+    for (const [pts, n] of faces) prims.push(pPoly(pts, shade(COL.brush3RGB, n), COL.brushEdge3, g.brushEdgeLW, n));
+    const b = { node: br.node, dir, zcen: zc, tip: [dir * r1, 0, zc] };
+    b.wire = wire3D(b);
+    pPath(prims, b.wire, COL.wire, g.wireLW);
+    brushes.push(b);
+  });
+  FIXED3D = { key, prims, brushes };
+  return FIXED3D;
+}
+
+/** 3-D view: cached static scene + rotor, commutator, brushes, coils, forces; depth-sorted, then overlays */
+function draw3D() {
+  const { x, w, h } = cvAlt; if (!w) return;
+  const g = GEO_3D;
+  x.clearRect(0, 0, w, h);
+  const m = MODES[S.mode], th = S.theta, cam = cam3(w, h), nom = m.nominal, one = m.coils === 1;
+  const items = [], dyn = [];
+  project(static3D(), cam, items);
+  const fixed = fixed3D(m);
+  project(fixed.prims, cam, items);   // slip-ring bands, brushes and supply wires (cached)
+
+  /* commutator / slip rings */
+  if (m.slip) {
+    // a mark so you can see the rings turn
+    for (const rz of g.ringZ) dyn.push(pLine(cyl(g.comR + g.ringMarkR, th, rz[0]), cyl(g.comR + g.ringMarkR, th, rz[1]), COPPER.edge, g.ringMarkLW, g.bias.ring));
+  } else {
+    for (let k = 0; k < m.segs; k++) {
+      const [s, e] = segSpan(m, k, th), lit = contactLit(k);
+      band3D(dyn, s + g.segInsetDeg, e - g.segInsetDeg, g.comZ0, g.comZ1, RGB.copper.map((v, i) => Math.round(lerp(v * COPPER_3D.k, COPPER.hiRGB[i], lit * COPPER_3D.gain))));
+      dyn.push(pText(cyl(g.comR * g.segLabelK, segCenter(m, k, th), g.comZ1 - g.segLabelDz), m.segNames[k], COPPER.text, FS.xl, g.bias.seg));
+    }
+  }
+
+  /* brushes (fixed to the frame, cached above): only which one is + changes with the supply polarity */
+  const brushInfo = fixed.brushes.map(b => ({ ...b, isPlus: (b.node === 'R') === (S.pol > 0) }));
+
+  /* the coils */
+  const flows = [];
+  for (let k = 0; k < m.coils; k++) {
+    const cP = E.conds.find(c => c.coil === k && c.primed), cU = E.conds.find(c => c.coil === k && !c.primed);
+    const rP = condR3(m, cP), rU = condR3(m, cU);
+    const ik = E.sol.i[k] / nom;
+    const followed = one || k === S.follow, fi = followed ? 0 : 1;
+    const alpha = followed ? g.coilA : g.coilGrayA;
+    const landP = leadLanding(m, cP, th), landU = leadLanding(m, cU, th);
+    const zP = m.slip ? g.ringZ[0][0] : g.comZ0, zU = m.slip ? g.ringZ[1][0] : g.comZ0;
+    // positive coil current: seg k → lead → primed side (front→back) → back end → unprimed side (back→front) → lead → seg k+1
+    let leadP = [cyl(g.comR, landP, zP), cyl((g.comR + rP) / 2 + g.leadMidBulge, (landP + cP.ang) / 2, g.leadZ - g.leadZk * k), cyl(rP, cP.ang, g.zFront)];
+    if (!one) { // long end-connection: swing round the shaft, not through it
+      const a0 = landP, da = wrap180(cP.ang - a0);
+      leadP = []; for (let i = 0; i <= g.leadPts; i++) { const t = i / g.leadPts; leadP.push(cyl(lerp(g.comR, rP, t) + g.leadSwing * Math.sin(Math.PI * t), a0 + da * t, lerp(zP, g.zFront, t))); }
+    }
+    const sideP = coilSide3D(cP.ang, rP, g.zFront, g.zBack);
+    const bulge = g.backBulge0 + g.backBulgeK * k;
+    const backArc = []; for (let i = 0; i <= g.backPts; i++) { const t = i / g.backPts; backArc.push(cyl(lerp(rP, rU, t), lerp(cP.ang, cP.ang + HALF_TURN, t), g.zBack + bulge * Math.sin(Math.PI * t))); }
+    const sideU = coilSide3D(cU.ang, rU, g.zBack, g.zFront);
+    const [sl0, sl1] = g.slipLead;
+    const leadU = m.slip
+      ? [cyl(rU, cU.ang, g.zFront), cyl(sl0[0], cU.ang + sl0[1], sl0[2]), cyl(sl1[0], cU.ang + sl1[1], g.ringZ[0][1] + g.slipLeadDz), cyl(sl1[0], cU.ang + sl1[1], g.ringZ[1][0] - g.slipLeadDz), cyl(g.comR, landU, zU)]
+      : [cyl(rU, cU.ang, g.zFront), cyl((g.comR + rU) / 2 + g.leadMidBulge, (landU + cU.ang) / 2, g.leadZ - g.leadZk * k), cyl(g.comR, landU, zU)];
+    pPath(dyn, leadP, curCol(ik, alpha), g.leadLW[fi]);
+    pPath(dyn, sideP, curCol(cP.cur / nom, alpha), g.sideLW[fi]);
+    pPath(dyn, backArc, curCol(ik, alpha), g.leadLW[fi]);
+    pPath(dyn, sideU, curCol(cU.cur / nom, alpha), g.sideLW[fi]);
+    pPath(dyn, leadU, curCol(ik, alpha), g.leadLW[fi]);
+    flows.push({ pts: [...leadP, ...sideP.slice(1), ...backArc.slice(1), ...sideU.slice(1), ...leadU.slice(1)], v: ik, fi });
+    if (S.labels && (followed || !one)) {
+      dyn.push(pText(cyl(rP + g.labelDr, cP.ang, g.zBack + g.labelDz), (k + 1) + '′', followed ? COL.ink : COL.mut, followed ? FS.xl : FS.sm));
+      dyn.push(pText(cyl(rU + g.labelDr, cU.ang, g.zBack + g.labelDz), String(k + 1), followed ? COL.ink : COL.mut, followed ? FS.xl : FS.sm));
+    }
+  }
+
+  /* force arrows at mid-length */
+  if (S.force) for (const c of E.conds) {
+    const mag = Math.abs(c.tau) / nom; if (mag < FORCE_ARROW_MIN) continue;
+    const base = cyl(condR3(m, c), c.ang, 0), tg = [-Math.sin(c.ang * DEG), Math.cos(c.ang * DEG), 0], sg = Math.sign(c.tau), L = g.forceLen * mag;
+    const tip = [base[0] + tg[0] * sg * L, base[1] + tg[1] * sg * L, 0];
+    dyn.push(pLine(base, tip, COL.force, g.forceLW, g.bias.force));
+    dyn.push(pHead(tip, base, COL.force, g.forceHead, g.bias.forceHead));
+    if (S.labels && one) dyn.push(pText([tip[0] + tg[0] * sg * g.forceLabelOff, tip[1] + tg[1] * sg * g.forceLabelOff, 0], 'F', COL.force, FS.f, g.bias.forceLabel));
+  }
+
+  /* rotation-direction arrow around the shaft, in front of the commutator */
+  {
+    const Tn = torqueCW(E.T);  // + = CW
+    const dir = Math.abs(S.omega) > OMEGA_DIR_3D ? -Math.sign(S.omega) : (Math.abs(Tn) >= T_ZERO_SHOW ? Math.sign(Tn) : 0); // +1 CW
+    if (dir !== 0) {
+      const pts = [];
+      for (let i = 0; i <= g.rotPts; i++) pts.push(cyl(g.rotR, g.rotStartDeg - dir * g.rotSpanDeg * i / g.rotPts, g.rotZ));
+      pPath(dyn, pts, COL.amber, g.rotLW);
+      dyn.push(pHead(pts[pts.length - 1], pts[pts.length - ROT_HEAD_BACK], COL.amber, g.rotHead, g.bias.rotHead));
+      if (S.labels) dyn.push(pText([0, g.rotLabelY, g.rotZ], dir > 0 ? 'turns CW' : 'turns CCW', COL.amber, FS.m, g.bias.rotLabel));
+    }
+  }
+
+  /* sort (far → near) and draw */
+  project(dyn, cam, items);
+  items.sort((a, b) => b.d - a.d);
+  const sRef = cam.f / cam.D;
+  for (const it of items) {
+    if (it.k === 'p') {
+      x.beginPath(); it.pp.forEach((p, i) => i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1])); x.closePath();
+      if (it.fill) { x.fillStyle = it.fill; x.fill(); }
+      if (it.stroke) { x.strokeStyle = it.stroke; x.lineWidth = it.lw; x.stroke(); }
+    } else if (it.k === 'l') {
+      const s = (it.pp[0][3] + it.pp[1][3]) / 2 / sRef;
+      x.strokeStyle = it.color; x.lineWidth = Math.max(g.minLW, it.lw * s); x.lineCap = 'round';
+      x.beginPath(); x.moveTo(it.pp[0][0], it.pp[0][1]); x.lineTo(it.pp[1][0], it.pp[1][1]); x.stroke(); x.lineCap = 'butt';
+    } else if (it.k === 'h') arrowHead(x, it.x, it.y, it.ang, it.size, it.color);
+    else label(x, it.txt, it.x, it.y, it.color, it.size, FW.heavy, 'center', true);
+  }
+
+  /* current-flow chevrons, drawn on top so the direction is always visible */
+  if (S.flow) {
+    for (const fl of flows) flowChevrons(x, projPts(cam, fl.pts), fl.v * g.chevV, rgba(COL.flowRGB, g.chevA[fl.fi]), g.chevGap, g.chevSize[fl.fi]);
+    for (const b of brushInfo) flowChevrons(x, projPts(cam, b.wire).reverse(), b.isPlus ? g.wireChevV : -g.wireChevV, COL.flow, g.wireChevGap, g.wireChevSize);
+  }
+
+  /* battery + brush labels (screen-space overlay) */
+  const bc = cam.proj([0, g.wireY, g.wireZ]);
+  const plusRight = S.pol > 0;
+  const L0 = cam.proj(brushInfo[1].wire[3]), R0 = cam.proj(brushInfo[0].wire[3]);
+  x.strokeStyle = COL.wire; x.lineWidth = g.wireLW;
+  x.beginPath(); x.moveTo(L0[0], L0[1]); x.lineTo(bc[0] - g.battGap, bc[1]); x.moveTo(bc[0] + g.battGap, bc[1]); x.lineTo(R0[0], R0[1]); x.stroke();
+  drawBattery(x, bc[0], bc[1], plusRight, BATT_3D);
+  drawTermLabels(x, bc[0], bc[1], plusRight, BATT_3D);
+  if (S.labels) label(x, 'DC supply', bc[0], bc[1] + g.supplyLabelDy, COL.mut, FS.sm, FW.semi, 'center', true);
+  brushInfo.forEach(b => {
+    const p = cam.proj([b.dir * (g.comR + g.brushLen), g.brushLabelY, b.zcen]);
+    label(x, b.isPlus ? '+ brush' : '− brush', p[0], p[1], b.isPlus ? COL.plusLbl : COL.minusLbl, FS.m, FW.bold, 'center', true);
+  });
+  if (S.labels) {
+    const p = cam.proj([0, g.labelY, m.slip ? g.labelZslip : g.comZ1 - g.labelDzCom]);
+    label(x, m.slip ? 'slip rings' : 'commutator', p[0], p[1] + g.labelDy, COL.cuText, FS.sm, FW.semi, 'center', true);
+  }
+  label(x, w > HINT_W ? 'drag to orbit · scroll to zoom · double-click to reset' : 'drag to orbit', g.hintX, g.hintY, COL.mut2, FS.s, FW.reg, 'left');
+  /* CQ-COM-015: a clamped zoom or tilt is said on screen, not applied silently */
+  if (performance.now() < S.limitUntil) label(x, `view limit reached (zoom ${ZOOM_MIN}× to ${ZOOM_MAX}×, tilt ±${PITCH_MAX}°)`, g.hintX, g.hintY + FS.xxl + FS.s, COL.bad, FS.s, FW.semi, 'left', true);
+}
+// ── END 8. 3-D VIEW ──────────────────────────────────────────
+
+// ── 9. CIRCUIT VIEW ──────────────────────────────────────────
+/* coil outline as offsets from its first segment centre (radius bump in px, angle fraction), cached per bump count */
+const COIL_SHAPE = {};
+/** [bump px, t] samples of a coil drawn as a bumpy arc with `bumps` turns */
+function coilShape(bumps) {
+  const g = GEO_CIRC;
+  if (COIL_SHAPE[bumps]) return COIL_SHAPE[bumps];
+  const out = [];
+  for (let i = 0; i <= g.coilPts; i++) {
+    const t = i / g.coilPts, env = Math.sin(Math.PI * clamp((t - g.coilEnv0) / g.coilEnvW, 0, 1));
+    out.push([env > 0 ? env * Math.sin(t * TAU * bumps) * g.coilBumpPx : 0, t]);
+  }
+  return (COIL_SHAPE[bumps] = out);
+}
+/* slip-ring schematic coil, cached per canvas size */
+let SLIP_COIL = { key: null, pts: [] };
+/** slip-ring schematic coil polyline from (L, y0) to (Rr, y0) with half-wave bumps above it */
+function slipCoil(L, Rr, y0) {
+  const g = GEO_CIRC, key = L + '|' + Rr + '|' + y0;
+  if (SLIP_COIL.key === key) return SLIP_COIL.pts;
+  const pts = [];
+  for (let i = 0; i <= g.slipPts; i++) { const u = i / g.slipPts, on = u > g.slipBump0 && u < 1 - g.slipBump0; pts.push([lerp(L, Rr, u), y0 - (on ? Math.abs(Math.sin((u - g.slipBump0) / g.slipBumpW * Math.PI * g.slipBumps)) * g.slipBumpPx : 0)]); }
+  SLIP_COIL = { key, pts };
+  return pts;
+}
+
+/** circuit view: fixed schematic for slip rings, or the commutator ring with coils joining adjacent segments */
+function drawCircuit() {
+  const { x, w, h } = cvAlt; if (!w) return;
+  const g = GEO_CIRC;
+  x.clearRect(0, 0, w, h);
+  const m = MODES[S.mode], th = S.theta, nom = m.nominal, one = m.coils === 1;
+  const cx = w / 2, cy = h / 2 + g.offY;
+  const Rm = Math.min(w, h) / 2;
+  const Rc2 = Rm * g.comOut, Rc1 = Rm * g.comIn, Rk = Rm * g.coilR;
+  const plusRight = S.pol > 0;
+
+  if (m.slip) {
+    /* fixed schematic: battery → ring a → coil → ring b → battery */
+    const top = cy - Rm * g.slipHalfH, bot = cy + Rm * g.slipHalfH, L = cx - Rm * g.slipHalfW, Rr = cx + Rm * g.slipHalfW, yc = top + g.slipCoilDy;
+    const t = E.sol.i[0] / nom;
+    x.lineWidth = g.slipWireLW; x.strokeStyle = COL.wire;
+    strokePts(x, [[cx - g.battEnd, bot], [L, bot], [L, yc]]);
+    strokePts(x, [[cx + g.battEnd, bot], [Rr, bot], [Rr, yc]]);
+    const cp = slipCoil(L, Rr, yc);
+    x.strokeStyle = curCol(t); x.lineWidth = g.slipCoilLW; strokePts(x, cp);
+    for (const [px, nm] of [[L, 'ring a'], [Rr, 'ring b']]) {
+      x.fillStyle = COPPER.base; x.beginPath(); x.ellipse(px, cy, g.ringRx, g.ringRy, 0, 0, TAU); x.fill();
+      label(x, nm, px + (px < cx ? -g.ringLabelDx : g.ringLabelDx), cy, COL.cuText, FS.m, FW.semi);
+    }
+    drawBattery(x, cx, bot, plusRight, BATT_SLIP);
+    drawTermLabels(x, cx, bot, plusRight, BATT_SLIP);
+    if (S.flow) {
+      const v = g.slipChevV * Math.sign(t || 1);
+      flowChevrons(x, [[cx + g.battEnd, bot], [Rr, bot], [Rr, yc]], -v, COL.flow, g.slipChevGap[0], g.slipChevSize[0]);
+      flowChevrons(x, cp, -v, COL.flow, g.slipChevGap[1], g.slipChevSize[1]);
+      flowChevrons(x, [[L, yc], [L, bot], [cx - g.battEnd, bot]], -v, COL.flow, g.slipChevGap[0], g.slipChevSize[0]);
+    }
+    label(x, 'side 1′ … back … side 1', cx, top - g.slipTitleDy, COL.mut, FS.m, FW.semi);
+    label(x, 'The rings never swap ends.', cx, cy + g.slipNoteY[0], COL.ink, FS.l, FW.semi);
+    label(x, 'The coil current is DC, so it does not', cx, cy + g.slipNoteY[1], COL.mut, FS.ml, FW.reg);
+    label(x, 'reverse when the coil passes the neutral line.', cx, cy + g.slipNoteY[2], COL.mut, FS.ml, FW.reg);
+    return;
+  }
+
+  /* ring diagram: commutator (real geometry) + coils as arcs outside joining adjacent segments */
+  for (let k = 0; k < m.coils; k++) {
+    const a0 = segCenter(m, k, th), a1 = one ? a0 + HALF_TURN : a0 + COIL_PITCH_DEG;
+    const ik = E.sol.i[k] / nom;
+    const followed = one || k === S.follow;
+    const shape = coilShape(one ? g.coilBumps1 : g.coilBumps4);
+    const full = [P(cx, cy, Rc2, a0), ...shape.map(([dr, t]) => P(cx, cy, Rk + dr, lerp(a0, a1, t))), P(cx, cy, Rc2, a1)];
+    x.lineJoin = 'round';
+    if (followed) { x.strokeStyle = curCol(ik, g.glowA); x.lineWidth = g.glowLW; strokePts(x, full); } // cheap glow (shadowBlur is costly)
+    x.strokeStyle = curCol(ik); x.lineWidth = g.coilLW[followed ? 0 : 1]; strokePts(x, full);
+    if (S.flow) flowChevrons(x, full, ik * g.coilChevV, COL.flow, g.coilChevGap, g.coilChevSize);
+    if (S.labels) {
+      const lp = P(cx, cy, Rk + g.labelDr, (a0 + a1) / 2);
+      label(x, 'coil ' + (k + 1), lp[0], lp[1] - g.labelDy, followed ? COL.ink : COL.mut, FS.m, FW.bold, 'center', true);
+      label(x, 'i = ' + fmtI(ik, m), lp[0], lp[1] + g.labelDy, curCol(ik), FS.sm, FW.semi, 'center', true);
+    }
+  }
+  // segments
+  for (let k = 0; k < m.segs; k++) {
+    const [s, e] = segSpan(m, k, th);
+    x.beginPath(); x.arc(cx, cy, Rc2, -(s + g.segInsDeg) * DEG, -(e - g.segInsDeg) * DEG, true); x.arc(cx, cy, Rc1, -(e - g.segInsDeg) * DEG, -(s + g.segInsDeg) * DEG, false); x.closePath();
+    x.fillStyle = copperCol(contactLit(k), COPPER_CIRC); x.fill();
+    const lp = P(cx, cy, (Rc1 + Rc2) / 2, segCenter(m, k, th));
+    label(x, m.segNames[k], lp[0], lp[1], COPPER.text, FS.xxl, FW.heavy);
+  }
+  // brushes inside the ring + battery in the centre
+  const bw = Rc1 * Math.tan(BRUSH_HALF_DEG * DEG) * g.brushK;
+  for (const [bi, dir] of [[0, 1], [1, -1]]) {
+    const isPlus = (bi === 0) === plusRight;
+    x.fillStyle = COL.brushFill; x.strokeStyle = COL.brushEdge; x.lineWidth = 1;
+    const x0 = cx + dir * Rc1, x1 = cx + dir * (Rc1 - Rm * g.brushLen);
+    x.beginPath(); x.rect(Math.min(x0, x1), cy - bw, Math.abs(x1 - x0), bw * 2); x.fill(); x.stroke();
+    x.strokeStyle = COL.wire; x.lineWidth = g.brushWireLW; strokePts(x, [[x1, cy], [cx + dir * g.brushWireEnd, cy]]);
+    label(x, isPlus ? '+' : '−', cx + dir * (Rc1 - Rm * g.brushLblIn), cy - bw - g.brushLblDy, isPlus ? COL.plus : COL.minus, FS.xl, FW.heavy);
+    if (S.flow) flowChevrons(x, [[cx + dir * g.brushWireEnd, cy], [x1, cy]], isPlus ? g.brushChevV : -g.brushChevV, COL.flow, g.brushChevGap, g.brushChevSize);
+  }
+  drawBattery(x, cx, cy, plusRight, BATT_RING);
+  if (S.labels) {
+    label(x, 'supply', cx, cy + g.supplyDy, COL.mut, FS.s, FW.semi);
+    label(x, one ? 'coil ends land on segments a and b · i > 0: a → 1′ → 1 → b' : 'two parallel paths: + brush → half the coils → − brush · i > 0: segment k → coil k → k+1', cx, h - g.footDy, COL.mut, FS.sm, FW.reg);
+  }
+}
+// ── END 9. CIRCUIT VIEW ──────────────────────────────────────
+
+// ── 10. GRAPHS ───────────────────────────────────────────────
+/** sample one revolution in the fixed clockwise ψ frame (ruling COM-5): coil current, torque, followed-coil torque, zone */
+function buildGraph() {
+  const m = MODES[S.mode], data = [];
+  const k = m.coils === 1 ? 0 : S.follow;
+  for (let j = 0; j <= NG; j++) {
+    const psi = j * TURN / NG, th = thetaOf(psi);
+    const e = evalAt(S.mode, th, S.pol);
+    const side = th + (m.coils === 1 ? 0 : COIL_PITCH_DEG * k);
+    const fol = e.conds.filter(c => c.coil === k).reduce((a, c) => a + c.tau, 0);
+    data.push({ psi, i: e.sol.i[k] / m.nominal, T: torqueCW(e.T), Tf: torqueCW(fol), comm: e.comm[k], zone: gField(side) < G_NEUTRAL_SHOW ? 0 : poleSign(side) });
+  }
+  GRAPH = { data, key: S.mode + S.pol + S.follow };
+  graphNote(m);
+}
+/** the legend above the graph (built from nodes: no HTML parsing) */
+function graphNote(m) {
+  const el = $('graphNote'), frag = document.createDocumentFragment();
+  /** a coloured legend word */
+  const sw = (cls, txt) => { const s = document.createElement('span'); s.className = cls; s.textContent = txt; return s; };
+  frag.append(sw('gN', 'red band'), `: ${m.coils === 1 ? 'side 1' : 'side ' + (S.follow + 1)} under N · `, sw('gS', 'blue'), ': under S · ', sw('gC', 'magenta'), ': reversing · drag to scrub');
+  el.replaceChildren(frag);
+}
+const graphLayer = mkLayer();
+/** layout shared by the static layer, the moving cursor and the scrub handler */
+function graphGeom() {
+  const { w, h } = cvGraph, g = GEO_GRAPH;
+  const n = GRAPH_ROWS.length, rowH = (h - g.T0 - g.B - g.gap * (n - 1)) / n;
+  /** ψ (deg) → x (px) on the graph */
+  const X = psi => g.L + (w - g.L - g.Rp) * psi / TURN;
+  return { w, h, L: g.L, Rp: g.Rp, T0: g.T0, B: g.B, gap: g.gap, rowH, X, lo: g.lo, hi: g.hi };
+}
+/* rows: values are plotted after dividing by `scale`, so every row uses the same −1..1 band */
+const GRAPH_ROWS = [
+  { key: 'i', scale: 1, ticks: [[1, '+I'], [0, '0'], [-1, '−I']] },
+  { key: 's', scale: 1, title: 'current from the supply  (+ = into the right-hand brush)', ticks: [[1, '+I'], [0, '0'], [-1, '−I']] },
+  { key: 'T', scale: TORQUE_AXIS_FULL, title: `torque, × one loop at I  (+ = clockwise; grid lines at ±${T_GRID})`, ticks: torqueTicks() },
+];
+/** torque-row ticks on the row's −1..1 band, labelled from TORQUE_AXIS_FULL (CQ-COM-019); the unlabelled grid lines sit at
+    ±T_GRID (one loop), which the row title names (PPR-COM-016; rows are too short for five labels) */
+function torqueTicks() {
+  const g = T_GRID / TORQUE_AXIS_FULL;
+  return [[1, String(TORQUE_AXIS_FULL)], [g, ''], [0, '0'], [-g, ''], [-1, MINUS + TORQUE_AXIS_FULL]];
+}
+/** static graph layer: zone bands, frames, ticks, traces and row titles */
+function paintGraph(x, g) {
+  const m = MODES[S.mode], G = GEO_GRAPH, { w, h, L, Rp, T0, B, gap, rowH, X } = g;
+  const coilName = m.coils === 1 ? 'the loop' : 'coil ' + (S.follow + 1);
+  const d = GRAPH.data;
+  GRAPH_ROWS.forEach((r, ri) => {
+    const title = r.title || `current in ${coilName}  (turns with the rotor)`;
+    const top = T0 + ri * (rowH + gap), bot = top + rowH;
+    /** row value → y (px) */
+    const Y = v => bot - (v / r.scale - g.lo) / (g.hi - g.lo) * rowH;
+    // zone bands: where the followed coil's side is (merged into runs, not 360 thin rects)
+    let j0 = 0;
+    /** band colour at sample j */
+    const bandCol = j => d[j].comm ? rgba(RGB.comm, G.commA) : d[j].zone > 0 ? rgba(RGB.N, G.bandA) : d[j].zone < 0 ? rgba(RGB.S, G.bandA) : rgba(COL.grayRGB, G.grayA);
+    for (let j = 1; j <= NG; j++) if (j === NG || bandCol(j) !== bandCol(j0)) { x.fillStyle = bandCol(j0); x.fillRect(X(d[j0].psi), top, X(d[j].psi) - X(d[j0].psi), rowH); j0 = j; }
+    x.strokeStyle = COL.gFrame; x.lineWidth = 1; x.strokeRect(L + CRISP_PX, top + CRISP_PX, w - L - Rp - 1, rowH - 1);
+    for (const [v, t] of r.ticks) {
+      const yy = bot - (v - g.lo) / (g.hi - g.lo) * rowH;
+      x.strokeStyle = v === 0 ? COL.gZero : COL.gGrid; x.beginPath(); x.moveTo(L, yy + CRISP_PX); x.lineTo(w - Rp, yy + CRISP_PX); x.stroke();
+      if (t) label(x, t, L - G.tickDx, yy, COL.mut2, FS.xs, FW.reg, 'right');
+    }
+    /** trace fn(sample) across the row */
+    const trace = (fn, color, lw, dash) => {
+      x.strokeStyle = color; x.lineWidth = lw; x.setLineDash(dash || []); x.beginPath();
+      d.forEach((p, j) => { const yy = Y(fn(p)); j ? x.lineTo(X(p.psi), yy) : x.moveTo(X(p.psi), yy); }); x.stroke(); x.setLineDash([]);
+    };
+    x.lineJoin = 'round';
+    if (r.key === 'i') {
+      // colour each piece by sign
+      for (let j = 0; j < NG; j++) { x.strokeStyle = curCol(d[j].i); x.lineWidth = G.traceLW; x.beginPath(); x.moveTo(X(d[j].psi), Y(d[j].i)); x.lineTo(X(d[j + 1].psi), Y(d[j + 1].i)); x.stroke(); }
+    } else if (r.key === 's') {
+      trace(() => S.pol, COL.flow, G.supplyLW);
+    } else {
+      if (m.coils > 1) trace(p => p.Tf, rgba(RGB.force, G.coilTraceA), G.coilTraceLW, G.coilDash);
+      trace(p => p.T, COL.force, G.traceLW);
+    }
+    // title on a backing plate so traces never hide it
+    const f = `${FW.semi} ${FS.sm}px ${FONT_MONO}`; x.font = x._font = f; const tw = x.measureText(title).width;
+    x.fillStyle = rgba(COL.haloRGB, G.titleA); x.fillRect(L + G.titlePad, top + G.titleDy, tw + 2 * G.titlePad, G.titleH);
+    label(x, title, L + G.titleTextDx, top + G.titleTextDy, COL.mut, FS.sm, FW.semi, 'left');
+  });
+  const yb = h - B + G.xLabelDy, stepA = w < G.narrowW ? G.stepNarrow : G.stepWide;
+  for (let a = 0; a < TURN; a += stepA) label(x, a ? a + '°' : 'ψ = 0°', X(a), yb, COL.mut2, FS.xs, FW.reg, a ? 'center' : 'left');
+  label(x, '360°', X(TURN), yb, COL.mut2, FS.xs, FW.reg, 'right');
+}
+/** graph: cached layer plus the moving cursor and value dots (the only per-frame work) */
+function drawGraph() {
+  const { x, w } = cvGraph; if (!w) return;
+  if (!GRAPH || GRAPH.key !== S.mode + S.pol + S.follow) buildGraph();
+  x.clearRect(0, 0, cvGraph.w, cvGraph.h);
+  const m = MODES[S.mode], g = graphGeom(), G = GEO_GRAPH;
+  useLayer(graphLayer, cvGraph, GRAPH.key, lx => paintGraph(lx, g));
+  const cxp = g.X(psiOf(S.theta));
+  const vals = [E.sol.i[m.coils === 1 ? 0 : S.follow] / m.nominal, S.pol, torqueCW(E.T)];
+  x.strokeStyle = rgba(RGB.amber, G.cursorA); x.lineWidth = G.cursorLW;
+  vals.forEach((v, ri) => {
+    const top = g.T0 + ri * (g.rowH + g.gap), bot = top + g.rowH;
+    x.beginPath(); x.moveTo(cxp, top); x.lineTo(cxp, bot); x.stroke();
+    x.fillStyle = ri === 0 ? curCol(v) : ri === 1 ? COL.flow : COL.force;
+    x.beginPath(); x.arc(cxp, bot - (v / GRAPH_ROWS[ri].scale - g.lo) / (g.hi - g.lo) * g.rowH, G.dotR, 0, TAU); x.fill();
+  });
+}
+// ── END 10. GRAPHS ───────────────────────────────────────────
+
+// ── 11. TEXT ─────────────────────────────────────────────────
+/** names of the segments brush bi touches, largest contact first */
+function segOnBrush(bi) {
+  const cs = E.sol.contacts.filter(c => c.brush === bi && c.f > CONTACT_NAME_MIN).sort((a, b) => b.f - a.f);
+  return cs.map(c => MODES[S.mode].segNames[c.seg]);
+}
+/* Writing to the DOM forces style and layout work, so write only when the value changes. */
+const DOMC = new Map();
+/** set text ('text'), rich text ('rich'), class ('class') or a style property of element id, if changed */
+function put(id, prop, val) {
+  const k = id + '.' + prop; if (DOMC.get(k) === val) return; DOMC.set(k, val);
+  const el = $(id);
+  if (prop === 'text') el.textContent = val; else if (prop === 'rich') richText(el, val);
+  else if (prop === 'class') el.className = val; else el.style[prop] = val;
+}
+/** Right now card, readouts, status badge and dead-spot message */
+function updateText() {
+  const m = MODES[S.mode];
+  const plusB = S.pol > 0 ? 0 : 1, minusB = 1 - plusB;
+  const onP = segOnBrush(plusB), onM = segOnBrush(minusB);
+  put('rPlus', 'text', onP.join(' + ') || '—');
+  put('rMinus', 'text', onM.join(' + ') || '—');
+  put('rPlus', 'color', onP.length > 1 ? COL.comm : COL.ink);
+  put('rMinus', 'color', onM.length > 1 ? COL.comm : COL.ink);
+  const k = m.coils === 1 ? 0 : S.follow;
+  const ti = E.sol.i[k] / m.nominal;
+  put('rAng', 'text', Math.round(psiOf(S.theta)) % TURN + '°');
+  put('rCoil', 'text', fmtI(ti, m)); put('rCoil', 'color', curCol(ti));
+  const Tn = torqueCW(E.T);
+  // the supply drives CW for pol > 0 and CCW for pol < 0; anything else is the slip-ring failure
+  const backwards = Tn * S.pol < -T_ZERO_SHOW;
+  const zeroT = Math.abs(Tn) < T_ZERO_SHOW;
+  put('rTorque', 'text', zeroT ? '0' : (Tn > 0 ? 'CW ' : 'CCW ') + Math.abs(Tn).toFixed(2));
+  put('rTorque', 'color', backwards ? COL.bad : COL.force);
+
+  if (E.anyComm) { put('status', 'text', 'COMMUTATING'); put('status', 'class', 'status comm'); }
+  else if (m.slip && backwards) { put('status', 'text', 'TORQUE REVERSED'); put('status', 'class', 'status bad'); }
+  else { put('status', 'text', zeroT ? 'NO TORQUE' : 'CONDUCTING'); put('status', 'class', 'status'); }
+
+  /** where a conductor is, in words */
+  const where = c => c.g < G_NEUTRAL_SHOW ? 'in the neutral zone' : (c.s > 0 ? 'under N' : 'under S');
+  /** a conductor's current direction, in rich text */
+  const dirTxt = c => Math.abs(c.cur / m.nominal) < I_MARK_MIN ? '{c:≈ 0 (reversing)}' : c.cur > 0 ? '{o:• out of the page}' : '{i:× into the page}';
+  let txt = '';
+  if (m.coils === 1) {
+    const [c1, c1p] = E.conds;
+    if (m.slip) {
+      txt = `Side 1 is ${where(c1)}, carrying ${dirTxt(c1)}. Side 1′ is ${where(c1p)}, carrying ${dirTxt(c1p)}. `;
+      const dirName = Tn > 0 ? 'clockwise' : 'counter-clockwise';
+      txt += zeroT ? 'Both sides are in the neutral zone, so there is no force.' :
+        !backwards ? `Both forces turn the rotor {f:${dirName}}.` :
+          `The slip rings never swap the connections, so now that the sides have changed poles the forces turn the rotor {bad:${dirName}, backwards}.`;
+    } else if (E.anyComm) {
+      txt = `The gap between **a** and **b** is under the brushes. Each brush touches **both** segments, so the loop is shorted and its current is ${fmtI(ti, m) === '0' ? 'passing through zero' : 'ramping toward the opposite direction'}. Both sides are in the neutral zone (B ≈ 0), so no torque is lost.`;
+    } else {
+      const segP = onP[0];
+      txt = `Segment **${segP}** is on the + brush, so current enters the loop at side ${segP === 'a' ? '1′' : '1'}. Side 1 is ${where(c1)}, carrying ${dirTxt(c1)}. Side 1′ is ${where(c1p)}, carrying ${dirTxt(c1p)}. `;
+      txt += zeroT ? 'No field here, so there is no force.' : `Torque: {f:${Tn > 0 ? 'clockwise' : 'counter-clockwise'}}.`;
+    }
+  } else {
+    const cc = E.comm.map((v, i) => v ? i + 1 : 0).filter(Boolean);
+    txt = `+ brush on **${onP.join(' & ')}**, − brush on **${onM.join(' & ')}**. `;
+    txt += cc.length ? `Coils {c:${cc.join(' & ')}} are shorted by the brushes and reversing. The others carry ½I each, in two parallel paths. ` : 'All four coils carry ½I, in two parallel paths of two coils each. ';
+    // PPR-COM-001: normal polarity → • under N, × under S, torque CW; reversed → × under N, • under S, torque CCW
+    const markN = S.pol > 0 ? '{o:•}' : '{i:×}', markS = S.pol > 0 ? '{i:×}' : '{o:•}';
+    txt += `Every conductor under N is ${markN} and every one under S is ${markS}, so the torque stays {f:${S.pol > 0 ? 'clockwise' : 'counter-clockwise'}}.`;
+  }
+  put('nowText', 'rich', txt);
+
+  // dead-spot message: single loop, free motion, stopped with no torque
+  const dead = S.mode === 'comm' && S.motion === 'free' && S.playing && Math.abs(S.omega) < OMEGA_DEAD && zeroT && !S.tween;
+  put('deadMsg', 'class', dead ? 'dead show' : 'dead');
+  // PPR-COM-009: the Steady speed model is stated while that mode is chosen
+  put('steadyNote', 'class', S.motion === 'steady' ? 'modeNote show' : 'modeNote');
+  put('steadySlip', 'class', S.motion === 'steady' && m.slip ? 'show' : '');
+}
+// ── END 11. TEXT ─────────────────────────────────────────────
+
+// ── 12. GUIDED TOUR ──────────────────────────────────────────
+/* PPR-COM-013 (v3.2.2): a step whose text names a current direction, brush or torque sense gives one text per
+   supply polarity; showTour() picks the one for S.pol, and reverseCurrent() redraws the open step.
+   Text uses the rich-text markup of section 6 (no HTML). */
+/** pick between the normal- and reversed-polarity texts */
+const byPol = (normal, reversed) => pol => (pol > 0 ? normal : reversed);
+const TOUR_INTRO = 'A step-by-step walk-through: why a plain loop can’t keep spinning on DC, and how the split ring fixes it. You can also explore on your own: pick a machine at the top, press **Run**, or drag the rotor.';
+const TOUR = [
+  { mode: 'slip', theta: 60, view: '3d', title: 'A loop in a magnetic field',
+    text: byPol('One loop of wire (sides **1** and **1′**) sits between the N and S poles, with the field pointing **down**. Follow the white arrows: current comes from the + terminal, goes {i:into the page (×)} along side 1′, crosses at the back, and comes {o:out of the page (•)} along side 1. F = I L × B pushes side 1 **right** and side 1′ **left**, which turns the rotor {f:clockwise}.',
+      'One loop of wire (sides **1** and **1′**) sits between the N and S poles, with the field pointing **down**. The supply is **reversed**, so follow the white arrows the other way: current comes from the + terminal, goes {i:into the page (×)} along side 1, crosses at the back, and comes {o:out of the page (•)} along side 1′. F = I L × B pushes side 1 **left** and side 1′ **right**, which turns the rotor {f:counter-clockwise}.') },
+  { mode: 'slip', theta: 60, to: -60, view: '3d', title: 'A little later…',
+    text: byPol('These are plain **slip rings**, so each end of the loop stays wired to the same terminal. Side 1 still carries current {o:out of the page}, but it has moved under the **S** pole. The current is the same and the field is reversed, so the force reverses and the torque is now {bad:counter-clockwise}.',
+      'These are plain **slip rings**, so each end of the loop stays wired to the same terminal. With the supply reversed, side 1 still carries current {i:into the page}, but it has moved under the **S** pole. The current is the same and the field is reversed, so the force reverses and the torque is now {bad:clockwise}, the opposite of where it started.') },
+  { mode: 'slip', theta: 60, run: 'free', title: 'So it just rocks',
+    text: 'Let the loop turn on its own torque. It swings toward the neutral line, overshoots, gets pushed back, and settles. **The current in the loop needs to reverse every half turn**, and slip rings can’t do that.' },
+  { mode: 'comm', theta: 60, view: '3d', title: 'Split the ring in two',
+    text: byPol('Cut the ring into two halves, segments **a** and **b**. They turn with the loop, but the brushes stay put. Right now **a** touches the + brush, so the current pattern is exactly the same as before: {o:•} under N, {i:×} under S, torque {f:clockwise}.',
+      'Cut the ring into two halves, segments **a** and **b**. They turn with the loop, but the brushes stay put. The supply is reversed, so right now **b** touches the + brush, and the current pattern is the same as the slip-ring loop on this supply: {i:×} under N, {o:•} under S, torque {f:counter-clockwise}.') },
+  { mode: 'comm', theta: 60, to: 0, view: '3d', title: 'The switch-over (commutation)',
+    text: 'The loop reaches the neutral line. The gap between a and b is now under each brush, so each brush touches **both** segments and the loop is briefly shorted. Its current is {c:passing through zero} on the way to reversing. This happens where **B ≈ 0**, where the loop makes no torque anyway, so nothing is lost.' },
+  { mode: 'comm', theta: 0, to: -60, view: '3d', title: 'After the switch',
+    text: byPol('Now **b** is on the + brush, so current enters at side 1 instead. Side 1 has moved under S, and its current has **reversed** to {i:× into the page}. Side 1′ under N carries {o:• out}. The force is still {f:clockwise}. **The current in the loop reversed; the current under each pole did not.**',
+      'With the supply reversed, **a** is now on the + brush, so current enters at side 1′ instead. Side 1 has moved under S, and its current has **reversed** to {o:• out of the page}. Side 1′ under N carries {i:× in}. The force is still {f:counter-clockwise}. **The current in the loop reversed; the current under each pole did not.**') },
+  { mode: 'comm', theta: 60, run: 'steady', title: 'Two points of view',
+    text: 'Watch the graphs. The loop carries **alternating** current that flips every half turn (top). The supply only ever sees **DC** (middle). Each flip happens in the neutral zone, so the torque (bottom) never goes negative. The commutator is a **reversing switch turned by the shaft**.' },
+  { mode: 'comm', theta: 60, run: 'free', view: '3d', title: 'Reverse the current, reverse the motor',
+    text: byPol('Press **⇄ Reverse current** (top right of the 3-D view) while it runs. The supply terminals swap, so every {o:•} becomes {i:×} and every force arrow flips. The rotor brakes, stops, and spins up the other way, unless it stops in the dead spot (step 9); then press **Give it a push**. The commutator still switches at the neutral line, so the new direction is just as steady. Drag the 3-D view around to look at it from any side.',
+      'The current is now **reversed**: the supply terminals swapped, so every {o:•} became {i:×} and every force arrow flipped. The rotor brakes, stops, and spins up the other way ({f:counter-clockwise}), unless it stops in the dead spot (step 9); then press **Give it a push**. The commutator still switches at the neutral line, so the new direction is just as steady. Press **⇄ Current reversed** to swap back. Drag the 3-D view around to look at it from any side.') },
+  { mode: 'comm', theta: 30, to: 0, view: '3d', title: 'The weakness of one loop',
+    text: 'The torque falls to zero every time the loop passes the neutral zone. If the rotor stops exactly here, it can’t restart on its own. Real machines fix this by using many coils.' },
+  { mode: 'four', theta: 45, view: 'circuit', follow: 0, title: 'Four coils, four segments',
+    text: byPol('Coils 1–4 are joined end to end in a closed ring through segments **a–d**. The brushes split that ring into **two parallel paths**: current enters at the + brush, half goes each way round, and it leaves at the − brush. Every conductor under N is {o:•} and every one under S is {i:×}.',
+      'Coils 1–4 are joined end to end in a closed ring through segments **a–d**. The brushes split that ring into **two parallel paths**: current enters at the + brush, half goes each way round, and it leaves at the − brush. The supply is reversed, so every conductor under N is {i:×} and every one under S is {o:•}.') },
+  { mode: 'four', theta: 45, to: 0, view: '3d', follow: 0, title: 'Commutation, two coils at a time',
+    text: 'Coils 1 and 3 reach the neutral line, and the brushes short them while their current reverses. Coils 2 and 4 are squarely under the poles, carrying their full ½I, so the torque **never drops to zero**.' },
+  { mode: 'four', theta: 45, run: 'steady', view: '3d', follow: 0, title: 'The big idea',
+    text: byPol('Follow coil 1 (white ring): its current flips every half turn. But the **pattern in space** (• under N, × under S) never changes. Commutation keeps that pattern fixed while the copper moves through it. Use **Follow one coil** to check the others.',
+      'Follow coil 1 (white ring): its current flips every half turn. But the **pattern in space** (× under N, • under S, with the supply reversed) never changes. Commutation keeps that pattern fixed while the copper moves through it. Use **Follow one coil** to check the others.') },
+];
+/** show the tour card for step S.tour (−1 = intro), text for the polarity in force */
+function showTour() {
+  const i = S.tour;
+  if (i < 0) {
+    $('tourStep').textContent = 'Guided tour · ' + TOUR.length + ' steps';
+    $('tourTitle').textContent = 'Start here';
+    richText($('tourText'), TOUR_INTRO);
+    $('tourNext').textContent = 'Start the tour ▶';
+    if (document.activeElement === $('tourPrev')) $('tourNext').focus();   // keep keyboard focus when Back disappears
+    $('tourPrev').hidden = true; return;   // nothing to go back to at the intro, so no disabled button without a reason (VIS-COM-010)
+  }
+  const t = TOUR[i];
+  $('tourStep').textContent = `Step ${i + 1} of ${TOUR.length}`;
+  $('tourTitle').textContent = t.title; richText($('tourText'), typeof t.text === 'function' ? t.text(S.pol) : t.text);
+  $('tourPrev').hidden = false;
+  $('tourNext').textContent = i === TOUR.length - 1 ? 'Finish ✓' : 'Next ▶';
+}
+/** enter tour step i: normal polarity first (DEFECT-COM-014), then machine, view, angle and motion */
+function applyTour(i) {
+  S.tour = i;
+  if (i >= 0) { S.pol = 1; syncPol(); }   // DEFECT-COM-014: entering a step forces normal polarity BEFORE its text is chosen
+  showTour(); if (i < 0) return;
+  const t = TOUR[i];
+  setMode(t.mode, true);
+  if (t.follow != null) { S.follow = t.follow; $('follow').value = t.follow; }
+  if (t.view) setView(t.view);
+  S.tween = null; S.omega = 0; S.theta = t.theta;
+  setPlaying(false);
+  if (t.to != null) setTimeout(() => { if (S.tour === i) tweenTo(t.to); }, TOUR_TWEEN_DELAY_MS);
+  if (t.run) { setMotion(t.run); setPlaying(true); }
+  else setMotion('free');
+}
+// ── END 12. GUIDED TOUR ──────────────────────────────────────
+
+// ── 13. UI WIRING ────────────────────────────────────────────
+/** run or pause the rotor */
+function setPlaying(on) { S.playing = on; $('play').textContent = on ? '⏸ Pause' : '▶ Run'; if (on) S.tween = null; }
+/** mark the button of group sel whose data-<attr> equals val as pressed, the others not (one helper for every group) */
+function setPressed(sel, attr, val) { document.querySelectorAll(sel + ' button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset[attr] === val))); }
+/** turn "Stop at each commutation" on or off, with its pressed state */
+function setPauseComm(on) { S.pauseComm = on; $('pauseComm').classList.toggle('on', on); $('pauseComm').setAttribute('aria-pressed', String(on)); }
+/** choose "Own torque" or "Steady speed" */
+function setMotion(mo) { S.motion = mo; setPressed('#motionSeg', 'm', mo); }
+/** choose the 3-D or circuit view */
+function setView(v) {
+  S.view = v;
+  $('camBar').hidden = v !== '3d';
+  setPressed('#viewSeg', 'v', v);
+  $('altTitle').textContent = v === '3d' ? '3-D view' : 'Circuit view';
+  $('cvAlt').setAttribute('aria-label', v === '3d' ? '3-D view of the machine. Drag to orbit, scroll to zoom.' : 'Circuit view of the commutator, coils and supply.');
+}
+/** choose a machine; outside the tour this also leaves the tour and resets the angle and view */
+function setMode(mode, fromTour) {
+  S.mode = mode;
+  setPressed('#machineSeg', 'mode', mode);
+  $('followBox').hidden = mode !== 'four';
+  if (!fromTour) setView('3d');
+  if (!fromTour) { S.tour = -1; showTour(); S.theta = START_THETA[mode]; S.omega = 0; S.tween = null; }
+  GRAPH = null;
+}
+/** show the supply polarity on both Reverse buttons */
+function syncPol() {
+  for (const [id, normal] of [['polBtn', '⇄ Reverse the current'], ['revBtn2', '⇄ Reverse current']]) {
+    $(id).classList.toggle('on', S.pol < 0); $(id).setAttribute('aria-pressed', String(S.pol < 0));
+    $(id).textContent = S.pol > 0 ? normal : '⇄ Current reversed';
+  }
+  GRAPH = null;
+}
+/** speed slider value as text, also its accessible value text */
+function showSpeed() { const s = S.speed.toFixed(2).replace(/0$/, '') + '×'; $('dSpeed').textContent = s; $('speed').setAttribute('aria-valuetext', s + ' slow motion'); }
+
+document.querySelectorAll('#machineSeg button').forEach(b => b.onclick = () => { setMode(b.dataset.mode); setPlaying(false); });
+document.querySelectorAll('#viewSeg button').forEach(b => b.onclick = () => setView(b.dataset.v));
+document.querySelectorAll('#motionSeg button').forEach(b => b.onclick = () => { setMotion(b.dataset.m); });
+$('play').onclick = () => setPlaying(!S.playing);
+$('stepFwd').onclick = () => stepBy(1);
+$('stepBack').onclick = () => stepBy(-1);
+$('speed').oninput = e => { S.speed = +e.target.value; showSpeed(); };
+$('pauseComm').onclick = () => setPauseComm(!S.pauseComm);
+/** swap the supply terminals; ψ keeps its fixed clockwise frame (ruling COM-5), the open tour step follows */
+function reverseCurrent() {
+  S.pol = -S.pol; syncPol();
+  if (S.tour >= 0) showTour();   // PPR-COM-013: the open tour step follows the new polarity
+  // the rotor keeps its momentum for a moment, then the reversed torque brakes it and spins it the other way
+  if (S.motion === 'steady') S.omega = 0;
+}
+$('polBtn').onclick = reverseCurrent;
+$('revBtn2').onclick = reverseCurrent;
+
+/* orbit camera on the 3-D view */
+const altC = $('cvAlt');
+let orbit = null;
+/** note on the 3-D view that a camera limit clamped the input (CQ-COM-015) */
+const limitHit = () => { S.limitUntil = performance.now() + LIMIT_NOTE_MS; };
+/** clamp a zoom value, noting when the limit applies */
+const zoomTo = z => { const c = clamp(z, ZOOM_MIN, ZOOM_MAX); if (c !== z) limitHit(); S.cam.zoom = c; };
+altC.addEventListener('pointerdown', ev => { if (S.view !== '3d') return; orbit = { x: ev.clientX, y: ev.clientY }; S.camTween = null; altC.setPointerCapture(ev.pointerId); altC.style.cursor = 'grabbing'; });
+altC.addEventListener('pointermove', ev => {
+  if (S.view === '3d' && !orbit) altC.style.cursor = 'grab';
+  if (!orbit) return;
+  S.cam.yaw -= (ev.clientX - orbit.x) * ORBIT_DEG_PER_PX;
+  const p = S.cam.pitch - (ev.clientY - orbit.y) * ORBIT_DEG_PER_PX;
+  S.cam.pitch = clamp(p, -PITCH_MAX, PITCH_MAX); if (S.cam.pitch !== p) limitHit();
+  orbit = { x: ev.clientX, y: ev.clientY };
+});
+/** end an orbit drag */
+const endOrbit = () => { orbit = null; altC.style.cursor = S.view === '3d' ? 'grab' : 'default'; };
+altC.addEventListener('pointerup', endOrbit); altC.addEventListener('pointercancel', endOrbit);
+altC.addEventListener('wheel', ev => { if (S.view !== '3d') return; ev.preventDefault(); zoomTo(S.cam.zoom * Math.exp(-ev.deltaY * WHEEL_ZOOM)); }, { passive: false });
+altC.addEventListener('dblclick', () => camGo(CAM_PRESETS.reset));
+/** animate the camera to preset p */
+function camGo(p) { S.camTween = { from: Object.assign({}, S.cam), to: p, t: 0 }; }
+document.querySelectorAll('#camBar button').forEach(b => b.onclick = () => {
+  if (b.dataset.cam) camGo(CAM_PRESETS[b.dataset.cam]);
+  else zoomTo(S.cam.zoom * +b.dataset.zoom);
+});
+$('follow').onchange = e => { S.follow = +e.target.value; GRAPH = null; };
+$('nudge').onclick = () => { S.omega = rotDir() * NUDGE_OMEGA; };
+for (const [id, key] of [['cFlow', 'flow'], ['cFlowMove', 'flowMove'], ['cForce', 'force'], ['cField', 'field'], ['cLabels', 'labels']]) $(id).onchange = e => { S[key] = e.target.checked; };
+$('tourNext').onclick = () => { if (S.tour >= TOUR.length - 1) { S.tour = -1; showTour(); } else applyTour(S.tour + 1); };
+$('tourPrev').onclick = () => applyTour(S.tour - 1);
+/* Space / arrow shortcuts on the Simulation page. They ignore every control that has its own keys,
+   so Space still activates a focused button (DEFECT-COM-002, CQ-COM-011e). */
+const OWN_KEYS = 'button, a[href], input, select, textarea, summary, [role="tab"], [contenteditable]';
+addEventListener('keydown', e => {
+  if (PAGE !== 'sim' || e.altKey || e.ctrlKey || e.metaKey) return;
+  const t = e.target;
+  if (t && t.closest && t.closest(OWN_KEYS)) return;
+  if (e.key === ' ') { e.preventDefault(); setPlaying(!S.playing); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); stepBy(1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); stepBy(-1); }
+});
+
+/* drag the rotor in the end view */
+const endC = $('cvEnd');
+/** pointer angle (deg, CCW from +x) about the end-view centre */
+const ptrAng = ev => { const r = endC.getBoundingClientRect(); return Math.atan2(-(ev.clientY - r.top - endGeom.cy), ev.clientX - r.left - endGeom.cx) / DEG; };
+endC.addEventListener('pointerdown', ev => {
+  if (!endGeom) return; const r = endC.getBoundingClientRect();
+  const dx = ev.clientX - r.left - endGeom.cx, dy = ev.clientY - r.top - endGeom.cy;
+  if (Math.hypot(dx, dy) > endGeom.R * DRAG_REACH) return;
+  S.drag = { a: ptrAng(ev) }; S.tween = null; S.omega = 0; endC.setPointerCapture(ev.pointerId); endC.style.cursor = 'grabbing';
+});
+endC.addEventListener('pointermove', ev => {
+  if (!S.drag) { if (endGeom) { const r = endC.getBoundingClientRect(); endC.style.cursor = Math.hypot(ev.clientX - r.left - endGeom.cx, ev.clientY - r.top - endGeom.cy) < endGeom.R ? 'grab' : 'default'; } return; }
+  const a = ptrAng(ev); S.theta += wrap180(a - S.drag.a); S.drag.a = a; S.omega = 0;
+});
+/** end a rotor drag */
+const endDrag = () => { if (S.drag) { S.drag = null; endC.style.cursor = 'grab'; } };
+endC.addEventListener('pointerup', endDrag); endC.addEventListener('pointercancel', endDrag);
+
+/* scrub the rotor angle by dragging across the graph (x-axis = ψ, fixed clockwise frame) */
+const grC = $('cvGraph');
+/** set the rotor to the ψ under the pointer */
+const scrubTo = ev => {
+  const g = graphGeom(), r = grC.getBoundingClientRect();
+  const psi = clamp((ev.clientX - r.left - g.L) / (g.w - g.L - g.Rp), 0, 1) * TURN;
+  S.theta = thetaOf(psi); S.omega = 0; S.tween = null;
+};
+grC.addEventListener('pointerdown', ev => { setPlaying(false); S.scrub = true; grC.setPointerCapture(ev.pointerId); scrubTo(ev); });
+grC.addEventListener('pointermove', ev => { if (S.scrub) scrubTo(ev); });
+/** end a graph scrub */
+const endScrub = () => { S.scrub = false; };
+grC.addEventListener('pointerup', endScrub); grC.addEventListener('pointercancel', endScrub);
+
+/* any input may change what is on screen */
+for (const ev of ['click', 'input', 'change', 'keydown', 'wheel', 'pointerdown', 'pointerup']) document.addEventListener(ev, invalidate, true);
+REDUCED.addEventListener?.('change', invalidate);
+/* stop drawing while the simulation is scrolled out of view (reading the explainer) */
+new IntersectionObserver(es => { STAGE_VISIBLE = es.some(e => e.isIntersecting); invalidate(); }).observe(document.querySelector('.stage'));
+// ── END 13. UI WIRING ────────────────────────────────────────
+
+// ── 14. MAIN LOOP ────────────────────────────────────────────
+let last = performance.now(), wasMoving = true, LOOP_DEAD = false;
+/** one animation frame: advance time, then draw everything once if anything changed */
+function frame(now) {
+  if (LOOP_DEAD) return;
+  requestAnimationFrame(frame);   // CQ-COM-016: reschedule first; an error below is caught and stops the loop visibly
+  try { tick(now); } catch (err) { stopLoop(); }
+}
+/** advance camera, tween and physics by the frame time, then redraw if due */
+function tick(now) {
+  const rdt = Math.min(FRAME_DT_MAX, (now - last) / MS_PER_S); last = now;
+  const flowing = S.flow && S.flowMove && !REDUCED.matches;   // frozen or reduced motion: arrows stay put but still show direction
+  if (flowing) S.flowT += rdt;
+  if (S.camTween) {
+    const ct = S.camTween; ct.t = Math.min(1, ct.t + rdt / CAM_TWEEN_S); const u = smooth(ct.t);
+    S.cam.yaw = ct.from.yaw + wrap180(ct.to.yaw - ct.from.yaw) * u; S.cam.pitch = lerp(ct.from.pitch, ct.to.pitch, u); S.cam.zoom = lerp(ct.from.zoom, ct.to.zoom, u);
+    if (ct.t >= 1) S.camTween = null;
+  }
+  const dt = rdt * S.speed;
+  if (S.tween) {
+    const tw = S.tween; tw.t += rdt * Math.max(TWEEN_RATE_MIN, S.speed * TWEEN_RATE_GAIN) / tw.dur;
+    const u = smooth(Math.min(1, tw.t)); S.theta = tw.from + tw.delta * u;
+    if (tw.t >= 1) S.tween = null;
+  } else if (S.playing && !S.drag) {
+    const n = Math.ceil(dt * PHYS_HZ);
+    for (let j = 0; j < n && S.playing; j++) physicsStep(dt / n);
+  }
+  S.theta = mod(S.theta + HALF_TURN, TURN) - HALF_TURN;
+  const limitNote = now < S.limitUntil + 2 * FRAME_DT_MAX * MS_PER_S;  // keep drawing until the limit note has gone
+  const moving = S.playing || S.tween || S.camTween || S.drag || S.scrub || orbit || flowing || limitNote;
+  const due = moving || DIRTY || wasMoving;   // one trailing frame after motion stops, so the final pose is drawn
+  wasMoving = moving;
+  if (STAGE_VISIBLE && due) {
+    DIRTY = false;
+    E = evalAt(S.mode, S.theta, S.pol);
+    drawEnd();
+    if (S.view === '3d') draw3D(); else drawCircuit();
+    drawGraph();
+    updateText();
+  }
+}
+/** stop the loop after a drawing error and tell the student (never fail silently) */
+function stopLoop() {
+  LOOP_DEAD = true; setPlaying(false);
+  $('loopErr').hidden = false;
+}
+// ── END 14. MAIN LOOP ────────────────────────────────────────
+
+// ── 15. PAGES AND THEME ──────────────────────────────────────
+let PAGE = 'sim';
+const PAGES = ['tutorial', 'sim', 'experiments'];
+/** show page p (tab pattern: aria-selected, tabindex), pausing the rotor off the Simulation page */
+function showPage(p, keepScroll) {
+  if (!PAGES.includes(p)) p = 'sim';
+  PAGE = p;
+  for (const q of PAGES) $('page-' + q).classList.toggle('active', q === p);
+  document.querySelectorAll('.pageTabs [role="tab"]').forEach(b => { const on = b.dataset.page === p; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+  if (p !== 'sim') setPlaying(false);
+  if (!keepScroll) scrollTo(0, 0);
+  invalidate();
+}
+/** page named in the URL hash, if it is one of ours */
+const pageFromHash = () => { const h = location.hash.slice(1); return PAGES.includes(h) ? h : null; };
+/** switch now (pushState fires no event), so callers can scroll right after; back/forward use hashchange */
+function nav(p) { if (location.hash !== '#' + p) history.pushState(null, '', '#' + p); showPage(p); }
+document.querySelectorAll('.pageTabs [role="tab"]').forEach(b => b.onclick = () => nav(b.dataset.page));
+/* tab pattern keys: Left/Right move between tabs, Home/End jump to the ends */
+$('pageTabs').addEventListener('keydown', e => {
+  const tabs = [...document.querySelectorAll('.pageTabs [role="tab"]')], i = tabs.indexOf(document.activeElement);
+  if (i < 0) return;
+  const j = e.key === 'ArrowRight' ? (i + 1) % tabs.length : e.key === 'ArrowLeft' ? (i + tabs.length - 1) % tabs.length : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : -1;
+  if (j < 0) return;
+  e.preventDefault(); tabs[j].focus(); nav(tabs[j].dataset.page);
+});
+addEventListener('hashchange', () => { const p = pageFromHash(); if (p && p !== PAGE) showPage(p); });
+
+/* "Show me / Set up" buttons put the simulator into a given state; "Back" returns to where you were */
+let BACK = null;
+/** open the simulator in state c (mode, theta, view, follow, motion, pauseComm, run); back = where Back returns */
+function gotoSim(c, back) {
+  S.tour = -1; showTour();
+  S.pol = c.pol || 1; syncPol();
+  setMode(c.mode || 'comm', true);
+  setView(c.view || '3d');
+  if (c.follow != null) { S.follow = c.follow; $('follow').value = c.follow; }
+  S.tween = null; S.omega = 0; if (c.theta != null) S.theta = c.theta;
+  setMotion(c.motion || 'free');
+  setPauseComm(!!c.pauseComm);
+  setPlaying(!!c.run);
+  BACK = back || null;
+  $('backChip').hidden = !BACK;
+  if (BACK) $('backChip').textContent = '↩ Back to ' + BACK.label;
+  nav('sim');
+}
+document.querySelectorAll('[data-try]').forEach(b => b.addEventListener('click', () => {
+  const inExp = b.closest('#page-experiments'), card = b.closest('.exp-card');
+  let back;
+  if (inExp && card) back = { page: 'experiments', id: card.id, label: card.querySelector('.exp-num').textContent };
+  else { // nearest preceding h2 in the tutorial
+    let el = b; while (el && !(el.tagName === 'H2' && el.id)) el = el.previousElementSibling;
+    back = { page: 'tutorial', id: el ? el.id : null, label: 'Tutorial' };
+  }
+  gotoSim(JSON.parse(b.dataset.try), back);
+}));
+$('backChip').onclick = () => {
+  const b = BACK; if (!b) return;
+  nav(b.page);
+  if (b.id) { const el = $(b.id); if (el) el.scrollIntoView({ block: 'start' }); }
+};
+/* plain links to #tutorial / #experiments from the sim page */
+document.querySelectorAll('a[href="#tutorial"],a[href="#experiments"]').forEach(a => a.addEventListener('click', () => { BACK = null; $('backChip').hidden = true; }));
+/* table-of-contents links scroll without changing the page hash */
+document.querySelectorAll('.toc a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); const el = $(a.getAttribute('href').slice(1)); if (el) el.scrollIntoView({ behavior: REDUCED.matches ? 'auto' : 'smooth' }); }));
+
+/* light view by default, dark view on request (ruling COM-2); the choice is kept in this browser when it can be */
+const THEME_KEY = 'commutation-theme';
+/** apply view t ('light' | 'dark'); persist = remember it, with a visible note if the browser refuses */
+function setTheme(t, persist) {
+  THEME = t === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', THEME);
+  loadPalette();
+  if (persist) {
+    let ok = true;
+    try { localStorage.setItem(THEME_KEY, THEME); } catch (e) { ok = false; }
+    $('themeWarn').hidden = ok;
+  }
+  $('themeBtn').textContent = THEME === 'light' ? '☾ Dark view' : '☀ Light view';
+  $('themeBtn').setAttribute('aria-pressed', String(THEME === 'dark'));
+  THEME_VER++; GRAPH = null; DOMC.clear(); invalidate();
+}
+$('themeBtn').onclick = () => setTheme(THEME === 'light' ? 'dark' : 'light', true);
+/* print the worksheet in the light palette, then restore */
+let preprintTheme = null;
+addEventListener('beforeprint', () => { if (THEME !== 'light') { preprintTheme = THEME; setTheme('light'); } });
+addEventListener('afterprint', () => { if (preprintTheme) { setTheme(preprintTheme); preprintTheme = null; } });
+// ── END 15. PAGES AND THEME ──────────────────────────────────
+
+// ── 16. WORKSHEET ────────────────────────────────────────────
+/* Answers are kept in this browser (localStorage). A stored record is validated field by field before it touches
+   the page; anything unusable is left out and the student is told. Every failed save, load or clear is shown in
+   plain words, and "saved in this browser" is not claimed while saving fails (DEFECT-COM-003, ruling COM-7). */
+const SHEET_KEY = 'commutation-worksheet-v1';
+const SHEET_SCHEMA = 'commutation-worksheet/2';   // record: { schema, answers: { field: text } }
+const SHEET_PROBE_KEY = 'commutation-worksheet-probe';
+const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const LIMIT_TXT = SHEET_MAX_CHARS.toLocaleString('en-US');   // the limit as shown in messages (from the one constant)
+const MSG = {
+  noStore: 'Your answers are NOT being saved: this browser will not let the page store them (storage is blocked or full). They will be lost when you reload or leave this page. Print or copy them now.',
+  unreadable: 'Saved answers were found but could not be read (the stored record is damaged or is not from this worksheet), so none were loaded. Anything you type now will be saved in their place.',
+  old: 'Saved answers from an earlier version of this worksheet were found. This version does not read them, so none were loaded. Anything you type now will be saved in their place.',
+  /** message for a load that left out `long` over-long answers and `other` unusable entries (each cause named) */
+  partial: (long, other) => {
+    const n = k => `${k} ${k === 1 ? 'answer' : 'answers'}`, parts = [];
+    if (long) parts.push(`${n(long)} longer than the ${LIMIT_TXT}-character limit`);
+    if (other) parts.push(`${n(other)} not matching a question on this worksheet, or not text`);
+    return `Some saved answers were left out: ${parts.join(', and ')}. The rest were loaded.`;
+  },
+  /** note shown while a field holds the longest answer it accepts */
+  limit: () => `This answer has reached the ${LIMIT_TXT}-character limit, so the box takes no more text. Everything up to the limit is saved.`,
+  clearFail: 'Your answers were cleared on this page, but the browser would not remove the saved copy, so they may come back when you reload.',
+};
+
+/* build the record tables from their data attributes (no HTML parsing) */
+document.querySelectorAll('table.rec').forEach(t => {
+  const key = t.dataset.key, rows = t.dataset.rows.split(','), cols = t.dataset.cols.split('|');
+  const body = document.createElement('tbody');
+  const head = document.createElement('tr');
+  head.appendChild(document.createElement('th'));
+  for (const c of cols) { const th = document.createElement('th'); th.textContent = c; head.appendChild(th); }
+  body.appendChild(head);
+  rows.forEach((r, i) => {
+    const tr = document.createElement('tr'), k = document.createElement('td');
+    k.className = 'k'; k.textContent = r; tr.appendChild(k);
+    cols.forEach((c, j) => {
+      const td = document.createElement('td'), inp = document.createElement('input');
+      inp.className = 'cell'; inp.dataset.k = `${key}-${i}-${j}`; inp.setAttribute('aria-label', r + ': ' + c);
+      td.appendChild(inp); tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+  t.replaceChildren(body);
+});
+/* every question textarea is named by its question text */
+document.querySelectorAll('#sheet .qs li').forEach(li => { const ta = li.querySelector('textarea'); if (ta) ta.setAttribute('aria-label', li.textContent.trim()); });
+
+/** all worksheet fields */
+const sheetFields = () => document.querySelectorAll('#sheet [data-k]');
+const SHEET_KEYS = new Set([...sheetFields()].map(el => el.dataset.k));
+/** true for a plain {…} object (not null, an array or anything with another prototype) */
+const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
+
+/** show (msg) or hide (null) the worksheet warning; the "saved in this browser" note shows only while saving works */
+function sheetWarn(msg, saving) {
+  $('sheetWarn').hidden = !msg; $('sheetWarn').textContent = msg || '';
+  $('sheetNote').hidden = !saving;
+}
+/** read and validate the stored worksheet → { answers, problem: null | 'blocked' | 'unreadable' | 'old' | { long, other } } */
+function readSheet() {
+  const answers = Object.create(null);
+  let raw;
+  try { raw = localStorage.getItem(SHEET_KEY); } catch (e) { return { answers, problem: 'blocked' }; }
+  if (raw === null) return { answers, problem: null };
+  let data;
+  try { data = JSON.parse(raw); } catch (e) { return { answers, problem: 'unreadable' }; }
+  if (!isPlainObject(data)) return { answers, problem: 'unreadable' };
+  // only records of this worksheet's schema are read; a record without a schema tag is from v3.2.2 and is not read
+  // (CLAUDE.md §4: no compatibility with superseded versions; CQ-COM-022, SEC-COM-009). It is replaced on the next save.
+  if (!Object.prototype.hasOwnProperty.call(data, 'schema')) return { answers, problem: 'old' };
+  const src = data.schema === SHEET_SCHEMA ? data.answers : null;
+  if (!isPlainObject(src)) return { answers, problem: 'unreadable' };
+  let long = 0, other = 0;
+  for (const k of Object.keys(src)) {
+    const v = src[k];
+    if (BLOCKED_KEYS.has(k) || !SHEET_KEYS.has(k) || typeof v !== 'string') other++;
+    else if (v.length > SHEET_MAX_CHARS) long++;
+    else answers[k] = v;
+  }
+  return { answers, problem: long || other ? { long, other } : null };
+}
+/** check that this browser will store anything at all (writes and removes a probe key of this tool) */
+function storageWorks() {
+  try { localStorage.setItem(SHEET_PROBE_KEY, '1'); localStorage.removeItem(SHEET_PROBE_KEY); return true; } catch (e) { return false; }
+}
+let SHEET = Object.create(null);
+/** save every answer; on failure say so on the page (the answers stay on the page) */
+function saveSheet() {
+  try {
+    localStorage.setItem(SHEET_KEY, JSON.stringify({ schema: SHEET_SCHEMA, answers: SHEET }));
+    if (!$('sheetWarn').hidden && $('sheetWarn').dataset.kind === 'save') { sheetWarn(null, true); $('sheetWarn').dataset.kind = ''; }
+  } catch (e) { sheetWarn(MSG.noStore, false); $('sheetWarn').dataset.kind = 'save'; }
+}
+/** load the stored answers into the fields and report any problem */
+function loadSheet() {
+  const { answers, problem } = readSheet();
+  SHEET = answers;
+  sheetFields().forEach(el => { const v = SHEET[el.dataset.k]; if (v != null) el.value = v; });
+  const works = problem !== 'blocked' && storageWorks();
+  if (!works) { sheetWarn(MSG.noStore, false); $('sheetWarn').dataset.kind = 'save'; }
+  else if (problem === 'unreadable') sheetWarn(MSG.unreadable, true);
+  else if (problem === 'old') sheetWarn(MSG.old, true);
+  else if (problem) sheetWarn(MSG.partial(problem.long, problem.other), true);
+  else sheetWarn(null, true);
+}
+/** show the length-limit note while field el is full (DEFECT-COM-015: refused visibly, at entry) */
+function limitNote(el) { const full = el.value.length >= SHEET_MAX_CHARS; $('sheetLimit').hidden = !full; $('sheetLimit').textContent = full ? MSG.limit() : ''; }
+/* every field takes at most SHEET_MAX_CHARS, the same limit the loader keeps, so an accepted answer always reloads */
+sheetFields().forEach(el => {
+  if (el.tagName === 'TEXTAREA' || el.type === 'text') el.maxLength = SHEET_MAX_CHARS;
+  el.addEventListener('input', () => {
+    if (el.value.length > SHEET_MAX_CHARS) el.value = el.value.slice(0, SHEET_MAX_CHARS);   // text set by other means is cut to the limit too
+    SHEET[el.dataset.k] = el.value; limitNote(el); saveSheet();
+  });
+  el.addEventListener('focus', () => limitNote(el));
+});
+$('clearSheet').onclick = () => {
+  if (!confirm('Clear every answer on this worksheet?')) return;
+  SHEET = Object.create(null);
+  sheetFields().forEach(el => { el.value = ''; }); $('sheetLimit').hidden = true;
+  try { localStorage.removeItem(SHEET_KEY); if ($('sheetWarn').dataset.kind !== 'save') sheetWarn(null, true); }
+  catch (e) { sheetWarn(MSG.clearFail, false); }
+};
+$('printSheet').onclick = () => print();
+// ── END 16. WORKSHEET ────────────────────────────────────────
+
+// ── 17. START-UP ─────────────────────────────────────────────
+setTheme(document.documentElement.getAttribute('data-theme'));
+loadSheet();
+setMode('comm'); setMotion('free'); syncPol(); showTour(); showSpeed();
+if (REDUCED.matches) $('cFlowMove').checked = S.flowMove = false;
+showPage(pageFromHash() || 'sim', true);
+requestAnimationFrame(frame);
+// ── END 17. START-UP ─────────────────────────────────────────
+</script>
+</body>
+</html>
