@@ -120,6 +120,8 @@ tr.use td{ font-weight:700; background:color-mix(in srgb, var(--s21) 10%, transp
 ul.checks{ list-style:none; margin:6px 0; font-size:13px } li.ok{ color:var(--ok) } li.no{ color:var(--bad) }
 .theorem{ font-size:13px; border-left:3px solid var(--txt); padding-left:8px }
 table.smat td{ text-align:center } table.smat td.diag{ background:var(--bg2) } table.cmp td{ white-space:normal }
+/* a 5-port S-matrix (N = 4) fits its panel at 1024×768 and 125 % (VIS-PDD-017) */
+table.smat5{ font-size:11px } table.smat5 th, table.smat5 td{ padding:2px 3px }
 /* documents */
 .doc{ max-width:980px; margin:0 auto; padding:18px 24px 60px; font-size:15px; line-height:1.55 }
 .doc h1{ font-size:26px; margin-bottom:6px } .doc h2{ font-size:18px; margin:22px 0 6px; border-top:1px solid var(--line); padding-top:12px }
@@ -134,6 +136,8 @@ table.tests td{ white-space:normal; vertical-align:top } tr.tpass td:first-child
 #paramsBody{ padding:12px 18px 40px; max-width:1300px }
 .sheet-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap } .sheet-head h2{ font-size:20px }
 .blocks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; margin:10px 0 } table.full{ margin-top:6px }
+/* key-value blocks on Parameters wrap their values, so a long model name never runs into the next table (VIS-PDD-016) */
+.blocks > section{ min-width:0 } table.sheet.kv td{ white-space:normal; overflow-wrap:anywhere } table.sheet.kv td:first-child{ white-space:nowrap }
 .testsvg{ position:absolute; left:-10000px; top:0 }
 #printLayout{ display:none }
 @media print{

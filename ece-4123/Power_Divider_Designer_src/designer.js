@@ -20,8 +20,10 @@ function splitTarget(D){
   return { get: () => (S.tree.ratios[path] != null ? S.tree.ratios[path] : nd ? nd.auto : 0), set: v => { S.tree.ratios[path] = v; },
     label: 'Junction ' + (path || 'root') + ' split (upper : lower)', enabled: !nd || nd.module !== 'resY', nd, path };
 }
+// Build the Designer sidebar for the design D.
 function buildSide(D){
   const side = $('side'); side.replaceChildren();
+  // Append a titled group of controls to the sidebar.
   const g = (title, ...rows) => side.append(el('section', { class: 'grp' }, el('h3', { text: title }), ...rows.filter(Boolean)));
   g('Topology',
     seg('Divider', 'topology', [['wilkinson', 'Wilkinson'], ['tee', 'T-junction'], ['resistive', 'Resistive'], ['tree', 'Tree']], 'topoSeg'),
@@ -121,6 +123,14 @@ function restoreNotice(){
     el('b', { text: 'Some saved settings were not used; their defaults are in use instead:' }), el('ul', {}, ...list),
     el('button', { text: 'OK', on: { click: () => { RESTORE_NOTES.length = 0; update(true); } } }));
 }
+const COL_SHOWN_TOL = 5e-4;                           // half the last digit of a column sum shown to 3 decimals
+/* "lossless", "lossy", or, when only the input column sums to 1 (a Wilkinson: R takes nothing from a signal at the input),
+   the sense in which it is not lossless (PPR-PDD-013). The input column counts as 1 when it reads 1.000 on the
+   Performance page (the solver's 1e-7 Np loss floor leaves about 1e-5 in a 16-output tree). */
+function lossWords(ck){
+  if(ck.lossless) return 'lossless';
+  return Math.abs(ck.col[0] - 1) < COL_SHOWN_TOL ? 'lossless for a signal at the input, not for power entering an output' : 'lossy';
+}
 /* Designer status line (PPR-PDD-002, DEFECT-PDD-006): what the divider is, then what it does at f₀ in this state — read
    from the same S-matrix checks as the Performance badges, so the two never disagree. */
 function statusText(Dd){
@@ -134,21 +144,23 @@ function statusText(Dd){
       (S.resOn ? (S.rMult !== 1 ? ' R scaled ×' + S.rMult + '.' : '') : ' Isolation resistors removed.');
   }
   return what + ' At f₀: input ' + (ck.inMatch ? 'matched' : 'not matched') + ' (S11 ' + fmtDb(s11, 1) + ' dB); outputs ' + (ck.outMatch ? 'matched' : 'not matched') +
-    (n > 1 ? ' and ' + (ck.iso ? 'isolated' : 'not isolated') : '') + '; ' + (ck.lossless ? 'lossless' : 'lossy') + '.';
+    (n > 1 ? ' and ' + (ck.iso ? 'isolated' : 'not isolated') : '') + '; ' + lossWords(ck) + '.';
 }
+// Most sections in any arm of the design.
 function maxSections(D){
   if(!D) return S.M;
   const d = D.design;
   if(d.topology === 'tree') return Math.max(1, ...d.tree.junctions.map(j => j.stage.arms ? Math.max(...j.stage.arms.map(a => a.length)) : 0));
   return d.stage.arms ? Math.max(...d.stage.arms.map(a => a.length)) : 0;
 }
+// Output-load controls: |Γ| per output (the first four, or those mismatched) and one angle for all.
 function loadRows(D){
   const n = Math.min(nOut(), 16), rows = [];
-  S.loads = Array.from({ length: n }, (_, i) => { const L = S.loads[i] || {}; return { g: Math.min(LOAD_G_MAX, Math.max(0, +L.g || 0)), deg: isFinite(+L.deg) ? +L.deg : 0 }; });
+  S.loads = Array.from({ length: n }, (_, i) => { const L = S.loads[i] || {}; return { g: Math.min(RANGES.loadG[1], Math.max(RANGES.loadG[0], +L.g || 0)), deg: isFinite(+L.deg) ? +L.deg : 0 }; });
   const show = n <= 4 ? [...Array(n).keys()] : [...Array(n).keys()].filter(i => S.loads[i].g > 0 || i === 0);
   show.forEach(i => {
     const L = S.loads[i], v = el('span', { class: 'num', text: L.g.toFixed(2) });
-    const r = slider({ min: '0', max: '0.9', step: '0.01', value: String(L.g), id: 'g' + i, 'aria-label': 'P' + (i + 2) + ' |Γ|' }, x => { L.g = x; v.textContent = x.toFixed(2); });
+    const r = slider({ min: String(RANGES.loadG[0]), max: String(RANGES.loadG[1]), step: String(LOAD_G_STEP), value: String(L.g), id: 'g' + i, 'aria-label': 'P' + (i + 2) + ' |Γ|' }, x => { L.g = x; v.textContent = x.toFixed(2); });
     rows.push(el('div', { class: 'row' }, el('label', { for: 'g' + i, text: 'P' + (i + 2) + ' |Γ|' }), r, v));
   });
   if(n > 4){ const s = el('select', { 'aria-label': 'Add a mismatched output' }); s.append(el('option', { value: '', text: 'Mismatch another output…' }));
@@ -161,6 +173,7 @@ function loadRows(D){
     el('div', { class: 'row' }, el('button', { text: 'All matched', on: { click: () => { S.loads.forEach(L => { L.g = 0; }); update(true); } } })));
   return rows;
 }
+// Tree controls: outputs, taper, layout, modules per level and junction.
 function buildTreeSide(g, D){
   const T = S.tree, tr = D && D.design.tree, depth = tr ? tr.maxDepth : 2;
   const lvl = [];
@@ -191,11 +204,14 @@ function buildTreeSide(g, D){
 
 // ── 2. LAYOUT VIEW ────────────────────────────────────────────
 let prevIds = new Set(), prevKey = '';
+// SVG transform attribute of a placement transform.
 const tfAttr = tf => tf && (tf.x || tf.y || tf.q) ? `translate(${tf.x.toFixed(4)} ${tf.y.toFixed(4)}) rotate(${tf.q * 90})` : null;
+// Hover group of an element id: its junction, or null.
 const grpOf = id => /^(ic|sb)/.test(id) ? 'j' + id.slice(2, -1) : id.startsWith('j') ? id.split('.')[0] : null;
 /* Draw one layout into group gRoot shifted by dy; returns nothing. k = px per mm (for hairlines and text). */
 // Edge-launch SMA at a port, top view: ground legs, centre pin on the trace, flange at the board edge, barrel.
 const smaLen = () => S.sma ? SMA.flangeT + SMA.barrelL : 0;
+// Draw an SMA connector at port p.
 function smaSymbol(p, W0, k){
   const g = svgEl('g', { class: 'sma', transform: `translate(${p.at.x.toFixed(4)} ${p.at.y.toFixed(4)}) rotate(${(p.dir % 4) * 90})` }), lo = smaLegOffset(W0);
   [-lo, lo].forEach(v => g.append(svgEl('rect', { class: 'leg', x: -SMA.legL, y: v - SMA.legW / 2, width: SMA.legL, height: SMA.legW })));
@@ -217,6 +233,7 @@ function smaVertical(p, k){
 }
 // Label boxes already placed (mm): place(box) is true and keeps the box if it overlaps none of them.
 function labelSpace(){ const boxes = []; return { boxes, place(b){ if(boxes.some(o => b.x0 < o.x1 && o.x0 < b.x1 && b.y0 < o.y1 && o.y0 < b.y1)) return false; boxes.push(b); return true; } }; }
+// Draw one layout L (the design, or the straight reference) into gRoot.
 function drawOneLayout(gRoot, L, D, k, dy, opts){
   opts.labels = opts.labels || labelSpace();
   const fs = 12 / k, root = svgEl('g', { transform: dy ? `translate(0 ${dy.toFixed(4)})` : null }); gRoot.append(root);
@@ -267,6 +284,7 @@ function drawOneLayout(gRoot, L, D, k, dy, opts){
   }
   return ids;
 }
+// Draw the to-scale layout of D (with the straight reference beside it when asked).
 function drawLayout(D){
   const svg = $('layout'), W = svg.clientWidth, H = svg.clientHeight;
   if(W <= 0 || H <= 0) return;
@@ -323,6 +341,7 @@ function footprintText(D){
 // disc on each resistor, area ∝ the power it absorbs (purple).
 function drawFlowOverlay(main, D, k){
   const L = D.lay, Ld = D.L0, wmax = 22 / k, len = 26 / k;
+  // Power-flow arrow at point p in direction dir, width set by the fraction frac.
   const arrow = (p, dir, frac, cls, out) => {
     if(frac < 1e-4) return;
     const w = Math.max(1.5 / k, wmax * frac), u = rotQ(P(1, 0), dir), n = rotQ(P(0, 1), dir);
@@ -375,6 +394,7 @@ function elInfo(D, id){
   (e.warn || []).forEach(w => { s += `<span class="bad">⚠ ${w}</span><br>`; });
   return s;
 }
+// Shape and radius or meander specification of a section for the Parameters sheet.
 function shapeSpec(e){
   const p = e.spec || {};
   if(e.shape === 'arc') return `arc r = ${p.r.toFixed(2)} mm, ${(p.phi * DEG).toFixed(0)}°`;
@@ -383,6 +403,7 @@ function shapeSpec(e){
   if(p.bump) return `straight + ${p.bump.toFixed(2)} mm bump (length match)`;
   return 'straight';
 }
+// Hover tooltips and highlighting for the layout and the sheet.
 function wireHover(root, D){
   const tip = $('tip');
   root.querySelectorAll('[data-id]').forEach(g => {
@@ -392,6 +413,7 @@ function wireHover(root, D){
     g.addEventListener('mouseleave', () => { highlight(g.dataset.id, g.dataset.grp, false); tip.style.display = 'none'; });
   });
 }
+// Highlight (or clear) element id and its group in every view.
 function highlight(id, grp, on){
   const q = '[data-id="' + id + '"],[data-grp="' + id + '"]' + (grp ? ',[data-id="' + grp + '"]' : '');
   document.querySelectorAll(q).forEach(n => n.classList.toggle('hl', on));
@@ -411,11 +433,13 @@ function worstOut(S0){
   for(let i = 1; i <= n; i++){ worstJ = Math.max(worstJ, sdb(S0, i, i)); for(let j = i + 1; j <= n; j++) worstIso = Math.max(worstIso, sdb(S0, i, j)); }
   return { worstJ, worstIso };
 }
-/* Quasi-TEM range warnings for the design on screen (ruling PDD-4): every modelled λg/4 section's width and length. */
+/* Quasi-TEM range warnings for the design on screen (ruling PDD-4): every modelled λg/4 section's width and length; a
+   section is named as on the Parameters sheet, never by its internal id (DEFECT-PDD-016). */
 function designQtem(D){
-  const secs = D.lay.els.filter(e => e.lenTarget).map(e => ({ name: e.id, W: e.W, len: e.lenTarget }));
+  const secs = D.lay.els.filter(e => e.lenTarget).map(e => ({ name: (sheetName(e) || 'a section') + ' on the Parameters sheet', W: e.W, len: e.lenTarget }));
   return quasiTemWarnings(S.er, S.h, S.f0, secs);
 }
+// Outputs panel: delivered power per output, phases, warnings and readouts.
 function drawOutputs(D){
   const n = D.net.ports.length - 1, pin = pinW(), Ld = D.L0, imb = phaseImbalance(D.S0, n);
   const rows = [];
@@ -427,6 +451,7 @@ function drawOutputs(D){
   const tot = Ld.pDeliv, bw = D.bw, use = bw && bw.usable;
   const s11 = sdb(D.S0, 0, 0), { worstJ, worstIso } = worstOut(D.S0);
   const idealLoss = n > 0 ? 10 * Math.log10(n) : 0, mean = 10 * Math.log10(Math.max(tot, 1e-15) / n);
+  // A key-value readout line.
   const kv = (k, v, cls) => el('div', { class: 'kv' }, el('span', {}, rich(k)), el('b', { class: 'num ' + (cls || ''), text: v }));
   const tab = table('sheet outs', ['Port', 'Power', 'dBm', '% in', 'dB re in', 'ideal', 'ideal %', '∠S<sub>i1</sub> (°)'], rows,
     ['Σ', fmtW(tot * pin), '', (tot * 100).toFixed(2), '', { text: fmtW(pin), cls: 'mut' }, { text: '100.00', cls: 'mut' }, '']);

@@ -27,9 +27,10 @@ function traceList(p){
    worst case beyond. A key set by the student wins. */
 const traceKeyOn = key => { const v = S.perf.traces[key]; if(v != null) return v;
   return ['S11', 'S21', 'S31', 'Siso', 'Smatch', 'S23'].includes(key) || (nOut() <= 2 && (key === 'S22' || key === 'S33')); };
+// The curve of trace t over the sweep (dB, or phase in degrees).
 function traceData(sw, t, mode){
   return sw.S.map(M => {
-    if(t.worst) return Math.max(...t.worst.map(([i, j]) => dB20(cabs(mget(M, i, j)))));
+    if(t.worst) return Math.max(...t.worst.map(([i, j]) => sdb(M, i, j)));
     const v = mget(M, t.i, t.j);
     if(mode === 'phase'){ if(t.j !== 0 || t.i === 0) return NaN; const ref = mget(M, 1, 0); return wrap180((carg(v) - carg(ref)) * DEG) + (t.i === 1 ? carg(ref) * DEG : 0); }
     return dB20(cabs(v));
@@ -39,17 +40,36 @@ function traceData(sw, t, mode){
 
 // ── 2. PLOT ───────────────────────────────────────────────────
 let PIN = null;                                       // pinned design B: { label, sw, summary }
+/* The plot-range fields f min, f max (GHz) and floor (dB) on the numCtl refusal path (CQ-PDD-007, DEFECT-PDD-012,
+   VIS-PDD-005): limits from RANGES, the field returns to the value in use, a message names the cause. */
+function plotField(lab, key, id, unit, step, toShow, fromShown, why){
+  const P0 = S.perf, msg = refuseMsg(id), cur = () => toShow(P0[key]);
+  const inp = el('input', { type: 'number', id, value: cur(), step, 'aria-label': lab + ' (' + unit + ')', 'aria-describedby': id + '_msg' });
+  inp.addEventListener('change', () => { const t = inp.value, v = fromShown(parseFloat(t));
+    if(t.trim() === '' || !isFinite(v)) return refuse(inp, msg, t, 'not a number', cur());
+    const bad = why(v); if(bad) return refuse(inp, msg, t, bad, cur());
+    accept(inp, msg); P0[key] = v; update(true); });
+  return { label: el('label', { class: 'mini' }, lab + ' ', inp, ' ' + unit), msg };
+}
+// The three plot-range fields with their limits and cause texts (frequencies shown in GHz, stored as f/f0).
+function plotRangeFields(){
+  const P0 = S.perf, ghz = u => String(+(u * S.f0 / 1e9).toFixed(3)), fromGhz = g => g * 1e9 / S.f0;
+  // Cause text when the range would be narrower than PLOT_MIN_SPAN, else empty.
+  const span = (k, v) => k === 'uLo' ? (v < P0.uHi - PLOT_MIN_SPAN ? '' : 'f min must be below f max (' + ghz(P0.uHi) + ' GHz) by at least ' + ghz(PLOT_MIN_SPAN) + ' GHz')
+    : (v > P0.uLo + PLOT_MIN_SPAN ? '' : 'f max must be above f min (' + ghz(P0.uLo) + ' GHz) by at least ' + ghz(PLOT_MIN_SPAN) + ' GHz');
+  // A frequency field of the plot range (shown in GHz, limits from RANGES).
+  const freq = (lab, k) => plotField(lab, k, 'rng_' + k, 'GHz', 'any', ghz, fromGhz,
+    v => inRange(k, v) ? span(k, v) : 'allowed ' + ghz(RANGES[k][0]) + ' to ' + ghz(RANGES[k][1]) + ' GHz (' + rangeText(k) + ')');
+  return [freq('f min', 'uLo'), freq('f max', 'uHi'),
+    plotField('floor', 'dbMin', 'rng_db', 'dB', '5', v => String(v), v => v, v => inRange('dbMin', v) ? '' : 'allowed ' + rangeText('dbMin'))];
+}
+// S-parameter plot with its range fields, trace chips, marker and readouts.
 function drawPerfPlot(D){
-  const box = $('perfPlot'), P0 = S.perf, sw = D.sw, ts = traceList(sw.p);
+  const box = $('perfPlot'), P0 = S.perf, sw = D.sw, ts = traceList(sw.p), plotFields = plotRangeFields();
   const head = el('div', { class: 'row wrap' },
     el('div', { class: 'seg', role: 'group', 'aria-label': 'Plot mode' }, ...[['mag', '|S| (dB)'], ['phase', 'Phase (∠Si1, imbalance)']].map(([v, t]) =>
       el('button', { text: t, 'aria-pressed': String(P0.mode === v), on: { click: () => { P0.mode = v; update(true); } } }))),
-    ...[['f min', 'uLo', 0.05, 1], ['f max', 'uHi', 1, 3]].map(([lab, key, lo, hi]) => { const i = el('input', { type: 'number', value: (P0[key] * S.f0 / 1e9).toFixed(3), step: 'any', 'aria-label': lab + ' (GHz)', id: 'rng_' + key });
-      i.addEventListener('change', () => { const v = parseFloat(i.value) * 1e9 / S.f0, ok = isFinite(v) && v >= lo && v <= hi && (key === 'uLo' ? v < P0.uHi - 0.05 : v > P0.uLo + 0.05); i.classList.toggle('invalid', !ok); if(ok){ P0[key] = v; update(true); } });
-      return el('label', { class: 'mini' }, lab + ' ', i, ' GHz'); }),
-    (() => { const i = el('input', { type: 'number', value: String(P0.dbMin), step: '5', 'aria-label': 'Lowest dB shown', id: 'rng_db' });
-      i.addEventListener('change', () => { const v = parseFloat(i.value), ok = isFinite(v) && v <= -10 && v >= -120; i.classList.toggle('invalid', !ok); if(ok){ P0.dbMin = v; update(true); } });
-      return el('label', { class: 'mini' }, 'floor ', i, ' dB'); })(),
+    ...plotFields.map(f => f.label),
     el('button', { text: PIN ? 'Unpin B' : 'Pin as B (compare)', on: { click: () => { PIN = PIN ? null : pinCurrent(D); update(true); } } }));
   const chips = el('div', { class: 'row wrap chips' }, ...ts.map(t => el('button', { class: 'tchip', 'aria-pressed': String(traceKeyOn(t.key)), style: '--c:' + t.col, text: t.label,
     on: { click: () => { S.perf.traces[t.key] = !traceKeyOn(t.key); update(true); } } })));
@@ -58,6 +78,7 @@ function drawPerfPlot(D){
   const pl = 52, pr = 14, pt = 10, pb = 34, x0 = pl, x1 = w - pr, y0 = pt, y1 = h - pb;
   const uL = P0.uLo, uH = P0.uHi, phase = P0.mode === 'phase';
   const yLo = phase ? -180 : P0.dbMin, yHi = phase ? 180 : 0;
+  // Plot x of a frequency ratio u; Y(v) is the plot y of a value.
   const X = u => x0 + (x1 - x0) * (u - uL) / (uH - uL), Y = v => y0 + (y1 - y0) * (yHi - Math.max(yLo, Math.min(yHi, v))) / (yHi - yLo);
   // grid
   const ystep = phase ? 45 : (yHi - yLo) > 60 ? 20 : 10;
@@ -75,6 +96,7 @@ function drawPerfPlot(D){
   svg.append(svgEl('text', { x: X(1) + 3, y: y0 + 11, 'font-size': 11 }, 'f₀'));
   const clip = svgEl('clipPath', { id: 'pclip' }); clip.append(svgEl('rect', { x: x0, y: y0, width: x1 - x0, height: y1 - y0 })); svg.append(clip);
   const plotG = svgEl('g', { 'clip-path': 'url(#pclip)' }); svg.append(plotG);
+  // Draw one trace (dashed for the pinned design B).
   const curve = (u, data, t, dashed, op) => {
     let d = '', pen = false;
     data.forEach((v, i) => { if(!isFinite(v)){ pen = false; return; } d += (pen ? 'L' : 'M') + X(u[i]).toFixed(1) + ' ' + Y(v).toFixed(1); pen = true; });
@@ -84,23 +106,25 @@ function drawPerfPlot(D){
   if(PIN) shown.forEach(t => { const tb = traceList(PIN.sw.p).find(x => x.key === t.key); if(tb) curve(PIN.sw.u, traceData(PIN.sw, tb, P0.mode), t, true, 0.85); });
   shown.forEach(t => curve(sw.u, traceData(sw, t, P0.mode), t, false));
   // marker
-  const mu = Math.min(uH, Math.max(uL, P0.marker));
+  const mu = D.mu;                                    // the marker, solved at exactly this f/f0 (DEFECT-PDD-014)
   svg.append(svgEl('line', { x1: X(mu), x2: X(mu), y1: y0, y2: y1, class: 'marker' }));
-  const mi = sw.u.reduce((b, u, i) => Math.abs(u - mu) < Math.abs(sw.u[b] - mu) ? i : b, 0);
-  shown.forEach(t => { const v = traceData({ S: [sw.S[mi]] }, t, P0.mode)[0]; if(isFinite(v)) svg.append(svgEl('circle', { cx: X(sw.u[mi]), cy: Y(v), r: 3.5, fill: t.col })); });
+  shown.forEach(t => { const v = traceData({ S: [D.Sm] }, t, P0.mode)[0]; if(isFinite(v)) svg.append(svgEl('circle', { cx: X(mu), cy: Y(v), r: 3.5, fill: t.col })); });
   svg.addEventListener('click', ev => { const r = svg.getBoundingClientRect(), u = uL + (uH - uL) * (ev.clientX - r.left - x0) / (x1 - x0); if(u >= uL && u <= uH){ S.perf.marker = u; update(true); } });
   svg.style.cursor = 'crosshair';
-  const mrows = shown.map(t => { const v = traceData({ S: [sw.S[mi]] }, t, P0.mode)[0];
+  const mrows = shown.map(t => { const v = traceData({ S: [D.Sm] }, t, P0.mode)[0];
     return el('span', { class: 'mk', style: '--c:' + t.col, text: t.label + ' ' + (isFinite(v) ? (phase ? fmtDeg(v, 2) + '°' : fmt(v, 2) + ' dB') : '—') }); });
-  box.replaceChildren(el('h4', {}, 'S-parameters ', el('span', { class: 'hint', text: '(click the plot to move the marker' + (PIN ? '; dashed: pinned ' + PIN.label : '') + ')' })), head, chips, svg,
-    el('div', { class: 'markers num' }, el('b', { text: 'marker ' + fmtGHz(sw.u[mi]) }), ...mrows));
+  box.replaceChildren(el('h4', {}, 'S-parameters ', el('span', { class: 'hint', text: '(click the plot to move the marker' + (PIN ? '; dashed: pinned ' + PIN.label : '') + ')' })), head, ...plotFields.map(f => f.msg), chips, svg,
+    el('div', { class: 'markers num' }, el('b', { text: 'marker ' + fmtGHz(mu) }), ...mrows));
 }
+// A round grid step near x (1, 2 or 5 × 10^k).
 function niceStep(x){ const p = 10 ** Math.floor(Math.log10(x)), m = x / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; }
+// A short label of the design on screen.
 function designLabel(D){
   const d = D.design, shp = [...new Set(S.shapes.slice(0, Math.max(1, maxSections(D))))].join('/');
   if(d.topology === 'tree') return `tree N=${d.tree.N} (${MODULE_NAME[S.tree.module]}), ${S.M} sec, ${shp}`;
   return `${{ wilkinson: 'Wilkinson', tee: 'T-junction', resistive: 'Resistive' }[d.topology]} ${S.N}-way ${S.N === 2 && d.topology !== 'resistive' ? ratioText(S.ratioDB) : ''}, ${d.topology === 'resistive' ? '' : S.M + ' sec, ' + shp}`;
 }
+// Snapshot of the current design as the pinned design B.
 function pinCurrent(D){ return { label: 'B: ' + designLabel(D), sw: D.sw, summary: summaryOf(D, 'B') }; }
 // ── END 2 ─────────────────────────────────────────────────────
 
@@ -140,30 +164,35 @@ function flowSvg(Ld, title, n){
     `balance: reflected + delivered + R + lines = ${(sum * 100).toFixed(3)} %`));
   return svg;
 }
+// Power-flow panels at f0 and at the marker.
 function drawFlow(D){
   const n = D.net.ports.length - 1;
   $('perfFlow').replaceChildren(el('h4', { text: 'Power flow (output loads as set on the Designer)' }),
-    el('div', { class: 'row wrap' }, flowSvg(D.L0, 'at f₀ = ' + (S.f0 / 1e9).toFixed(3) + ' GHz', n), flowSvg(D.Lm, 'at the marker, ' + fmtGHz(S.perf.marker), n)));
+    el('div', { class: 'row wrap' }, flowSvg(D.L0, 'at f₀ = ' + (S.f0 / 1e9).toFixed(3) + ' GHz', n), flowSvg(D.Lm, 'at the marker, ' + fmtGHz(D.mu), n)));
 }
 // ── END 4 ─────────────────────────────────────────────────────
 
 // ── 5. S-MATRIX ───────────────────────────────────────────────
-/* The theorem sentence under the badges (PPR-PDD-002, -003, -007): built from the same checks as the badges, for the
-   state on screen. "Three-port theorem" only for three-ports; for more ports the N-port statement that does hold. */
+/* The theorem sentence under the badges (PPR-PDD-002, -003, -007, -014): built from the same checks as the badges, for
+   the state on screen, in few words (VIS-PDD-018); the detail is in Theory §1 and §4. "Three-port theorem" only for
+   three-ports; for more ports the N-port statement that does hold. With line loss on, the sums name it. */
 function theoremText(D, ck){
-  const n = D.net.ports.length - 1, cols = ck.col.map(x => x.toFixed(3)).join(', ');
-  const odd = D.design.topology === 'wilkinson' && S.resOn && ck.match && ck.iso ?
-    ' Of the power a mismatched output reflects, R absorbs only the odd-mode part; the even-mode part returns to the input (Theory §4).' : '';
+  const n = D.net.ports.length - 1, c3 = ck.col.map(x => x.toFixed(3)), outs = c3.slice(1);
+  const cols = 'column sums ' + (n > 2 && outs.every(x => x === outs[0]) ? c3[0] + ' at the input, ' + outs[0] + ' at each output' : c3.join(', '));
+  const lineLoss = S.lossOn && lossDb() > 0, oddR = D.design.topology === 'wilkinson' && S.resOn;
   let state;
-  if(ck.match && ck.iso && !ck.lossless) state = 'matched at every port and isolated, so it is not lossless: power entering an output is partly absorbed in the resistors (column power sums ' + cols + ').' + odd;
-  else if(ck.match && !ck.lossless) state = 'matched at every port and lossy (column power sums ' + cols + ')' + (n > 1 && !ck.iso ? '; its outputs are not isolated.' : '.');
-  else if(ck.lossless && ck.recip) state = 'lossless and reciprocal, so it is not matched at every port: ' + (ck.inMatch ? 'the input is matched, the outputs are not' : 'not even the input is matched') +
-    (n > 1 ? (ck.iso ? ', though the outputs are isolated.' : ', and the outputs are not isolated.') : '.');
-  else state = 'neither matched at every port nor lossless in this state (column power sums ' + cols + '): it pays the loss and still does not get the match.';
-  const tree = D.design.topology === 'tree' ? ' Each junction keeps or gives up what its module does: Wilkinson junctions stay matched and isolated; branching lines are lossless but leave the outputs unmatched; resistive Y junctions lose 6.02 dB each.' : '';
-  if(n === 2) return { head: 'Three-port theorem.', text: 'A three-port cannot be lossless, reciprocal and matched at all three ports at once. This one is ' + state + tree };
-  return { head: 'Matched, isolated, lossless?', text: 'The three-port theorem is a three-port result. What holds for any number of outputs: a divider matched at every port with isolated outputs cannot be lossless, because each output column then holds only |S1j|² (1/N for an equal split). This ' + (n + 1) + '-port is ' + state + tree };
+  if(ck.match && ck.iso && !ck.lossless) state = 'matched and isolated, so not lossless: ' +
+    (lineLoss ? 'line loss takes part of the input power; R and line loss take power entering an output (' :
+      oddR ? 'R absorbs only the odd-mode part of power entering an output (' : 'the resistors absorb part of power entering an output (') + cols + ').';
+  else if(ck.match && !ck.lossless) state = 'matched but lossy (' + cols + (lineLoss ? '; line loss is on' : '') + ')' + (n > 1 && !ck.iso ? '; outputs not isolated.' : '.');
+  else if(ck.lossless && ck.recip) state = 'lossless and reciprocal, so not matched everywhere: ' + (ck.inMatch ? 'input matched, outputs not' : 'input not matched') +
+    (n > 1 ? (ck.iso ? '; outputs isolated.' : '; outputs not isolated.') : '.');
+  else state = 'neither matched everywhere nor lossless (' + cols + (lineLoss ? '; line loss is on' : '') + ').';
+  const tree = D.design.topology === 'tree' ? ' Each junction keeps what its module does (Theory §7).' : '';
+  if(n === 2) return { head: 'Three-port theorem.', text: 'No three-port is lossless, reciprocal and matched at all ports. This one is ' + state + tree };
+  return { head: 'Matched, isolated, lossless?', text: 'A divider matched at every port with isolated outputs cannot be lossless. This ' + (n + 1) + '-port is ' + state + tree };
 }
+// S-matrix at f0 with its property checks and the theorem sentence.
 function drawSMatrix(D){
   const S0 = D.S0, p = S0.n, ck = sChecks(S0), box = $('perfS');
   let grid;
@@ -171,15 +200,16 @@ function drawSMatrix(D){
     const rows = [];
     for(let i = 0; i < p; i++){ const cells = [{ text: String(i + 1), th: true }]; for(let j = 0; j < p; j++){ const v = mget(S0, i, j);
       cells.push({ t: fmtDb(dB20(cabs(v)), 2) + ' dB<br><span class="mut">∠' + fmtDeg(carg(v) * DEG, 1) + '°</span>', cls: i === j ? 'diag' : null }); } rows.push({ cells }); }
-    grid = table('sheet smat', ['i \\ j', ...[...Array(p).keys()].map(j => String(j + 1))], rows);
+    grid = table('sheet smat' + (p === 5 ? ' smat5' : ''), ['i \\ j', ...[...Array(p).keys()].map(j => String(j + 1))], rows);
   } else {
     const c = 16, g = svgEl('svg', { width: 30 + p * c, height: 20 + p * c, role: 'img', 'aria-label': '|S| at f0 as a grid' });
-    for(let i = 0; i < p; i++) for(let j = 0; j < p; j++){ const db = dB20(cabs(mget(S0, i, j))), t = Math.max(0, Math.min(1, (db + 60) / 60));
+    for(let i = 0; i < p; i++) for(let j = 0; j < p; j++){ const db = sdb(S0, i, j), t = Math.max(0, Math.min(1, (db + 60) / 60));
       const r = svgEl('rect', { x: 24 + j * c, y: 14 + i * c, width: c - 1, height: c - 1, fill: 'var(--s31)', 'fill-opacity': (0.06 + 0.94 * t).toFixed(3) });
       r.append(svgEl('title', {}, 'S' + (i + 1) + ',' + (j + 1) + ': ' + fmtDb(db, 2) + ' dB ∠' + fmtDeg(carg(mget(S0, i, j)) * DEG, 1) + '°')); g.append(r); }
     g.append(svgEl('text', { x: 24, y: 10, 'font-size': 10 }, 'j →'), svgEl('text', { x: 2, y: 20 + p * c / 2, 'font-size': 10 }, 'i'));
     grid = el('div', {}, g, el('p', { class: 'hint' }, rich('|S<sub>ij</sub>| at f₀, darker = larger (0 to −60 dB); hover a cell for its value.')));
   }
+  // A check line: ✓ text when b holds, ✗ the other text when not.
   const yes = (b, t, f) => el('li', { class: b ? 'ok' : 'no', text: (b ? '✓ ' : '✗ ') + (b ? t : f) });
   const th = theoremText(D, ck);
   box.replaceChildren(el('h4', { text: 'S-matrix at f₀' }), grid, el('ul', { class: 'checks' },
@@ -200,6 +230,7 @@ function summaryOf(D, label){
 }
 // Comparison table, one column per design summary (plain text cells).
 function compareTable(list){
+  // A comparison-table row of key k with the value f(s) for each design.
   const r = (k, f) => ({ cells: [{ text: k }, ...list.map(s => ({ text: f(s) }))] });
   return table('sheet cmp', [{ text: '' }, ...list.map(s => ({ text: s.label, th: true }))], [
     r('delivered (matched loads)', s => (s.deliv * 100).toFixed(2) + ' % (' + fmt(10 * Math.log10(s.deliv / s.n), 2) + ' dB each)'),
@@ -209,6 +240,7 @@ function compareTable(list){
     r('resistors', s => String(s.nR))]);
 }
 let DIRECT = { key: '', list: null };
+// Comparison tables: pinned design B, and the tree against the direct N-way divider.
 function drawCompare(D){
   const box = $('perfCmp'), parts = [el('h4', { text: 'Compare' })];
   const A = summaryOf(D, 'A: ' + designLabel(D));
@@ -227,5 +259,6 @@ function drawCompare(D){
   }
   box.replaceChildren(...parts);
 }
+// Draw every panel of the Performance page.
 function drawPerf(D){ drawPerfPlot(D); drawBandwidths(D); drawFlow(D); drawSMatrix(D); drawCompare(D); }
 // ── END 6 ─────────────────────────────────────────────────────

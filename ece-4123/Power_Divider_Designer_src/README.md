@@ -1,6 +1,6 @@
 # Power Divider Designer — sources
 
-`../Power_Divider_Designer_v2.0.1.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
+`../Power_Divider_Designer_v2.0.2.html` is built from these files. Edit the sources here, then rebuild; never edit the built page.
 v2.0.0 replaces the Wilkinson Power Divider Designer v1.0.0 (a Claude Design bundle with React and Babel, 1.5 MB): this is
 plain JavaScript in one offline HTML file (about 270 kB, fonts included).
 
@@ -25,7 +25,7 @@ plain JavaScript in one offline HTML file (about 270 kB, fonts included).
 ## Build and test
 
 ```sh
-python3 build.py                                   # writes ../Power_Divider_Designer_v2.0.1.html
+python3 build.py                                   # writes ../Power_Divider_Designer_v2.0.2.html
 node tests/engine.test.js
 NODE_PATH=$(npm root -g) node tests/browser.test.js   # needs Playwright; CHROMIUM=/path/to/chromium optional
 ```

@@ -18,18 +18,31 @@
 
 // ── 1. COMPLEX ARITHMETIC ─────────────────────────────────────
 const C0 = 299792458;                       // speed of light (m/s)
+// A complex number from its real and imaginary parts.
 const cx = (re, im) => ({ re, im: im || 0 });
+// Complex sum a + b.
 const cadd = (a, b) => ({ re: a.re + b.re, im: a.im + b.im });
+// Complex difference a − b.
 const csub = (a, b) => ({ re: a.re - b.re, im: a.im - b.im });
+// Complex product a·b.
 const cmul = (a, b) => ({ re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re });
+// Complex a times the real s.
 const cscale = (a, s) => ({ re: a.re * s, im: a.im * s });
+// Complex conjugate.
 const cconj = a => ({ re: a.re, im: -a.im });
+// Complex quotient a / b.
 function cdiv(a, b){ const d = b.re * b.re + b.im * b.im; return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }; }
+// Magnitude |a|.
 const cabs = a => Math.hypot(a.re, a.im);
+// Angle of a (rad).
 const carg = a => Math.atan2(a.im, a.re);
+// Complex number from magnitude m and angle rad.
 const cpolar = (m, rad) => ({ re: m * Math.cos(rad), im: m * Math.sin(rad) });
+// Complex sinh z.
 const csinh = z => ({ re: Math.sinh(z.re) * Math.cos(z.im), im: Math.cosh(z.re) * Math.sin(z.im) });
+// Complex cosh z.
 const ccosh = z => ({ re: Math.cosh(z.re) * Math.cos(z.im), im: Math.sinh(z.re) * Math.sin(z.im) });
+// Magnitude m in dB (20 log10), floored at −240 dB.
 const dB20 = m => 20 * Math.log10(Math.max(m, 1e-12));
 const DEG = 180 / Math.PI;
 // ── END 1 ─────────────────────────────────────────────────────
@@ -37,6 +50,7 @@ const DEG = 180 / Math.PI;
 // ── 2. COMPLEX MATRICES ───────────────────────────────────────
 // A dense n×m complex matrix: { n, m, re: Float64Array, im: Float64Array }, row-major.
 const cmat = (n, m) => ({ n, m: m || n, re: new Float64Array(n * (m || n)), im: new Float64Array(n * (m || n)) });
+// Element (i, j) of a complex matrix.
 const mget = (M, i, j) => ({ re: M.re[i * M.m + j], im: M.im[i * M.m + j] });
 const sdb = (M, i, j) => dB20(cabs(mget(M, i, j)));   // |Sij| in dB
 // Inverse by Gauss–Jordan with partial pivoting.
@@ -90,8 +104,9 @@ function cmatSolve(A, bre, bim){
    Loss is a(dB per guided wavelength), so αℓ = a·(θ/2π)/8.686 Np. A floor of 1e-7 Np keeps the matrix regular at
    exact multiples of 90°. */
 const ALPHA_FLOOR = 1e-7;
+const DB_PER_NEPER = 20 / Math.LN10;                 // 8.685889638 dB per neper (field quantity)
 // γℓ for a line at the frequency ratio u = f/f0.
-function gammaL(th0, u, lossDb){ const th = th0 * u; return cx(Math.max((lossDb || 0) * th / (2 * Math.PI) / 8.685889638, ALPHA_FLOOR), th); }
+function gammaL(th0, u, lossDb){ const th = th0 * u; return cx(Math.max((lossDb || 0) * th / (2 * Math.PI) / DB_PER_NEPER, ALPHA_FLOOR), th); }
 // Two-port Y of a line: y11 = y22 = coth(γℓ)/Zc, y12 = y21 = −1/(Zc·sinh γℓ).
 function lineY(Z, gl){
   const sh = csinh(gl), ch = ccosh(gl);
@@ -100,7 +115,9 @@ function lineY(Z, gl){
 // Assemble the nodal admittance matrix at u = f/f0.
 function assembleY(net, u, lossDb){
   const n = net.n, Y = cmat(n);
+  // Add admittance y to Y[i][j].
   const add = (i, j, y) => { Y.re[i * n + j] += y.re; Y.im[i * n + j] += y.im; };
+  // Stamp a two-terminal admittance y between nodes a and b (−1 = ground).
   const stamp = (a, b, y) => { if(a >= 0) add(a, a, y); if(b >= 0) add(b, b, y); if(a >= 0 && b >= 0){ add(a, b, cscale(y, -1)); add(b, a, cscale(y, -1)); } };
   for(const L of net.lines){
     const { y11, y12 } = lineY(L.Z, gammaL(L.th0, u, lossDb));
@@ -176,6 +193,7 @@ function solveS(net, u, lossDb){ return yToS(kron(assembleY(net, u, lossDb), net
 function compileNet(net){
   const n = net.n, nb = Array.from({ length: n }, () => new Set()), isKeep = new Uint8Array(n);
   net.ports.forEach(k => { isKeep[k] = 1; });
+  // Record that nodes a and b are neighbours.
   const link = (a, b) => { if(a >= 0 && b >= 0 && a !== b){ nb[a].add(b); nb[b].add(a); } };
   net.lines.forEach(L => link(L.a, L.b)); net.res.forEach(r => link(r.a, r.b));
   const left = new Set(); for(let i = 0; i < n; i++) if(!isKeep[i]) left.add(i);
@@ -192,11 +210,13 @@ function compileNet(net){
   net.lines.forEach((L, i) => { LA[i] = L.a; LB[i] = L.b; LZ[i] = L.Z; LT[i] = L.th0; });
   return { net, n, steps, touched: Int32Array.from(touched), re: new Float64Array(n * n), im: new Float64Array(n * n), LA, LB, LZ, LT };
 }
+// S-matrix of a compiled network at u = f/f0 (the fast path used by sweeps).
 function solveSc(c, u, lossDb){
   const net = c.net, n = c.n, re = c.re, im = c.im, tz = c.touched, LA = c.LA, LB = c.LB, LZ = c.LZ, LT = c.LT;
   for(let t = 0; t < tz.length; t++){ re[tz[t]] = 0; im[tz[t]] = 0; }
+  // Add r + jx to the work matrix at (i, j).
   const add = (i, j, r, x) => { re[i * n + j] += r; im[i * n + j] += x; };
-  const lk = (lossDb || 0) / (2 * Math.PI) / 8.685889638;
+  const lk = (lossDb || 0) / (2 * Math.PI) / DB_PER_NEPER;
   for(let i = 0; i < LA.length; i++){
     const th = LT[i] * u, a = Math.max(lk * th, ALPHA_FLOOR), Z = LZ[i];
     const sha = Math.sinh(a), cha = Math.cosh(a), co = Math.cos(th), si = Math.sin(th);
@@ -250,6 +270,7 @@ function solveLoaded(net, u, lossDb, loads){
     const Ia = cadd(cmul(y11, Va), cmul(y12, Vb)), Ib = cadd(cmul(y12, Va), cmul(y11, Vb));
     return 0.5 * (cmul(Va, cconj(Ia)).re + cmul(Vb, cconj(Ib)).re) / Pav;
   });
+  // Sum of an array.
   const sum = a => a.reduce((s, x) => s + x, 0);
   const pRes = sum(pResEach), pLine = sum(pLineEach), pDeliv = sum(pLoad);
   return { pRefl, pLoad, pDeliv, pRes, pResEach, pLine, pLineEach, total: pRefl + pDeliv + pRes + pLine,
@@ -265,7 +286,9 @@ function solveLoaded(net, u, lossDb, loads){
               for. Quasi-static, no dispersion.
    'hj'     — beyond the lecture notes: Hammerstad–Jensen (1980) Z and ε_eff, W/h found by bisection, then the
               Kirschning–Jansen (1982) dispersion of ε_eff at f0 for the guided wavelength. Z is not corrected for dispersion. */
-const ETA0 = 376.730313668;                           // free-space wave impedance (Ω)
+const ETA0 = 376.730313668;                           // free-space wave impedance Zf (Ω)
+const L09_B_NUM = 60 * Math.PI ** 2;                  // L09 synthesis B branch: B = 60π² / (Z0 √εr), as written on the slide (Ω)
+const L07_WIDE_LOG = 2 / 3;                           // L07 wide-strip branch: W/h + 1.393 + (2/3)·ln(W/h + 1.444)
 const WH_BRANCH = 1;                                  // W/h at which the L06/L07 formulas change branch
 const WH_SYNTH_BRANCH = 2;                            // W/h at which the L09 synthesis changes from the A to the B branch
 // L09 synthesis (Wheeler–Hammerstad A/B branches): W/h for impedance Z (Ω) on relative permittivity er.
@@ -273,7 +296,7 @@ function msWheelerWh(Z, er){
   const A = Z / 60 * Math.sqrt((er + 1) / 2) + (er - 1) / (er + 1) * (0.23 + 0.11 / er);
   let wh = 8 * Math.exp(A) / (Math.exp(2 * A) - 2);
   if(!(wh > 0 && wh < WH_SYNTH_BRANCH)){
-    const B = ETA0 * Math.PI / (2 * Z * Math.sqrt(er));
+    const B = L09_B_NUM / (Z * Math.sqrt(er));
     wh = (2 / Math.PI) * (B - 1 - Math.log(2 * B - 1) + (er - 1) / (2 * er) * (Math.log(B - 1) + 0.39 - 0.61 / er));
   }
   return wh;
@@ -285,8 +308,8 @@ function msCourseEeff(er, wh){
 }
 // L07 characteristic impedance (Ω) of a strip of width ratio wh with effective permittivity eeff (the verify step).
 function msCourseZ(wh, eeff){
-  return wh <= WH_BRANCH ? 60 / Math.sqrt(eeff) * Math.log(8 / wh + wh / 4)
-    : ETA0 / (Math.sqrt(eeff) * (wh + 1.393 + 0.667 * Math.log(wh + 1.444)));
+  return wh <= WH_BRANCH ? ETA0 / (2 * Math.PI) / Math.sqrt(eeff) * Math.log(8 / wh + wh / 4)
+    : ETA0 / (Math.sqrt(eeff) * (wh + 1.393 + L07_WIDE_LOG * Math.log(wh + 1.444)));
 }
 // Hammerstad–Jensen static ε_eff at width ratio u = W/h.
 function msHjEeff(er, u){
@@ -324,16 +347,17 @@ function microstrip(Z, er, h, f, model){
 }
 const MS_MODEL_NAME = { course: 'Course formulas (L06–L09, Wheeler–Hammerstad): quasi-static, no dispersion',
   hj: 'Hammerstad–Jensen with Kirschning–Jansen dispersion (beyond the lecture notes)' };
-/* Quasi-TEM validity (ruling PDD-4): the first TM surface-wave onset f_T = c·atan(εr) / (√2·π·h·√(εr − 1)) (h in m; no
-   surface-wave limit for εr = 1). The model is flagged, not refused, when f0 > QTEM_FT_FRACTION·f_T or when a λg/4
+/* Quasi-TEM validity (ruling PDD-4): f_T = c·atan(εr) / (√2·π·h·√(εr − 1)) (h in m) is where the strip couples strongly
+   to the lowest TM surface wave (TM0, which has no cutoff; PPR-PDD-017); no surface-wave limit for εr = 1. The model is flagged, not refused, when f0 > QTEM_FT_FRACTION·f_T or when a λg/4
    section is shorter than its own width or the substrate height. */
 const QTEM_FT_FRACTION = 0.5;
+// Surface-wave frequency f_T (Hz) of a substrate (er, h in mm); Infinity for er = 1.
 function surfaceWaveFt(er, hmm){ return er > 1 ? C0 * Math.atan(er) / (Math.SQRT2 * Math.PI * hmm / 1000 * Math.sqrt(er - 1)) : Infinity; }
 // Warnings (plain words) for the quasi-TEM range; secs: [{ name, W (mm), len (mm, λg/4) }].
 function quasiTemWarnings(er, hmm, f0, secs){
   const out = [], fT = surfaceWaveFt(er, hmm);
-  if(f0 > QTEM_FT_FRACTION * fT) out.push(`f₀ ${(f0 / 1e9).toFixed(2)} GHz is above half the surface-wave onset f_T ${(fT / 1e9).toFixed(2)} GHz ` +
-    `(εr ${er}, h ${hmm} mm): the quasi-TEM microstrip model is out of range, so these numbers are not a real board's.`);
+  if(f0 > QTEM_FT_FRACTION * fT) out.push(`f₀ ${(f0 / 1e9).toFixed(2)} GHz is above half of f_T ${(fT / 1e9).toFixed(2)} GHz, where the strip couples strongly to the TM0 surface wave ` +
+    `(εr ${er}, h ${hmm} mm): the quasi-TEM model is out of range.`);
   const short = secs.filter(s => s.len < Math.max(s.W, hmm));
   if(short.length){ const s = short.reduce((a, b) => (b.len / Math.max(b.W, hmm) < a.len / Math.max(a.W, hmm) ? b : a));
     out.push(`${short.length} λg/4 section${short.length > 1 ? 's are' : ' is'} shorter than ${short.length > 1 ? 'their' : 'its'} own width or the substrate height ` +
@@ -395,6 +419,7 @@ function nelderMead(f, x0, step, iters){
     const ord = F.map((v, i) => i).sort((a, b) => F[a] - F[b]); P = ord.map(i => P[i]); F = ord.map(i => F[i]);
     if(F[n] - F[0] < 1e-7 * (F[0] + 1e-6)) break;
     const c = new Array(n).fill(0); for(let i = 0; i < n; i++) for(let j = 0; j < n; j++) c[j] += P[i][j] / n;
+    // Point on the line from the centroid through the worst vertex, at step a (Nelder–Mead).
     const pt = a => c.map((v, j) => v + a * (P[n][j] - v)), xr = pt(-1), fr = f(xr);
     if(fr < F[0]){ const xe = pt(-2), fe = f(xe); if(fe < fr){ P[n] = xe; F[n] = fe; } else { P[n] = xr; F[n] = fr; } }
     else if(fr < F[n - 1]){ P[n] = xr; F[n] = fr; }
@@ -408,6 +433,7 @@ function nelderMead(f, x0, step, iters){
 // The contiguous band around u = 1 where fn(u) ≤ lim, searched on [lo, hi] in steps of du (edges refined by bisection).
 function bandAround(fn, lim, lo, hi, du){
   if(!(fn(1) <= lim)) return null;
+  // Edge of the band on one side of u = 1 (dir ±1), refined by bisection.
   const edge = (dir) => {
     let a = 1, b = 1 + dir * du;
     while(dir > 0 ? b <= hi : b >= lo){ if(!(fn(b) <= lim)) break; a = b; b += dir * du; }
@@ -428,6 +454,7 @@ function oddShunts(t, r, N){
   if(RES_CACHE.has(key)) return RES_CACHE.get(key);
   const band = bandAround(u => cabs(armGamma(t, null, r, u)), 10 ** (ISO_BAND_DB / 20), 0.05, 1.95, 0.01) || { lo: 0.95, hi: 1.05 };
   const U = Array.from({ length: 25 }, (_, i) => band.lo + (band.hi - band.lo) * i / 24), GE = U.map(u => armGamma(t, null, r, u));
+  // Worst output match or isolation over the band for log-resistors lg (the minimax cost).
   const cost = lg => { const g = lg.map(Math.exp); let w = 0;
     U.forEach((u, i) => { const o = modeOutputs(GE[i], armGamma(t, g, 0, u), N); w = Math.max(w, o.sjj, o.sij); }); return w; };
   const x0 = t.map((z, k) => Math.log(k === M - 1 ? 2.5 : 1.2 * Math.sqrt(t[k] * (t[k + 1] || 1))));
@@ -443,6 +470,7 @@ function oddShunts(t, r, N){
    list of sections { Z, role: 'arm' | 'xfmr' | 'eq' } junction → port, every one λ/4 at f0. res[k] = R bridging the
    arms after section k (null = none). frac = [P2, P3] / Pin. */
 function powerSplit(ratioDB){ const k2 = 10 ** (ratioDB / 10); return [k2 / (1 + k2), 1 / (1 + k2)]; }
+// One 2-way Wilkinson stage: arm sections, output transformers, isolation resistors and the split.
 function wilkinsonStage(z0, ratioDB, M, kind, gm, forceXfmr){
   const K = Math.sqrt(10 ** (ratioDB / 10));            // K² = P2/P3
   const unequal = Math.abs(ratioDB) > 1e-9;
@@ -466,6 +494,7 @@ function wilkinsonStage(z0, ratioDB, M, kind, gm, forceXfmr){
 /* Refinement can be deferred (while a slider is dragged): the scaled start is used and the job is queued; runPending()
    does one queued refinement and reports whether any remain. */
 const REFINE = { defer: false, pending: new Map() };
+// Do one queued resistor refinement; true while more remain.
 function runPending(){
   const it = REFINE.pending.entries().next(); if(it.done) return false;
   const [key, job] = it.value; REFINE.pending.delete(key);
@@ -486,6 +515,7 @@ function refineUnequal(st, z0){
   setR(st.res.slice(0, M));
   const band = bandAround(u => cabs(mget(solveSc(c, u, 0), 0, 0)), lim, 0.05, 1.95, 0.01) || { lo: 0.9, hi: 1.1 };
   const U = Array.from({ length: 13 }, (_, i) => band.lo + (band.hi - band.lo) * i / 12);
+  // Worst S11 over the band for log-resistors lr (the refinement cost).
   const cost = lr => {
     setR(lr.map(Math.exp)); let w = 0;
     for(const u of U){ const S = solveSc(c, u, 0); w = Math.max(w, cabs(mget(S, 1, 1)), cabs(mget(S, 2, 2)), cabs(mget(S, 1, 2))); }
@@ -544,8 +574,10 @@ function junctionStage(module, ratioDB, p){
    'R', 'LR', … tree = { N, amp, edgeDB, module, levelMods: [], mods: { path → module }, ratios: { path → dB } }. */
 function treeDesign(p){
   const T = p.tree, N = T.N, w = treeWeights(N, T.amp, T.edgeDB), sum = w.reduce((a, b) => a + b, 0);
+  // Sum of the output weights w[lo .. lo+n−1].
   const add = (lo, n) => w.slice(lo, lo + n).reduce((a, b) => a + b, 0);
   let maxDepth = 0;
+  // Build the junction tree for outputs lo .. lo+n−1 at junction path.
   const make = (lo, n, path) => {
     if(n === 1){ maxDepth = Math.max(maxDepth, path.length); return { leaf: true, idx: lo, path, depth: path.length }; }
     const nl = Math.floor(n / 2), auto = 10 * Math.log10(add(lo, nl) / add(lo + nl, n - nl));
@@ -605,6 +637,7 @@ function addTwoArm(net, st, j0, pfx, endNodes){
   st.res.forEach((R, k) => { if(R != null && net.resOn !== false) net.res.push({ a: nodes[0][k + 1], b: nodes[1][k + 1], R: R * (net.rMult || 1), id: pfx + '.r' + k }); });
   return [nodes[0][nodes[0].length - 1], nodes[1][nodes[1].length - 1]];
 }
+// Add an N-way star stage (arms and a resistor star) to the network from node j0.
 function addStar(net, st, j0, pfx){
   const nodes = st.arms.map(() => [j0]);
   st.arms.forEach((arm, a) => arm.forEach((s, k) => { const b = net.n++; net.lines.push({ a: nodes[a][k], b, Z: s.Z, th0: QW, id: pfx + '.a' + a + '.' + k }); nodes[a].push(b); }));
@@ -634,7 +667,9 @@ function buildNetwork(design, opts){
   } else if(design.topology === 'tree'){
     const lens = opts.lens || {}, ports = [];
     const zs = opts.zs || {};
+    // Add a line of electrical length lens[id] from node a0; returns its far node.
     const line = (a0, id) => { const th = lens[id]; if(!(th > 0)) return a0; const b0 = net.n++; net.lines.push({ a: a0, b: b0, Z: zs[id] || opts.z0, th0: th, id }); return b0; };
+    // Add the network of a tree junction nd fed at node inNode, then its children.
     const addNode = (nd, inNode) => {
       if(nd.leaf){ ports[nd.idx] = line(inNode, 'o' + nd.idx); return; }
       const pfx = 'j' + nd.path, ends = nd.stage.kind === 'resY' ? addResY(net, nd.stage, inNode, pfx) : addTwoArm(net, nd.stage, inNode, pfx, null);
@@ -666,13 +701,14 @@ function bandwidthOf(u, magDb, lim){
   let hi = i0, lo = i0;
   while(hi + 1 < u.length && magDb[hi + 1] <= lim) hi++;
   while(lo - 1 >= 0 && magDb[lo - 1] <= lim) lo--;
+  // Frequency at which the curve crosses lim between grid points a and b (linear in dB).
   const edge = (a, b) => { const t = (lim - magDb[a]) / (magDb[b] - magDb[a]); return u[a] + (u[b] - u[a]) * Math.max(0, Math.min(1, t)); };
   const uh = hi + 1 < u.length ? edge(hi, hi + 1) : u[hi], ul = lo - 1 >= 0 ? edge(lo, lo - 1) : u[lo];
   return { lo: ul, hi: uh, frac: uh - ul, clipLo: lo === 0, clipHi: hi === u.length - 1 };
 }
 /* Bandwidths (−15 dB) for S11, the worst output match, the worst isolation; the narrowest is the usable bandwidth. */
 function bandwidths(sw, lim){
-  const p = sw.p, worst = (pairs) => sw.u.map((_, k) => Math.max(...pairs.map(([i, j]) => dB20(cabs(mget(sw.S[k], i, j))))));
+  const p = sw.p, worst = (pairs) => sw.u.map((_, k) => Math.max(...pairs.map(([i, j]) => sdb(sw.S[k], i, j))));
   const outs = [], iso = [];
   for(let i = 1; i < p; i++){ outs.push([i, i]); for(let j = i + 1; j < p; j++) iso.push([i, j]); }
   const rows = [{ key: 'S11', label: 'S11', curve: worst([[0, 0]]) }];
@@ -682,20 +718,25 @@ function bandwidths(sw, lim){
   let use = null; rows.forEach(r => { const f = r.bw ? r.bw.frac : 0; if(!use || f < (use.bw ? use.bw.frac : 0)) use = r; });
   return { rows, usable: use };
 }
-/* S-matrix checks at one frequency: matched (all |Sii| < −20 dB), reciprocal (|Sij − Sji| within a relative tolerance of
-   the larger of the two, PPR-PDD-001), lossless (every column power sum = 1 to 1e-6), isolated (all output pairs < −20 dB). */
+/* S-matrix checks at one frequency: matched (all |Sii| < −20 dB), reciprocal (every |Sij − Sji| within a tolerance scaled
+   to the largest |S| in the matrix, DEFECT-PDD-011 / PPR-PDD-001), lossless (every column power sum = 1 to 1e-6), isolated
+   (all output pairs < −20 dB). */
 const CHECK_DB = -20;                                 // match and isolation threshold (dB)
-const RECIP_REL_TOL = 1e-6, RECIP_ABS_FLOOR = 1e-12;  // |Sij − Sji| ≤ RECIP_REL_TOL · max(|Sij|, |Sji|, RECIP_ABS_FLOOR)
+const RECIP_REL_TOL = 1e-6;  // reciprocal when every |Sij − Sji| ≤ RECIP_REL_TOL · (largest |S| in the matrix): a matrix-scale
+                             // tolerance (PPR-PDD-J7 rec. A), so model-zero pairs at solver noise (≈ −150 dB) never decide the verdict
 const LOSSLESS_TOL = 1e-6;                            // |Σ|Sij|² − 1| per column
+// Property checks of a port S-matrix at f0: matched, reciprocal, outputs isolated, lossless, and the column power sums.
 function sChecks(S){
   const p = S.n; let match = true, recip = true, iso = true, inMatch = true, outMatch = true; const col = [];
-  for(let j = 0; j < p; j++){ let s = 0; for(let i = 0; i < p; i++) s += cabs(mget(S, i, j)) ** 2; col.push(s); }
+  let sMax = 0;
+  for(let j = 0; j < p; j++){ let s = 0; for(let i = 0; i < p; i++){ const m = cabs(mget(S, i, j)); s += m ** 2; if(m > sMax) sMax = m; } col.push(s); }
+  const recipTol = RECIP_REL_TOL * sMax;
   for(let i = 0; i < p; i++){
-    if(dB20(cabs(mget(S, i, i))) > CHECK_DB){ match = false; if(i === 0) inMatch = false; else outMatch = false; }
+    if(sdb(S, i, i) > CHECK_DB){ match = false; if(i === 0) inMatch = false; else outMatch = false; }
     for(let j = 0; j < p; j++){
       const a = mget(S, i, j), b = mget(S, j, i);
-      if(i !== j && cabs(csub(a, b)) > RECIP_REL_TOL * Math.max(cabs(a), cabs(b), RECIP_ABS_FLOOR)) recip = false;
-      if(i > 0 && j > i && dB20(cabs(a)) > CHECK_DB) iso = false;
+      if(i !== j && cabs(csub(a, b)) > recipTol) recip = false;
+      if(i > 0 && j > i && sdb(S, i, j) > CHECK_DB) iso = false;
     }
   }
   const lossless = col.every(s => Math.abs(s - 1) < LOSSLESS_TOL);

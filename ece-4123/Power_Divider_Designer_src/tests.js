@@ -2,20 +2,27 @@
    the engine, the layout and the drawn SVG. Independent of the Designer's current settings (each test builds its own
    design), except the timing test, which measures a full update of a 16-output, 4-section tree. */
 const T_FR4 = { er: 4.4, h: 1.6, f0: 2.4e9, model: 'course' };
+// Layout geometry options for a test substrate (microstrip cached per impedance).
 function tGeom(sub, over){
   const sb = sub || T_FR4, cache = new Map();
+  // Microstrip synthesis on the test substrate, cached.
   const ms = Z => { const k = Z.toFixed(6); if(!cache.has(k)) cache.set(k, microstrip(Z, sb.er, sb.h, sb.f0, sb.model)); return cache.get(k); };
   return Object.assign({ ms, z0: 50, h: sb.h, shapes: ['straight'], fp: '0603', launch: 5, pitch: 10, minW: 0.15,
     shapeOpt: { phi: Math.PI, turns: 2, gap: 3 * sb.h, bend: 'mitre' }, resOn: true, rMult: 1, treeLayout: 'binary', equalise: true, pathErr: 0 }, over || {});
 }
+// A tree setting for N outputs with optional overrides.
 const tTree = (N, more) => Object.assign({ N, amp: 'uniform', edgeDB: -10, module: 'wilk', levelMods: [], mods: {}, ratios: {} }, more || {});
+// Synthesise, lay out and build the network of a test design.
 function tDesign(p, gover, sub){
   const d = synthesize(Object.assign({ topology: 'wilkinson', N: 2, ratioDB: 0, M: 1, taper: 'binomial', gm: 0.1, z0: 50, teeXfmr: true, resForm: 'Y', tree: tTree(4) }, p));
   const lay = layoutDesign(tGeom(sub, gover), d), net = buildNetwork(d, { z0: 50, resOn: p.resOn !== false, rMult: 1, lens: lay.lens, zs: lay.zs });
   return { d, lay, net, S: solveS(net, 1, p.loss || 0) };
 }
+// Angle of Sij in degrees.
 const sdeg = (M, i, j) => carg(mget(M, i, j)) * DEG;
+// True when a and b agree within t.
 const near = (a, b, t) => Math.abs(a - b) <= t;
+// The acceptance tests: [name, function returning { pass, got }].
 function TESTS(){ return [
   ['§2 Equal 2-way, 1 section: S21 = S31 = −3.01 dB ∠−90°; S11, S22, S33, S23 < −140 dB; arm 70.7 Ω; R = 100 Ω', () => {
     const { d, S: s } = tDesign({}); const g = [sdb(s, 1, 0), sdb(s, 2, 0), sdeg(s, 1, 0), sdeg(s, 2, 0)], z = [sdb(s, 0, 0), sdb(s, 1, 1), sdb(s, 2, 2), sdb(s, 1, 2)];
@@ -57,6 +64,7 @@ function TESTS(){ return [
     return { pass: res.every(x => x.w <= -20 && x.band > 0), got: res.map(x => `${x.r ? 'u' : ''}${x.tp === 'cheby' ? 'C' : 'B'}${x.M}: ${fmt(x.w, 1)} dB over ${(x.band * 100).toFixed(0)} %`).join('; ') }; }],
   ['D1 Cohn check: two-section 2:1-band design (1.6398, 1.2197 Z₀): optimised R within 3 % of Cohn 98.0 / 241.0 Ω', () => {
     const t = [1.6398, 1.2197], U = Array.from({ length: 61 }, (_, i) => 2 / 3 + (2 / 3) * i / 60);
+    // Worst output match or isolation for log-resistors lg (the reference minimax).
     const cost = lg => { const g = lg.map(Math.exp); let w = 0; U.forEach(u => { w = Math.max(w, cabs(armGamma(t, g, 0, u))); }); return w; };
     let b = nelderMead(cost, [0, Math.log(2.5)], 0.4, 400); b = nelderMead(cost, b.x, 0.1, 300);
     const R = b.x.map(x => 2 * 50 * Math.exp(x));
@@ -77,6 +85,7 @@ function TESTS(){ return [
       got: w.map(x => x.toFixed(4)).join(' / ') + ' W; ' + dbm2.map(x => x.toFixed(2)).join(' / ') + ' dBm; ' + dbr.map(x => x.toFixed(2)).join(' / ') + ' dB' }; }],
   ['§5 Ratio table: the F2 reference widths are reproduced to ±0.02 mm (FR-4, 2.4 GHz, Wheeler/Pozar)', () => {
     const ref = [[1, 1.62, 1.62, 3.06, 3.06], [2, 2.91, 0.65, 4.04, 2.27], [3, 3.78, 0.30, 4.70, 1.87], [4, 4.43, 0.14, 5.22, 1.62]];
+    // Strip width (mm) for impedance Z on FR-4 at 2.4 GHz.
     const ms = Z => microstrip(Z, 4.4, 1.6, 2.4e9, 'course').W, out = [];
     const ok = ref.every(([r, w2, w3, t2, t3]) => { const st = wilkinsonStage(50, 10 * Math.log10(r), 1, 'binomial', 0, false), a = st.arms;
       const g = [ms(a[0][0].Z), ms(a[1][0].Z), a[0][1] ? ms(a[0][1].Z) : ms(50), a[1][1] ? ms(a[1][1].Z) : ms(50)];
@@ -151,7 +160,9 @@ function ASYNC_TESTS(){ return [
     const med = times.slice().sort((a, b) => a - b)[Math.floor(times.length / 2)], mx = Math.max(...times);
     return { pass: med < 100, got: `median ${med.toFixed(0)} ms, worst ${mx.toFixed(0)} ms over ${times.length} updates` }; }],
 ];}
+// Copy every top-level key of src into dst.
 function mergeInto(dst, src){ for(const k in src) dst[k] = src[k]; }
+// A scratch SVG for the drawing tests.
 function testSvg(){ const s = svgEl('svg', { class: 'testsvg', width: 400, height: 300, viewBox: '0 0 40 30' }); document.body.append(s); return s; }
 // Rasterise the copper of a layout (pads included) at 20 px/mm and return the inked bounding box in mm.
 async function rasterBox(t){
@@ -173,6 +184,7 @@ async function rasterBox(t){
   return { x0: vb[0] + x0 / k, x1: vb[0] + (x1 + 1) / k, y0: vb[1] + y0 / k, y1: vb[1] + (y1 + 1) / k };
 }
 let testsRunning = false;                             // one run at a time (the timing test returns to this page mid-run)
+// Run every test on the Tests page and show the results.
 async function runTests(){
   if(testsRunning) return;
   testsRunning = true;

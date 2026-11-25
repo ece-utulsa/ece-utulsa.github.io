@@ -39,6 +39,7 @@ function syncSide(Dd){
   if(pend) w.unshift(el('div', { class: 'hint', text: 'Refining the unequal-split resistors…' }));
   $('warnBox').replaceChildren(...w);
 }
+// Show one page and redraw it.
 function showPage(p){
   if(!PAGES.includes(p)) p = 'designer';
   currentPage = p;
@@ -47,6 +48,7 @@ function showPage(p){
   if(p === 'tests' && !$('testsBody').dataset.done) runTests();
   if(p === 'designer' || p === 'perf' || p === 'params') requestAnimationFrame(() => update(true));
 }
+// Apply the light or dark theme.
 function applyTheme(dark){ document.body.classList.toggle('dark', dark); $('themeBtn').textContent = dark ? 'Light' : 'Dark'; $('themeBtn').setAttribute('aria-label', 'Switch to the ' + (dark ? 'light' : 'dark') + ' theme'); }
 // ── START-UP ──
 PAGES.forEach(p => $('tab_' + p).addEventListener('click', () => showPage(p)));

@@ -26,7 +26,9 @@ const FOOTPRINTS = {
 
 // ── 2. CENTRELINE PATHS ───────────────────────────────────────
 const f3 = v => (Math.round(v * 1000) / 1000).toString();
+// A point (mm).
 const P = (x, y) => ({ x, y });
+// Distance between two points (mm).
 const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 // Optimum mitre of a right-angle bend (Douville & James 1978): m = 52 + 65·e^(−1.35 W/h) %, of the corner diagonal.
 const optMitre = (W, h) => (52 + 65 * Math.exp(-1.35 * W / h)) / 100;
@@ -55,7 +57,9 @@ function polyPath(pts, corner, rb){
    right-angle corner has its outer point cut back along the diagonal by m·√2·W (m = optimum mitre fraction). */
 function polyOutline(pts, W, mitre){
   const n = pts.length, h = W / 2, L = [], R = [];
+  // Unit vector from a to b.
   const dir = (a, b) => { const l = dist(a, b); return { x: (b.x - a.x) / l, y: (b.y - a.y) / l }; };
+  // Left-hand normal of a unit vector.
   const nrm = u => ({ x: -u.y, y: u.x });
   for(let i = 0; i < n; i++){
     if(i === 0 || i === n - 1){ const u = i === 0 ? dir(pts[0], pts[1]) : dir(pts[n - 2], pts[n - 1]), q = nrm(u);
@@ -79,6 +83,7 @@ function polyOutline(pts, W, mitre){
    half-arcs (each under 180°) at 1 µm resolution: a single arc near 180° is ill-conditioned, its drawn length would
    follow the rounding of r. */
 const f6 = v => (Math.round(v * 1e6) / 1e6).toString();
+// An arc of radius r and angle phi from p0 to p1, with its centre and a sampled centreline.
 function arcPath(p0, p1, r, large, sw, phi){
   const arc = { p0, p1, r, large, sweep: sw, phi }, c = arcCentre(arc), t0 = Math.atan2(p0.y - c.y, p0.x - c.x), tm = t0 + (sw ? 1 : -1) * phi / 2;
   const m = P(c.x + r * Math.cos(tm), c.y + r * Math.sin(tm)), A = q => ' A' + f6(r) + ' ' + f6(r) + ' 0 0 ' + sw + ' ' + f6(q.x) + ' ' + f6(q.y);
@@ -114,6 +119,7 @@ function fitSection(kind, x0, y0, dx, len, sgn, W, opt, pitch, h){
   if(kind === 'mitred' || kind === 'meander'){
     const round = kind === 'meander' && opt.bend === 'round', lead = kind === 'mitred' ? opt.lead : pitch / 2;
     const N = kind === 'mitred' ? 1 : opt.turnsFit, step = kind === 'mitred' ? dx - 2 * opt.lead : pitch;
+    // Meander or mitred centreline for leg length A.
     const build = A => {
       const pts = [P(x0, y0)]; let x = x0 + lead;
       for(let t = 0; t < N; t++){
@@ -146,11 +152,15 @@ function fitSection(kind, x0, y0, dx, len, sgn, W, opt, pitch, h){
 /* A transform { x, y, q }: global = (x, y) + R(q)·local, R a quarter-turn clockwise on screen q times
    (q = 1: local +x points down). Elements keep their local geometry and carry their transform. */
 const TF0 = { x: 0, y: 0, q: 0 };
+// Rotate p by q quarter turns about the origin.
 function rotQ(p, q){ switch(((q % 4) + 4) % 4){ case 1: return P(-p.y, p.x); case 2: return P(-p.x, -p.y); case 3: return P(p.y, -p.x); default: return P(p.x, p.y); } }
+// Apply a placement transform { x, y, q } to a point.
 const applyTf = (tf, p) => { const r = rotQ(p, tf.q); return P(tf.x + r.x, tf.y + r.y); };
+// Compose two placement transforms (b inside a).
 const composeTf = (a, b) => { const o = applyTf(a, P(b.x, b.y)); return { x: o.x, y: o.y, q: (a.q + b.q) % 4 }; };
 // Re-place a geometry { els, res, labels } under the transform tf (composed with any it already has).
 function placeGeom(gm, tf){
+  // An element re-placed under tf.
   const re = x => Object.assign({}, x, { tf: composeTf(tf, x.tf || TF0) });
   return { els: gm.els.map(re), res: gm.res.map(re), labels: (gm.labels || []).map(re) };
 }
@@ -348,6 +358,7 @@ function layoutTree(g, design){
     if(!stages.has(nd.path)) stages.set(nd.path, st.kind === 'resY' ? stageResY(g, st, pfx) : stageTwoArm(g, st, pfx));
     const sg = stages.get(nd.path);
     const local = { x0: 0, x1: sg.xEnd, y0: -sg.half, y1: sg.half };
+    // Electrical length (rad) of arm k at f0.
     const thArm = k => st.kind === 'resY' ? 0 : st.arms[k].length * Math.PI / 2;
     // children boxes in their own frames (a dry run), then their offsets
     const dry = nd.children.map(c => measure(c));
@@ -358,6 +369,7 @@ function layoutTree(g, design){
       d0 = Math.max(sg.half + clr - dry[0].x0, sg.s / 2 + lead); d1 = Math.max(sg.half + clr - dry[1].x0, sg.s / 2 + lead);
     }
     const xv = sg.xEnd + (sg.stub != null ? sg.stub : lead), box = Object.assign({}, local);
+    // Grow the junction box by the corners of bx under the transform ctf.
     const grow = (bx, ctf) => { [P(bx.x0, bx.y0), P(bx.x1, bx.y0), P(bx.x0, bx.y1), P(bx.x1, bx.y1)].forEach(p => { const q = applyTf(ctf, p);
       box.x0 = Math.min(box.x0, q.x); box.x1 = Math.max(box.x1, q.x); box.y0 = Math.min(box.y0, q.y); box.y1 = Math.max(box.y1, q.y); }); };
     const g0 = placeGeom(sg, tf); els.push(...g0.els); res.push(...g0.res); labels.push(...g0.labels);
@@ -383,6 +395,7 @@ function layoutTree(g, design){
   };
   // measure: the box of a subtree in its own frame (a dry run, nothing kept; memoised per junction)
   const boxes = new Map();
+  // Box of a subtree in its own frame (memoised).
   const measure = nd => {
     if(boxes.has(nd.path)) return boxes.get(nd.path);
     const keep = [els.length, res.length, labels.length, leaves.length], b = place(nd, TF0, 0, delayRunH);
@@ -473,8 +486,10 @@ function resistorPoints(r){
   const m = P((r.a.x + r.b.x) / 2, (r.a.y + r.b.y) / 2), half = Math.max(fp.gap / 2 + fp.padL, L / 2), w = fp.padW / 2;
   return [[-half, -w], [-half, w], [half, -w], [half, w]].map(([s, t]) => applyTf(tf, P(m.x + u.x * s + n.x * t, m.y + u.y * s + n.y * t)));
 }
+// Bounding box (mm) of a layout: copper, resistors and connectors.
 function bboxOf(L){
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  // Extend the box to include point p.
   const pt = p => { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); };
   L.els.forEach(e => copperPoints(e).forEach(pt));
   (L.res || []).forEach(r => resistorPoints(r).forEach(pt));

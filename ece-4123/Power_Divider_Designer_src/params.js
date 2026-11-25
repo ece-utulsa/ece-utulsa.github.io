@@ -1,19 +1,23 @@
 /* Power Divider Designer — Parameters page: one table a student could build from (F6), the substrate block, totals,
    CSV export and a printable page. */
-function sheetRows(D){
-  const lg = Z => msFactory()(Z).lambdaG, rows = [];
-  const name = e => {
-    if(e.role === 'arm' || e.role === 'xfmr' || e.role === 'eq'){
-      const j = e.id.split('.')[0], where = j === 'x' ? '' : 'J' + (j.slice(1) || 'root') + ' ';
-      return where + ({ arm: 'arm', xfmr: 'transformer', eq: 'λ/4 line' }[e.role]) + ' ' + (e.arm + 1) + '·' + (e.k + 1);
-    }
-    if(e.role === 'stub') return 'output stub ' + (e.id.startsWith('sb') ? (e.id.slice(2, -1) || 'root') + '→' + (+e.id.slice(-1) + 1) : 'P' + (+e.id.slice(-1) + 2)) + (e.model ? '' : ' (not modelled)');
-    if(e.role === 'ic') return 'interconnect ' + (e.id.slice(2, -1) || 'root') + '→' + (+e.id.slice(-1) + 1);
-    if(e.role === 'out') return 'output line P' + (e.port + 2) + (e.delay > 1e-3 ? ' (delay ' + e.delay.toFixed(2) + ' mm)' : '');
-    return null;
-  };
+/* The name of a layout element on the Parameters sheet (also used by the Designer warnings), or null for an element
+   the sheet does not list. */
+function sheetName(e){
+  if(e.role === 'arm' || e.role === 'xfmr' || e.role === 'eq'){
+    const j = e.id.split('.')[0], where = j === 'x' ? '' : 'J' + (j.slice(1) || 'root') + ' ';
+    return where + ({ arm: 'arm', xfmr: 'transformer', eq: 'λ/4 line' }[e.role]) + ' ' + (e.arm + 1) + '·' + (e.k + 1);
+  }
+  if(e.role === 'stub') return 'output stub ' + (e.id.startsWith('sb') ? (e.id.slice(2, -1) || 'root') + '→' + (+e.id.slice(-1) + 1) : 'P' + (+e.id.slice(-1) + 2)) + (e.model ? '' : ' (not modelled)');
+  if(e.role === 'ic') return 'interconnect ' + (e.id.slice(2, -1) || 'root') + '→' + (+e.id.slice(-1) + 1);
+  if(e.role === 'out') return 'output line P' + (e.port + 2) + (e.delay > 1e-3 ? ' (delay ' + e.delay.toFixed(2) + ' mm)' : '');
+  return null;
+}
+// The rows of the build sheet; ms is one microstrip factory for the whole sheet (CQ-PDD-011).
+function sheetRows(D, ms){
+  // Guided wavelength (mm) of a line of impedance Z.
+  const lg = Z => ms(Z).lambdaG, rows = [];
   D.lay.els.forEach(e => {
-    const nm = name(e); if(!nm) return;
+    const nm = sheetName(e); if(!nm) return;
     const Z = e.Z || S.z0, th = 360 * e.path.len / lg(Z);
     rows.push({ id: e.id, el: nm, Z, W: e.W, L: e.path.len, th, shape: e.role === 'arm' || e.role === 'xfmr' || e.role === 'eq' ? shapeSpec(e) : e.role === 'stub' ? 'straight, at the arm width' : 'straight z₀ line' + (e.delay > 1e-3 ? ' + serpentine' : ''),
       res: '', warn: (e.warn || []).join('; ') });
@@ -26,11 +30,13 @@ function sheetRows(D){
 const SHEET_DP = { Z: 1, W: 3, L: 2, th: 1, fp: 2, trace: 1 };
 // Parameters page: build sheet, substrate and totals blocks, CSV and print buttons (DOM built with createElement).
 function drawParams(D){
-  const rows = sheetRows(D), m0 = msFactory()(S.z0), bb = D.lay.bbox, rb = D.ref.bbox, tt = D.lay.totals;
+  const ms = msFactory(), rows = sheetRows(D, ms), m0 = ms(S.z0), bb = D.lay.bbox, rb = D.ref.bbox, tt = D.lay.totals;
+  // A number to d decimals, or empty.
   const f = (v, d) => v == null ? '' : v.toFixed(d);
   const body = rows.map(r => ({ attrs: { 'data-id': r.id }, cls: r.warn ? 'warnrow' : null, cells: [{ text: r.el }, f(r.Z, SHEET_DP.Z), f(r.W, SHEET_DP.W), f(r.L, SHEET_DP.L), f(r.th, SHEET_DP.th),
     { cls: 'l', t: r.shape + (r.warn ? '<br><span class="bad">⚠ ' + r.warn + '</span>' : '') }, { text: r.res }] }));
-  const kvt = list => table('sheet', null, list.map(([k, v]) => ({ cells: [k, { text: v }] })));
+  // A key-value table (values wrap).
+  const kvt = list => table('sheet kv', null, list.map(([k, v]) => ({ cells: [k, { text: v }] })));
   const csv = el('button', { id: 'csvBtn', text: 'Export CSV', on: { click: () => downloadCsv(D, rows) } });
   const prn = el('button', { id: 'printBtn', text: 'Print', on: { click: () => { printLayoutCopy(); window.print(); } } });
   $('paramsBody').replaceChildren(
@@ -50,7 +56,9 @@ function drawParams(D){
     el('p', { class: 'hint' }, rich('Length is the centreline length; electrical length is 360° × length / λ<sub>g</sub> of that width at f₀. Junction bars, pads, launches, bends and coupling are drawn but not in the circuit model.')),
     el('div', { id: 'printLayout' }));
 }
+// One CSV cell, quoted when it holds a quote, comma or new line.
 function csvCell(v){ const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+// Download the build sheet as CSV.
 function downloadCsv(D, rows){
   const lines = [['Power Divider Designer ' + document.querySelector('meta[name=version]').content], [designLabel(D)],
     ['f0 (GHz)', S.f0 / 1e9], ['Z0 (ohm)', S.z0], ['er', S.er], ['h (mm)', S.h], ['model', MS_MODEL_NAME[S.msModel]], [],

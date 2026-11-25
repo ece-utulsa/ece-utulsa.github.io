@@ -6,8 +6,8 @@ const mth = s => `<span class="math">${s}</span>`;
 function wilkRow(M, taperKind){
   const d = synthesize({ topology: 'wilkinson', N: 2, ratioDB: 0, M, taper: taperKind || 'binomial', gm: 0.1, z0: 50 });
   const net = buildNetwork(d, { z0: 50, resOn: true, rMult: 1 }), sw = sweep(net, 0.05, 1.95, 361, 0), bw = bandwidths(sw, -15);
-  const s11 = bandwidthOf(sw.u, sw.u.map((u, k) => dB20(cabs(mget(sw.S[k], 0, 0)))), -20);
-  let worst = -Infinity; sw.u.forEach((u, k) => { if(s11 && u >= s11.lo && u <= s11.hi) [[1, 1], [2, 2], [1, 2]].forEach(([i, j]) => { worst = Math.max(worst, dB20(cabs(mget(sw.S[k], i, j)))); }); });
+  const s11 = bandwidthOf(sw.u, sw.u.map((u, k) => sdb(sw.S[k], 0, 0)), -20);
+  let worst = -Infinity; sw.u.forEach((u, k) => { if(s11 && u >= s11.lo && u <= s11.hi) [[1, 1], [2, 2], [1, 2]].forEach(([i, j]) => { worst = Math.max(worst, sdb(sw.S[k], i, j)); }); });
   return { M, R: d.stage.res, use: bw.usable.bw ? bw.usable.bw.frac * 100 : 0, s11bw: bw.rows[0].bw ? bw.rows[0].bw.frac * 100 : 0, band20: s11 ? s11.frac * 100 : 0, worst };
 }
 const BEYOND = 'Beyond the lecture notes';             // tag on content the course decks do not cover (ruling PDD-1)
@@ -23,6 +23,7 @@ function docBlocks(blocks){
   });
   return art;
 }
+// Theory page, with the tables computed by the engine when the page is built.
 function buildTheory(){
   const rows = [1, 2, 3, 4].map(M => wilkRow(M));
   const rtab = rows.map(r => [String(r.M), r.R.map(x => x.toFixed(1)).join(' / '), r.band20.toFixed(1) + ' %', r.M === 1 ? '—' : fmt(r.worst, 1) + ' dB', r.s11bw.toFixed(1) + ' %', r.use.toFixed(1) + ' %']);
@@ -43,7 +44,7 @@ function buildTheory(){
   ['p', 'Drive ports 2 and 3 of the equal 2-way together (even mode): the two output nodes sit at the same voltage, no current flows in ' + mth('<i>R</i>') + ', and the plane of symmetry is an open circuit. Each half is a λ/4 line of ' + mth('<i>Z</i>') + ' between port 2 (' + mth('<i>Z</i><sub>0</sub>') + ') and the input seen as ' + mth('2<i>Z</i><sub>0</sub>') + ': it matches when ' + mth('<i>Z</i> = √2 <i>Z</i><sub>0</sub> = 70.7 Ω') + '.'],
   ['p', 'Drive them in antiphase (odd mode): the plane of symmetry is a virtual ground, so the λ/4 line is shorted at the input end and looks open at port 2; the half resistor ' + mth('<i>R</i>/2') + ' to ground is all port 2 sees, and it matches when ' + mth('<i>R</i> = 2<i>Z</i><sub>0</sub> = 100 Ω') + '.'],
   ['eq', mth('<i>S</i><sub>21</sub> = <i>S</i><sub>31</sub> = −j/√2 &nbsp;(−3.01 dB ∠−90°), &nbsp; <i>S</i><sub>11</sub> = <i>S</i><sub>22</sub> = <i>S</i><sub>33</sub> = <i>S</i><sub>23</sub> = 0')],
-  ['p', 'For N outputs the arms are ' + mth('√<i>N</i> <i>Z</i><sub>0</sub>') + ' and a star of N resistors ' + mth('<i>R</i> = <i>Z</i><sub>0</sub>') + ' meets at a floating centre — not planar for N > 2 (air bridges).'],
+  ['p', 'For N outputs the arms are ' + mth('√<i>N</i> <i>Z</i><sub>0</sub>') + ' and a star of N resistors ' + mth('<i>R</i> = <i>Z</i><sub>0</sub>') + ' meets at a floating centre — not planar for N > 2 (air bridges).', true],
 
   ['h2', '3 · Unequal split'],
   ['p', 'Pozar §7.3 writes the split as ' + mth('<i>K</i><sup>2</sup> = <i>P</i><sub>3</sub>/<i>P</i><sub>2</sub>') + '. The ratio control reads P2 : P3, so ' + mth('<i>K</i><sup>2</sup>') + ' = 1/(P2 : P3): the control\'s 2:1 is ' + mth('<i>K</i><sup>2</sup> = 1/2') + ', and its 1:2 is ' + mth('<i>K</i><sup>2</sup> = 2') + '. The arms end, at the resistor plane, on ' + mth('<i>R</i><sub>2</sub> = <i>Z</i><sub>0</sub><i>K</i>') + ' (port 2) and ' + mth('<i>R</i><sub>3</sub> = <i>Z</i><sub>0</sub>/<i>K</i>') + ' (port 3):'],
@@ -80,14 +81,14 @@ function buildTheory(){
   ['eq', mth('ε<sub>eff</sub> = (ε<sub>r</sub> + 1)/2 + (ε<sub>r</sub> − 1)/2 · [(1 + 12<i>h</i>/<i>W</i>)<sup>−1/2</sup> + 0.04(1 − <i>W</i>/<i>h</i>)<sup>2</sup>] &nbsp; for <i>W</i>/<i>h</i> ≤ 1; &nbsp; without the 0.04 term for <i>W</i>/<i>h</i> ≥ 1')],
   ['p', 'and, as the check L09 asks for, the characteristic impedance of the synthesised strip by the L07 formula (shown under the substrate controls and on the Parameters page). No dispersion, zero strip thickness. Each section\'s length is ' + mth('λ<sub>g</sub>/4 = <i>c</i>/(4<i>f</i><sub>0</sub>√ε<sub>eff</sub>)') + ' for its own width, so wider (lower-impedance) lines are slightly shorter.'],
   ['p', '<b>Hammerstad–Jensen + Kirschning–Jansen</b> (the second model): Hammerstad–Jensen (1980) gives ' + mth('<i>Z</i>(<i>W</i>/<i>h</i>)') + ' and ' + mth('ε<sub>eff</sub>') + ' to better than 0.2 %; the width is found by bisection and ' + mth('ε<sub>eff</sub>') + ' is raised to its value at f₀ by the Kirschning–Jansen (1982) dispersion model.', true],
-  ['p', '<b>Where quasi-TEM stops.</b> The quasi-TEM picture weakens as frequency rises (L05). The tool warns, beside the outputs, when f₀ is above half the first TM surface-wave onset ' + mth('<i>f</i><sub>T</sub> = <i>c</i> tan<sup>−1</sup>ε<sub>r</sub> / (√2 π <i>h</i> √(ε<sub>r</sub> − 1))') + ' (about 31 GHz for 1.6 mm FR-4), or when a λg/4 section is shorter than its own width or the substrate height. The numbers are still computed and shown; they are no longer a real board\'s.', true],
+  ['p', '<b>Where quasi-TEM stops.</b> The quasi-TEM picture weakens as frequency rises (L05). The tool warns, beside the outputs, when f₀ is above half of ' + mth('<i>f</i><sub>T</sub> = <i>c</i> tan<sup>−1</sup>ε<sub>r</sub> / (√2 π <i>h</i> √(ε<sub>r</sub> − 1))') + ', the frequency at which the strip couples strongly to the lowest TM surface wave (about 31 GHz for 1.6 mm FR-4; that TM0 wave has no cutoff and exists at every frequency), or when a λg/4 section is shorter than its own width or the substrate height. The numbers are still computed and shown; they are no longer a real board\'s.', true],
 
   ['h2', '9 · Folding the λ/4 lines', true],
   ['p', 'A λ/4 line can be bent into an arc (the two arms of a 2-way form the classic ring), a mitred bracket or a meander. The electrical length is held by keeping the <b>centreline</b> length at λ<sub>g</sub>/4 (a mitred corner counts to its sharp corner, a round corner along its arc). The footprint readout is the copper bounding box; "saved" compares it with the straight layout at the same port pitch.'],
   ['p', '<b>Limits.</b> Arcs need a radius of at least 3<i>W</i>; meander legs closer than 3<i>h</i> couple — coupling speeds the odd mode and shortens the line electrically; bends add capacitance (an optimum mitre, ' + mth('<i>m</i> = 52 + 65 e<sup>−1.35<i>W</i>/<i>h</i></sup>') + ' % of the diagonal, Douville & James 1978, cancels most of it). <b>None of these is in the circuit model</b>: the curves are those of ideal λ/4 lines, and the warnings show where the drawing would detune a real board. The junction bar, the width steps and the T-junction parasitics are drawn but not modelled either; no Kirschning–Jansen bend or T-junction correction is applied in this version.'],
   ['p', '<b>Outputs and connectors.</b> The two outputs of a 2-way stage leave the output node as separate z₀ lines turning straight outward; where the last section is an arc (or a tight meander or bracket) each arm first continues for a short stub at its own width. In a tree these stubs are in the model (at the arm\'s impedance) and cost a little match; on a single divider they are drawn only. The SMA connectors (edge launch at the board edge, vertical inside an H-tree) are drawn, not modelled: the ports are referred to the trace ends.'],
 
-  ['h2', '10 · How the curves are computed'],
+  ['h2', '10 · How the curves are computed', true],
   ['p', 'Each line is a lossy two-port, ' + mth('<i>Y</i><sub>11</sub> = coth(γℓ)/<i>Z</i>') + ' and ' + mth('<i>Y</i><sub>12</sub> = −1/(<i>Z</i> sinh γℓ)') + ' with ' + mth('γℓ = αℓ + jβℓ') + ', stamped into a nodal admittance matrix with the resistors; the internal nodes are eliminated (Kron reduction) and the port matrix is converted to ' + mth('<b>S</b> = (<i>y</i><sub>0</sub><b>I</b> − <b>Y</b>)(<i>y</i><sub>0</sub><b>I</b> + <b>Y</b>)<sup>−1</sup>') + '. With loads, the node voltages are solved and every power is computed from its own element: reflected, delivered to each load, absorbed in each resistor and lost in each line. Their sum is the energy-balance check (100 % ± 0.1 %).'],
   ['refs', 'References: D. M. Pozar, <i>Microwave Engineering</i>, 4th ed., Wiley, 2012. E. J. Wilkinson, "An N-way hybrid power divider," IRE Trans. MTT 8(1), 1960. S. B. Cohn, "A class of broadband three-port TEM-mode hybrids," IEEE Trans. MTT 16(2), 1968. E. Hammerstad, Ø. Jensen, IEEE MTT-S Digest, 1980. M. Kirschning, R. H. Jansen, Electron. Lett. 18(6), 1982. R. J. P. Douville, D. S. James, IEEE Trans. MTT 26(3), 1978. "Design forms of branching lines for microstrip power dividers" (ResearchGate 224140169). Marki Microwave, "How to make an N-way power splitter". Course lectures L05–L09 (microstrip) and the power-divider decks.'],
   ]));
@@ -98,6 +99,7 @@ function experiments(){
   const bwText = rows.map(r => r.M + ': ' + r.use.toFixed(0) + ' %').join(', ');
   const base = { loads: [], tree: Object.assign(freshState().tree), shapes: new Array(MAX_SEC).fill('straight'), compare: false, overlay: false, resOn: true, rMult: 1, lossOn: false };
   const BEYOND_EXP = ['02', '03', '07', '10', '11', '12', '13'];  // experiments past the decks (ruling PDD-1)
+  // An experiment card: tag, title, aim, steps and the setup it loads.
   const X = (tag, title, aim, steps, cfg) => ({ tag, title, aim, steps, beyond: BEYOND_EXP.includes(tag), cfg: Object.assign({}, base, cfg) });
   return [
     X('01', 'The 3 dB split', 'The textbook equal Wilkinson.', 'Wilkinson, N = 2, one section. S21 = S31 = −3.01 dB ∠−90°; on the Performance page S11, S22, S33 and S23 dive off the plot at f₀. Each output carries 0.500 W of the 1 W input.', { topology: 'wilkinson', N: 2, M: 1, ratioDB: 0 }),
