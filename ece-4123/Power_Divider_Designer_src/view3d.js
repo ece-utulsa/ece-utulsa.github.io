@@ -7,6 +7,7 @@
 // ── SMA (edge launch) ─────────────────────────────────────────
 // Dimensions (mm) in the port's own frame: +x out of the board, the centre pin lying on the trace.
 const SMA = { pinL: 3.0, pinW: 1.27, legL: 4.0, legW: 1.0, legOff: 2.54, flangeT: 1.6, flangeW: 9.5, barrelL: 8.5, barrelD: 6.35, label: 'SMA (edge launch)' };
+// Offset (mm) of the SMA ground legs from the centre of a trace of width W0.
 const smaLegOffset = W0 => Math.max(SMA.legOff, W0 / 2 + 0.6 + SMA.legW / 2);
 // A port at the copper's outer edge, facing out, takes an edge-launch SMA; any other (inside an H-tree) a vertical one.
 function portOnEdge(L, p){ const bb = L.bbox, d = p.dir % 4, e = 1e-6;
@@ -17,6 +18,7 @@ const VSMA = { pad: 6.35, hole: 1.3, body: 6.35, height: 8.5 };   // vertical (t
 const V3 = { az: -35, el: 38, zoom: 1, zx: 5, drag: null, scene: null, raf: 0 };
 // Sample an element's copper outline in local coordinates: its polygon, or a band of ±W/2 around its sampled centreline.
 let _probe = null;
+// Copper outline of a layout element in its local coordinates.
 function bandOutline(e){
   if(e.outline) return e.outline;
   if(!_probe){ _probe = document.createElementNS(NS, 'path'); const s = svgEl('svg', { class: 'testsvg' }); s.append(_probe); document.body.append(s); }
@@ -39,6 +41,7 @@ function buildScene(D){
     if(sides !== false) for(let i = 0; i < g.length; i++){ const a = g[i], b = g[(i + 1) % g.length]; if(Math.hypot(b.x - a.x, b.y - a.y) < 1e-6) continue;
       faces.push({ pts: [[a.x, a.y, z0], [b.x, b.y, z0], [b.x, b.y, z1], [a.x, a.y, z1]], col, layer }); }
   };
+  // A rectangle as four points.
   const rect = (x0, y0, x1, y1) => [P(x0, y0), P(x1, y0), P(x1, y1), P(x0, y1)];
   // board: the copper box plus a margin, cut flush at the ports
   const bb = L.bbox, m = Math.max(3, 0.04 * Math.max(bb.w, bb.h)), edge = boardRect(L, m);
@@ -50,6 +53,7 @@ function buildScene(D){
   L.res.forEach(r => {
     const fp = r.fp, Lr = dist(r.a, r.b), ang = Math.atan2(r.b.y - r.a.y, r.b.x - r.a.x), mm = P((r.a.x + r.b.x) / 2, (r.a.y + r.b.y) / 2);
     const tfr = composeTf(r.tf || TF0, { x: 0, y: 0, q: 0 }), at = (u, v) => { const c = Math.cos(ang), s = Math.sin(ang); return P(mm.x + u * c - v * s, mm.y + u * s + v * c); };
+    // A rectangle in the pad frame of a resistor.
     const box = (u0, v0, u1, v1) => [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)], pe = fp.gap / 2 + fp.padL, hb = fp.bodyW * 0.7;
     prism(box(-pe, -fp.padW / 2, -fp.gap / 2, fp.padW / 2), tfr, 0, t, COL.pad, 1);
     prism(box(fp.gap / 2, -fp.padW / 2, pe, fp.padW / 2), tfr, 0, t, COL.pad, 1);
@@ -77,8 +81,11 @@ function buildScene(D){
       prism(rect(-SMA.legL, v - SMA.legW / 2, 0, v + SMA.legW / 2), tf, -h - 0.8, -h, COL.gold, 2); });
     // flange: a block standing on the board edge
     const fw = SMA.flangeW / 2, fz0 = zc - fw, fz1 = zc + fw, fx0 = 0, fx1 = SMA.flangeT;
+    // Add a box (x0..x1, y0..y1, z0..z1) of colour col to the scene, under the transform tf.
     const slab = (x0, x1, y0, y1, z0, z1, col) => { const c = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => applyTf(tf, P(x, y)));
+      // Add one face of the box.
       const q = (a, b, cc, d) => faces.push({ pts: [a, b, cc, d], col, layer: 2 });
+      // A point at height z.
       const v = (pp, z) => [pp.x, pp.y, z];
       q(v(c[0], z1), v(c[1], z1), v(c[2], z1), v(c[3], z1)); q(v(c[3], z0), v(c[2], z0), v(c[1], z0), v(c[0], z0));
       for(let i = 0; i < 4; i++){ const a = c[i], b = c[(i + 1) % 4]; q(v(a, z0), v(b, z0), v(b, z1), v(a, z1)); } };
@@ -106,6 +113,7 @@ function boardRect(L, m){ // edges at edge-launch ports are flush
     if(d === 1 && p.at.y >= bb.y1 - 1e-6) r.y1 = bb.y1; if(d === 3 && p.at.y <= bb.y0 + 1e-6) r.y0 = bb.y0; });
   return r;
 }
+// Paint the 3D scene once (requested through requestAnimationFrame).
 function render3d(){
   V3.raf = 0;
   const cv = $('view3d'), sc = V3.scene; if(!cv || !sc || cv.clientWidth === 0) return;
@@ -117,11 +125,14 @@ function render3d(){
   // camera: orbit about the board centre; screen y down, world y down in the plan (as in 2D), z up
   const az = V3.az * Math.PI / 180, elev = V3.el * Math.PI / 180, ca = Math.cos(az), sa = Math.sin(az), ce = Math.cos(elev), se = Math.sin(elev);
   const dist0 = sc.span * 1.6 / V3.zoom, f = Math.min(W * 0.62, H) * 1.45, [ox, oy, oz] = sc.centre;
+  // A scene point in camera coordinates.
   const view = ([x, y, z]) => { const X = x - ox, Y = y - oy, Z = z - oz;
     const x1 = X * ca - Y * sa, y1 = X * sa + Y * ca;                // turn about the vertical
     const yv = y1 * se - Z * ce, depth = y1 * ce + Z * se;             // tilt: elevation from the board plane
     return [x1, yv, dist0 - depth]; };
+  // Project a camera-space point to the canvas.
   const proj = v => [W / 2 + f * v[0] / v[2], H / 2 + f * v[1] / v[2]];
+  // Unit vector towards the light.
   const light = (() => { const l = [0.35, -0.45, 0.82], n = Math.hypot(...l); return l.map(x => x / n); })();
   const byLayer = [[], [], []];
   for(const fc of sc.faces){
@@ -145,8 +156,11 @@ function render3d(){
   }
   $('v3info').textContent = `azimuth ${Math.round(V3.az)}°, elevation ${Math.round(V3.el)}° · substrate to scale (h = ${S.h} mm) · copper and parts ×${V3.zx} in height`;
 }
+// Request one 3D repaint on the next frame.
 const req3d = () => { if(!V3.raf) V3.raf = requestAnimationFrame(render3d); };
+// Show the 3D view of the design D.
 function show3d(D){ V3.scene = buildScene(D); $('layoutInfo').textContent = footprintText(D); req3d(); }
+// Orbit, zoom and reset controls of the 3D view.
 function wire3d(){
   const cv = $('view3d');
   cv.addEventListener('pointerdown', e => { V3.drag = { x: e.clientX, y: e.clientY, az: V3.az, el: V3.el }; cv.setPointerCapture(e.pointerId); });

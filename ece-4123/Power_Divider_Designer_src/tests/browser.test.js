@@ -1,12 +1,12 @@
 /* Power Divider Designer — browser tests (Playwright, Chromium) of the built page: every page renders without console
    errors and without a network request; the in-page Tests page passes in full (acceptance tests, raster footprint,
    layout scale, timing); a seeded random walk over the Designer's controls raises no error.
-   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/Power_Divider_Designer_v2.0.0.html]
+   Run:  NODE_PATH=$(npm root -g) node tests/browser.test.js [path/to/Power_Divider_Designer_v2.0.2.html]
    Set CHROMIUM=/path/to/chromium to use a particular browser binary. */
 'use strict';
 const path = require('path');
 const { chromium } = require('playwright');
-const FILE = path.resolve(process.argv.slice(2).find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'Power_Divider_Designer_v2.0.0.html'));
+const FILE = path.resolve(process.argv.slice(2).find(a => !a.startsWith('--')) || path.join(__dirname, '..', '..', 'Power_Divider_Designer_v2.0.2.html'));
 let pass = 0, fail = 0;
 function check(name, ok, detail){ if(ok){ pass++; console.log('  ok   ' + name); } else { fail++; console.log('  FAIL ' + name + (detail !== undefined ? '  — ' + JSON.stringify(detail) : '')); } }
 (async () => {
