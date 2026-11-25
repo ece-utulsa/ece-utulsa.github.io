@@ -2563,7 +2563,10 @@ function limitNote(el) { const full = el.value.length >= SHEET_MAX_CHARS; $('she
 /* every field takes at most SHEET_MAX_CHARS, the same limit the loader keeps, so an accepted answer always reloads */
 sheetFields().forEach(el => {
   if (el.tagName === 'TEXTAREA' || el.type === 'text') el.maxLength = SHEET_MAX_CHARS;
-  el.addEventListener('input', () => { SHEET[el.dataset.k] = el.value; limitNote(el); saveSheet(); });
+  el.addEventListener('input', () => {
+    if (el.value.length > SHEET_MAX_CHARS) el.value = el.value.slice(0, SHEET_MAX_CHARS);   // text set by other means is cut to the limit too
+    SHEET[el.dataset.k] = el.value; limitNote(el); saveSheet();
+  });
   el.addEventListener('focus', () => limitNote(el));
 });
 $('clearSheet').onclick = () => {
