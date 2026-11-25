@@ -1,0 +1,1 @@
+v1.6.7 — fix pass on the v1.6.6 gate findings (Claude Code, briefing 2026-11-23). WORK IN PROGRESS
