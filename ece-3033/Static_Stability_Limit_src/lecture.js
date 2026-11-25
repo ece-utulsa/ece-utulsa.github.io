@@ -177,13 +177,13 @@ function arc(g, cx, cy, r, a0, a1, col) { g.append(sv('path', {d: arcPath(cx, cy
 
 /* ═══ L4. FIGURES ═══ */
 // Layout in figure user units (viewBox FIG_W wide): x from the left edge, y down from the top.
-const ONE = {y: 70, pmX: 30, pmW: 96, pmH: 48, gX: 250, gR: 34, brkX: 420, brkGap: 36, busX: 560, busH: 34};   // slide 1 one-line: wire height, prime-mover box, G3 circle, breaker, bus
-const PD1 = {x0: 62, x1: 402, y0: 400, y1: 178, pTop: 42, pStep: 10, dStep: 30, keyY: 146, barX: [470, 548], barW: 52};   // slide 1 curve box, power axis top (MW), legend row, bars
+const ONE = {y: 58, pmX: 30, pmW: 96, pmH: 48, gX: 250, gR: 34, brkX: 420, brkGap: 36, busX: 560, busH: 34};   // slide 1 one-line: wire height, prime-mover box, G3 circle, breaker, bus
+const PD1 = {x0: 62, x1: 402, y0: 400, y1: 190, pTop: 42, pStep: 10, dStep: 30, keyY: 132, keyRow: 24, keyX2: 210, keyX3: 270, barX: [470, 548], barW: 52};   // slide 1 curve box, power axis top (MW), legend row, bars
 const FLOW = {y: 190, boxH: 80, pm: [20, 100], rotor: [250, 120], arm: [470, 100], busX: 606, lossX: [266, 310, 354], lossTextX: 310, copperX: 520, effY: 410};   // slide 2
 const PRF = {ox: 70, oy: 360, k: 40, iLen: 150, thR: 60, dR: 110, tipR: 36, noteY: 60};   // slide 3: origin, px per kV, I_A arrow length, arc radii
 const ARC4 = {ox: 36, oy: 330, k: 23};                                    // slide 4 phasor: origin and px per kV
 const PD4 = {x0: 392, x1: 620, y0: 330, y1: 110, pTop: 36, pStep: 10, dStep: 45, liveY: 404};   // slide 4 curve box
-const FLD = {ox: 50, oy: 360, k: 34, iK: 0.13, unityY: 92, sideY: 114, lineY: 137};   // slide 5: origin, px per kV, px per A of I_A, label rows
+const FLD = {ox: 50, oy: 346, k: 34, iK: 0.13, unityY: 68, sideY: 90, lineY: 124};   // slide 5: origin, px per kV, px per A of I_A, label rows
 const PD6 = {h: 296, x0: 70, x1: 600, y0: 250, y1: 40, pTop: 42, pStep: 10, dStep: 30};   // slide 6 curve
 const W_FINE = 1.5, W_LINE = 2, W_CURVE = 3, W_PHASOR = 3.5, W_SHAFT = 6, W_FLOW = 10;   // stroke widths
 const DASH = '6 4', DASH_GHOST = '7 5', DASH_FINE = '4 4';                // dash patterns
@@ -193,9 +193,9 @@ const GHOST = 0.55;                                                       // opa
 function pdAxes(fig, B, pName) {
   const xd = d => B.x0 + (B.x1 - B.x0) * d / 180, yp = p => B.y0 - (B.y0 - B.y1) * p / B.pTop;
   for (let p = 0; p <= B.pTop; p += B.pStep) fig.append(sv('line', {x1: B.x0, x2: B.x1, y1: yp(p), y2: yp(p), stroke: C.grid}), stext(B.x0 - 8, yp(p) + 5, String(p), {anchor: 'end', size: FS_SMALL, fill: C.mute}));
-  for (let d = 0; d <= 180; d += B.dStep) fig.append(stext(xd(d), B.y0 + 18, d + '°', {anchor: 'middle', size: FS_SMALL, fill: C.mute}));
+  for (let d = 0; d <= 180; d += B.dStep) fig.append(stext(xd(d), B.y0 + 21, d + '°', {anchor: 'middle', size: FS_SMALL, fill: C.mute}));
   fig.append(sv('path', {d: 'M' + B.x0 + ',' + (B.y1 - 6) + 'V' + B.y0 + 'H' + (B.x1 + 8), fill: 'none', stroke: C.ink, 'stroke-width': W_FINE}),
-    stext(B.x0, B.y1 - 12, pName, {size: FS_SMALL, fill: C.mute}), stext(B.x1 + 8, B.y0 + 36, 'torque angle δ', {anchor: 'end', size: FS_SMALL, fill: C.mute}));
+    stext(B.x0, B.y1 - 8, pName, {size: FS_SMALL, fill: C.mute}), stext(B.x1 + 8, B.y0 + 40, 'torque angle δ', {anchor: 'end', size: FS_SMALL, fill: C.mute}));
   return {xd, yp};
 }
 // Path of P = pm·sin δ from 0° to 180° on the axes ax.
@@ -212,7 +212,7 @@ function figLimit() {
   const fig = figReset(FIG_H, 'G3 on the infinite bus: input ' + f(T.pin, 1) + ' MW, output ' + f(pout, 1) + ' MW, ' + (T.trip ? 'breaker open after a pole slip' : 'torque angle ' + f(dd, T.slip ? 0 : 1) + ' degrees'));
   const y = W.y, gL = W.gX - W.gR, gRt = W.gX + W.gR, wire = (x1, x2) => sv('line', {x1, x2, y1: y, y2: y, stroke: C.ink, 'stroke-width': W_FINE});
   fig.append(sv('rect', {x: W.pmX, y: y - W.pmH / 2, width: W.pmW, height: W.pmH, rx: 6, fill: C.box, stroke: C.ink, 'stroke-width': W_FINE}),
-    stext(W.pmX + W.pmW / 2, y - 3, 'Prime', {anchor: 'middle'}), stext(W.pmX + W.pmW / 2, y + 15, 'mover', {anchor: 'middle'}),
+    stext(W.pmX + W.pmW / 2, y - 5, 'Prime', {anchor: 'middle'}), stext(W.pmX + W.pmW / 2, y + 16, 'mover', {anchor: 'middle'}),
     sv('line', {x1: W.pmX + W.pmW, x2: gL, y1: y, y2: y, stroke: C.ink, 'stroke-width': W_SHAFT}),
     sv('circle', {cx: W.gX, cy: y, r: W.gR, fill: C.white, stroke: C.ink, 'stroke-width': W_LINE + 0.5}),
     sv('line', {x1: W.gX, y1: y - W.gR + 4, x2: W.gX, y2: y - W.gR - 6, stroke: C.mute, 'stroke-width': W_FINE}),
@@ -221,7 +221,7 @@ function figLimit() {
     stext(gRt + 8, y + W.gR + 4, T.trip ? '' : 'δ = ' + f(dd, T.slip ? 0 : 1) + '°', {fill: C.ea, weight: 700}),
     wire(gRt, W.brkX), sv('line', {x1: W.brkX, y1: y, x2: W.brkX + W.brkGap - (T.trip ? 8 : 0), y2: T.trip ? y - 22 : y, stroke: T.trip ? C.vphi : C.ink, 'stroke-width': 3}),
     wire(W.brkX + W.brkGap, W.busX), sv('line', {x1: W.busX, x2: W.busX, y1: y - W.busH, y2: y + W.busH, stroke: C.ink, 'stroke-width': 4}),
-    stext(W.busX + 8, y - 2, 'infinite', {size: FS_SMALL, fill: C.mute}), stext(W.busX + 8, y + 15, 'bus', {size: FS_SMALL, fill: C.mute}),
+    stext(W.busX + 8, y - 5, 'infinite', {size: FS_SMALL, fill: C.mute}), stext(W.busX + 8, y + 16, 'bus', {size: FS_SMALL, fill: C.mute}),
     stext(W.brkX + W.brkGap / 2, y + 24, T.trip ? 'breaker OPEN' : 'breaker', {anchor: 'middle', size: FS_SMALL, fill: T.trip ? C.vphi : C.mute, weight: T.trip ? 700 : 400}),
     stext((W.pmX + gL) / 2, y - 38, 'P_{in} ' + f(T.pin, 1) + ' MW →', {anchor: 'middle', fill: C.amber, weight: 700}),
     stext((gRt + W.brkX) / 2, y - 14, 'P_{out} ' + f(pout, 1) + ' MW →', {anchor: 'middle', fill: C.ea, weight: 700}));
@@ -229,26 +229,28 @@ function figLimit() {
   if (i === 5 && !T.trip) { pdBand(fig, {xd: a => B.x0 + (B.x1 - B.x0) * a / 180}, B); }
   const ax = pdAxes(fig, B, 'P_{out} (MW)'), yIn = ax.yp(T.pin);
   if (i === 5 && !T.trip) fig.append(stext(ax.xd((BAND_LO + BAND_HI) / 2), B.y0 - 6, 'normal', {anchor: 'middle', size: FS_SMALL, fill: C.teal}));
+  const row2 = B.keyY + B.keyRow;                                        // second legend row: the 8.00 A curve and the margin (line 6)
   if (i === 5) fig.append(sv('path', {d: pdPath(ax, pMaxAt(IF_HIGH)), fill: 'none', stroke: C.ea, 'stroke-width': W_LINE, 'stroke-dasharray': DASH_GHOST, opacity: GHOST}),
-    sv('line', {x1: B.x0 + 150, x2: B.x0 + 176, y1: B.keyY - 5, y2: B.keyY - 5, stroke: C.ea, 'stroke-width': W_LINE, 'stroke-dasharray': DASH_GHOST, opacity: GHOST}),
-    stext(B.x0 + 182, B.keyY, f(IF_HIGH, 2) + ' A: P_{max} ' + f(pMaxAt(IF_HIGH), 1) + ' MW', {size: FS_SMALL, fill: C.mute}));
+    sv('line', {x1: B.x0, x2: B.x0 + 26, y1: row2 - 5, y2: row2 - 5, stroke: C.ea, 'stroke-width': W_LINE, 'stroke-dasharray': DASH_GHOST, opacity: GHOST}),
+    stext(B.x0 + 32, row2, f(IF_HIGH, 2) + ' A: P_{max} ' + f(pMaxAt(IF_HIGH), 1) + ' MW', {size: FS_SMALL, fill: C.mute}));
   fig.append(sv('path', {d: pdPath(ax, pm), fill: 'none', stroke: C.ea, 'stroke-width': W_CURVE}),
     sv('line', {x1: B.x0, x2: B.x0 + 26, y1: B.keyY - 5, y2: B.keyY - 5, stroke: C.ea, 'stroke-width': W_CURVE}), stext(B.x0 + 32, B.keyY, 'I_F = ' + f(IF_FIX, 2) + ' A', {size: FS_SMALL, fill: C.mute}),
     sv('line', {x1: B.x0, x2: B.x1, y1: yIn, y2: yIn, stroke: C.amber, 'stroke-width': W_LINE, 'stroke-dasharray': DASH}),
-    stext(B.x1 + 6, yIn + 5, 'P_{in}', {size: FS_SMALL, fill: C.amber, weight: 700}));
+    stext(B.x1 + 14, yIn - 5, 'P_{in}', {size: FS_SMALL, fill: C.amber, weight: 700}));
   if (i >= 2) fig.append(sv('line', {x1: ax.xd(90), x2: ax.xd(90), y1: ax.yp(0), y2: ax.yp(pm), stroke: C.amber, 'stroke-width': W_FINE, 'stroke-dasharray': DASH_FINE}),
-    stext(ax.xd(90) + 8, ax.yp(pm) - 10, 'P_{max} = ' + f(pm, 1) + ' MW', {fill: C.amber, weight: 700}));
+    stext(B.keyX2, B.keyY, 'P_{max} = ' + f(pm, 1) + ' MW at 90°', {fill: C.amber, weight: 700}));
   if (i === 5 && !T.trip) { const x = ax.xd(d);
     fig.append(sv('line', {x1: x, x2: x, y1: ax.yp(pout) - 9, y2: ax.yp(pm), stroke: C.teal, 'stroke-width': W_CURVE - 0.5}),
-      stext(x + 8, (ax.yp(pout) + ax.yp(pm)) / 2, 'margin ' + f(pm - pout, 1) + ' MW', {size: FS_SMALL, fill: C.teal, weight: 700})); }
+      sv('line', {x1: B.keyX3, x2: B.keyX3 + 20, y1: row2 - 5, y2: row2 - 5, stroke: C.teal, 'stroke-width': W_CURVE - 0.5}),
+      stext(B.keyX3 + 28, row2, 'margin ' + f(pm - pout, 1) + ' MW', {size: FS_SMALL, fill: C.teal, weight: 700})); }
   if (!T.trip && dd <= 180) fig.append(sv('circle', {cx: ax.xd(dd), cy: ax.yp(Math.max(0, pm * Math.sin(dd * RAD))), r: DOT_R, fill: C.ea, stroke: C.white, 'stroke-width': W_LINE}));
   if (T.trip || T.slip) fig.append(stext((B.x0 + B.x1) / 2 + 60, ax.yp(38), T.trip ? 'Pole slip · breaker trip' : 'δ running away', {anchor: 'middle', fill: C.vphi, weight: 700}));
   // bars
   const [bi, bo] = B.barX, hi = ax.yp(Math.min(T.pin, B.pTop)), ho = ax.yp(pout);
-  fig.append(sv('line', {x1: bi - 14, x2: bo + B.barW + 14, y1: B.y0, y2: B.y0, stroke: C.ink, 'stroke-width': W_FINE}), stext(bi - 10, B.y1 - 12, 'Power (MW)', {size: FS_SMALL, fill: C.mute}),
+  fig.append(sv('line', {x1: bi - 14, x2: bo + B.barW + 14, y1: B.y0, y2: B.y0, stroke: C.ink, 'stroke-width': W_FINE}), stext(bi - 10, B.y1 - 10, 'Power (MW)', {size: FS_SMALL, fill: C.mute}),
     sv('rect', {x: bi, y: hi, width: B.barW, height: B.y0 - hi, fill: C.amber}), sv('rect', {x: bo, y: ho, width: B.barW, height: B.y0 - ho, fill: C.ea}),
     stext(bi + B.barW / 2, hi - 6, f(T.pin, 1), {anchor: 'middle', weight: 700}), stext(bo + B.barW / 2, ho - 6, f(pout, 1), {anchor: 'middle', weight: 700}),
-    stext(bi + B.barW / 2, B.y0 + 18, 'P_{in}', {anchor: 'middle'}), stext(bo + B.barW / 2, B.y0 + 18, 'P_{out}', {anchor: 'middle'}));
+    stext(bi + B.barW / 2, B.y0 + 21, 'P_{in}', {anchor: 'middle'}), stext(bo + B.barW / 2, B.y0 + 21, 'P_{out}', {anchor: 'middle'}));
   return [f(T.pin, 1) + ' MW', f(IF_FIX, 2) + ' A (fixed)', f(eAt(IF_FIX), 2) + ' kV', T.trip ? '—' : T.slip ? f(dd, 0) + '° ↑' : f(d, 1) + '°', f(pout, 1) + ' MW', f(pm, 1) + ' MW', T.trip ? '—' : f(pm - pout, 1) + ' MW'];
 }
 // Slide 2: where the power goes at 25 MW and 6.00 A (v1.2.0 loss model flowLec); the losses appear line by line. Widths not to scale.
@@ -256,7 +258,7 @@ function figFlow() {
   const i = line, F = flowLec(FLOW_P, IF_FIX), L = FLOW, y = L.y, fig = figReset(FIG_H, 'Power flow through G3: input ' + f(F.pin, 1) + ' MW, output ' + f(F.po, 2) + ' MW');
   const box = ([x, w], t1, t2) => fig.append(sv('rect', {x, y: y - L.boxH / 2, width: w, height: L.boxH, rx: 8, fill: C.box, stroke: C.ink, 'stroke-width': W_FINE}),
     stext(x + w / 2, y - 4, t1, {anchor: 'middle', weight: 700}), stext(x + w / 2, y + 15, t2, {anchor: 'middle', size: FS_SMALL, fill: C.mute}));
-  const two = (x, t1, t2, col) => fig.append(stext(x, y - 34, t1, {anchor: 'middle', fill: col, weight: 700}), stext(x, y - 15, t2, {anchor: 'middle', fill: col, weight: 700}));
+  const two = (x, t1, t2, col) => fig.append(stext(x, y - 38, t1, {anchor: 'middle', fill: col, weight: 700}), stext(x, y - 15, t2, {anchor: 'middle', fill: col, weight: 700}));
   const loss = (x, tx, row, txt) => { arrow(fig, x, y + L.boxH / 2 + 2, x, y + 96, C.vphi, 3); fig.append(stext(tx, y + 116 + 19 * row, txt, {anchor: 'middle', size: FS_SMALL, fill: C.vphi, weight: 700})); };
   box(L.pm, 'Prime', 'mover'); box(L.rotor, 'Rotor', 'air gap'); box(L.arm, 'Armature', 'stator');
   fig.append(sv('line', {x1: L.busX, x2: L.busX, y1: y - 50, y2: y + 50, stroke: C.ink, 'stroke-width': 4}), stext(L.busX, y + 68, 'bus', {anchor: 'middle', size: FS_SMALL, fill: C.mute}));
@@ -278,12 +280,12 @@ function figProof() {
   if (v(6)) fig.append(sv('polygon', {points: vx + ',' + oy + ' ' + ex + ',' + ey + ' ' + ex + ',' + oy, fill: C.drop, opacity: 0.16}));
   if (v(1)) { arrow(fig, ox, oy, vx, oy, C.vphi, W_PHASOR); arrow(fig, ox, oy, ix, iy, C.ia, W_CURVE); arc(fig, ox, oy, G.thR, 0, p.th, C.ia);
     fig.append(stext((ox + vx) / 2 + 40, oy + 24, 'V_φ = ' + f(V_PH, 2) + ' kV', {anchor: 'middle', fill: C.vphi, weight: 700}), stext(ix + 8, iy + 16, 'I_A', {fill: C.ia, weight: 700}), stext(ox + G.thR + 10, oy + 19, 'θ', {fill: C.ia})); }
-  if (v(2)) { arrow(fig, vx, oy, ex, ey, C.drop, W_CURVE); fig.append(stext((vx + ex) / 2 - 12, (oy + ey) / 2 + 34, 'jX_SI_A', {anchor: 'end', fill: C.drop, weight: 700})); }
+  if (v(2)) { arrow(fig, vx, oy, ex, ey, C.drop, W_CURVE); fig.append(stext((vx + ex) / 2 - 28, (oy + ey) / 2 + 32, 'jX_SI_A', {anchor: 'end', fill: C.drop, weight: 700})); }
   if (v(3)) { arrow(fig, ox, oy, ex, ey, C.ea, W_PHASOR); arc(fig, ox, oy, G.dR, 0, p.d, C.ea);
     fig.append(stext((ox + ex) / 2 - 16, (oy + ey) / 2 - 16, 'E_A = ' + f(E, 2) + ' kV', {anchor: 'end', fill: C.ea, weight: 700}), stext(ox + G.dR + 8, oy - 20, 'δ', {fill: C.ea})); }
   if (v(4)) fig.append(sv('line', {x1: ex, x2: ex, y1: ey, y2: oy, stroke: C.amber, 'stroke-width': 3, 'stroke-dasharray': DASH}), stext(ex + 10, (ey + oy) / 2 + 5, f(p.vert, 2) + ' kV', {fill: C.amber, weight: 700}),
     stext(FIG_W / 2, G.noteY, 'blue triangle: vertical = E_A sin δ', {anchor: 'middle', fill: C.ea, weight: 700}));
-  if (v(5)) { arc(fig, ex, ey, G.tipR, -Math.PI / 2, -Math.PI / 2 + p.th, C.ia); fig.append(stext(ex - 22, ey + G.tipR + 20, 'θ', {fill: C.ia})); }
+  if (v(5)) { arc(fig, ex, ey, G.tipR, -Math.PI / 2, -Math.PI / 2 + p.th, C.ia); fig.append(stext(ex - 11, ey + G.tipR + 24, 'θ', {anchor: 'middle', weight: 700})); }
   if (v(6)) fig.append(stext(FIG_W / 2, G.noteY + 24, 'grey triangle: vertical = X_SI_A cos θ', {anchor: 'middle', fill: C.drop, weight: 700}));
   return [f(PROOF.pm, 1) + ' MW', f(PROOF.iF, 2) + ' A', f(E, 2) + ' kV', f(p.d / RAD, 1) + '°', f(p.I * 1e3, 0) + ' A', f(-p.th / RAD, 1) + '°', f(p.vert, 2) + ' kV', f(X_S * p.I * p.pf, 2) + ' kV'];
 }
@@ -294,13 +296,13 @@ function figPeak() {
   fig.append(stext(A.ox, 60, 'E_A on its arc (field fixed)', {size: FS_SMALL, fill: C.mute}), sv('line', {x1: 20, x2: 330, y1: A.oy, y2: A.oy, stroke: C.axis}));
   fig.append(sv('path', {d: arcPath(A.ox, A.oy, E * A.k, 0, Math.PI / 2), fill: 'none', stroke: C.ea, 'stroke-width': W_FINE, 'stroke-dasharray': DASH_FINE, opacity: 0.6}));
   arrow(fig, A.ox, A.oy, vx, A.oy, C.vphi, W_CURVE); arrow(fig, vx, A.oy, ex, ey, C.drop, W_CURVE - 0.5); arrow(fig, A.ox, A.oy, ex, ey, C.ea, W_PHASOR);
-  fig.append(stext(A.ox + V_PH * A.k / 2, A.oy + 22, 'V_φ', {anchor: 'middle', fill: C.vphi, weight: 700}), stext((A.ox + ex) / 2 - 10, (A.oy + ey) / 2 - 10, 'E_A', {anchor: 'end', fill: C.ea, weight: 700}),
+  fig.append(stext(A.ox, A.oy + 22, 'V_φ', {fill: C.vphi, weight: 700}), stext((A.ox + ex) / 2 - 10, (A.oy + ey) / 2 - 10, 'E_A', {anchor: 'end', fill: C.ea, weight: 700}),
     sv('line', {x1: ex, x2: ex, y1: ey, y2: A.oy, stroke: C.amber, 'stroke-width': 3, 'stroke-dasharray': DASH}));
-  if (p.vert * A.k > 24) fig.append(stext(ex + 8, (ey + A.oy) / 2 + 5, 'E_A sin δ', {size: FS_SMALL, fill: C.amber, weight: 700}));
+  fig.append(stext(Math.max(ex, A.ox + 76), A.oy + 22, 'E_A sin δ', {anchor: 'middle', size: FS_SMALL, fill: C.amber, weight: 700}));
   if (i >= 6) pdBand(fig, {xd: a => B.x0 + (B.x1 - B.x0) * a / 180}, B);
   const ax = pdAxes(fig, B, 'P (MW)');
   fig.append(sv('path', {d: pdPath(ax, pm), fill: 'none', stroke: C.ea, 'stroke-width': W_CURVE}));
-  if (i >= 4) fig.append(stext(ax.xd(90), ax.yp(pm) - 10, 'P_{max} = ' + f(pm, 1) + ' MW', {anchor: 'middle', fill: C.amber, weight: 700}));
+  if (i >= 4) fig.append(stext(ax.xd(90), ax.yp(pm) - 16, 'P_{max} = ' + f(pm, 1) + ' MW', {anchor: 'middle', fill: C.amber, weight: 700}));
   fig.append(sv('circle', {cx: ax.xd(T.d), cy: ax.yp(p.P), r: DOT_R - 1, fill: C.ea, stroke: C.white, 'stroke-width': W_LINE}));
   const V = f(V_PH, 2), Ev = f(E, 2), X = f(X_S, 2), dg = f(T.d, 1);
   fig.append(stext(FIG_W / 2, B.liveY, ['E_A sin δ = ' + Ev + ' × sin ' + dg + '° = ' + f(p.vert, 2) + ' kV', 'I_A cos θ = ' + f(p.ir * 1e3, 0) + ' A', 'P = 3 × ' + V + ' × ' + Ev + ' × sin ' + dg + '° / ' + X + ' = ' + f(p.P, 1) + ' MW',
@@ -318,11 +320,11 @@ function figField() {
     stext(vx, G.unityY, 'unity pf (' + f(IF_RATED * Math.hypot(V_PH, P_FIX * X_S / (3 * V_PH)) / V_PH, 2) + ' A)', {anchor: 'middle', size: FS_SMALL, fill: C.teal, weight: 700}),
     stext(vx - 12, G.sideY, '← leading', {anchor: 'end', size: FS_SMALL, fill: C.teal}), stext(vx + 12, G.sideY, 'lagging →', {size: FS_SMALL, fill: C.teal}));
   arrow(fig, ox, oy, vx, oy, C.vphi, W_CURVE);
-  fig.append(stext(ox + V_PH * G.k / 2, oy + 22, 'V_φ', {anchor: 'middle', fill: C.vphi, weight: 700}));
+  fig.append(stext(vx - 10, oy + 22, 'V_φ', {anchor: 'end', fill: C.vphi, weight: 700}));
   if (i >= 2 && Math.abs(T.iF - IF_FIX) > 0.05) { const q = point(dFor(P_FIX, IF_FIX) * RAD, eAt(IF_FIX)); arrow(fig, ox, oy, ox + q.E * Math.cos(q.d) * G.k, hy, C.ea, W_LINE, {dash: '5 4', opacity: GHOST}); }
   const il = G.iK * p.I * 1e3, ix = ox + il * Math.cos(p.th), iy = oy - il * Math.sin(p.th);
   arrow(fig, vx, oy, ex, hy, C.drop, W_CURVE - 0.5); arrow(fig, ox, oy, ex, hy, C.ea, W_PHASOR); arrow(fig, ox, oy, ix, iy, C.ia, W_CURVE);
-  fig.append(stext((ox + ex) / 2 - 14, (oy + hy) / 2 - 8, 'E_A = ' + f(E, 2) + ' kV', {anchor: 'end', fill: C.ea, weight: 700}), stext(ix + 8, iy + (p.th < 0 ? 18 : -8), 'I_A', {fill: C.ia, weight: 700}));
+  fig.append(ex > vx ? stext(ex + 10, hy + 24, 'E_A = ' + f(E, 2) + ' kV', {fill: C.ea, weight: 700}) : stext(ex, hy - 10, 'E_A = ' + f(E, 2) + ' kV', {anchor: 'end', fill: C.ea, weight: 700}), stext(ix + 8, iy + (p.th < 0 ? 18 : -8), 'I_A', {fill: C.ia, weight: 700}));
   return [f(P_FIX, 1) + ' MW (fixed)', f(T.iF, 2) + ' A', f(E, 2) + ' kV', f(T.d, 1) + '°', pfTxt(p), f(p.Q, 1) + ' Mvar', f(pMaxAt(T.iF), 1) + ' MW', f(pMaxAt(T.iF) - P_FIX, 1) + ' MW'];
 }
 // The three worked cases of slide 6: 20 MW at 5.00, 6.00 and 8.00 A.
@@ -354,8 +356,8 @@ function figKeys() {
 
 /* ═══ L5. SLIDES ═══ */
 // Each slide: title, left (text blocks; an 'eq' block may carry a function of the line number that says when it shows), cues (one per
-// narration line), note, rows (readout labels), ctl (slider: [label, min, max, step, scale text, get, set]), at(i, f) (state of line i
-// at fraction f of its clip) and draw (the figure; returns the readout values).
+// narration line), note, rows (readout labels), ctl (a slider: label, min, max, step, scale text, getter, setter), at (sets the state
+// of line i at fraction fr of its clip, and returns true when the run-away should start) and draw (the figure, returning the readout values).
 const SL = [
   {title: 'How much power can G3 send to the bus?', eyebrow: 'THE STATIC STABILITY LIMIT',
     left: [['key', 'The *static stability limit* is the largest real power a generator can deliver to the bus without losing synchronism, when the load changes slowly.'], ['eq', 'pmax', i => i >= 4]],

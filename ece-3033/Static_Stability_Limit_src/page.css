@@ -47,7 +47,7 @@ math{font-family:var(--math);font-size:1.1rem}
 .step{border:3px solid var(--amber);border-radius:8px;padding:1px 8px;margin-top:6px}
 .step .note{display:block;font-size:.86rem;color:var(--mute);font-weight:400}
 .eqgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
-.kcard{border:2px solid var(--line);border-radius:10px;background:#f6f8fa;padding:8px 10px;text-align:center}
+.kcard{border:2px solid var(--line);border-radius:10px;background:#f6f8fa;padding:8px 10px;display:flex;align-items:center;justify-content:center}
 .kcard.on{border-color:var(--amber);background:var(--amberbg)}
 .kcard math{font-size:1.2rem}
 table.cmp{border-collapse:collapse;margin:4px auto 0;border:2px solid var(--amber);background:var(--card)}

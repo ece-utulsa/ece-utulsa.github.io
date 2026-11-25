@@ -41,7 +41,7 @@ const KW_PER_MW = 1e3;                    // kW in one MW (losses are written in
 const SHEET_KEY = 'static-stability-limit-worksheet-v1';   // the only localStorage key this tool reads or writes
 const SHEET_MAX = 4000;                   // longest stored answer (characters)
 const EPS = 1e-9;
-const COL = { v: '#d32f2f', e: '#1c5fd6', x: '#3a444b', i: '#18744a', proj: '#b06f00', mech: '#8a5700', loss: '#c2412f', mut: '#55636b', ink: '#1a2328', ok: '#18744a', card: '#eceef4' };
+const COL = { v: '#d32f2f', e: '#1c5fd6', x: '#3a444b', i: '#18744a', proj: '#b06f00', mech: '#8a5700', loss: '#c2412f', mut: '#55636b', ink: '#1a2328', ok: '#18744a' };
 const HALO = { stroke: '#ffffff', 'stroke-width': 4, 'paint-order': 'stroke', 'stroke-linejoin': 'round' };   // keeps a label legible where a line crosses it
 
 const SVGNS = 'http://www.w3.org/2000/svg';

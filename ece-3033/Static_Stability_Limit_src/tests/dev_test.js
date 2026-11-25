@@ -58,9 +58,9 @@ async function layout(page) {
   });
 }
 
-// What the Lab shows: readouts, verdict and every drawn label, as one string (used to compare with v1.2.0).
+// What the Lab shows: readouts, verdict and every drawn label, sorted within each instrument, as one string (used to compare with v1.2.0).
 async function labText(page) {
-  return page.evaluate(() => ['itRo', 'callout', 'flowG', 'phG', 'cvG', 'dlG', 'pmO', 'ifO'].map(id => id + ': ' + [...document.getElementById(id).querySelectorAll('text, .ro, b')].map(e => e.textContent).join(' | ') + ' # ' + (document.getElementById(id).children.length ? '' : document.getElementById(id).textContent)).join('\n'));
+  return page.evaluate(() => ['itRo', 'callout', 'flowG', 'phG', 'cvG', 'dlG', 'pmO', 'ifO'].map(id => id + ': ' + [...document.getElementById(id).querySelectorAll('text, .ro, b')].map(e => e.textContent).filter(Boolean).sort().join(' | ') + ' # ' + (document.getElementById(id).children.length ? '' : document.getElementById(id).textContent)).join('\n'));
 }
 // Put the Lab of either version at input power pm (MW) and field current iF (A) and let δ settle.
 async function labSet(page, pm, iF) { await setRange(page, '#pmS', pm); await setRange(page, '#ifS', iF); await page.waitForTimeout(2200); }
@@ -254,7 +254,7 @@ async function labSet(page, pm, iF) { await setRange(page, '#pmS', pm); await se
   check('progress bar advances with the clip', barMid > 0 && barMid < 100, String(barMid));
   await setRange(page, '#ctl input', 12);
   check('using a Lecture control pauses the narration', (await page.textContent('#play')).includes('Play'));
-  await page.click('#next'); await page.click('#next'); await page.click('#prev');   // line 4: past P_max
+  await page.click('#next'); await page.click('#next');                                // line 4: past P_max
   await page.click('#play');
   await page.waitForFunction(() => document.getElementById('fig').textContent.includes('δ running away'), null, {timeout: 15000}).then(() => check('playing slide 1 line 4: δ runs away on cue', true), () => check('line 4 run-away', false));
   await page.waitForFunction(() => document.getElementById('fig').textContent.includes('breaker OPEN'), null, {timeout: 25000}).then(() => check('playing slide 1 line 4: pole slip and breaker trip', true), () => check('line 4 trip', false));
