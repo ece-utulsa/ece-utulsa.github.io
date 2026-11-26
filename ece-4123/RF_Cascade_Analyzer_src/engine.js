@@ -27,6 +27,7 @@ const Z0_MIN = 1, Z0_MAX = 1000; // Lab reference impedance range (Ω, real; spe
 const DEG = 180 / Math.PI;       // degrees per radian
 const FULL_TURN = 360;           // degrees in a turn
 const HALF_TURN = 180;
+const ANGLE_EDGE_TOL = 1e-9;     // degrees: an angle within this above −180° is −180° to rounding and is wrapped to +180° (DEFECT-RFC-017)
 const MINUS = '−';          // true minus sign (spec A.5.0)
 const INF = '∞';            // ∞
 const ANGLE_SIGN = '∠';     // ∠
@@ -50,7 +51,8 @@ const TEACHING_S = { s11: [0.3, 40], s21: [0.6, -70], s12: [0.6, -70], s22: [0.4
    the solution stays finite. Larger entries are refused with the limit named. */
 const VS_MAX = 1000;             // |V_s|, V peak
 const Z_MAX = 1e6;               // |Z| of a source or load impedance, Ω (1 MΩ; an open is typed "open")
-const S_ENTRY_MAX = 1000;        // |S| of a Cascade S entry: 60 dB, the largest gain a Cascade amplifier block takes
+const AMP_G_MAX_DB = 60;         // the largest gain a Cascade amplifier block takes (dB)
+const S_ENTRY_MAX = DECADE ** (AMP_G_MAX_DB / DB_PER_DECADE);   // |S| of a Cascade S entry: that gain as a magnitude (1000; CQ-RFC-024)
 const POLE_TOL = 1e-9;           // |1 − Γ·Γ′| at or below this: the loop at that interface is singular (no finite steady state)
 // ── END CONSTANTS ─────────────────────────────────────────────
 
@@ -76,8 +78,8 @@ const cabs = a => Math.hypot(a.re, a.im);
 const carg = a => Math.atan2(a.im, a.re);
 // Complex number from magnitude and angle in degrees.
 const polar = (mag, deg) => C(mag * Math.cos(deg / DEG), mag * Math.sin(deg / DEG));
-// Angle in degrees wrapped to (−180°, 180°].
-function wrapDeg(d){ let w = ((d % FULL_TURN) + FULL_TURN) % FULL_TURN; if(w > HALF_TURN) w -= FULL_TURN; return w; }
+// Angle in degrees wrapped to (−180°, 180°]; an angle within ANGLE_EDGE_TOL of −180° (float noise) is +180° (DEFECT-RFC-017).
+function wrapDeg(d){ let w = ((d % FULL_TURN) + FULL_TURN) % FULL_TURN; if(w > HALF_TURN) w -= FULL_TURN; return w <= ANGLE_EDGE_TOL - HALF_TURN ? HALF_TURN : w; }
 // ── END COMPLEX NUMBERS ───────────────────────────────────────
 
 // ── REFLECTION ────────────────────────────────────────────────

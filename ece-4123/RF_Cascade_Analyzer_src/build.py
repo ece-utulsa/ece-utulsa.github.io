@@ -23,9 +23,17 @@ import os
 import sys
 
 # ── RELEASE ───────────────────────────────────────────────────────────
-VERSION = '1.8.2'
-RELEASED = '2026-11-23'
-CHANGELOG = ('\n    v1.8.2 - Fix pass on the v1.8.1 re-gates. No NaN on screen: Z_s or Z_L = -Z0 is refused (the wave model '
+VERSION = '1.8.3'
+RELEASED = '2026-11-26'
+CHANGELOG = ('\n    v1.8.3 - Minor fix pass on the v1.8.2 gates. An angle at -180 degrees to rounding reads +180.0 degrees '
+             '(+3.142 rad) in every polar readout (DEFECT-RFC-017); a Z0 entry is checked only against the impedances in the '
+             'circuit, Load A and B when a divider is present (DEFECT-RFC-018 = CQ-RFC-025); one "Z equals -Z0" test and one '
+             'refusal wording, without the "try another Z0" advice (CQ-RFC-026, PPR-RFC-018); the input limits are worded as '
+             'the tool\'s range and built from their constants, the 60 dB amplifier maximum and the |S| limit from one '
+             'constant (PPR-RFC-019, CQ-RFC-024); with no finite steady state a plot says so in its frame and its legend '
+             'keeps its width (VIS-RFC-010, -011); notes and refusals at most 25 words (VIS-RFC-012); true subscripts in the '
+             'panel text (VIS-RFC-013); comments and README (CQ-RFC-022, -023).'
+             '\n    v1.8.2 - Fix pass on the v1.8.1 re-gates. No NaN on screen: Z_s or Z_L = -Z0 is refused (the wave model '
              'referenced to Z0 cannot represent it; try another Z0), and a loop whose reflections reinforce without limit '
              '(Gamma*Gamma\' = 1 at an interface) is stated in words in Results, its voltages, currents and powers undefined '
              '(DEFECT-RFC-012, -016); V_s, impedances and Cascade S entries have named upper limits (DEFECT-RFC-013); a band '

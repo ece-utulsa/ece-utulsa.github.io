@@ -284,10 +284,11 @@ function drawDevices(H){
 // ── PANEL ─────────────────────────────────────────────────────
 /* The panel's one headline: the power ratio out ÷ in, |b2|²/|a1|² Forward or |b1|²/|a2|² Reverse (PPR-RFC-004: with
    peak phasors a wave carries ½|a|², so |b|² alone is not a power), as a percentage, or as a ratio ("10 × input") when
-   the device has gain. The wave itself is on its arrow and in the numeric matrix row, so it is not repeated here. */
+   the device has gain. The wave itself is on its arrow and in the numeric matrix row, so it is not repeated here.
+   The wave names carry true subscripts (b₂, a₁) as on the drawing (VIS-RFC-013). */
 function devicePower(){
   const fwd = D.drive === 'fwd', w = deviceWaves(curS()), out = fwd ? 'b2' : 'b1', inn = fwd ? 'a1' : 'a2', pw = cabs(w[out]) ** 2 / cabs(w[inn]) ** 2;
-  return ['power out ÷ in = |' + out + '|²/|' + inn + '|²', pw > 1 + EXACT ? sig2(pw) + ' × input' : pct2(pw)];
+  return ['power out ÷ in = |' + out.replace(/\d/, '_$&') + '|²/|' + inn.replace(/\d/, '_$&') + '|²', pw > 1 + EXACT ? sig2(pw) + ' × input' : pct2(pw)];
 }
 const WAVE_CAPTION = 'a, b = normalized waves (a = V⁺/√Z0, peak phasors). A wave carries ½|a|² of power; |b|²/|a|² is the power ratio.';
 const DEV_NOTE = { through: 'A matched line only delays the wave: S21 = 1∠−βℓ, and βℓ grows with the length.',
@@ -376,7 +377,7 @@ function panelDevices(){ const [k, v] = devicePower(); return [headline(k, v, 'r
 // Refresh the readouts after a control moved (the panel is not rebuilt, so focus stays on the control); a preset's S
 // entries follow its knob (unedited: the preset's S; edited: the edit set, which setKnob has updated).
 function syncDevices(){
-  const [k, v] = devicePower(), e = document.getElementById('roPower'); if(e){ e.textContent = v; e.previousSibling.textContent = k; }
+  const [k, v] = devicePower(), e = document.getElementById('roPower'); if(e){ e.textContent = v; e.previousSibling.replaceChildren(...subNodes(k)); }
   if(D.dev !== 'custom' && D.est){ if(!edited()) Object.assign(D.est, sEntries(deviceS(D.dev, D[D.dev])));
     for(const kk of S_KEYS){ setUnlessFocused('c' + kk, boxNum(D.est.e[kk][0])); setUnlessFocused('c' + kk + 'm', boxNum(D.est.e[kk][0])); setUnlessFocused('c' + kk + 'a', boxNum(D.est.e[kk][1])); }
     const rc = document.getElementById('crecip'); if(rc) rc.checked = D.est.recip; }

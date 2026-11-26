@@ -12,7 +12,11 @@
    v1.8.2: no NaN on screen: Z = −Z0 at the source or a load is refused (the wave model cannot represent it), a loop
    whose reflections reinforce without limit is stated in words with its values undefined, typed magnitudes and the
    band's width have named limits (DEFECT-RFC-012..014); G_T is undefined with P_avs (PPR-RFC-013); the power not
-   accepted is named as a power (PPR-RFC-015); refusals name the value in use (CQ-RFC-020); named dash patterns. */
+   accepted is named as a power (PPR-RFC-015); refusals name the value in use (CQ-RFC-020); named dash patterns.
+   v1.8.3: an angle at −180° to rounding reads +180° (DEFECT-RFC-017); a Z0 entry is checked only against the loads in
+   the circuit (DEFECT-RFC-018); one "Z = −Z0" test; limits worded as the tool's input range and built from their
+   constants; a plot with nothing drawn says why on itself, and its legend stays inside the stage (VIS-RFC-010, -011);
+   shorter notes; true subscripts in the panel's text (VIS-RFC-013). */
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — presets and their parameters, divider names, limits, example circuit, layout, symbol geometry
@@ -38,7 +42,7 @@ const ABBR = { thru: 'Line', atten: 'Atten', amp: 'Amp', phase: 'Phase', lpf: 'L
 const PARAMS = {
   thru: [['l', 'Length ℓ at f0', 'λ', 0.25, 0, 20]],
   atten: [['A', 'Attenuation', 'dB', 3, 0, 100]],
-  amp: [['G', 'Gain', 'dB', 10, 0, 60]],
+  amp: [['G', 'Gain', 'dB', 10, 0, AMP_G_MAX_DB]],
   phase: [['ph', 'Phase lag φ', '°', 45, -360, 360]],
   lpf: [['fc', 'Cut-off fc', 'f', 1.2], ['n', 'Order n', '', 3, 1, 9]],
   hpf: [['fc', 'Cut-off fc', 'f', 0.8], ['n', 'Order n', '', 3, 1, 9]],
@@ -60,7 +64,7 @@ const DIV_NAME = { ideal: 'Ideal equal-split (lossless)', wilkinson: 'Wilkinson 
 const DIV_SHORT = { ideal: 'Ideal', wilkinson: 'Wilkinson', resistive: 'Resistive', tee: 'T-junction' };
 const DIV_NOTE = {
   ideal: 'Input matched, lossless. Outputs are not isolated and not individually matched.',
-  wilkinson: 'Matched at all ports and outputs isolated. The resistor dissipates only power coming back from the branches (none when both branch loads are matched).',
+  wilkinson: 'Matched at all ports, outputs isolated. The resistor dissipates only power returning from the branches (none with matched branch loads).',
   resistive: 'Matched at all ports but lossy: each output is 6 dB below the input. Equal split only.',
   tee: 'Reactive junction of three Z0 lines: lossless and reciprocal but not matched (S11 = −1/3). Equal split only.' };
 const EQUAL_SPLIT = 50, SPLIT_MIN = 1, SPLIT_MAX = 99;   // divider split into branch A (%)
@@ -107,10 +111,16 @@ const PLOT_H = [200, 320, 0.34];   // the plot under the circuit: 34 % of the dr
 const REF_NONE = 1;                // ratio reference (W) when the source delivers no power at all (every ratio is then 0)
 const REFL_NAME = 'reflected wave (re Z0)';   // the input's reflected wave ½|b₁|², one name in Results and the band plot (PPR-RFC-016)
 const NOT_ACCEPTED = 'not accepted, P_avs − P_in';   // the power the source could deliver but the circuit does not accept (PPR-RFC-015)
-const UNDEF_TEXT = 'undefined';
+const UNDEF_TEXT = 'undefined';   // a readout with no finite value (no finite steady state, or P_avs undefined)
 const REFUSED = 'refused';         // key of a parse result that refuses a well-formed entry, with the cause (see tfield)
-const Z_MAX_TEXT = '1 MΩ';         // Z_MAX in words   // a readout with no finite value (no finite steady state, or P_avs undefined)
-const BAND_REL_MIN = 1e-9, BAND_REL_TEXT = 'one part in 10⁹';   // narrowest band, as a fraction of its centre: a narrower one cannot be swept at NPTS distinct frequencies (DEFECT-RFC-014)
+const MEGA = 1e6;                  // Ω per MΩ
+const Z_MAX_TEXT = Z_MAX / MEGA + ' MΩ';   // Z_MAX in words, built from it (CQ-RFC-024)
+const BAND_REL_MIN = 1e-9;         // narrowest band, as a fraction of its centre: a narrower one cannot be swept at NPTS distinct frequencies (DEFECT-RFC-014)
+const SUP_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';  // superscript digits, for a power of ten in words
+// BAND_REL_MIN in words ("one part in 10⁹"), built from it (CQ-RFC-024)
+const BAND_REL_TEXT = 'one part in 10' + String(Math.round(-Math.log10(BAND_REL_MIN))).replace(/\d/g, d => SUP_DIGITS[d]);
+// said on a plot, in its frame, when the circuit has no finite steady state at every frequency drawn, or at some (VIS-RFC-010, -011)
+const NO_TRACE = { all: 'No finite steady state: nothing drawn', some: 'No finite steady state at some frequencies: not drawn there' };
 // stroke-dasharray patterns (CQ-RFC-019): a spectrum's leader to the wire, the marker line in a spectrum, series B in the
 // response plot and its legend swatch, branch B in the chain plot and its legend swatch, the chain plot's stage gridlines
 const DASH_C = { leader: '3 4', miniMark: '4 3', seriesB: '9 6', seriesBLeg: '6 4', branchB: '2 5', branchBLeg: '2 4', grid: '2 4' };
@@ -152,8 +162,14 @@ const loadKey = b => (b === 'A' ? 'zlA' : b === 'B' ? 'zlB' : 'zl');
 // ── END STATE ─────────────────────────────────────────────────
 
 // ── FORMATTING ────────────────────────────────────────────────
+/* An angle (degrees) wrapped to (−180°, 180°] as shown at dec decimals, in degrees or (rad) radians: a value that would
+   read −180° (−π) reads +180° (+π), the rule of the S field (DEFECT-RFC-004, -017). */
+function angShown(deg, dec, rad){
+  const per = rad ? DEG : 1, a = wrapDeg(deg) / per;
+  return fx(a, dec) === fx(-HALF_TURN / per, dec) ? HALF_TURN / per : a;
+}
 // An angle (degrees) in the current unit, as text.
-const angText = deg => (K.unit === 'rad' ? fx(deg / DEG, DEC_RAD) + ' rad' : fx(wrapDeg(deg), DEC_ANG) + '°');
+const angText = deg => (K.unit === 'rad' ? fx(angShown(deg, DEC_RAD, true), DEC_RAD) + ' rad' : fx(angShown(deg, DEC_ANG), DEC_ANG) + '°');
 // Magnitude∠angle in the current unit; "undefined" for a value with no finite steady state (DEFECT-RFC-012).
 const polarU = (c, unit) => (!cfinite(c) ? UNDEF_TEXT : fmtMag(cabs(c)) + ANGLE_SIGN + angText(cabs(c) <= EPS_ZERO ? 0 : carg(c) * DEG) + (unit ? ' ' + unit : ''));
 // A number as field text with the true minus sign (the parser reads it back).
@@ -161,8 +177,7 @@ const fieldNum = v => String(v).replace('-', MINUS);
 /* Field text for a complex value as magnitude∠angle in the current unit (S entries): the angle in (−180°, 180°], so
    −180° is written +180° (DEFECT-RFC-004), with the true minus sign. */
 function polarField(c){
-  const m = cabs(c); let a = m <= EPS_ZERO ? 0 : wrapDeg(carg(c) * DEG);
-  if(fx(a, FIELD_DEC_DEG) === fx(-HALF_TURN, FIELD_DEC_DEG)) a = HALF_TURN;
+  const m = cabs(c), a = m <= EPS_ZERO ? 0 : angShown(carg(c) * DEG, FIELD_DEC_DEG);
   return fieldNum(+m.toPrecision(FIELD_SIG)) + '∠' + fieldNum(K.unit === 'rad' ? +(a / DEG).toFixed(FIELD_DEC_RAD) : +a.toFixed(FIELD_DEC_DEG));
 }
 // Field text for an impedance (rectangular), and for a load ("open" for Z_L = ∞).
@@ -280,7 +295,7 @@ function finiteCheck(r){
 // The reference power for ratios: P_avs, or (a source with |Γs| ≥ 1) the power incident at the input.
 const refOf = r => (r.Pavs > 0 ? r.Pavs : (r.Pin + r.reflIn) || REF_NONE);
 // Why P_avs is undefined for a source with |Γs| ≥ 1 (a lossless or negative-resistance source; CQ-RFC-014).
-const gsReason = r => '|Γs| ' + (Math.abs(cabs(r.Gs) - 1) <= EPS_UNIT ? '= 1 (lossless source)' : '> 1 (Re Zs < 0)');
+const gsReason = r => '|Γ_s| ' + (Math.abs(cabs(r.Gs) - 1) <= EPS_UNIT ? '= 1 (lossless source)' : '> 1 (Re Z_s < 0)');
 // The footnote naming every ratio's reference: G_T is of P_avs, and is undefined with it (PPR-RFC-013).
 const refNote = r => (isFinite(r.Pavs) ? 'G_T and the plots\' ratios are of P_avs.' : 'G_T is undefined (P_avs is undefined); the plots\' ratios are of the incident power P⁺.');
 /* Where a circuit has no finite steady state (DEFECT-RFC-012), in the Interfaces table's names: between the source and
@@ -329,7 +344,7 @@ function isActive(r){
   return loads.some(z => !z.inf && z.z.re < 0) || K.zs.re < 0 || blocks.some(d => d.type === 'custom' && sigmaMax(d.S) > 1 + EPS_BADGE)
     || r.Pin < 0 || [r.nodesM, r.nodesA, r.nodesB].some(n => n && n.length && n[n.length - 1].P < 0);
 }
-const ACTIVE_NOTE = 'Active circuit: a negative-resistance load or source, or a Custom block with σmax > 1, delivers power. This is outside the passive model; the steady state shown assumes the circuit is stable.';
+const ACTIVE_NOTE = 'Active circuit (negative-resistance load or source, or Custom block with σmax > 1) delivers power, outside the passive model. The steady state shown assumes stability.';
 // ── END SOLUTION ──────────────────────────────────────────────
 
 // ── DRAWING ───────────────────────────────────────────────────
@@ -516,10 +531,10 @@ function drawPlot(G, sw, y0){
   const top = DECADE * Math.ceil((dbMax(series.map(x => x[2]), PLOT_FLOOR) + 1) / DECADE), ax = dbAxis(top - PLOT_SPAN, top, yt, yb);
   // x of sweep point i; the marker's x
   const xs = i => x0 + (x1 - x0) * i / (NPTS - 1), xm = markerX(x0, x1);
-  // a series with no dB value somewhere (a power ≤ 0, PPR-RFC-001) says so in its legend; those points are not drawn
-  // (DEFECT-RFC-012) and a frequency with no finite steady state is not drawn either, and said so
-  const leg = series.map(([t, col, v, , dash]) => [t + (v.some(r => r < 0) ? ' (P < 0 not drawn)' : '') + (v.some(r => Number.isNaN(r)) ? ' (no steady state: not drawn)' : ''),
-    col, AXIS.legendSw, dash ? DASH_C.seriesBLeg : null]);
+  // a series with no dB value somewhere (a power ≤ 0, PPR-RFC-001) says so in its legend; those points are not drawn.
+  // A frequency with no finite steady state is not drawn either (DEFECT-RFC-012): said once in the plot's frame, not in
+  // each legend entry, so the legend keeps its width and stays inside the stage (VIS-RFC-010)
+  const leg = series.map(([t, col, v, , dash]) => [t + (v.some(r => r < 0) ? ' (P < 0 not drawn)' : ''), col, AXIS.legendSw, dash ? DASH_C.seriesBLeg : null]);
   K.plot = { x0, x1 };
   return [headingIf(e, yh, 'Across the band · marker ' + fFull(K.fm), G.W - e - legendW(leg, P.leg[0], P.leg[1], P.leg[2]), P.leg[0]),
     legendRow(G.W - e, yh, leg, P.leg[0], P.leg[1], P.leg[2]),
@@ -527,7 +542,15 @@ function drawPlot(G, sw, y0){
     P.xFr.map(t => mutedTxt(x0 + (x1 - x0) * t, yb + P.xLab, fText(K.f1 + (K.f2 - K.f1) * t), { anchor: t === 0 ? 'start' : t === 1 ? 'end' : 'middle' })),
     series.map(([, col, v, q, dash]) => seriesEls(dbList(v).map((d, i) => [xs(i), d]), ax, { stroke: col, 'stroke-width': P.curveSw, 'stroke-dasharray': dash ? DASH_C.seriesB : null, 'data-q': q })),
     el('line', { x1: xm, y1: yt, x2: xm, y2: yb, stroke: 'var(--txt)', 'stroke-width': P.markSw, 'stroke-dasharray': P.mkDash, class: 'marker', 'data-q': 'marker', 'data-v': K.fm }),
+    noTrace([].concat(...series.map(x => x[2])), x0, x1, yt, yb),
     el('rect', { x: x0, y: yt, width: x1 - x0, height: yb - yt, fill: 'none', 'pointer-events': 'all', 'data-plot': 1, class: 'plothit', 'aria-hidden': 'true' })];
+}
+/* The words in a plot's frame (centred, top quarter) when some or all of its values vals have no finite steady state
+   (NaN, DEFECT-RFC-012): a plot that draws nothing says why on itself (VIS-RFC-011); null when every value is defined. */
+function noTrace(vals, x0, x1, yt, yb){
+  const nan = vals.filter(v => Number.isNaN(v)).length;
+  if(!nan) return null;
+  return txt((x0 + x1) / 2, yt + (yb - yt) / 4, nan === vals.length ? NO_TRACE.all : NO_TRACE.some, { anchor: 'middle', size: FS.small, cls: 'notrace', fill: 'var(--txt)' });
 }
 // The divider's symbol on the chain plot's axis at (xd, y).
 function divSym(xd, y){
@@ -571,6 +594,7 @@ function drawChainPlot(G, chain, atM, y0){
     s.push(line(p.M, a.col, w, false, q + 'M'));
     if(G.div) s.push(line(p.A, a.col, w, false, q + 'A'), line(p.B, a.col, w, true, q + 'B'));
     if(a.marker) s.push(dots(p.M), G.div ? [dots(p.A), dots(p.B)] : null); });
+  s.push(noTrace([].concat(...fl.map(a => [].concat(a.M, a.A || [], a.B || []))), x0, x1, yt, yb));
   // the stages' symbols under the axis, between their two points (names under them when there is no divider)
   const mid = i => (xs(i) + xs(i + 1)) / 2, yS = yb + P.symRow[0], yS2 = yb + P.symRow[1];
   K.main.forEach((d, i) => { s.push(sym(d.type, mid(i), yS, P.symS, 'var(--txt)')); if(!G.div) s.push(mutedTxt(mid(i), yb + P.symLab, ABBR[d.type], { anchor: 'middle' })); });
@@ -683,25 +707,31 @@ function numField(id, label, value, unit, lim, ok, kept){
 function parseReal(text){ const c = parseComplex(text, 'deg'); return c && c.im === 0 ? c.re : null; }
 // A parse result refusing a well-formed entry the model cannot take, with the cause in words (see tfield).
 const refuse = cause => ({ [REFUSED]: cause });
-// Why Z = −Z0 is refused: the wave model referenced to Z0 cannot represent it (PPR-RFC-J5 A; not a claim about the circuit).
-const minusZ0 = (name, gam) => name + ' = −Z0 makes ' + gam + ' infinite, which the wave model referenced to Z0 cannot represent (try another Z0)';
-/* An impedance entry for the source or a load (DEFECT-RFC-012, -013, -016): refused when |Z| is over Z_MAX or Z = −Z0
-   (the reflection referenced to Z0 is infinite). name / gam: "Z_s" / "Γs" or "Z_L" / "Γ_L" for the message. */
-function checkZ(z, name, gam){
+// Whether impedance z (a load object; an open never is) equals −z0 for the real reference z0 (CQ-RFC-026: one test).
+const isMinusZ0 = (z, z0) => !!z && !z.inf && cabs(cadd(z.z, C(z0, 0))) <= EPS_ZERO;
+/* Why Z = −Z0 is refused, for the impedance named name ("Z_s", "Z_L", "Z_LA"; its reflection Γ_s, Γ_L, Γ_LA): the wave
+   model referenced to Z0 cannot represent it (PPR-RFC-J5 A; not a claim about the circuit, and no advice to change Z0,
+   which would re-reference the blocks: a different circuit, PPR-RFC-018). One wording for every box (CQ-RFC-026). */
+const minusZ0 = name => 'Γ' + name.slice(1) + ' would be infinite (' + name + ' = −Z0), which the wave model referenced to Z0 cannot represent';
+/* An impedance entry for the source or a load (DEFECT-RFC-012, -013, -016): refused when |Z| is over Z_MAX (the tool's
+   input range, PPR-RFC-019) or Z = −Z0 (the reflection referenced to Z0 is infinite). name: "Z_s", "Z_L", "Z_LA" … */
+function checkZ(z, name){
   if(!z || z.inf) return z;
-  if(cabs(z.z) > Z_MAX) return refuse('|' + name + '| above ' + Z_MAX_TEXT + ' (the largest impedance this model takes' + (gam === 'Γs' ? ')' : '; type open for an open circuit)'));
-  if(cabs(cadd(z.z, C(K.z0, 0))) <= EPS_ZERO) return refuse(minusZ0(name, gam));
+  if(cabs(z.z) > Z_MAX) return refuse('|' + name + '| above ' + Z_MAX_TEXT + ' (the largest impedance this tool accepts' + (name === 'Z_s' ? ')' : '; type open for an open circuit)'));
+  if(isMinusZ0(z, K.z0)) return refuse(minusZ0(name));
   return z;
 }
-// A Cascade S entry: refused above S_ENTRY_MAX (DEFECT-RFC-013).
-const checkS = c => (c && cabs(c) > S_ENTRY_MAX ? refuse('|S| above ' + S_ENTRY_MAX + ' (60 dB, the largest gain a Cascade block takes)') : c);
-/* A reference impedance Z0, refused when it would make the source's or a load's reflection infinite (Z = −Z0 for a
-   typed Z_s or Z_L, DEFECT-RFC-012). */
+// A Cascade S entry: refused above S_ENTRY_MAX, the amplifier block's largest gain as a magnitude (DEFECT-RFC-013, CQ-RFC-024).
+const checkS = c => (c && cabs(c) > S_ENTRY_MAX ? refuse('|S| above ' + S_ENTRY_MAX + ' (' + AMP_G_MAX_DB + ' dB, the largest gain a Cascade block takes)') : c);
+/* A reference impedance Z0, refused when it would make the reflection of a typed impedance in the circuit infinite
+   (Z = −Z0, DEFECT-RFC-012): Z_s, and Z_L without a divider or Z_LA and Z_LB with one (the single load is not in the
+   circuit while a divider is, DEFECT-RFC-018 = CQ-RFC-025). */
 function checkZ0(text){
   const z0 = parseZ0(text); if(z0 === null) return null;
-  const hit = (z, name) => (z && !z.inf && cabs(cadd(z.z, C(z0, 0))) <= EPS_ZERO ? name : null);
-  const which = hit({ z: K.zs }, 'Z_s') || hit(K.zl, 'Z_L') || (K.div ? hit(K.zlA, 'Z_LA') || hit(K.zlB, 'Z_LB') : null);
-  return which ? refuse('this Z0 equals −' + which + ', so the reflection of ' + which + ' would be infinite, which the wave model cannot represent (change ' + which + ' first)') : z0;
+  // the typed impedances in the circuit, [load object, name]
+  const used = [[zLoad(K.zs), 'Z_s']].concat(K.div ? [[K.zlA, 'Z_LA'], [K.zlB, 'Z_LB']] : [[K.zl, 'Z_L']]);
+  const hit = used.find(([z]) => isMinusZ0(z, z0));
+  return hit ? refuse(minusZ0(hit[1])) : z0;
 }
 // Label pieces: "Z" with subscript "s" and so on.
 const sb = (base, sub, rest) => [base, h('sub', { text: sub }), rest || ''];
@@ -710,7 +740,7 @@ function segGroup(label, items, cur, onpick){
   return h('div', { cls: 'seg', attrs: { role: 'group', 'aria-label': label } }, items.map(([v, t]) => pbtn('seg_' + v, t, v === cur, () => onpick(v))));
 }
 // A key/value table.
-function kv(rows){ return h('table', { cls: 'res' }, rows.map(([k, v]) => h('tr', {}, h('td', {}, ...[].concat(k)), h('td', { cls: 'v', text: v })))); }
+function kv(rows){ return h('table', { cls: 'res' }, rows.map(([k, v]) => h('tr', {}, h('td', {}, [].concat(k).flatMap(x => (typeof x === 'string' ? subNodes(x) : [x]))), h('td', { cls: 'v' }, subNodes(v))))); }
 // The S entry fields of the selected block, at the marker frequency.
 const S_FIELDS = ['s11', 's12', 's21', 's22'];
 /* The selected block's editor: type, its parameters, and its four S entries at the marker frequency (editing one turns
@@ -735,11 +765,11 @@ function blockEditor(){
 // The source and reference editor: V_s, Z_s and Z0.
 function srcEditor(){
   return [h('div', { cls: 'sec', id: 'kTitle', text: 'Source and reference' }),
-    tfield({ id: 'vsMag', label: sb('V', 's', ' magnitude (peak, V)'), text: String(K.vsMag), parse: t => { const v = parseReal(t); return v === null || v < 0 ? null : v > VS_MAX ? refuse('above ' + VS_MAX + ' V peak (the largest source this model takes)') : v; },
+    tfield({ id: 'vsMag', label: sb('V', 's', ' magnitude (peak, V)'), text: String(K.vsMag), parse: t => { const v = parseReal(t); return v === null || v < 0 ? null : v > VS_MAX ? refuse('above ' + VS_MAX + ' V peak (the largest source this tool accepts)') : v; },
       err: 'a real number ≥ 0', ok: v => { K.vsMag = v; } }),
     tfield({ id: 'vsAng', label: sb('V', 's', ' angle (' + (K.unit === 'rad' ? 'rad' : '°') + ')'), text: fieldNum(K.unit === 'rad' ? +(K.vsAng / DEG).toFixed(FIELD_DEC_RAD) : K.vsAng),
       parse: parseReal, err: 'a real number', ok: v => { K.vsAng = K.unit === 'rad' ? v * DEG : v; } }),
-    tfield({ id: 'zs', label: sb('Z', 's', ' source impedance (Ω)'), text: zField(K.zs), parse: t => { const c = parseComplex(t, K.unit), z = c && checkZ(zLoad(c), 'Z_s', 'Γs'); return z && z.z ? z.z : z; },
+    tfield({ id: 'zs', label: sb('Z', 's', ' source impedance (Ω)'), text: zField(K.zs), parse: t => { const c = parseComplex(t, K.unit), z = c && checkZ(zLoad(c), 'Z_s'); return z && z.z ? z.z : z; },
       err: 'a complex impedance, e.g. 50 or 25+j10', ok: v => { K.zs = v; } }),
     tfield({ id: 'z0', label: sb('Z', '0', ' reference impedance (Ω, real ' + Z0_MIN + '–' + Z0_MAX + ')'), text: String(K.z0), parse: checkZ0, err: 'a real value from ' + Z0_MIN + ' to ' + Z0_MAX + ' Ω', ok: v => { K.z0 = v; } }),
     note('Impedances: 50, 75+j30. S entries: 0.5∠−90 or 0.2+j0.1. Load: open, short.')];
@@ -750,7 +780,7 @@ function loadEditor(){
   const set = zl => { K[key] = zl; redraw(true); };   // set this load and rebuild the panel (the pressed button changes)
   const pressed = { lMatch: !cur.inf && cur.z.re === K.z0 && cur.z.im === 0, lShort: !cur.inf && cur.z.re === 0 && cur.z.im === 0, lOpen: cur.inf };
   return [h('div', { cls: 'sec', id: 'kTitle', text: b === 'L' ? 'Load' : 'Load ' + b }),
-    tfield({ id: 'zl', label: sb('Z', b === 'L' ? 'L' : 'L' + b, ' load impedance (Ω)'), text: loadField(cur), parse: t => checkZ(parseLoad(t, K.unit), b === 'L' ? 'Z_L' : 'Z_L' + b, b === 'L' ? 'Γ_L' : 'Γ_L' + b), err: 'an impedance, open or short', ok: v => { K[key] = v; } }),
+    tfield({ id: 'zl', label: sb('Z', b === 'L' ? 'L' : 'L' + b, ' load impedance (Ω)'), text: loadField(cur), parse: t => checkZ(parseLoad(t, K.unit), b === 'L' ? 'Z_L' : 'Z_L' + b), err: 'an impedance, open or short', ok: v => { K[key] = v; } }),
     h('div', { cls: 'btnrow' }, pbtn('lMatch', 'Matched', pressed.lMatch, () => set(zLoad(C(K.z0, 0)))), pbtn('lShort', 'Short', pressed.lShort, () => set(zLoad(ZERO))),
       pbtn('lOpen', 'Open', pressed.lOpen, () => set(OPEN_LOAD)))];
 }
@@ -780,7 +810,7 @@ function bandEditor(){
     return { min: mn / u, max: mx / u, minOpen, maxOpen, also: v => narrow(band(v * u)) }; }, v => ok(v * u), () => boxNum(cur() / u));
   // why a band a..b (Hz) is refused: narrower than BAND_REL_MIN of its centre; null when it can be swept
   const narrow = ([a, b]) => (b - a >= BAND_REL_MIN * (a + b) / 2 ? null
-    : 'a band this narrow cannot be resolved: the span must be at least ' + BAND_REL_TEXT + ' of the centre (' + fieldNum(boxNum(BAND_REL_MIN * (a + b) / 2 / u)) + ' ' + K.fu + ' here)');   // true minus in an exponent (D18.EQ4)
+    : 'span below ' + BAND_REL_TEXT + ' of the centre (' + fieldNum(boxNum(BAND_REL_MIN * (a + b) / 2 / u)) + ' ' + K.fu + ' here), too narrow to resolve');   // true minus in an exponent (D18.EQ4)
   const a = cs ? fld('bandC', 'Centre', mid, () => [half(), F_MAX, true, false], v => setBand(v - half(), v + half()), v => [v - half(), v + half()])
     : fld('bandS', 'Start', () => K.f1, () => [0, K.f2, true, true], v => setBand(v, K.f2), v => [v, K.f2]);
   const b = cs ? fld('bandW', 'Span', () => K.f2 - K.f1, () => [0, 2 * mid(), true, true], v => setBand(mid() - v / 2, mid() + v / 2), v => [mid() - v / 2, mid() + v / 2])

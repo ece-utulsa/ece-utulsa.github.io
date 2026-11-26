@@ -13,7 +13,7 @@ const E = ctx.E;
    these tests cover the divider that ships (divWaves/solveAt), not a separate engine copy (CQ-RFC-008). */
 const cx = {}; vm.createContext(cx);
 vm.runInContext(['engine.js', 'ui.js', 'devices.js', 'cascade.js'].map(f => fs.readFileSync(path.join(SRC, f), 'utf8')).join('\n') +
-  '\n;this.X = { K, solveAt, sweepCached, resetExample, newBlock, fmtPow, ratioText, isActive, polarField, zLoad, C, OPEN_LOAD, refOf, dividerS, source, branchSetup, propagate, csolve, gammaLoad, devS };',
+  '\n;this.X = { K, solveAt, sweepCached, resetExample, newBlock, fmtPow, ratioText, isActive, polarField, zLoad, C, OPEN_LOAD, refOf, dividerS, source, branchSetup, propagate, csolve, gammaLoad, devS, angShown, polarU, checkZ0, checkZ, checkS, REFUSED, S_ENTRY_MAX, AMP_G_MAX_DB, Z_MAX_TEXT, BAND_REL_TEXT, ACTIVE_NOTE, DIV_NOTE, minusZ0 };',
   cx, { filename: 'cascade-bundle.js' });
 const X = cx.X;
 
@@ -227,6 +227,42 @@ t('DEFECT-RFC-012: the Cascade solver reports a branch pole with a divider and n
   const r = X.solveAt(1e9); eq(r.pole, { chain: 'B', node: 1 }); ok(r.nodesM.every(nd => Number.isNaN(nd.P)), 'main chain undefined');
   K.zlB = X.zLoad(X.C(100)); const q = X.solveAt(1e9); ok(q.pole === null && [q.nodesM, q.nodesA, q.nodesB].every(l => l.every(nd => isFinite(nd.P))), 'regular: all finite');
   ok(X.ratioText(NaN) === 'undefined' && X.fmtPow(NaN) === 'undefined', 'undefined readouts in words');
+});
+t('DEFECT-RFC-017: an angle at −180° to float noise wraps to +180° (degrees and radians); others unchanged', () => {
+  eq(E.wrapDeg(-180), 180); eq(E.wrapDeg(-180 + 1e-12), 180); eq(E.wrapDeg(540), 180); eq(E.wrapDeg(-540), 180); eq(E.wrapDeg(180), 180);
+  near(E.wrapDeg(-179.99), -179.99, 1e-9); near(E.wrapDeg(190), -170, 1e-9); eq(E.wrapDeg(0), 0);
+  eq(X.angShown(-179.96, 1), 180); near(X.angShown(-179.94, 1), -179.94, 1e-9); eq(X.angShown(-180 + 1e-13, 3, true), Math.PI);
+  X.resetExample(); const K = X.K;
+  for(const [l, f] of [[1, 1.5e9], [1.5, 1e9], [2, 0.75e9]]){
+    const S = X.devS({ type: 'thru', p: { l } }, f);
+    K.unit = 'deg'; const d = X.polarU(S.s21); K.unit = 'rad'; const r = X.polarU(S.s21); K.unit = 'deg';
+    ok(/∠180\.0°$/.test(d) && /∠3\.142 rad$/.test(r), l + ' λ at ' + f + ': ' + d + ' / ' + r);
+  }
+  // a sweep of angles within 1e-9° of ±180° and of other odd multiples of 180°: never read −180 or −3.142
+  for(let i = 0; i < 2000; i++){ const k = 2 * Math.floor(Math.random() * 20) - 19, a = 180 * k + (Math.random() - 0.5) * 2e-9;
+    K.unit = 'deg'; const d = X.polarU(E.polar(1, a)); K.unit = 'rad'; const r = X.polarU(E.polar(1, a));
+    ok(!/−180\.0°/.test(d) && !/−3\.142/.test(r), a + ': ' + d + ' ' + r); }
+  K.unit = 'deg';
+});
+t('DEFECT-RFC-018 / CQ-RFC-025: Z0 is checked only against the impedances in the circuit; one Z = −Z0 test and wording', () => {
+  X.resetExample(); const K = X.K; K.z0 = 75; K.zl = X.zLoad(X.C(-50));
+  const r1 = X.checkZ0('50'); ok(r1 && r1[X.REFUSED] && /Z_L = −Z0/.test(r1[X.REFUSED]), 'no divider: Z_L named');
+  K.div = { type: 'wilkinson', split: 50 }; K.zlA = X.zLoad(X.C(30)); K.zlB = X.zLoad(X.C(30));
+  eq(X.checkZ0('50'), 50, 'divider present: the stale Z_L is not in the circuit');
+  K.zlB = X.zLoad(X.C(-50)); const r2 = X.checkZ0('50'); ok(r2 && /Z_LB = −Z0/.test(r2[X.REFUSED]), 'Z_LB named');
+  K.zs = X.C(-60); const r3 = X.checkZ0('60'); ok(r3 && /Z_s = −Z0/.test(r3[X.REFUSED]), 'Z_s named');
+  K.z0 = 50; const z = X.checkZ(X.zLoad(X.C(-50)), 'Z_L'); eq(z[X.REFUSED], X.minusZ0('Z_L'), 'the box and the Z0 check share one wording');
+  ok(!/try another/.test(X.minusZ0('Z_L')), 'no "try another Z0" (PPR-RFC-018)');
+});
+t('CQ-RFC-024 / PPR-RFC-019: limits built from their constants and worded as the tool\'s range', () => {
+  eq(X.S_ENTRY_MAX, 1000); eq(X.AMP_G_MAX_DB, 60); eq(X.Z_MAX_TEXT, '1 MΩ'); eq(X.BAND_REL_TEXT, 'one part in 10⁹');
+  ok(/above 1000 \(60 dB/.test(X.checkS(X.C(1001))[X.REFUSED]));
+  ok(/this tool accepts/.test(X.checkZ(X.zLoad(X.C(2e6)), 'Z_s')[X.REFUSED]));
+});
+t('VIS-RFC-012: notes and refusals at most 25 words', () => {
+  const words = s => s.trim().split(/\s+/).length;
+  for(const s of [X.ACTIVE_NOTE, X.DIV_NOTE.wilkinson + ' Frequency-independent here.', 'Refused: ' + X.minusZ0('Z_LA') + '; keeping the last valid value'])
+    ok(words(s) <= 25, words(s) + ': ' + s);
 });
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

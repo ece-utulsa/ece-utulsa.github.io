@@ -208,6 +208,10 @@ function h(tag, props, ...kids){
   kids.flat().forEach(c => { if(c !== null && c !== undefined && c !== false) e.append(c instanceof Node ? c : document.createTextNode(String(c))); });
   return e;
 }
+/* Text with true subscripts for HTML (VIS-RFC-013), the same convention as drawn text (txt): "Z_L", "P_avs", "G_T" →
+   letters in a <sub> element, "b_2" → the inline digit subscript b₂. Returns nodes; no markup is parsed. */
+const subNodes = s => String(s).split(/(_[A-Za-z0-9]+)/).filter(p => p !== '')
+  .map(p => (!p.startsWith('_') ? p : /^_\d+$/.test(p) ? p.slice(1).replace(/\d/g, d => SUB_DIGITS[d]) : h('sub', { text: p.slice(1) })));
 /* A range input that never steps on PageUp/PageDown (DEFECT-RFC-008): those keys always navigate (main.js onKey), so
    the slider's own default is cancelled here too, whatever reaches it first. Returns the input. */
 function rangeInput(props){
@@ -223,7 +227,7 @@ const boxNum = v => +(+v).toPrecision(BOX_DIGITS);
 const errSpan = id => h('span', { cls: 'err', id: id + 'Err', attrs: { 'aria-live': 'polite' } });
 // Show or clear an input's refusal: red outline, aria-invalid and the cause in words (CQ-RFC-012, VIS-RFC-005).
 function markInput(inp, msg, cause){
-  inp.classList.toggle('invalid', !!cause); inp.setAttribute('aria-invalid', String(!!cause)); msg.textContent = cause || '';
+  inp.classList.toggle('invalid', !!cause); inp.setAttribute('aria-invalid', String(!!cause)); msg.replaceChildren(...subNodes(cause || ''));
 }
 /* Check a number box's text against limits read when the entry is made (never the limits at build time, CQ-RFC-007):
    lim = { min, max, minOpen, maxOpen (the limit itself refused), integer, unit, kept, also(v) → a further cause in
@@ -277,9 +281,9 @@ function slider(o){
   return h('div', { cls: 'ctl' }, h('label', { htmlFor: o.id, text: o.label }), h('div', { cls: 'row' }, r, nb, h('span', { cls: 'unit', text: o.unit })), msg);
 }
 // A headline readout: key text above a large value (the value is a polite live region, CQ-RFC-011).
-const headline = (key, value, id) => h('div', { cls: 'ro head' }, h('span', { cls: 'k', text: key }), h('span', { cls: 'v', id, text: value, attrs: { 'aria-live': 'polite' } }));
+const headline = (key, value, id) => h('div', { cls: 'ro head' }, h('span', { cls: 'k' }, subNodes(key)), h('span', { cls: 'v', id, text: value, attrs: { 'aria-live': 'polite' } }));
 // One line of plain explanation.
-const note = (s, id) => h('p', { cls: 'note', text: s, id });
+const note = (s, id) => h('p', { cls: 'note', id }, subNodes(s));
 // A button that shows a pressed state.
 const pbtn = (id, text, on, onclick, label) => h('button', { type: 'button', id, text, onclick, attrs: Object.assign({ 'aria-pressed': on ? 'true' : 'false' }, label ? { 'aria-label': label } : {}) });
 // ── END HTML CONTROLS ─────────────────────────────────────────
