@@ -1,0 +1,60 @@
+{
+ "slides": [
+  [
+   "Two identical generators, G1 and G2, feed one load and nothing else. There is no infinite bus, so nothing outside holds the frequency or the voltage. The two units set them between themselves.",
+   "The governor set points on the prime movers decide the frequency and how the real power is split. The field currents decide the terminal voltage and how the reactive power is split. Either way, the two shares add up to what the load takes.",
+   "Start with real power. G1's droop line starts at the left wall and G2's, mirrored, at the right, with the walls one load apart: 5.0 megawatts. Where the lines cross, both units run at one frequency, 59.89 hertz, and each gives 2.5 megawatts.",
+   "Raise the load to 7.0 megawatts. The right wall moves out, the lines meet lower, at 59.45 hertz, and each unit picks up half the change: 3.5 megawatts each.",
+   "Drop the load to 3.0 megawatts and the frequency rises to 60.33 hertz. With no infinite bus, every change in load moves the frequency. Slide 2 moves the set points to bring it back to 60 hertz."
+  ],
+  [
+   "Hold the load at 5.0 megawatts and look at the set points: where each droop line meets its own wall. Each is the frequency that unit would run at with no load, 61.00 hertz for both.",
+   "Raise G1's set point to 61.24 hertz. Its whole line moves up, parallel to where it was, shown dashed.",
+   "The crossing moves right and up. G1's share rises to 2.8 megawatts, G2's falls to 2.2, and the frequency rises to 60.01 hertz. Moving one set point moved both the split and the frequency.",
+   "That is the split we wanted, but the frequency is off 60 hertz. To hold 60 hertz, G2's set point must come down a little as G1's goes up.",
+   "Lower G2's set point to 60.98 hertz. The frequency settles at 60.00 hertz, with 2.8 megawatts from G1 and 2.2 from G2.",
+   "The rule underneath: with the load fixed, the frequency is 60 hertz whenever the two set points add up to 120 plus the load over the slope, 122.22 hertz here. Raise one and lower the other by the same amount, and the split changes while the frequency stays at 60."
+  ],
+  [
+   "Here is the system. Each unit is its internal voltage behind 0.2 plus j4.5 ohms. They meet the load at a single node, and the terminal voltage there is held at 2,402 volts, our reference.",
+   "At that node Kirchhoff's current law applies: the two unit currents add up to the load current.",
+   "The load fixes its own current: 5.0 megawatts at 0.80 lagging is 867.4 amps at minus 36.9 degrees.",
+   "G1 carries 2.8 megawatts at 0.90 lagging, from slide 2. Its current is 431.8 amps at minus 25.8 degrees.",
+   "G2 has no choice. Its current is whatever is left: I L minus I A1, drawn tip to tail. That is 451.2 amps at minus 47.4 degrees.",
+   "Each unit then needs its own internal voltage: the terminal voltage plus its own current times its synchronous impedance. E A1 is 3,741 volts at 27.2 degrees, and E A2 is 4,168 volts at 18.3 degrees.",
+   "Now raise G1's power factor to unity. G1 stops supplying reactive power, so G2 must supply all of it. G2 climbs to 4.3 megavolt-amperes, above its 4 megavolt-ampere rating."
+  ],
+  [
+   "Back to the operating point from slide 2. The set points have fixed the real power: 2.8 megawatts from G1 and 2.2 from G2. Both internal voltages are drawn on one diagram, with the terminal voltage held at 2,402 volts.",
+   "The height of each tip is set by that unit's power, almost exactly. With the power fixed, a tip can only slide sideways, along its own dashed line.",
+   "The load takes 3.75 megavars in all. Right now G1 gives 1.4 and G2 gives 2.4, shown in the bar.",
+   "Raise G1's field and lower G2's together. E A1 grows and slides right; E A2 shrinks and slides left. Reactive power moves from G2 to G1.",
+   "Now G1 gives 2.5 megavars and G2 gives 1.3. E A1 is 4,376 volts and E A2 is 3,509 volts. The real power and the terminal voltage did not move.",
+   "So a longer E A means more field current and more reactive power. Raise one field alone and the terminal voltage would rise too; moving both together, one up and one down, keeps it where it is."
+  ],
+  [
+   "A worked case. The load is 4.4 megawatts at 0.85 lagging. That is 2.7 megavars, and a load current of 718.4 amps at minus 31.8 degrees.",
+   "G1 carries 2.4 megawatts at 0.92 lagging: 1.0 megavar, and 362.1 amps at minus 23.1 degrees.",
+   "G2 supplies the rest: 2.0 megawatts and 1.7 megavars, a power factor of 0.76 lagging.",
+   "G2's current is the load current minus G1's: 364.7 amps at minus 40.4 degrees.",
+   "And G2's internal voltage is the terminal voltage plus that current times the synchronous impedance: 3,721 volts at 18.8 degrees. That is what G2's field must give."
+  ],
+  [
+   "On the left, frequency and real power. The units share the load's power, and each droop line sets its share from its set point and the system frequency. For 60 hertz, the set points must add up to 120 plus the load over the slope.",
+   "On the right, currents and voltages. The unit currents add to the load current, each internal voltage is the terminal voltage plus its current times the synchronous impedance, and the tip's height follows the unit's power.",
+   "In short: the set points share P and set the frequency. The fields share Q and set the voltage. The load fixes both totals. The Lab puts all of it on one page."
+  ]
+ ],
+ "lab": [
+  "The Lab puts both pictures on one page: the house diagram for frequency and real power, and the phasor diagram for the internal voltages and reactive power.",
+  "The set-point sliders move the droop lines; the reactive-power slider moves the fields, one up and one down. The load slider changes both totals, at 0.80 lagging.",
+  "Watch the warnings. A unit above 4 megavolt-amperes is over its rating, and a unit below zero megawatts is motoring. Try the Experiments next."
+ ],
+ "exp": [
+  "Both set points at 61.00 hertz. Raise the load from 5.0 to 6.0 megawatts. Predict first: does the system frequency rise or fall, and how is the extra megawatt shared? Then find the system frequency and each unit's real power.",
+  "Load 6.0 megawatts. Find set points that give 60.00 hertz with the load shared equally. Use the 60 hertz rule, then check it in the Lab.",
+  "Load 5.0 megawatts, set points 61.24 and 60.98 hertz, which gives 2.8 and 2.2 megawatts. Move Q until both units run at the same power factor. What is it, what is Q 1, and what is the magnitude of E A1?",
+  "Same set points. How far can you move Q toward G1 before G1 passes 4 megavolt-amperes, and how far the other way before G2 does?",
+  "The load is 5.6 megawatts at 0.85 lagging, 4.16 kilovolts. G1 carries 3.2 megawatts at 0.95 lagging. Both units have a terminal voltage of 2,401.8 volts and a synchronous impedance of 0.2 plus j4.5 ohms. Find G2's real power, reactive power, power factor, current, internal voltage magnitude and torque angle. Predict first: will G2 run at a higher or lower power factor than G1?"
+ ]
+}

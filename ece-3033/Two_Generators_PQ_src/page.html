@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<!--
+  Two Generators Sharing Real and Reactive Power — ECE 3033 Lecture 5
+  Version: v2.0.0
+  Released: 2026-11-26
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  DEMO RELEASE 2026-11-26 (principal ruling; gates pending)
+  Changelog: v2.0.0 — redesign to the 2026-11-26 design (spec Two_Generators_PQ_v2.0.0_spec.md), in the Static Stability Limit and
+  Voltage Regulation v2.0.0 pattern: narrated lecture of 6 slides (32 voiced lines; slide 5 "Worked case" is new), a new Lab with a
+  narrated introduction (3 lines), and Experiments E1–E4 plus E5 (the v1.2.0 "Your turn"), each with a voiced task (5 clips).
+  Built from Two_Generators_PQ_src/ with build.py.
+  v1.2.0 — five-slide interactive lecture (demo release 2026-11-22).
+  Model (as v1.2.0): two identical 4 MVA, 4.16 kV Y units; V_φ = 2,401.8 V is held and is the phasor reference; Z_S = 0.2 + j4.5 Ω
+  per phase; governor droop 3 %, slope s_P = 2.2514 MW/Hz, default set point 61.000 Hz; the load is at 0.80 lagging unless stated.
+  I_A = (P − jQ) / 3V_φ (lagging Q positive); E_A = V_φ + I_A Z_S; I_A2 = I_L − I_A1; f_sys = (s_P (f_nl,1 + f_nl,2) − P_load) / 2 s_P.
+  Steady state only: the frequency and the voltages move at once, and the ratings (4 MVA) only raise a warning.
+  Narration: en-GB-SoniaNeural, rate −4 %, one mp3 clip per line (mono, 24 kHz, 32 kbit/s), embedded as data.
+-->
+<html lang="en" class="lec">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-__SCRIPT_HASH__'; style-src 'sha256-__STYLE_HASH__'; media-src data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v2.0.0">
+<title>Two Generators Sharing Real and Reactive Power — ECE 3033 Lecture 5 v2.0.0</title>
+<style>__CSS__</style>
+</head>
+<body>
+<header>
+  <h1>Two Generators Sharing Real and Reactive Power</h1><span class="badge">ECE 3033 · Lecture 5 · v2.0.0</span>
+  <details id="model"><summary>Model</summary><div class="pop">
+    <p>Two identical units, G1 and G2: 4 MVA, 4.16 kV Y, Z<sub>S</sub> = 0.2 + j4.5 Ω per phase. They feed one load and nothing else. The terminal voltage V<sub>φ</sub> = 2,401.8 V is held and is the reference for every phasor.</p>
+    <p>Real power: each governor has 3 % droop, a slope s<sub>P</sub> = 2.25 MW/Hz, and a set point f<sub>nl</sub> (61.00 Hz by default). P<sub>k</sub> = s<sub>P</sub>(f<sub>nl,k</sub> − f<sub>sys</sub>), and the two powers add up to the load.</p>
+    <p>Reactive power: I<sub>A</sub> = (P − jQ) / 3V<sub>φ</sub>, E<sub>A</sub> = V<sub>φ</sub> + I<sub>A</sub>Z<sub>S</sub>, and I<sub>A2</sub> = I<sub>L</sub> − I<sub>A1</sub>. The load is at 0.80 lagging unless a slide says otherwise. R<sub>A</sub> is kept, so each constant-P line tilts slightly.</p>
+    <p>Steady state only: a change takes effect at once. The 4 MVA rating and motoring (P below 0) raise a warning; nothing trips. Every diagram has a fixed scale. Currents and voltages are never drawn on one diagram.</p>
+  </div></details>
+  <nav class="tabs" aria-label="Pages">
+    <button type="button" data-page="lec" aria-pressed="true">Lecture</button>
+    <button type="button" data-page="lab" aria-pressed="false">Lab</button>
+    <button type="button" data-page="exp" aria-pressed="false">Experiments</button>
+  </nav>
+</header>
+
+<!-- ═══ LECTURE ═══ -->
+<main id="lec">
+  <section class="card" id="left" aria-label="Slide text"></section>
+  <section class="col">
+    <div class="card" id="stage">
+      <svg id="fig" viewBox="0 0 640 452" role="img" aria-label="Slide figure. The numbers it shows are also written under it and in the caption."></svg>
+      <div id="below"></div>
+    </div>
+    <div class="card" id="cap" aria-live="polite"></div>
+    <div class="card" id="capMeasure" aria-hidden="true"></div>
+  </section>
+  <aside class="card col" id="side" aria-label="Controls">
+    <h3>CONTROLS</h3>
+    <div id="ctl"></div>
+    <div id="transport">
+      <div class="tr"><button type="button" class="btn grow" id="play">▶ Play narration</button><button type="button" class="btn" id="voice" aria-pressed="true">voice on</button></div>
+      <p class="warn voiceMsg" role="status" hidden>The voice could not start in this browser. The narration continues as timed captions.</p>
+      <div class="tr"><button type="button" class="btn" id="prev" aria-label="Previous line">◀</button><span class="val" id="lineNo"></span><button type="button" class="btn" id="next" aria-label="Next line">▶</button><div class="prog"><span id="bar"></span></div></div>
+      <div class="tr"><button type="button" class="btn grow" id="slPrev">◀ Slide</button><span class="val">slide <span id="slPos"></span></span><button type="button" class="btn grow" id="slNext">Slide ▶</button></div>
+      <p class="fixed">Using a control pauses the narration.</p>
+    </div>
+  </aside>
+</main>
+
+<!-- ═══ LAB ═══ -->
+<main id="lab" hidden>
+  <section class="card" id="labMain">
+    <svg id="labHouse" viewBox="0 0 640 452" role="img" aria-label="House diagram: each wall is one unit's frequency axis, the walls stand one load apart, and the droop lines cross at the system frequency. The readouts below give the values."></svg>
+    <svg id="labPQ" viewBox="0 0 560 430" role="img" aria-label="Phasor diagram of both units' internal voltages with the terminal voltage held, each unit's constant-power line, and a bar that splits the load's reactive power between the units."></svg>
+    <div id="labRead" role="status"></div>
+  </section>
+  <aside class="card col" id="labSide" aria-label="Lab controls">
+    <h3>LAB CONTROLS</h3>
+    <div id="labCtl"></div>
+    <div id="labWarn" role="status"></div>
+    <div class="row" id="labBtns"></div>
+    <p class="warn voiceMsg" role="status" hidden>The voice could not start in this browser. The introduction continues as timed captions.</p>
+    <p class="fixed"><span class="val" id="labNo"></span></p>
+    <p class="fixed" id="labCap" aria-live="polite"></p>
+  </aside>
+</main>
+
+<!-- ═══ EXPERIMENTS (a document: this page scrolls) ═══ -->
+<section id="page-exp" aria-label="Experiments" hidden><article class="doc" id="sheet">
+  <h1>Experiments</h1>
+  <p>Five short investigations. <b>Set up the Lab</b> puts the Lab in the right state. Predict before you look.</p>
+  <div class="sheetHead"><label>Name<input type="text" data-k="name" autocomplete="name"></label><label>Section<input type="text" data-k="section"></label><label>Date<input type="date" data-k="date"></label></div>
+  <div class="btns"><button type="button" id="exportBtn" class="btn pri">⇩ Export my answers</button><button type="button" id="clearBtn" class="btn">Clear my answers</button></div>
+  <p id="sheetStatus" role="status" aria-live="polite"></p>
+  <div id="cards"></div>
+</article></section>
+<script>__JS__</script>
+</body>
+</html>
