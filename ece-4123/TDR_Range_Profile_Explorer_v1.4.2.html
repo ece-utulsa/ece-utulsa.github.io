@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Multi-Scatterer TDR Range-Profile Explorer
+  Version: v1.4.2
+  Released: 2026-11-26
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  Status: The FR11 Guide page is not included (spec OD-11, held for the principal).
+  Changelog (v1.4.2 — fix pass on the 2026-11-24 v1.4.1 gates):
+    - CQ-M14 / DEFECT-TDR-016 / VIS-TDR-020: the device-pixel ResizeObserver is set up inside try/catch with a
+      content-box fallback; the window resize listener and the first draw no longer depend on it.
+    - DEFECT-TDR-014 / VIS-TDR-019: a devicePixelRatio change re-renders by itself (matchMedia resolution listener).
+    - CQ-M13: the per-frame time readout is not a live region; a separate status line announces start, end and Stop.
+    - CQ-M12: remaining numeric literals named in the constants block.
+    - CQ-m08..m14: TOC function lists complete; one shared grid/frame helper; section comments; the clamp note is
+      cleared on an axis change; no θ error while typing "-" or "1e"; header without review text; group names are
+      not <label> elements.
+    - DEFECT-TDR-010: on fine display columns the profile is evaluated at each column (no peak-hold widening).
+    - DEFECT-TDR-011 / VIS-TDR-006: R_unamb to three significant figures; sweep readout at the tick precision.
+    - DEFECT-TDR-013, -019: T6 range relations use v = VoP·c; canvas bitmaps match their content box.
+    - PPR-TDR-003, -007, -008, -018, -019, -020: single-bounce statement; v = v_p; ρ = |Γ| and θ = ∠Γ at the
+      reflector; close-pair and relative-phase wording; θ shown in (−180°, 180°] after entry.
+    - VIS-TDR-012, -014, -015, -016, -021, -022, -023: moving label placed below the legends; R and ρ typed in the
+      list; hidden labels and stacked markers counted; dense |S(f)| ripple stated; phasor label clear of the axis;
+      |S(f)| grid drawn over the trace; button labels on one line.
+  Changelog (v1.4.1 — fix pass on the 2026-11-20 first gates; briefing 2026-11-20_ClaudeCode_briefing_TDR_v1.4.1):
+    - CQ-M04 / DEFECT-TDR-001, -002: no page-wide mouseup recompute. A release only acts on a gesture that began on
+      the plot; one click on × removes that return; a click in a θ field keeps focus and accepts typing. Demo buttons
+      and synchronous refreshes cancel any pending frame: one compute and one draw per user change.
+    - CQ-M05 / DEFECT-TDR-005: one animation-frame handle; Stop and Send cancel it, so at most one loop runs.
+    - CQ-M11 / DEFECT-TDR-004: the pulse end point is recomputed every frame from the current axis, bandwidth and VoP.
+    - CQ-M10(c,d) / SEC-02 / DEFECT-TDR-009: θ entries that are not finite numbers are refused with a message beside
+      the field, which then shows the value in use; θ is reduced modulo 360° before conversion. Drag and click-add
+      clamps are stated in words under the plot.
+    - DEFECT-TDR-007: the held trace stays visible after an axis change, drawn over the range it was held for and
+      labelled with that axis. DEFECT-TDR-014 / VIS-TDR-019: canvases re-render on devicePixelRatio and size changes.
+      DEFECT-TDR-015(a): gate slider thumbs always equal the readout; an empty gate is announced.
+    - PPR-TDR-001 / DEFECT-TDR-012: λc/4 (round trip, phase 4πΔR/λc) in the explanation. PPR-TDR-002: separation of
+      close returns depends on relative phase as well as bandwidth.
+    - CQ-M07..M09, SEC-01, SEC-04: version in title, meta, badge and this stamp; hash-based CSP; ARIA names and
+      label-for associations on every control and canvas.
+    - CQ-M01..M03, M06, m01..m07: constants block, full TOC, opening and closing section delimiters (Std 2.3 form),
+      static canvas layers cached during the pulse animation, unused constants removed, shared helpers, cached
+      Kaiser denominator and weight buffer, |S(f)| buffer sized from the largest point count.
+    - VIS-TDR-001..003, -005: readout, R_unamb and red label text ≥ 4.5:1. VIS-TDR-004: |S(f)| ticks distinct at
+      every B; B readout shows the value set (0.25). VIS-TDR-007..011, -017: canvases drawn at CSS-pixel size (text
+      ≥ 11 px), grid ≥ 3:1, Window select not cut, 24 px gate slider targets, θ explained on screen, three columns
+      kept side by side at 1024 px and at 1366×768 with 125 % zoom.
+    - Physics model unchanged (M1 single-bounce superposition, M2 windowed inverse transform).
+  Changelog (v1.4.0 — visuals + fixes): animated pulse/echo view, hold trace, resolution demo, touchend fix,
+    gate limits follow the axis, hi-DPI canvases, phasor clustering by neighbour spacing.
+  Changelog (v1.3.0-dev): dB axis, velocity of propagation, phasor inset, |S(f)| companion plot.
+  Changelog (v1.2.0-dev): complex Γ = ρ·e^{jθ}, centre frequency f_c, complex-envelope inverse transform.
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v1.4.2">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-BWd78MHfeAVqKDsFB3QwBLOZO2KsNh7EL4OVyqFOSwM='; style-src 'sha256-QwqfUyYma/uYwuh7Ew/pKDIAotNvS/pvU8IbxNG/vAE='; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Multi-Scatterer TDR Range-Profile Explorer v1.4.2</title>
+<style>
+  :root{
+    --blue:#0050FF;          /* bright blue — class number, title, headers, key labels (5.85:1 on white) */
+    --green:#007A3D;         /* readouts and the R_unamb guide (5.45:1 on white) */
+    --warn:#D00000;          /* under-sampled warning background */
+    --ink:#000000;
+    --muted:#555555;         /* secondary text (7.46:1) */
+    --grid:#8a8a8a; --panel:#f5f5f5; --line:#c9c9c9; --groupbg:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:Arial, Helvetica, sans-serif; color:var(--ink);
+       background:#ffffff; margin:0; padding:18px 22px 30px;}
+  h1{font-size:22px; color:var(--blue); font-weight:bold; margin:0 0 3px;}
+  .course{font-size:14px; color:var(--blue); font-weight:bold; margin:0 0 2px;}
+  .sub{font-size:13px; color:#333; margin:0 0 14px;}
+  .vbadge{display:inline-block; margin-left:6px; padding:1px 7px; border:1px solid var(--blue); color:var(--blue);
+          font-weight:bold; font-size:12px; border-radius:9px;}
+  .wrap{display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; justify-content:center; max-width:1300px; margin:0 auto;}
+  .plotbox{flex:1 1 400px; min-width:360px; max-width:700px;}
+  canvas{display:block; width:100%; background:#fff; border:1px solid var(--line); touch-action:none;}
+  .hint{font-size:12.5px; color:#444; margin:7px 2px 0;}
+  .scenebar{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0 0 6px;}
+  .scenebar button.go{border-color:var(--blue); color:#fff; background:var(--blue); font-weight:bold;}
+  .scenebar button.go:hover{background:#0040cc;}
+  .scenebar label{font-size:13px;}
+  .scenebar .readline{margin-left:auto;}
+  .scenebar select{width:auto;}
+  .plotlabel{font-size:13px; font-weight:bold; color:var(--blue); margin:12px 0 4px; text-transform:uppercase; letter-spacing:.3px;}
+  .freqcv{margin-top:10px;}
+  .notice{font-size:12.5px; color:var(--warn); font-weight:bold; margin:5px 2px 0; min-height:1em;}
+  @media (max-width:640px){ body{padding:12px 10px 24px;} .plotbox{min-width:0;} .panel{flex:1 1 100%;} }
+
+  .panel{flex:0 0 262px; background:var(--panel); border:1px solid var(--line);
+         padding:6px 13px 14px;}
+  .group{background:var(--groupbg); border:1px solid var(--line);
+         padding:9px 11px 11px; margin:11px 0 0;}
+  .group h2{font-size:14px; color:var(--blue); font-weight:bold; margin:0 0 8px;
+            text-transform:uppercase; letter-spacing:.3px;}
+  .ctl{margin:0 0 11px;}
+  .ctl:last-child{margin-bottom:0;}
+  .ctl > label{display:block; font-weight:bold; margin-bottom:3px; font-size:13px;}
+  .ctl input[type=range]{width:100%;}
+  .readline{font-size:13px;}
+  .readout{color:var(--green); font-weight:bold;}
+  select{font-family:Arial; font-size:13px; padding:3px 4px; width:100%;}
+  .row{display:flex; gap:7px; align-items:center; flex-wrap:wrap;}
+  .row + .row{margin-top:7px;}
+  button{font-family:Arial; font-size:13px; padding:5px 10px; cursor:pointer; white-space:nowrap;
+         border:1px solid #888; background:#fff;}
+  #axisRow button{padding:5px 8px;}
+  .grpname{display:block; font-weight:bold; margin-bottom:3px; font-size:13px;}
+  .srOnly{position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); border:0; white-space:nowrap;}
+  button:hover{background:#eee;}
+  button.active{border-color:var(--blue); color:var(--blue); font-weight:bold;}
+
+  .badge{display:none; margin-top:6px; padding:4px 7px; font-size:12.5px; font-weight:bold;
+         color:#fff; background:var(--warn); border:1px solid #900;}
+  .badge.on{display:block;}
+
+  .slist{font-size:13px; max-height:180px; overflow:auto; border-top:1px solid var(--line);
+         margin-top:9px; padding-top:7px;}
+  .slhead{font-size:12px; color:var(--muted); margin:0 0 4px;}
+  .srow{display:flex; align-items:center; gap:7px; padding:2px 0; flex-wrap:wrap;}
+  .swatch{width:11px; height:11px; border-radius:50%; background:var(--blue); flex:0 0 auto;}
+  .srow .lab{flex:1 1 auto;}
+  .srow .phin{width:56px; font-family:Arial; font-size:12px; padding:1px 3px; border:1px solid var(--line);}
+  .srow .rin, .srow .pin{width:54px;}
+  .srow .grp{display:inline-flex; align-items:center; gap:7px;}
+  .srow .phin[aria-invalid="true"]{border-color:var(--warn);}
+  .srow .deg{color:var(--muted); font-size:12px;}
+  .srow button{padding:0 7px; line-height:19px;}
+  .srow .thmsg{flex:1 1 100%; color:var(--warn); font-size:12px; font-weight:bold;}
+
+  fieldset{border:1px solid var(--line); padding:8px 10px; margin:0;}
+  legend{font-size:13px; font-weight:bold; padding:0 4px;}
+  .gate input[type=range]{display:block; height:24px; margin:4px 0;}
+  .gate .gname{font-size:12px; color:var(--muted);}
+  .gatemsg{font-size:12px; color:var(--warn); font-weight:bold; margin-top:3px;}
+  .note{font-size:12px; color:var(--muted); margin-top:11px; line-height:1.5;}
+  .note.tight{margin-top:6px;}
+  .holdlbl{margin-top:4px; color:var(--muted);}
+  .key{color:var(--blue); font-weight:bold;}
+</style>
+</head>
+<body>
+  <p class="course">EE-4123/6423 Radio Frequency Engineering</p>
+  <h1>Multiple Scatterers — TDR Range Profile <span class="vbadge" aria-label="version 1.4.2">v1.4.2</span></h1>
+  <p class="sub">Circuit-level radar return |TDR response| vs. range &nbsp;·&nbsp; behavioral picture (reflection-coefficient strengths; no antenna gain or spreading)</p>
+
+  <div class="wrap">
+    <!-- LEFT COLUMN: signal + transform -->
+    <div class="panel">
+      <div class="group">
+        <h2>Signal Parameters</h2>
+
+        <div class="ctl">
+          <label for="bw">Bandwidth (sweep span)</label>
+          <input id="bw" type="range" min="0.25" max="20" step="0.25" value="10" aria-describedby="bwLine">
+          <div class="readline" id="bwLine">B = <span class="readout" id="bwv">10.00</span> GHz &nbsp;→&nbsp; resolution Δr = <span class="readout" id="dr">1.50</span> cm</div>
+        </div>
+
+        <div class="ctl">
+          <label for="fc">Center frequency (carrier)</label>
+          <input id="fc" type="range" min="0" max="40" step="0.5" value="10" aria-describedby="fcLine">
+          <div class="readline" id="fcLine">f<sub>c</sub> = <span class="readout" id="fcv">10.0</span> GHz &nbsp;→&nbsp; λ<sub>c</sub> = <span class="readout" id="lam">3.00</span> cm &nbsp;·&nbsp; sweep <span class="readout" id="sweep">5.0–15.0</span> GHz</div>
+        </div>
+
+        <div class="ctl">
+          <label for="vop">Velocity of propagation (cable / medium)</label>
+          <input id="vop" type="range" min="0.30" max="1.00" step="0.01" value="1.00" aria-describedby="vopLine">
+          <div class="readline" id="vopLine">VoP = <span class="readout" id="vopv">1.00</span> ·c &nbsp;→&nbsp; ε<sub>r</sub> = <span class="readout" id="eps">1.00</span></div>
+        </div>
+
+        <div class="ctl">
+          <label for="pts">Measurement points (across the sweep)</label>
+          <select id="pts" aria-describedby="runLine">
+            <option value="101">101</option>
+            <option value="201">201</option>
+            <option value="401">401</option>
+            <option value="801">801</option>
+            <option value="1601" selected>1601</option>
+          </select>
+          <div class="readline" id="runLine">Unambiguous range R<sub>unamb</sub> = <span class="readout" id="run">24.0</span> m</div>
+          <div class="badge" id="under" role="status">⚠ UNDER-SAMPLED — returns beyond R<sub>unamb</sub> fold back to false ranges</div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Transform</h2>
+        <div class="ctl">
+          <label for="win">Window</label>
+          <select id="win" aria-describedby="winNote">
+            <option value="rect">Rectangular</option>
+            <option value="hamming">Hamming</option>
+            <option value="kaiser" selected>Kaiser (β=8)</option>
+          </select>
+          <div class="readline" id="winNote">rounded, no ringing</div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Phasor — busiest cell</h2>
+        <canvas id="phasor" width="236" height="172" role="img" aria-label="Phasor diagram of the returns in the busiest resolution cell and their coherent sum"></canvas>
+        <p class="note tight">Returns within one resolution cell add as phasors (blue, tip-to-tail); the red arrow is their coherent sum. Equal phase → long sum; opposite (180°) → cancels.</p>
+      </div>
+    </div>
+
+    <!-- CENTER COLUMN: downrange profile -->
+    <div class="plotbox">
+      <div class="plotlabel" id="sceneTitle">Pulse out, echoes back</div>
+      <div class="scenebar">
+        <button id="pulseBtn" class="go">▶ Send a pulse</button>
+        <label for="loopOn"><input type="checkbox" id="loopOn"> repeat</label>
+        <label for="animSpd">speed</label>
+        <select id="animSpd"><option value="0.5">slow</option><option value="1" selected>normal</option><option value="2">fast</option></select>
+        <span class="readline" id="tread" aria-live="off">t = 0 ns</span>
+        <span class="srOnly" id="pulseStatus" role="status"></span>
+      </div>
+      <canvas id="scene" width="780" height="206" role="img" aria-labelledby="sceneTitle" aria-describedby="sceneHint"></canvas>
+      <p class="hint" id="sceneHint">The instrument launches a short pulse (red) down the line; its length v/B is set by the bandwidth. Each scatterer sends back an echo of strength ρ (blue). Where echoes overlap they add as phasors. The echoes arriving back at the instrument, plotted against R = v·t/2, <b>are</b> the range profile below. A label ending “(+n)” stands for n more returns too close to label separately.</p>
+      <div class="plotlabel" id="plotTitle">Range profile</div>
+      <canvas id="plot" width="780" height="450" role="img" aria-labelledby="plotTitle" aria-describedby="plotHint"></canvas>
+      <p class="notice" id="plotNote" role="status" aria-live="polite"></p>
+      <p class="hint" id="modelNote"><b>Model: single bounce.</b> Each return is drawn as if nothing ahead of it reflected: a reflector ahead really lets through only (1 − ρ²) of a later echo, out and back, and multiple-reflection ghosts are left out.</p>
+      <p class="hint" id="plotHint">Click empty space to add a scatterer · drag a marker (left–right = range, up–down = strength) · type exact R, ρ and θ in the list · double-click a marker to remove it · “×n” beside a marker counts returns drawn on top of each other.</p>
+      <canvas id="freq" class="freqcv" width="780" height="180" role="img" aria-label="Measured frequency response magnitude across the sweep" aria-describedby="freqHint freqNote"></canvas>
+      <p class="notice" id="freqNote" role="status"></p>
+      <p class="hint" id="freqHint">Raw magnitude of the measured frequency response |S(f)| the VNA samples across the sweep — the range profile above is its inverse transform.</p>
+      <p class="note">
+        <span class="key">Bandwidth</span> sets resolution Δr = v/(2B), where v = v<sub>p</sub> = VoP·c is the velocity on the line. Two returns closer than Δr show as one peak, lower and broader as their phase difference grows, unless they are near opposite in phase: then they show a dip and two lobes at false ranges. Whether a close pair separates depends on relative phase as well as on bandwidth.
+        <span class="key">Center frequency</span> sets the wavelength λ<sub>c</sub>. The echo travels the extra distance twice, so at f<sub>c</sub> the farther of two returns lags by 4πΔR/λ<sub>c</sub>; their relative phase is θ<sub>2</sub> − θ<sub>1</sub> − 4πΔR/λ<sub>c</sub>. Moving one return by λ<sub>c</sub>/4 swings the pair from reinforcing to cancelling (λ<sub>c</sub>/2 is a full cycle).
+        <span class="key">Phase</span> θ on each return (set in the list) controls how neighbours combine — equal phase reinforces, opposite (180°) cancels.
+        <span class="key">Points</span> set the frequency step Δf = B/(N−1) and the unambiguous range R<sub>unamb</sub> = v(N−1)/(2B); too few points for the chosen bandwidth makes distant returns alias.
+        <span class="key">Window</span> trades a sharp peak with ringing against a rounded peak with none.
+        <span class="key">Gate</span> keeps only returns inside a chosen range, like time-gating in ADS.
+      </p>
+    </div>
+
+    <!-- RIGHT COLUMN: range view + scatterers -->
+    <div class="panel">
+      <div class="group">
+        <h2>Range View</h2>
+        <div class="ctl">
+          <fieldset class="gate">
+            <legend><input type="checkbox" id="gateOn"> <label for="gateOn">Range gate</label></legend>
+            <div class="readline" id="gateLine">Keep <span class="readout" id="g0">5.0</span> – <span class="readout" id="g1">20.0</span> m</div>
+            <label class="gname" for="gmin">From (lower bound, m)</label>
+            <input id="gmin" type="range" min="0" max="40" step="0.5" value="5" aria-describedby="gateLine">
+            <label class="gname" for="gmax">To (upper bound, m)</label>
+            <input id="gmax" type="range" min="0" max="40" step="0.5" value="20" aria-describedby="gateLine">
+            <div class="gatemsg" id="gateMsg" role="status"></div>
+          </fieldset>
+        </div>
+        <div class="ctl">
+          <span class="grpname" id="axisLbl">Range axis</span>
+          <div class="row" id="axisRow" role="group" aria-labelledby="axisLbl">
+            <button data-rmax="20" class="active" aria-pressed="true">0–20 m</button>
+            <button data-rmax="40" aria-pressed="false">0–40 m</button>
+            <button data-rmax="80" aria-pressed="false">0–80 m</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <label for="dbOn"><input type="checkbox" id="dbOn"> dB magnitude axis (log scale)</label>
+        </div>
+        <div class="ctl">
+          <span class="grpname" id="cmpLbl">Compare sweeps</span>
+          <div class="row" role="group" aria-labelledby="cmpLbl"><button id="holdBtn">Hold trace</button><button id="clearHold" aria-label="Clear held trace">Clear</button></div>
+          <div class="readline holdlbl" id="holdLbl" role="status">Freeze this profile, then change B or f<sub>c</sub> to compare.</div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Scatterers</h2>
+        <div class="ctl">
+          <div class="row">
+            <button id="add">Add scatterer</button>
+            <button id="reset">Reset</button>
+          </div>
+          <div class="row">
+            <button id="demo">Interference demo</button>
+            <button id="resdemo">Resolution demo</button>
+          </div>
+        </div>
+        <div class="slist" id="slistBox">
+          <p class="slhead">Each row: range R (m), strength ρ = |Γ| and phase θ = ∠Γ (degrees) of that reflector, path delay excluded. Type a number and press Enter.</p>
+          <div id="slist" role="list" aria-label="Scatterers"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+   TABLE OF CONTENTS
+   1.  Constants ............ physics/units, transform, defaults, demos, geometry, text, dashes, colours, animation
+   2.  DOM references ....... $(), element lookups
+   3.  Canvas layout ........ fitCanvas(), makeLayer(), layoutCanvases(), watchDpr(), watchResolution(), onDprChange(),
+                              onResize()
+   4.  State ................ sceneFromDefaults(); scene, signal, view; FFT buffers; xToPx(), pxToX(), yToPx(), pxToY()
+   5.  Math helpers ......... besselI0(), windowWeight(), fft(), gauss(), wrapDeg()
+   6.  Compute .............. compute(), profileAt() — range profile via inverse FFT or direct evaluation per column
+   7.  Draw helpers ......... xTickStep(), strokeLine(), arrowHead(), tickDecimals(), freqTicks(), fmtLen(), fmtSig(),
+                              fmtDeg(), yTitle(), drawGrid()
+   8.  Range profile ........ drawPlotLayers(), composePlot()
+   9.  Frequency plot ....... drawFreq()
+   10. Phasor inset ......... drawPhasor()
+   11. Pulse / echo scene ... pulseLen(), sceneX(), drawSceneLayer(), composeScene()
+   12. Redraw scheduling .... ensureDpr(), drawAll(), drawFrame(), scheduleCompute(), refreshNow()
+   13. Scatterer list ....... renderList(), entryCause(), applyTheta(), applyField()
+   14. Interaction .......... evtPt(), hit(), setNote(), clampInfo(), clampText(), down(), move(), up()
+   15. Control wiring ....... updateDerivedReadouts(), setBandwidth(), gateLbl(), syncGateLimits(), sweepLabel(), axis,
+                              demos, hold
+   16. Pulse animation ...... pulseEnd(), sendPulse(), stopPulse(), tick(), syncPulseBtn()
+   17. Initialization ....... first layout and draw, then the resize / devicePixelRatio watchers
+   ============================================================ */
+
+// ── 1. CONSTANTS ───────────────────────────────────────────
+// physics and units
+const SPEED_OF_LIGHT_M_S   = 3e8;       // c (m/s); course value 3×10⁸
+const HZ_PER_GHZ           = 1e9;
+const CM_PER_M             = 100;
+const NS_PER_S             = 1e9;
+const MS_PER_S             = 1000;
+const DEG_PER_TURN         = 360;       // degrees in one full turn
+const DEG_PER_HALF_TURN    = 180;
+const ROUND_TRIP           = 2;         // reflection path is travelled out and back
+const GAUSS_FWHM_K         = 4 * Math.LN2; // exp(−K u²) has FWHM 1 in u
+const DECADE_BASE          = 10;        // base of the dB scale (20·log10 of an amplitude ratio)
+
+// transform
+const FFT_SIZE             = 16384;     // inverse-FFT length (smooth display within one unambiguous period)
+const DISPLAY_COLUMNS      = 720;       // peak-hold display columns across the range axis
+const MAX_POINTS           = 1601;      // largest Measurement points option (sizes the per-sample buffers)
+const KAISER_BETA          = 8;         // Kaiser window shape parameter (β)
+const HAMMING_A0           = 0.54;      // Hamming window coefficients
+const HAMMING_A1           = 0.46;
+const BESSEL_MAX_TERMS     = 200;       // I0 series term cap
+const BESSEL_CONV_TOL      = 1e-12;     // I0 series convergence tolerance
+const BESSEL_HALF_ARG_SQ_DIV = 4;       // I0 series ratio uses (x/2)² = x²/4
+const MAG_FLOOR            = 1e-9;      // smallest magnitude taken to dB (avoids log of 0)
+const RANGE_EPS_M          = 1e-9;      // range comparison tolerance (m)
+const LOOP_EPS             = 1e-6;      // float tolerance for tick loops
+const ECHO_CUTOFF          = 1e-4;      // echo envelope below this is skipped in the scene sum
+const HALF_COLUMN          = 0.5;       // a display column covers ±half a column step around its range
+const MIN_COLUMNS_PER_CELL = 16;        // with at least this many columns per Δr the profile is evaluated at each
+                                        // column (exact width); below it, fine FFT samples are peak-held per column
+
+// defaults and limits
+const DEFAULT_POINTS       = 1601;      // start at maximum sampling
+const DEFAULT_BANDWIDTH_GHZ= 10;
+const DEFAULT_FC_GHZ       = 10;        // center (carrier) frequency (GHz); 0 = baseband (no carrier)
+const DEFAULT_VOP          = 1.0;       // velocity of propagation, fraction of c
+const DEFAULT_WINDOW       = 'kaiser';
+const DEFAULT_RMAX_M       = 20;
+const DEFAULT_GATE_MIN_M   = 5;
+const DEFAULT_GATE_MAX_M   = 20;
+const DEFAULT_SCENE        = [ {R:6, rho:0.50}, {R:11, rho:0.40}, {R:16, rho:0.30} ];
+const MIN_RANGE_M          = 0.5;       // floor for a scatterer range (avoids R=0 degeneracy)
+const RHO_MIN              = 0;         // strength limits (reflection-coefficient magnitude)
+const RHO_MAX              = 1;
+const MIN_CLICK_RHO        = 0.05;      // minimum strength for a click-added scatterer
+const ADD_RANGE_FRACTION   = 0.5;       // "Add scatterer" places a return at this fraction of the axis
+const ADD_RHO              = 0.4;       // strength of an "Add scatterer" return
+const WINDOW_NOTES = { rect:'sharpest, rings', hamming:'moderate', kaiser:'rounded, no ringing' };
+const THETA_STEP_DEG       = 15;        // θ field arrow-key step (degrees)
+const THETA_DISPLAY_DECIMALS = 3;       // θ shown to this many decimals after wrapping (degrees)
+const R_STEP_M             = 0.1;       // range field arrow-key step (m)
+const RHO_STEP             = 0.01;      // strength field arrow-key step
+const R_FIELD_DECIMALS     = 2;         // range shown in the list to this many decimals (m)
+const RHO_FIELD_DECIMALS   = 2;         // strength shown in the list to this many decimals
+const READOUT_SIG_DIGITS   = 3;         // R_unamb readout keeps at least this many significant figures
+
+// demos
+const INTERF_DEMO = { B_GHZ:2,    R_M:10,  RHO:0.5 };             // two equal returns at one range
+const RES_DEMO    = { B_GHZ:0.25, R1_M:10, R2_M:10.5, RHO:0.5 };  // two equal returns 0.5 m apart, phased to add at f_c
+
+// canvas heights (CSS px); widths follow the layout
+const PLOT_H_PX = 450, SCENE_H_PX = 206, FREQ_H_PX = 180, PHASOR_H_PX = 172;
+const MIN_CANVAS_W_PX = 200;            // never lay a canvas out narrower than this
+const CANVAS_BORDER_PX = 1;             // CSS border of every canvas (box-sizing: border-box adds it to the height)
+const OBSERVER_BOXES = ['device-pixel-content-box', 'content-box'];   // ResizeObserver boxes tried, in order
+
+// range-profile geometry (CSS px)
+const PLOT_MARGIN_L = 60, PLOT_MARGIN_R = 18, PLOT_MARGIN_T = 22, PLOT_MARGIN_B = 48;
+const MARKER_RADIUS_PX        = 6;      // scatterer marker radius
+const MARKER_STROKE_PX        = 2;
+const NEEDLE_EXTRA_PX         = 6;      // phase needle reaches this far past the marker edge
+const NEEDLE_WIDTH_PX         = 1.6;
+const HIT_RADIUS_PX           = 9;      // pointer hit tolerance for grabbing a marker
+const CLICK_MOVE_THRESHOLD_PX = 4;      // movement below this on press/release counts as a click (add)
+const TRACE_WIDTH_PX          = 1.8;
+const TICK_LABEL_GAP_PX       = 5;      // gap between plot frame and x tick labels
+const YTICK_LABEL_GAP_PX      = 6;      // gap between plot frame and y tick labels
+const XAXIS_TITLE_GAP_PX      = 26;     // x-axis title below the frame
+const YAXIS_TITLE_X_PX        = 15;     // x position of the rotated y-axis title
+const LABEL_INSET_PX          = 4;      // inset of corner legends from the frame
+const LEGEND_LINE_PX          = 16;     // line spacing of stacked legends
+const UNAMB_FLIP_PX           = 70;     // R_unamb label flips to the left this close to the right edge
+const REVEAL_FLIP_PX          = 90;     // moving R = v·t/2 label flips this close to the right edge
+const REVEAL_LABEL_GAP_PX     = 4;      // moving R = v·t/2 label sits this far below the top label rows
+const HELD_LEGEND_LINES       = 2;      // legend rows while a trace is held ("held:", "now:")
+const STACK_LABEL_GAP_PX      = 2;      // "×n" count sits this far right of a stack of coincident markers
+
+// axis ticks
+const RMAX_TICK_NEAR = 20, RMAX_TICK_MID = 40;                    // range-extent thresholds (m)
+const TICK_STEP_NEAR = 2, TICK_STEP_MID = 5, TICK_STEP_FAR = 10;  // x tick spacing (m)
+const Y_TICK_STEP    = 0.2;             // strength-axis tick spacing (linear)
+const DB_FLOOR       = -50;             // bottom of the dB magnitude axis (dB, ref ρ=1)
+const DB_TICK_STEP   = 10;              // dB axis tick spacing (dB)
+const DB_PER_DECADE  = 20;              // 20·log10 for an amplitude ratio
+const MAX_TICK_DECIMALS = 4;            // finest frequency-tick precision tried
+const TICK_TOL_FRACTION = 0.1;          // a tick label may differ from its value by at most this fraction of a step
+
+// frequency-plot geometry (CSS px)
+const FREQ_MARGIN_L = 60, FREQ_MARGIN_R = 18, FREQ_MARGIN_T = 16, FREQ_MARGIN_B = 34;
+const FREQ_X_DIVS   = 5;                // frequency-axis divisions
+const FREQ_Y_STEP   = 0.25;             // |S|/Σρ tick spacing
+const FREQ_TICK_GAP_PX = 4, FREQ_YTICK_GAP_PX = 5, FREQ_TITLE_GAP_PX = 18, FREQ_YTITLE_X_PX = 13;
+const RIPPLE_MIN_PX_PER_CYCLE = 4;      // ripple finer than this many px per cycle draws as a solid band
+
+// phasor-inset geometry (CSS px)
+const PHASOR_AXIS_INSET_PX   = 8;       // axis cross inset from the canvas edge
+const PHASOR_LABEL_BAND_PX   = 18;      // top and bottom text rows kept clear of the axes and phasors
+const PHASOR_TIP_INSET_PX    = 4;       // largest resultant tip stays this far inside the free area
+const PHASOR_MIN_SUM         = 0.001;   // smallest Σρ used for scaling (avoids divide by zero)
+const CLUSTER_COUNT_WEIGHT   = 1e3;     // busiest cluster wins; Σρ breaks ties
+const PHASOR_TEXT_X_PX = 6, PHASOR_TEXT_TOP_PX = 4, PHASOR_TEXT_BOTTOM_PX = 16;
+const PHASOR_WIDTH_PX = 1.6, RESULTANT_WIDTH_PX = 2.4;
+const ARROW_LEN_PX = 6, ARROW_HALF_ANGLE_RAD = 0.4;
+
+// pulse-scene geometry (CSS px)
+const SCENE_LINE_Y_PX      = 92;        // y of the line (cable / medium)
+const SCENE_LINE_HALF_PX   = 4;         // half thickness of the drawn line
+const SCENE_TICK_TOP_PX    = 14;
+const SCENE_TICK_BOTTOM_PX = 38;        // grid stops this far above the bottom
+const SCENE_TICK_LABEL_PX  = 34;        // tick labels this far above the bottom
+const SCENE_TITLE_PX       = 17;        // axis title this far above the bottom
+const INSTR_INSET_PX = 6, INSTR_HALF_H_PX = 22;                  // instrument box
+const INSTR_LABEL_UP_PX = 6, INSTR_LABEL_DOWN_PX = 8;            // "VNA" / "/ TDR" offsets from the line
+const BAR_W_PX = 5, BAR_BASE_PX = 8, BAR_PER_RHO_PX = 34;        // scatterer bar size; height ∝ ρ
+const BAR_LABEL_GAP_PX     = 2;
+const LABEL_PAD_PX         = 6;         // least clear space between two ρ labels; closer returns share one label
+const SCENE_AMP_PX         = 62;        // envelope height for unit amplitude
+const SCENE_ENV_GAP_PX     = 6;         // envelopes start this far from the line
+const CARRIER_MIN_PX       = 6;         // carrier drawn only when λc spans at least this many px
+const CARRIER_SCALE        = 0.5;       // carrier ripple drawn at half the envelope height
+const SCENE_TEXT_INSET_PX  = 4;
+const SCENE_CURVE_WIDTH_PX = 1.4, CARRIER_WIDTH_PX = 1;
+
+// text (canvas fonts are true CSS px: canvases are laid out 1:1)
+const FONT_SMALL = '11px Arial', FONT_TICK = '12px Arial', FONT_TITLE = '13px Arial', FONT_BOLD = 'bold 12px Arial';
+
+// line widths and dash patterns (CSS px)
+const GRID_WIDTH_PX = 1, UNAMB_WIDTH_PX = 1.4, HELD_WIDTH_PX = 1.5, REVEAL_WIDTH_PX = 1, INSTR_WIDTH_PX = 1.5;
+const DASH_GUIDE  = [3, 3];             // true-range guides
+const DASH_UNAMB  = [6, 4];             // unambiguous-range boundary
+const DASH_HELD   = [5, 3];             // held reference trace
+const DASH_REVEAL = [2, 3];             // moving R = v·t/2 cursor
+const DASH_FREQ_GRID = [1, 3];          // |S(f)| grid, drawn dotted over the trace
+const DASH_NONE   = [];
+
+// colours (text colours ≥ 4.5:1 and drawn guides ≥ 3:1 on white)
+const COLOR_BG          = '#ffffff';
+const COLOR_TRACE       = '#FF0000';               // range-profile trace (graphic)
+const COLOR_TEXT_RED    = '#C00000';               // red text labels (6.48:1)
+const COLOR_BLUE        = '#0050FF';
+const COLOR_GREEN       = '#007A3D';               // R_unamb guide and label (5.45:1)
+const COLOR_INK         = '#000000';
+const COLOR_MUTED       = '#555555';
+const COLOR_GRID        = '#8a8a8a';               // 3.45:1 on white
+const COLOR_FREQ_GRID   = '#000000';               // |S(f)| grid over the trace: 21:1 on white, 3.59:1 on the blue
+const COLOR_GUIDE_TRUE  = 'rgba(0,80,255,0.18)';   // faint true-range guide line
+const COLOR_GATE_SHADE  = 'rgba(0,176,80,0.10)';
+const COLOR_HELD        = 'rgba(0,0,0,0.45)';
+const COLOR_REVEAL      = 'rgba(255,0,0,0.5)';
+const COLOR_PHASOR      = 'rgba(0,80,255,0.75)';
+const COLOR_LINE_FILL   = '#e9e9e9', COLOR_LINE_EDGE = '#999999';
+const COLOR_PULSE_FILL  = 'rgba(255,0,0,0.16)', COLOR_ECHO_FILL = 'rgba(0,80,255,0.16)';
+const COLOR_CARRIER     = 'rgba(255,0,0,0.6)';
+
+// animation
+const SCENE_ANIM_S       = 5;           // seconds for a round trip to the far edge at "normal" speed
+const MAX_FRAME_DT_S     = 0.05;        // longest frame step taken (s); hidden tabs pause
+const PULSE_LEAD_LENGTHS = 2;           // pulse starts/ends this many pulse lengths beyond the axis
+// ── END 1. CONSTANTS ───────────────────────────────────────
+
+// ── 2. DOM REFERENCES ──────────────────────────────────────
+// Every element the script reads or writes, looked up once at load.
+const $ = id => document.getElementById(id);
+const cv = $('plot'), fcv2 = $('freq'), pcv = $('phasor'), scv = $('scene');
+const elBwv = $('bwv'), elDr = $('dr'), elRun = $('run'), elUnder = $('under');
+const elG0 = $('g0'), elG1 = $('g1'), elGmin = $('gmin'), elGmax = $('gmax'), elGateMsg = $('gateMsg');
+const elSlist = $('slist'), elFcv = $('fcv'), elLam = $('lam'), elSweep = $('sweep');
+const elVop = $('vopv'), elEps = $('eps'), elBw = $('bw'), elWin = $('win'), elWinNote = $('winNote');
+const elNote = $('plotNote'), elTread = $('tread'), elPulseBtn = $('pulseBtn'), elAnimSpd = $('animSpd');
+const elLoop = $('loopOn'), elHoldLbl = $('holdLbl'), elPulseStatus = $('pulseStatus'), elFreqNote = $('freqNote');
+const axisButtons = document.querySelectorAll('button[data-rmax]');
+// ── END 2. DOM REFERENCES ──────────────────────────────────
+
+// ── 3. CANVAS LAYOUT ───────────────────────────────────────
+// Canvases are laid out at their CSS width (1 canvas unit = 1 CSS px) and backed at devicePixelRatio.
+let dpr = window.devicePixelRatio || 1;
+let ctx, fctx, pctx, sctx;                 // on-screen contexts
+let W = 0, H = PLOT_H_PX, pw = 0, ph = 0;  // range-profile size and inner plot size (CSS px)
+let FW = 0, FH = FREQ_H_PX, PWp = 0, PHp = PHASOR_H_PX, SW = 0, SH = SCENE_H_PX;
+let plotBg = null, plotFg = null, sceneBg = null;   // cached static layers
+
+// Size one canvas to its laid-out width and the given height; returns its scaled 2-D context.
+function fitCanvas(el, hPx){
+  el.style.height = (hPx + 2*CANVAS_BORDER_PX) + 'px';   // border-box: content height = hPx = bitmap rows / dpr
+  const w = Math.max(MIN_CANVAS_W_PX, el.clientWidth);
+  el.width = Math.round(w * dpr); el.height = Math.round(hPx * dpr);
+  const c = el.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { c, w };
+}
+// Create an off-screen layer the size of a canvas (device pixels), drawn in CSS-px units.
+function makeLayer(w, h){
+  const el = document.createElement('canvas');
+  el.width = Math.round(w * dpr); el.height = Math.round(h * dpr);
+  const c = el.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { el, c };
+}
+// Lay out every canvas and rebuild the cached layers at the current width and devicePixelRatio.
+function layoutCanvases(){
+  let r = fitCanvas(cv, PLOT_H_PX);    ctx  = r.c; W  = r.w;
+  r = fitCanvas(fcv2, FREQ_H_PX);      fctx = r.c; FW = r.w;
+  r = fitCanvas(pcv, PHASOR_H_PX);     pctx = r.c; PWp = r.w;
+  r = fitCanvas(scv, SCENE_H_PX);      sctx = r.c; SW = r.w;
+  pw = W - PLOT_MARGIN_L - PLOT_MARGIN_R;
+  ph = H - PLOT_MARGIN_T - PLOT_MARGIN_B;
+  plotBg = makeLayer(W, H); plotFg = makeLayer(W, H); sceneBg = makeLayer(SW, SH);
+}
+// Re-render when the plot's size changes. Setup can never stop initialization: an engine that rejects the
+// device-pixel box falls back to the content box; with no observer at all, the window resize listener and the
+// devicePixelRatio listener (watchResolution) still re-render. Returns the box in use, or '' for none.
+function watchDpr(){
+  if(typeof ResizeObserver !== 'function') return '';
+  for(const box of OBSERVER_BOXES){
+    let ro = null;
+    try{ ro = new ResizeObserver(onResize); ro.observe(cv, { box }); return box; }
+    catch(err){ if(ro) ro.disconnect(); }                   // this engine rejects the box: try the next one
+  }
+  return '';
+}
+let dprQuery = null;                       // media query matching the current devicePixelRatio
+// Re-render when devicePixelRatio changes (browser zoom, another screen) even if no element changes size;
+// the media query is re-armed for the new ratio after every change.
+function watchResolution(){
+  if(typeof window.matchMedia !== 'function') return;
+  if(dprQuery && typeof dprQuery.removeEventListener === 'function') dprQuery.removeEventListener('change', onDprChange);
+  dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+  if(typeof dprQuery.addEventListener === 'function') dprQuery.addEventListener('change', onDprChange);
+}
+// devicePixelRatio changed: re-lay out and redraw once, then watch the new ratio.
+function onDprChange(){ onResize(); watchResolution(); }
+// Coalesce window resizes into one layout + redraw per frame.
+let resizeRaf = 0;
+function onResize(){
+  if(resizeRaf) return;
+  resizeRaf = requestAnimationFrame(() => { resizeRaf = 0; dpr = window.devicePixelRatio || 1; layoutCanvases(); drawAll(); });
+}
+// ── END 3. CANVAS LAYOUT ───────────────────────────────────
+
+// ── 4. STATE ───────────────────────────────────────────────
+// Each return: R (m), rho = |Γ|, th = ∠Γ (rad, used by the model), thDeg (degrees in (−180°, 180°], shown in the list).
+// Default scene: the three returns of DEFAULT_SCENE, all at θ = 0.
+const sceneFromDefaults = () => DEFAULT_SCENE.map(s => ({ R:s.R, rho:s.rho, th:0, thDeg:0 }));
+let scat    = sceneFromDefaults();
+let Rmax    = DEFAULT_RMAX_M;                      // displayed range extent (m)
+let B       = DEFAULT_BANDWIDTH_GHZ * HZ_PER_GHZ;  // bandwidth (Hz)
+let fc      = DEFAULT_FC_GHZ * HZ_PER_GHZ;         // center (carrier) frequency (Hz)
+let nPoints = DEFAULT_POINTS;                      // FR10 measurement points
+let winType = DEFAULT_WINDOW;
+let gateOn  = false, gmin = DEFAULT_GATE_MIN_M, gmax = DEFAULT_GATE_MAX_M;
+let VoP     = DEFAULT_VOP;                         // velocity of propagation (fraction of c)
+let vMed    = SPEED_OF_LIGHT_M_S * VoP;            // in-medium wave velocity (m/s)
+let yScaleDB= false;                               // dB (log) magnitude axis toggle
+let held    = null;                                // { y, Rmax, label } held reference trace
+let anim    = null;                                // { s: distance travelled (m) } while a pulse is in flight
+
+let Runamb       = 0;       // current unambiguous range (m) — set by compute()
+let underSampled = false;   // true when returns can fold into the view — set by compute()
+
+// reusable FFT buffers and display arrays
+const reS  = new Float64Array(FFT_SIZE), imS = new Float64Array(FFT_SIZE);
+const Pmag = new Float64Array(FFT_SIZE);                   // one-period magnitude (normalized)
+const Rgrid= new Float64Array(DISPLAY_COLUMNS), yMag = new Float64Array(DISPLAY_COLUMNS);
+const SfMag= new Float64Array(MAX_POINTS);                 // raw |S(f)| per swept sample (unwindowed)
+const Wb   = new Float64Array(MAX_POINTS);                 // window weights per swept sample
+const bandRe = new Float64Array(MAX_POINTS), bandIm = new Float64Array(MAX_POINTS);   // windowed band (direct evaluation)
+let nFreq= 0, sumRhoG = 0;                                 // sample count and Σρ for the freq-domain plot
+
+// coordinate transforms (range/strength <-> CSS px on the range-profile canvas)
+function xToPx(R){ return PLOT_MARGIN_L + (R / Rmax) * pw; }                 // range -> x px
+function pxToX(px){ return (px - PLOT_MARGIN_L) / pw * Rmax; }               // x px -> range
+function yToPx(v){                                                           // strength -> y px (linear or dB)
+  if(yScaleDB){ const db = DB_PER_DECADE * Math.log10(Math.max(v, MAG_FLOOR));
+    const c = Math.max(DB_FLOOR, Math.min(0, db)); const frac = (c - DB_FLOOR)/(0 - DB_FLOOR);
+    return PLOT_MARGIN_T + (1 - frac) * ph; }
+  return PLOT_MARGIN_T + (1 - v) * ph;
+}
+function pxToY(px){                                                          // y px -> strength (linear or dB)
+  if(yScaleDB){ const frac = 1 - (px - PLOT_MARGIN_T)/ph; const db = DB_FLOOR + frac*(0 - DB_FLOOR);
+    return Math.pow(DECADE_BASE, db/DB_PER_DECADE); }
+  return 1 - (px - PLOT_MARGIN_T) / ph;
+}
+// ── END 4. STATE ───────────────────────────────────────────
+
+// ── 5. MATH HELPERS ────────────────────────────────────────
+// Modified Bessel function of the first kind, order 0 — used by the Kaiser window.
+function besselI0(x){
+  let s=1, t=1, k=1; const x2 = x*x/BESSEL_HALF_ARG_SQ_DIV;
+  while(k < BESSEL_MAX_TERMS){ t *= x2/(k*k); s += t; if(t < BESSEL_CONV_TOL*s) break; k++; }
+  return s;
+}
+const KAISER_I0_BETA = besselI0(KAISER_BETA);   // Kaiser normalising denominator (computed once)
+
+// Window weight for sample k of an N-sample band (shared helper for all window types).
+function windowWeight(type, k, N){
+  if(type === 'rect')    return 1;
+  if(type === 'hamming') return HAMMING_A0 - HAMMING_A1 * Math.cos(2*Math.PI*k/(N-1));
+  const r = 2*k/(N-1) - 1;  // Kaiser
+  return besselI0(KAISER_BETA * Math.sqrt(Math.max(0, 1 - r*r))) / KAISER_I0_BETA;
+}
+
+// In-place iterative radix-2 FFT. invert=true gives the unnormalized inverse transform.
+function fft(re, im, invert){
+  const n = re.length;
+  for(let i=1, j=0; i<n; i++){ let bit=n>>1; for(; j&bit; bit>>=1) j^=bit; j^=bit;
+    if(i<j){ const tr=re[i]; re[i]=re[j]; re[j]=tr; const ti=im[i]; im[i]=im[j]; im[j]=ti; } }
+  for(let len=2; len<=n; len<<=1){
+    const ang = (invert?2:-2)*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0; i<n; i+=len){ let cwr=1, cwi=0;
+      for(let k=0; k<len/2; k++){
+        const ur=re[i+k], ui=im[i+k];
+        const vr=re[i+k+len/2]*cwr - im[i+k+len/2]*cwi, vi=re[i+k+len/2]*cwi + im[i+k+len/2]*cwr;
+        re[i+k]=ur+vr; im[i+k]=ui+vi; re[i+k+len/2]=ur-vr; im[i+k+len/2]=ui-vi;
+        const ncwr=cwr*wr - cwi*wi; cwi=cwr*wi + cwi*wr; cwr=ncwr;
+      } } }
+}
+// Gaussian envelope with unit FWHM in u.
+function gauss(u){ return Math.exp(-GAUSS_FWHM_K*u*u); }
+// Reduce an angle in degrees into (−180°, 180°] (CRF 05 §4); stays finite for very large entries.
+function wrapDeg(d){
+  let r = d % DEG_PER_TURN;
+  if(r > DEG_PER_HALF_TURN) r -= DEG_PER_TURN; else if(r <= -DEG_PER_HALF_TURN) r += DEG_PER_TURN;
+  return r;
+}
+// ── END 5. MATH HELPERS ────────────────────────────────────
+
+// ── 6. COMPUTE — RANGE PROFILE (FR10 points-driven) ────────
+// Models a stepped-frequency VNA measurement: N complex samples of S(f)=Σ ρ·e^{jθ}·e^{-j2πf·2R/v}
+// across the swept band [fc-B/2, fc+B/2]. Returns add COHERENTLY (complex), so neighbours reinforce
+// or cancel by their relative phase. Sample spacing Δf=B/(N-1) sets R_unamb=v(N-1)/(2B); reflectors
+// beyond it fold back (alias) by design — surfaced to the user, never silently hidden.
+// Time convention e^{+jωt}: a delay τ = 2R/v gives phase −2πfτ.
+function compute(){
+  const N  = nPoints;
+  const df = B / (N - 1);                              // frequency-sample spacing Δf
+  Runamb   = vMed / (ROUND_TRIP * df);                 // = v(N-1)/(2B), v = c·VoP
+
+  // window across the N band samples
+  let sumW = 0;
+  for(let k=0; k<N; k++){ const w = windowWeight(winType, k, N); Wb[k] = w; sumW += w; }
+
+  // build the windowed complex measured band at bin spacing Δf (zeros above the band)
+  const fStart = Math.max(0, fc - B/2);                // modelled VNA sweep [fc-B/2, fc+B/2], clamped ≥ 0 (OD-4 held)
+  reS.fill(0); imS.fill(0);
+  for(let k=0; k<N; k++){
+    const f = fStart + k * df; let Hr=0, Hi=0;
+    for(const s of scat){ const phi = s.th - 2*Math.PI*f * ROUND_TRIP*s.R / vMed;  // Γ = ρ·e^{jθ}, in-medium velocity
+      Hr += s.rho*Math.cos(phi); Hi += s.rho*Math.sin(phi); }
+    SfMag[k] = Math.hypot(Hr, Hi);                     // raw measured magnitude (pre-window) for the freq plot
+    bandRe[k] = reS[k] = Hr * Wb[k]; bandIm[k] = imS[k] = Hi * Wb[k];   // complex band at bins 0..N-1 (no Hermitian forcing)
+  }
+  nFreq = N; sumRhoG = scat.reduce((a,s)=>a+s.rho,0) || 1;
+
+  const norm = sumW;                                   // so an isolated reflector peaks at its ρ
+  const dRb  = Runamb / FFT_SIZE;                      // range-sample spacing of one FFT period
+  const step = Rmax / (DISPLAY_COLUMNS - 1);           // display-column spacing (m)
+  // Fine columns (many per resolution cell): evaluate the profile at each column, so peak widths are not widened
+  // by peak-hold (DEFECT-TDR-010). Coarse columns: peak-hold fine FFT samples so no narrow peak is missed.
+  const direct = vMed / (ROUND_TRIP * B) / step >= MIN_COLUMNS_PER_CELL;
+  let Pmax = 0;
+  if(!direct){
+    fft(reS, imS, true);                               // inverse FFT -> complex-envelope range profile (coherent sum)
+    for(let n=0; n<FFT_SIZE; n++){ const v = Math.hypot(reS[n], imS[n]) / norm; Pmag[n] = v; if(v>Pmax) Pmax = v; }
+  }
+
+  // display columns over [0, Rmax]; both paths repeat every R_unamb, so returns beyond it appear folded (aliased).
+  const widthIdx = step / dRb;
+  for(let i=0; i<DISPLAY_COLUMNS; i++){
+    Rgrid[i] = i * step;
+    let m;
+    if(direct){ m = profileAt(Rgrid[i], N) / norm; }
+    else if(widthIdx >= FFT_SIZE){ m = Pmax; }         // a single column spans a whole period
+    else {
+      const n0 = Math.floor((i-HALF_COLUMN)*step/dRb), n1 = Math.ceil((i+HALF_COLUMN)*step/dRb);
+      m = 0;
+      for(let n=n0; n<=n1; n++){ const idx = ((n % FFT_SIZE) + FFT_SIZE) % FFT_SIZE; if(Pmag[idx] > m) m = Pmag[idx]; }
+    }
+    if(gateOn && (Rgrid[i] < gmin || Rgrid[i] > gmax)) m = 0;
+    yMag[i] = m;
+  }
+
+  // under-sampled when the unambiguous range cannot cover the view, or a reflector lies beyond it
+  underSampled = (Runamb < Rmax - RANGE_EPS_M) || scat.some(s => s.R > Runamb + RANGE_EPS_M);
+
+  elRun.textContent = fmtSig(Runamb);
+  elUnder.classList.toggle('on', underSampled);
+}
+// Unnormalized profile magnitude at range r (m): the inverse transform of the windowed band evaluated directly,
+// |Σ_k X_k·e^{+j2πk·r/R_unamb}| (same sum as the inverse FFT bin at r), by a rotating phasor (no per-term trig).
+function profileAt(r, N){
+  const a = 2*Math.PI*r/Runamb, wr = Math.cos(a), wi = Math.sin(a);
+  let cr = 1, ci = 0, sr = 0, si = 0;
+  for(let k=0; k<N; k++){
+    sr += bandRe[k]*cr - bandIm[k]*ci; si += bandRe[k]*ci + bandIm[k]*cr;
+    const ncr = cr*wr - ci*wi; ci = cr*wi + ci*wr; cr = ncr;
+  }
+  return Math.hypot(sr, si);
+}
+// ── END 6. COMPUTE ─────────────────────────────────────────
+
+// ── 7. DRAW HELPERS ────────────────────────────────────────
+// Range-axis tick spacing (m) for the current extent; shared by the profile and the pulse scene.
+function xTickStep(){ return Rmax <= RMAX_TICK_NEAR ? TICK_STEP_NEAR : (Rmax <= RMAX_TICK_MID ? TICK_STEP_MID : TICK_STEP_FAR); }
+// Stroke one straight segment.
+function strokeLine(c, x0, y0, x1, y1){ c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
+// Small filled arrowhead at (x1,y1) pointing away from (x0,y0).
+function arrowHead(c, x0, y0, x1, y1, color){
+  const a = Math.atan2(y1-y0, x1-x0); c.fillStyle = color;
+  c.beginPath(); c.moveTo(x1, y1);
+  c.lineTo(x1 - ARROW_LEN_PX*Math.cos(a-ARROW_HALF_ANGLE_RAD), y1 - ARROW_LEN_PX*Math.sin(a-ARROW_HALF_ANGLE_RAD));
+  c.lineTo(x1 - ARROW_LEN_PX*Math.cos(a+ARROW_HALF_ANGLE_RAD), y1 - ARROW_LEN_PX*Math.sin(a+ARROW_HALF_ANGLE_RAD));
+  c.closePath(); c.fill();
+}
+// Fewest decimals (1..MAX_TICK_DECIMALS) at which every tick label is distinct and within a tenth of a step of its value.
+function tickDecimals(values, step){
+  for(let d=1; d<MAX_TICK_DECIMALS; d++){
+    const labels = values.map(v => v.toFixed(d));
+    const distinct = new Set(labels).size === labels.length;
+    const close = values.every((v,i) => Math.abs(+labels[i] - v) <= step*TICK_TOL_FRACTION);
+    if(distinct && close) return d;
+  }
+  return MAX_TICK_DECIMALS;
+}
+// Frequency ticks (GHz) across the modelled sweep and the decimals at which they read distinctly (shared by the
+// |S(f)| axis, the sweep readout and the hold legend, so all three show the same precision).
+function freqTicks(){
+  const BG = B/HZ_PER_GHZ, f0 = Math.max(0, fc/HZ_PER_GHZ - BG/2), stepG = BG/FREQ_X_DIVS, ticks = [];
+  for(let i=0; i<=FREQ_X_DIVS; i++) ticks.push(f0 + i*stepG);
+  return { f0, f1: f0 + BG, ticks, dec: tickDecimals(ticks, stepG) };
+}
+// A length in metres as "x.x cm" below 1 m, else "x.xx m".
+function fmtLen(m){ return m < 1 ? (m*CM_PER_M).toFixed(1) + ' cm' : m.toFixed(2) + ' m'; }
+// A positive value with at least READOUT_SIG_DIGITS significant figures and at least one decimal.
+function fmtSig(v){ return v.toFixed(Math.max(1, READOUT_SIG_DIGITS - 1 - Math.floor(Math.log10(v)))); }
+// An angle in degrees for display: THETA_DISPLAY_DECIMALS at most, no trailing zeros, never "-0".
+function fmtDeg(d){ return String(Number(d.toFixed(THETA_DISPLAY_DECIMALS)) || 0); }
+// Rotated (bottom-to-top) axis title centred at (x, y).
+function yTitle(c, text, x, y){ c.save(); c.translate(x, y); c.rotate(-Math.PI/2); c.fillText(text, 0, 0); c.restore(); }
+// Shared grid, tick labels and optional frame for the profile, |S(f)| and scene plots.
+// g: { L, T, w, h (box, CSS px), xs/ys: [{ p: px, label }], xLabelY, yLabelX, font, color, dash, frame }.
+function drawGrid(c, g){
+  c.save(); c.strokeStyle = g.color; c.lineWidth = GRID_WIDTH_PX; c.setLineDash(g.dash);
+  for(const t of g.xs) strokeLine(c, t.p, g.T, t.p, g.T + g.h);
+  for(const t of g.ys) strokeLine(c, g.L, t.p, g.L + g.w, t.p);
+  c.restore();
+  c.fillStyle = COLOR_INK; c.font = g.font;
+  c.textAlign = 'center'; c.textBaseline = 'top';
+  for(const t of g.xs) c.fillText(t.label, t.p, g.xLabelY);
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for(const t of g.ys) c.fillText(t.label, g.yLabelX, t.p);
+  if(g.frame){ c.strokeStyle = COLOR_INK; c.lineWidth = GRID_WIDTH_PX; c.strokeRect(g.L, g.T, g.w, g.h); }
+}
+// ── END 7. DRAW HELPERS ────────────────────────────────────
+
+// ── 8. RANGE PROFILE ───────────────────────────────────────
+// Static layers: background (grid, axes, guides, held trace, legends) and foreground (markers). Rebuilt on state change.
+function drawPlotLayers(){
+  const c = plotBg.c;
+  c.clearRect(0,0,W,H); c.fillStyle = COLOR_BG; c.fillRect(0,0,W,H);
+
+  // gate shading
+  if(gateOn){
+    c.fillStyle = COLOR_GATE_SHADE;
+    const x0 = xToPx(Math.max(0,gmin)), x1 = xToPx(Math.min(Rmax,gmax));
+    c.fillRect(x0, PLOT_MARGIN_T, x1-x0, ph);
+  }
+
+  // grid, tick labels and frame (shared helper)
+  const xs = [], ys = [], xstep = xTickStep();
+  for(let R=0; R<=Rmax+LOOP_EPS; R+=xstep) xs.push({ p: xToPx(R), label: R.toFixed(0) });
+  if(yScaleDB){
+    for(let dbv=0; dbv>=DB_FLOOR-LOOP_EPS; dbv-=DB_TICK_STEP) ys.push({ p: yToPx(Math.pow(DECADE_BASE, dbv/DB_PER_DECADE)), label: dbv.toFixed(0) });
+  } else {
+    for(let v=0; v<=RHO_MAX+LOOP_EPS; v+=Y_TICK_STEP) ys.push({ p: yToPx(v), label: v.toFixed(1) });
+  }
+  drawGrid(c, { L: PLOT_MARGIN_L, T: PLOT_MARGIN_T, w: pw, h: ph, xs, ys, font: FONT_TICK, color: COLOR_GRID, dash: DASH_NONE,
+                xLabelY: PLOT_MARGIN_T+ph+TICK_LABEL_GAP_PX, yLabelX: PLOT_MARGIN_L-YTICK_LABEL_GAP_PX, frame: true });
+
+  // axis titles (range axis title in bright blue)
+  c.textAlign='center'; c.textBaseline='top'; c.font=FONT_TITLE;
+  c.fillStyle = COLOR_BLUE; c.fillText('Range (m)', PLOT_MARGIN_L+pw/2, PLOT_MARGIN_T+ph+XAXIS_TITLE_GAP_PX);
+  yTitle(c, yScaleDB ? '|TDR| response  (dB, ref ρ=1)' : '|TDR| response  (reflection coefficient)', YAXIS_TITLE_X_PX, PLOT_MARGIN_T+ph/2);
+
+  // true-range guide lines (faint blue) at each scatterer's actual range
+  c.strokeStyle = COLOR_GUIDE_TRUE; c.setLineDash(DASH_GUIDE);
+  for(const s of scat){ if(s.R <= Rmax){ const x = xToPx(s.R); strokeLine(c, x, PLOT_MARGIN_T, x, PLOT_MARGIN_T+ph); } }
+  c.setLineDash(DASH_NONE);
+
+  // unambiguous-range boundary (green) — peaks to its right are aliased repeats
+  if(Runamb <= Rmax){
+    const x = xToPx(Runamb);
+    c.strokeStyle = COLOR_GREEN; c.lineWidth = UNAMB_WIDTH_PX; c.setLineDash(DASH_UNAMB);
+    strokeLine(c, x, PLOT_MARGIN_T, x, PLOT_MARGIN_T+ph);
+    c.setLineDash(DASH_NONE);
+    c.fillStyle = COLOR_GREEN; c.font = FONT_SMALL;
+    c.textAlign = (x > PLOT_MARGIN_L+pw-UNAMB_FLIP_PX) ? 'right' : 'left'; c.textBaseline = 'top';
+    c.fillText(' R_unamb ', x, PLOT_MARGIN_T+BAR_LABEL_GAP_PX);
+  }
+
+  // held reference trace (grey, dashed): drawn over the range it was held for, on any axis
+  if(held){
+    const span = Math.min(held.Rmax, Rmax), stepH = held.Rmax / (DISPLAY_COLUMNS - 1);
+    c.strokeStyle = COLOR_HELD; c.lineWidth = HELD_WIDTH_PX; c.setLineDash(DASH_HELD); c.beginPath();
+    for(let i=0; i<DISPLAY_COLUMNS; i++){ const R = i*stepH; if(R > span + RANGE_EPS_M) break;
+      const x = xToPx(R), y = yToPx(Math.min(RHO_MAX, held.y[i])); i ? c.lineTo(x,y) : c.moveTo(x,y); }
+    c.stroke(); c.setLineDash(DASH_NONE);
+    c.font = FONT_SMALL; c.textAlign = 'right'; c.textBaseline = 'top';
+    c.fillStyle = COLOR_MUTED;
+    c.fillText('held: ' + held.label + (held.Rmax !== Rmax ? '  (0–' + held.Rmax + ' m axis)' : ''), PLOT_MARGIN_L + pw - LABEL_INSET_PX, PLOT_MARGIN_T + LABEL_INSET_PX);
+    c.fillStyle = COLOR_TEXT_RED;
+    c.fillText('now: ' + sweepLabel(), PLOT_MARGIN_L + pw - LABEL_INSET_PX, PLOT_MARGIN_T + LABEL_INSET_PX + LEGEND_LINE_PX);
+  }
+
+  // foreground: draggable scatterer markers (blue) with a phasor needle showing the reflection phase θ
+  const f = plotFg.c;
+  f.clearRect(0,0,W,H);
+  for(const s of scat){ if(s.R <= Rmax){
+    const x = xToPx(s.R), y = yToPx(s.rho);
+    f.fillStyle = COLOR_BG; f.strokeStyle = COLOR_BLUE; f.lineWidth = MARKER_STROKE_PX;
+    f.beginPath(); f.arc(x, y, MARKER_RADIUS_PX, 0, 2*Math.PI); f.fill(); f.stroke();
+    const L = MARKER_RADIUS_PX + NEEDLE_EXTRA_PX;     // phasor needle (math angle; screen y is down)
+    f.lineWidth = NEEDLE_WIDTH_PX; strokeLine(f, x, y, x + Math.cos(s.th)*L, y - Math.sin(s.th)*L);
+  }}
+  // markers drawn on top of each other (centres closer than one marker diameter): label the stack "×n" (VIS-TDR-015)
+  const shown = scat.filter(s => s.R <= Rmax).map(s => ({ x: xToPx(s.R), y: yToPx(s.rho) })), done = new Set();
+  f.fillStyle = COLOR_BLUE; f.font = FONT_BOLD; f.textAlign = 'left'; f.textBaseline = 'bottom';
+  shown.forEach((m, i) => { if(done.has(i)) return;
+    const stack = shown.map((q, j) => j).filter(j => !done.has(j) && Math.hypot(shown[j].x - m.x, shown[j].y - m.y) < ROUND_TRIP*MARKER_RADIUS_PX);
+    stack.forEach(j => done.add(j));
+    if(stack.length > 1) f.fillText('×' + stack.length, m.x + MARKER_RADIUS_PX + STACK_LABEL_GAP_PX, m.y - MARKER_RADIUS_PX);
+  });
+}
+// Compose the profile: cached background, the red trace (revealed up to R = v·t/2 during a pulse), cursor, markers.
+function composePlot(){
+  ctx.clearRect(0,0,W,H);
+  ctx.drawImage(plotBg.el, 0, 0, W, H);
+  const rReveal = anim ? anim.s/ROUND_TRIP : Infinity;
+  ctx.strokeStyle = COLOR_TRACE; ctx.lineWidth = TRACE_WIDTH_PX; ctx.beginPath();
+  for(let i=0; i<DISPLAY_COLUMNS; i++){ if(Rgrid[i] > rReveal) break;
+    const x = xToPx(Rgrid[i]), y = yToPx(Math.min(RHO_MAX, yMag[i]));   // clip at 1: PPR-TDR-J3 / DEFECT-TDR-003 held
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+  ctx.stroke();
+  if(anim && rReveal >= 0 && rReveal <= Rmax){
+    const x = xToPx(rReveal);
+    ctx.strokeStyle = COLOR_REVEAL; ctx.lineWidth = REVEAL_WIDTH_PX; ctx.setLineDash(DASH_REVEAL);
+    strokeLine(ctx, x, PLOT_MARGIN_T, x, PLOT_MARGIN_T+ph); ctx.setLineDash(DASH_NONE);
+    ctx.fillStyle = COLOR_TEXT_RED; ctx.font = FONT_SMALL; ctx.textBaseline = 'top';
+    ctx.textAlign = x > PLOT_MARGIN_L + pw - REVEAL_FLIP_PX ? 'right' : 'left';
+    const rows = held ? HELD_LEGEND_LINES : 1;        // below the held legends, or below the R_unamb label row
+    ctx.fillText(' R = v·t/2 ', x, PLOT_MARGIN_T + LABEL_INSET_PX + rows*LEGEND_LINE_PX + REVEAL_LABEL_GAP_PX);
+  }
+  ctx.drawImage(plotFg.el, 0, 0, W, H);
+}
+// ── END 8. RANGE PROFILE ───────────────────────────────────
+
+// ── 9. FREQUENCY-DOMAIN COMPANION PLOT ─────────────────────
+// Raw measured |S(f)|/Σρ across the swept band — the FFT pair of the range profile.
+function drawFreq(){
+  const L=FREQ_MARGIN_L, T=FREQ_MARGIN_T, w=FW-FREQ_MARGIN_L-FREQ_MARGIN_R, h=FH-FREQ_MARGIN_T-FREQ_MARGIN_B;
+  fctx.clearRect(0,0,FW,FH); fctx.fillStyle=COLOR_BG; fctx.fillRect(0,0,FW,FH);
+  const ft = freqTicks();
+  // trace first, then the dotted grid and frame on top, so grid lines stay visible over a dense ripple band (VIS-TDR-022)
+  fctx.strokeStyle=COLOR_BLUE; fctx.lineWidth=PHASOR_WIDTH_PX; fctx.beginPath();
+  const denom=sumRhoG||1;
+  let swings = 0, lastDir = 0;                         // direction changes of |S(f)|, to detect a ripple too fine to draw
+  for(let k=0;k<nFreq;k++){ const fr=nFreq>1?k/(nFreq-1):0, x=L+fr*w;
+    const v=Math.min(RHO_MAX, SfMag[k]/denom), y=T+(1-v)*h; if(k===0)fctx.moveTo(x,y); else fctx.lineTo(x,y);
+    if(k){ const d = Math.sign(SfMag[k] - SfMag[k-1]); if(d && lastDir && d !== lastDir) swings++; if(d) lastDir = d; } }
+  fctx.stroke();
+  const xs = ft.ticks.map((fv,i) => ({ p: L+(i/FREQ_X_DIVS)*w, label: fv.toFixed(ft.dec) })), ys = [];
+  for(let v=0;v<=RHO_MAX+LOOP_EPS;v+=FREQ_Y_STEP) ys.push({ p: T+(1-v)*h, label: v.toFixed(2) });
+  drawGrid(fctx, { L, T, w, h, xs, ys, font: FONT_SMALL, color: COLOR_FREQ_GRID, dash: DASH_FREQ_GRID,
+                   xLabelY: T+h+FREQ_TICK_GAP_PX, yLabelX: L-FREQ_YTICK_GAP_PX, frame: true });
+  // say so when the ripple is finer than the plot can draw (VIS-TDR-016); one cycle = two direction changes
+  const cycles = Math.round(swings / ROUND_TRIP);
+  elFreqNote.textContent = cycles * RIPPLE_MIN_PX_PER_CYCLE > w
+    ? `Ripple too fine to draw at this bandwidth (about ${cycles} cycles across the plot), so it shows as a solid band. Lower B to see it.` : '';
+  fctx.fillStyle=COLOR_BLUE; fctx.font=FONT_TICK; fctx.textAlign='center'; fctx.textBaseline='top';
+  fctx.fillText('Measured frequency (GHz)', L+w/2, T+h+FREQ_TITLE_GAP_PX);
+  yTitle(fctx, '|S(f)| / Σρ', FREQ_YTITLE_X_PX, T+h/2);
+}
+// ── END 9. FREQUENCY-DOMAIN COMPANION PLOT ─────────────────
+
+// ── 10. PHASOR INSET ───────────────────────────────────────
+// Returns sharing one resolution cell (Δr = v/2B) drawn tip-to-tail at f_c, with the coherent resultant.
+function drawPhasor(){
+  pctx.clearRect(0,0,PWp,PHp); pctx.fillStyle=COLOR_BG; pctx.fillRect(0,0,PWp,PHp);
+  const cx=PWp/2, cy=PHp/2;
+  pctx.strokeStyle=COLOR_GRID; pctx.lineWidth=GRID_WIDTH_PX;   // axes stop short of the text rows (VIS-TDR-021)
+  strokeLine(pctx, PHASOR_AXIS_INSET_PX, cy, PWp-PHASOR_AXIS_INSET_PX, cy);
+  strokeLine(pctx, cx, PHASOR_LABEL_BAND_PX, cx, PHp-PHASOR_LABEL_BAND_PX);
+  const dr = vMed/(ROUND_TRIP*B);
+  // cluster returns whose neighbour spacing is under one resolution cell; show the busiest (then strongest) cluster
+  const sorted = scat.slice().sort((a,b)=>a.R-b.R), groups=[];
+  sorted.forEach((s,i)=>{ if(i && s.R - sorted[i-1].R < dr) groups[groups.length-1].push(s); else groups.push([s]); });
+  let best=null, bestKey=-1;
+  for(const g of groups){ const key = g.length*CLUSTER_COUNT_WEIGHT + g.reduce((a,s)=>a+s.rho,0); if(key>bestKey){ bestKey=key; best=g; } }
+  if(!best){ return; }
+  const Rref = best.reduce((a,s)=>a+s.R,0)/best.length;
+  const sumr = best.reduce((a,s)=>a+s.rho,0)||1;
+  const radius = Math.min(PWp/2 - PHASOR_AXIS_INSET_PX, PHp/2 - PHASOR_LABEL_BAND_PX) - PHASOR_TIP_INSET_PX;
+  const scale  = radius/Math.max(PHASOR_MIN_SUM,sumr);
+  let x=cx, y=cy, Rx=0, Ry=0;
+  best.forEach(s=>{
+    const psi = s.th - 2*Math.PI*fc*ROUND_TRIP*(s.R-Rref)/vMed;
+    const dx = s.rho*Math.cos(psi)*scale, dy = -s.rho*Math.sin(psi)*scale;
+    pctx.strokeStyle=COLOR_PHASOR; pctx.lineWidth=PHASOR_WIDTH_PX;
+    strokeLine(pctx, x, y, x+dx, y+dy);
+    arrowHead(pctx, x, y, x+dx, y+dy, COLOR_PHASOR);
+    x+=dx; y+=dy; Rx+=s.rho*Math.cos(psi); Ry+=s.rho*Math.sin(psi);
+  });
+  pctx.strokeStyle=COLOR_TRACE; pctx.lineWidth=RESULTANT_WIDTH_PX;
+  strokeLine(pctx, cx, cy, cx+Rx*scale, cy-Ry*scale);
+  arrowHead(pctx, cx, cy, cx+Rx*scale, cy-Ry*scale, COLOR_TRACE);
+  pctx.fillStyle=COLOR_INK; pctx.font=FONT_SMALL; pctx.textAlign='left'; pctx.textBaseline='top';
+  pctx.fillText('cell @ '+Rref.toFixed(2)+' m · |Σ|='+Math.hypot(Rx,Ry).toFixed(2), PHASOR_TEXT_X_PX, PHASOR_TEXT_TOP_PX);
+  pctx.fillText(best.length+' return'+(best.length>1?'s':''), PHASOR_TEXT_X_PX, PHp-PHASOR_TEXT_BOTTOM_PX);
+}
+// ── END 10. PHASOR INSET ───────────────────────────────────
+
+// ── 11. PULSE / ECHO SCENE ─────────────────────────────────
+// Behavioral single-bounce picture in position x along the line (m), sharing the profile's range axis.
+// Outgoing pulse: Gaussian envelope, FWHM v/B, centred at the distance travelled s = v·t.
+// Echo i: launched when the pulse reaches R_i, centred at x = 2R_i − s, complex amplitude ρ·e^{j(θ − 2k_c R_i)}
+// (the same coherent phase the profile uses), so overlapping echoes reinforce or cancel.
+// Spatial FWHM of the pulse (m).
+function pulseLen(){ return vMed / B; }
+// x position (CSS px) on the scene canvas for a range x (m).
+function sceneX(x){ return PLOT_MARGIN_L + x / Rmax * (SW - PLOT_MARGIN_L - PLOT_MARGIN_R); }
+// Static scene layer: ticks, the line, the instrument, scatterer bars and their labels, captions.
+function drawSceneLayer(){
+  const c = sceneBg.c, Lm = PLOT_MARGIN_L, pwS = SW - PLOT_MARGIN_L - PLOT_MARGIN_R, y0 = SCENE_LINE_Y_PX;
+  c.clearRect(0,0,SW,SH); c.fillStyle=COLOR_BG; c.fillRect(0,0,SW,SH);
+  // range ticks shared with the profile (shared grid helper; vertical lines only, no frame)
+  const xs = [], xstep = xTickStep();
+  for(let R=0; R<=Rmax+LOOP_EPS; R+=xstep) xs.push({ p: sceneX(R), label: R.toFixed(0) });
+  drawGrid(c, { L: Lm, T: SCENE_TICK_TOP_PX, w: pwS, h: SH-SCENE_TICK_BOTTOM_PX-SCENE_TICK_TOP_PX, xs, ys: [], font: FONT_SMALL,
+                color: COLOR_GRID, dash: DASH_NONE, xLabelY: SH-SCENE_TICK_LABEL_PX, yLabelX: Lm, frame: false });
+  c.textAlign = 'center'; c.textBaseline = 'top';
+  c.fillStyle = COLOR_BLUE; c.font = FONT_TICK; c.fillText('Position along the line (m)', Lm + pwS/2, SH-SCENE_TITLE_PX);
+  // the line (cable / medium) and the instrument
+  c.fillStyle = COLOR_LINE_FILL; c.fillRect(Lm, y0-SCENE_LINE_HALF_PX, pwS, 2*SCENE_LINE_HALF_PX);
+  c.strokeStyle = COLOR_LINE_EDGE; c.strokeRect(Lm, y0-SCENE_LINE_HALF_PX, pwS, 2*SCENE_LINE_HALF_PX);
+  c.fillStyle = COLOR_BG; c.strokeStyle = COLOR_INK; c.lineWidth = INSTR_WIDTH_PX;
+  c.fillRect(INSTR_INSET_PX, y0-INSTR_HALF_H_PX, Lm-2*INSTR_INSET_PX, 2*INSTR_HALF_H_PX);
+  c.strokeRect(INSTR_INSET_PX, y0-INSTR_HALF_H_PX, Lm-2*INSTR_INSET_PX, 2*INSTR_HALF_H_PX);
+  c.fillStyle = COLOR_BLUE; c.font = FONT_BOLD; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('VNA', Lm/2, y0-INSTR_LABEL_UP_PX); c.font = FONT_SMALL; c.fillStyle = COLOR_INK; c.fillText('/ TDR', Lm/2, y0+INSTR_LABEL_DOWN_PX);
+  // scatterers: impedance discontinuities, height ∝ ρ. Returns too close to label separately share one label,
+  // which counts the others as "(+n)" (VIS-TDR-015); every return is also a row in the Scatterers list.
+  c.font = FONT_SMALL; c.textAlign = 'center'; c.textBaseline = 'bottom';
+  const labs = [], labW = t => c.measureText(t).width;
+  for(const s of scat.slice().sort((a,b)=>a.R-b.R)){ if(s.R > Rmax) continue; const x = sceneX(s.R), hh = BAR_BASE_PX + s.rho*BAR_PER_RHO_PX;
+    c.fillStyle = COLOR_BLUE; c.fillRect(x-BAR_W_PX/2, y0-hh/2, BAR_W_PX, hh);
+    const text = 'ρ=' + s.rho.toFixed(2), last = labs[labs.length-1];
+    if(last && x - last.x < (labW(last.text + ' (+' + (last.n+1) + ')') + labW(text))/2 + LABEL_PAD_PX){ last.n++; last.top = Math.min(last.top, y0-hh/2); }
+    else labs.push({ x, text, n: 0, top: y0-hh/2 }); }
+  for(const l of labs) c.fillText(l.text + (l.n ? ' (+' + l.n + ')' : ''), l.x, l.top-BAR_LABEL_GAP_PX);
+  c.fillStyle = COLOR_TEXT_RED; c.textAlign = 'left'; c.textBaseline = 'top';
+  c.fillText('outgoing pulse →', Lm+SCENE_TEXT_INSET_PX, BAR_LABEL_GAP_PX);
+  c.fillStyle = COLOR_BLUE; c.textBaseline = 'bottom'; c.fillText('← echoes', Lm+SCENE_TEXT_INSET_PX, SH-SCENE_TICK_BOTTOM_PX-BAR_LABEL_GAP_PX);
+  c.fillStyle = COLOR_MUTED; c.textAlign = 'right'; c.textBaseline = 'top';
+  c.fillText('pulse length v/B = ' + fmtLen(pulseLen()) + '  ·  Δr = v/2B', SW-PLOT_MARGIN_R, BAR_LABEL_GAP_PX);
+}
+// Compose the scene: cached static layer, then the moving pulse and echoes; update the time readout.
+function composeScene(){
+  const c = sctx, Lm = PLOT_MARGIN_L, pwS = SW - PLOT_MARGIN_L - PLOT_MARGIN_R, y0 = SCENE_LINE_Y_PX;
+  c.clearRect(0,0,SW,SH); c.drawImage(sceneBg.el, 0, 0, SW, SH);
+  if(!anim){ elTread.textContent = 'press ▶ to launch a pulse'; return; }   // #tread is not a live region (CQ-M13)
+  const s = anim.s, kc = 2*Math.PI*fc/vMed, Lp = pulseLen();
+  const env = (x0, xL) => gauss((xL - x0) / Lp);
+  // shade along a function f(x) ∈ [0,1], up (dir −1) or down (dir +1) from the line
+  const fillCurve = (f, dir, fill, stroke) => {
+    c.beginPath(); c.moveTo(Lm, y0 + dir*SCENE_ENV_GAP_PX);
+    for(let px=0; px<=pwS; px++){ const xm = px/pwS*Rmax; c.lineTo(Lm+px, y0 + dir*(SCENE_ENV_GAP_PX + SCENE_AMP_PX*Math.min(1,f(xm)))); }
+    c.lineTo(Lm+pwS, y0 + dir*SCENE_ENV_GAP_PX); c.closePath(); c.fillStyle = fill; c.fill(); c.strokeStyle = stroke; c.lineWidth = SCENE_CURVE_WIDTH_PX; c.stroke();
+  };
+  // outgoing pulse (above the line); carrier drawn when λc is wide enough to see
+  const lamPx = fc > 0 ? (vMed/fc)/Rmax*pwS : Infinity;
+  fillCurve(x => env(s, x), -1, COLOR_PULSE_FILL, COLOR_TRACE);
+  if(lamPx > CARRIER_MIN_PX){ c.beginPath(); c.strokeStyle = COLOR_CARRIER; c.lineWidth = CARRIER_WIDTH_PX;
+    for(let px=0; px<=pwS; px++){ const xm = px/pwS*Rmax, e = env(s,xm), v = e*Math.cos(kc*(xm - s));
+      const y = y0 - SCENE_ENV_GAP_PX - SCENE_AMP_PX*CARRIER_SCALE*(1+v)*e; px ? c.lineTo(Lm+px, y) : c.moveTo(Lm+px, y); } c.stroke(); }
+  // echoes (below the line): coherent complex-envelope sum of every launched echo
+  const live = scat.filter(q => s >= q.R);
+  fillCurve(x => { let re=0, im=0; for(const q of live){ const g = env(ROUND_TRIP*q.R - s, x); if(g < ECHO_CUTOFF) continue;
+      const phq = q.th - ROUND_TRIP*kc*q.R; re += q.rho*g*Math.cos(phq); im += q.rho*g*Math.sin(phq); } return Math.hypot(re, im); },
+    1, COLOR_ECHO_FILL, COLOR_BLUE);
+  const tns = s / vMed * NS_PER_S;
+  elTread.textContent = 't = ' + tns.toFixed(1) + ' ns  →  echoes now arriving from R = v·t/2 = ' + (s/ROUND_TRIP).toFixed(2) + ' m';
+}
+// ── END 11. PULSE / ECHO SCENE ─────────────────────────────
+
+// ── 12. REDRAW SCHEDULING ──────────────────────────────────
+// Re-lay out the canvases if devicePixelRatio changed since the last layout (covers changes that fire no event).
+function ensureDpr(){
+  const d = window.devicePixelRatio || 1;
+  if(d === dpr) return false;
+  dpr = d; layoutCanvases(); return true;
+}
+// Full redraw after a state change: rebuild the static layers, then draw every canvas once.
+function drawAll(){ ensureDpr(); drawPlotLayers(); drawSceneLayer(); composePlot(); drawFreq(); drawPhasor(); composeScene(); }
+// Animation frame: only the profile reveal and the scene move; static layers and the other plots are reused.
+function drawFrame(){ if(ensureDpr()){ drawAll(); return; } composePlot(); composeScene(); }
+// Coalesce rapid drag/slider updates into one recompute + draw per animation frame.
+let rafId = 0;
+function scheduleCompute(){
+  if(rafId) return;
+  rafId = requestAnimationFrame(() => { rafId = 0; compute(); drawAll(); });
+}
+// Synchronous recompute + draw (optionally rebuilding the list); consumes any pending frame so one change draws once.
+function refreshNow(withList){
+  if(rafId){ cancelAnimationFrame(rafId); rafId = 0; }
+  compute(); drawAll(); if(withList) renderList();
+}
+// ── END 12. REDRAW SCHEDULING ──────────────────────────────
+
+// ── 13. SCATTERER LIST PANEL ───────────────────────────────
+// Rebuilds the list using DOM nodes + textContent (no innerHTML) — numeric-only content, no markup sink.
+// Each row edits R, ρ and θ from the keyboard (VIS-TDR-014); a refusal or clamp is stated beside the row.
+const RANGE_FIELD = { name:'R', unit:' m', lo:() => MIN_RANGE_M, hi:() => Rmax, dec:R_FIELD_DECIMALS,
+                      loWords:'the closest allowed', hiWords:'the end of the range axis', key:'R' };
+const RHO_FIELD   = { name:'ρ', unit:'', lo:() => RHO_MIN, hi:() => RHO_MAX, dec:RHO_FIELD_DECIMALS,
+                      loWords:'the smallest allowed', hiWords:'the largest allowed', key:'rho' };
+// Rebuild every row of the list from the scene (after add, remove, reset, demos and plot gestures).
+function renderList(){
+  elSlist.textContent = '';
+  scat.forEach((s, idx) => {
+    const row = document.createElement('div'); row.className = 'srow'; row.setAttribute('role', 'listitem');
+    const sw  = document.createElement('span'); sw.className = 'swatch'; sw.setAttribute('aria-hidden', 'true');
+    const msg = document.createElement('span'); msg.className = 'thmsg'; msg.setAttribute('role', 'status');
+    const unit = text => { const u = document.createElement('span'); u.className = 'deg'; u.textContent = text; u.setAttribute('aria-hidden', 'true'); return u; };
+    const field = (cls, step, value, label) => { const f = document.createElement('input'); f.type = 'number'; f.className = 'phin ' + cls;
+      f.step = String(step); f.value = value; f.setAttribute('aria-label', label); return f; };
+    const rIn = field('rin', R_STEP_M, s.R.toFixed(R_FIELD_DECIMALS), `Range R of return ${idx+1}, metres`);
+    const pIn = field('pin', RHO_STEP, s.rho.toFixed(RHO_FIELD_DECIMALS), `Strength ρ of return ${idx+1}`);
+    const phIn = field('thin', THETA_STEP_DEG, fmtDeg(s.thDeg), `Reflection phase θ of return ${idx+1}, degrees`);
+    const btn = document.createElement('button'); btn.textContent = '×';
+    btn.setAttribute('aria-label', `Remove return ${idx+1}`);
+    btn.onclick = () => { scat.splice(idx, 1); refreshNow(true); };
+    rIn.onchange  = () => applyField(s, rIn, msg, RANGE_FIELD);
+    pIn.onchange  = () => applyField(s, pIn, msg, RHO_FIELD);
+    phIn.oninput  = () => applyTheta(s, phIn, msg, false);
+    phIn.onchange = () => applyTheta(s, phIn, msg, true);
+    const grp = (...kids) => { const g = document.createElement('span'); g.className = 'grp'; g.append(...kids); return g; };
+    row.append(sw, grp(unit('R'), rIn, unit('m')), grp(unit('ρ'), pIn), grp(unit('θ'), phIn, unit('°'), btn), msg);   // groups wrap whole
+    elSlist.appendChild(row);
+  });
+}
+// Why a typed entry cannot be used, or '' when it is a finite number.
+function entryCause(field){
+  const txt = field.value.trim();
+  if(field.validity.badInput) return 'not a number';
+  if(txt === '') return 'empty';
+  return Number.isFinite(Number(txt)) ? '' : 'too large to use';
+}
+// θ: applied live while typing when the entry is a finite number; a partial entry ("-", "1e") shows no message
+// until it is committed (CQ-m12). On commit the field shows the value in use, wrapped into (−180°, 180°].
+function applyTheta(s, field, msg, commit){
+  const cause = entryCause(field);
+  if(cause){
+    if(!commit) return;
+    msg.textContent = `θ entry ${cause}: θ stays ${fmtDeg(s.thDeg)}°.`;
+    field.setAttribute('aria-invalid', 'true'); field.value = fmtDeg(s.thDeg);
+    return;
+  }
+  msg.textContent = ''; field.removeAttribute('aria-invalid');
+  const w = wrapDeg(Number(field.value)), changed = w !== s.thDeg;
+  s.thDeg = w; s.th = w * Math.PI / DEG_PER_HALF_TURN;
+  if(commit) field.value = fmtDeg(w);
+  if(changed) scheduleCompute();
+}
+// R or ρ committed (Enter, Tab, arrow step): refuse a non-number with its cause, clamp to the limits and say so.
+// The list is not rebuilt, so keyboard focus stays in the field.
+function applyField(s, field, msg, spec){
+  const cause = entryCause(field);
+  if(cause){
+    msg.textContent = `${spec.name} entry ${cause}: ${spec.name} stays ${s[spec.key].toFixed(spec.dec)}${spec.unit}.`;
+    field.setAttribute('aria-invalid', 'true'); field.value = s[spec.key].toFixed(spec.dec);
+    return;
+  }
+  const c = clampInfo(Number(field.value), spec.lo(), spec.hi());
+  field.removeAttribute('aria-invalid'); field.value = c.v.toFixed(spec.dec);
+  msg.textContent = c.at ? `${spec.name} held at ${c.v.toFixed(spec.dec)}${spec.unit}, ${c.at === 'lo' ? spec.loWords : spec.hiWords}.` : '';
+  s[spec.key] = c.v;
+  refreshNow(false);
+}
+// ── END 13. SCATTERER LIST PANEL ───────────────────────────
+
+// ── 14. INTERACTION — DRAG / ADD / REMOVE ──────────────────
+let drag = -1, downPt = null;
+
+// Map a pointer/touch event to range-profile canvas coordinates (CSS px).
+function evtPt(e){
+  const r = cv.getBoundingClientRect();
+  // touchend has no e.touches — use changedTouches there
+  const t = (e.touches && e.touches.length) ? e.touches[0]
+          : (e.changedTouches && e.changedTouches.length) ? e.changedTouches[0] : e;
+  return { px: t.clientX - r.left - cv.clientLeft, py: t.clientY - r.top - cv.clientTop };
+}
+// Return the index of a marker under the pointer, or -1.
+function hit(px, py){
+  for(let i=0; i<scat.length; i++){ if(scat[i].R > Rmax) continue;
+    const x = xToPx(scat[i].R), y = yToPx(scat[i].rho);
+    if(Math.hypot(px-x, py-y) < HIT_RADIUS_PX) return i; }
+  return -1;
+}
+// Show (or clear, with '') the plain-words notice under the plot.
+function setNote(text){ elNote.textContent = text; }
+// Clamp a value to [lo, hi] and report which limit (if any) was applied.
+function clampInfo(v, lo, hi){ return v < lo ? { v:lo, at:'lo' } : (v > hi ? { v:hi, at:'hi' } : { v, at:'' }); }
+// Words for a drag/click clamp, or '' when nothing was clamped.
+function clampText(rc, pc, rhoMinLabel){
+  const parts = [];
+  if(rc.at === 'lo') parts.push(`range held at ${MIN_RANGE_M} m, the closest allowed`);
+  if(rc.at === 'hi') parts.push(`range held at ${Rmax} m, the end of the range axis`);
+  if(pc.at === 'lo') parts.push(`strength held at ρ = ${pc.v.toFixed(2)}, ${rhoMinLabel}`);
+  if(pc.at === 'hi') parts.push(`strength held at ρ = ${pc.v.toFixed(2)}, the largest allowed`);
+  return parts.length ? 'Note: ' + parts.join('; ') + '.' : '';
+}
+// Press on the plot: remember the point; begin a drag if a marker is grabbed.
+function down(e){ const p = evtPt(e); downPt = p; drag = hit(p.px, p.py); if(drag>=0) e.preventDefault(); }
+// Move: update the dragged marker's range/strength (clamps stated) and recompute (coalesced).
+function move(e){ if(drag<0) return; e.preventDefault(); const p = evtPt(e);
+  const rc = clampInfo(pxToX(p.px), MIN_RANGE_M, Rmax), pc = clampInfo(pxToY(p.py), RHO_MIN, RHO_MAX);
+  scat[drag].R = rc.v; scat[drag].rho = pc.v;
+  setNote(clampText(rc, pc, 'the smallest allowed'));
+  scheduleCompute(); }
+// Release: acts only on a gesture that began on the plot. A no-move press adds a scatterer; a drag is finalized.
+function up(e){
+  if(!downPt) return;                       // press began elsewhere on the page: nothing to do
+  const wasDrag = drag >= 0;
+  let changed = wasDrag;
+  if(!wasDrag){
+    const p = evtPt(e);
+    if(Math.hypot(p.px-downPt.px, p.py-downPt.py) < CLICK_MOVE_THRESHOLD_PX &&
+       p.px>PLOT_MARGIN_L && p.px<PLOT_MARGIN_L+pw && p.py>PLOT_MARGIN_T && p.py<PLOT_MARGIN_T+ph){
+      const rc = clampInfo(pxToX(p.px), MIN_RANGE_M, Rmax), pc = clampInfo(pxToY(p.py), MIN_CLICK_RHO, RHO_MAX);
+      scat.push({ R: rc.v, rho: pc.v, th: 0, thDeg: 0 });
+      setNote(clampText(rc, pc, 'the smallest a new return can have'));
+      changed = true;
+    }
+  }
+  drag = -1; downPt = null;
+  if(changed) refreshNow(true);             // sync the list (and final trace) after the gesture
+}
+cv.addEventListener('mousedown', down); window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+cv.addEventListener('touchstart', down, {passive:false}); cv.addEventListener('touchmove', move, {passive:false}); cv.addEventListener('touchend', up);
+cv.addEventListener('dblclick', e => { const p = evtPt(e); const i = hit(p.px, p.py); if(i>=0){ scat.splice(i,1); refreshNow(true); } });
+// ── END 14. INTERACTION ────────────────────────────────────
+
+// ── 15. CONTROL WIRING ─────────────────────────────────────
+// Recompute every velocity-dependent readout (B, Δr, f_c, λc, sweep, VoP, εr) in one place.
+function updateDerivedReadouts(){
+  const fcGHz = fc/HZ_PER_GHZ, BG = B/HZ_PER_GHZ;
+  elBwv.textContent = BG.toFixed(2);                    // the value set (0.25 GHz steps)
+  elDr.textContent  = (vMed/(ROUND_TRIP*B) * CM_PER_M).toFixed(2);
+  elFcv.textContent = fcGHz.toFixed(1);
+  elLam.textContent = fc > 0 ? (vMed/fc * CM_PER_M).toFixed(2) : '∞';
+  const ft = freqTicks();                               // sweep at the |S(f)| tick precision (DEFECT-TDR-011)
+  elSweep.textContent = ft.f0.toFixed(ft.dec) + '–' + ft.f1.toFixed(ft.dec);
+  elVop.textContent = VoP.toFixed(2);
+  elEps.textContent = (1/(VoP*VoP)).toFixed(2);
+}
+// Set the bandwidth from code (demos): slider, state and readouts together, without dispatching events.
+function setBandwidth(gHz){ elBw.value = String(gHz); B = gHz * HZ_PER_GHZ; updateDerivedReadouts(); }
+// Bandwidth slider.
+elBw.oninput = e => { B = (+e.target.value) * HZ_PER_GHZ; updateDerivedReadouts(); scheduleCompute(); };
+// Center (carrier) frequency: sets the wavelength and the swept band; drives coherent interaction.
+$('fc').oninput = e => { fc = (+e.target.value) * HZ_PER_GHZ; updateDerivedReadouts(); scheduleCompute(); };
+// Velocity of propagation: scales the in-medium velocity v = c·VoP used for range, Δr, λc and R_unamb.
+$('vop').oninput = e => { VoP = +e.target.value; vMed = SPEED_OF_LIGHT_M_S * VoP; updateDerivedReadouts(); scheduleCompute(); };
+// dB (log) magnitude axis toggle.
+$('dbOn').onchange = e => { yScaleDB = e.target.checked; scheduleCompute(); };
+// Measurement points (FR10): drives the unambiguous range.
+$('pts').onchange = e => { nPoints = +e.target.value; scheduleCompute(); };
+// Window selection; the line under the select describes the chosen window.
+elWin.onchange = e => { winType = e.target.value; elWinNote.textContent = WINDOW_NOTES[winType]; scheduleCompute(); };
+// Range gate toggle.
+$('gateOn').onchange = e => { gateOn = e.target.checked; gateLbl(); scheduleCompute(); };
+// Gate readout, slider thumbs and the empty-gate announcement, all from gmin/gmax.
+function gateLbl(){
+  elG0.textContent = gmin.toFixed(1); elG1.textContent = gmax.toFixed(1);
+  elGmin.value = gmin; elGmax.value = gmax;
+  elGateMsg.textContent = (gateOn && gmax - gmin <= RANGE_EPS_M)
+    ? `Gate is empty (${gmin.toFixed(1)}–${gmax.toFixed(1)} m): the whole profile is blanked.` : '';
+}
+// Keep the gate sliders' limits (and values) inside the displayed range axis.
+function syncGateLimits(){
+  elGmin.max = Rmax; elGmax.max = Rmax;
+  gmax = Math.min(gmax, Rmax); gmin = Math.min(gmin, gmax);
+  gateLbl();
+}
+// Gate bounds: lower never above upper; the thumb follows the value actually kept.
+elGmin.oninput = e => { gmin = Math.min(+e.target.value, gmax); gateLbl(); scheduleCompute(); };
+elGmax.oninput = e => { gmax = Math.max(+e.target.value, gmin); gateLbl(); scheduleCompute(); };
+// Range-axis presets: set extent, re-bound the gate sliders, mark the active button.
+axisButtons.forEach(b => b.onclick = () => {
+  Rmax = +b.dataset.rmax;
+  syncGateLimits();
+  axisButtons.forEach(x => { const on = x === b; x.classList.toggle('active', on); x.setAttribute('aria-pressed', String(on)); });
+  setNote('');                                          // a clamp note describes the previous axis (CQ-m11)
+  scheduleCompute();
+});
+// Add a scatterer at mid-range; reset to the default scene.
+$('add').onclick   = () => { scat.push({ R: Rmax*ADD_RANGE_FRACTION, rho: ADD_RHO, th: 0, thDeg: 0 }); setNote(''); refreshNow(true); };
+$('reset').onclick = () => { scat = sceneFromDefaults(); setNote(''); refreshNow(true); };
+// Interference demo: two returns at the same range; flip one's θ to 180° in the list to watch them cancel.
+$('demo').onclick  = () => {
+  setBandwidth(INTERF_DEMO.B_GHZ);
+  scat = [0, 1].map(() => ({ R:INTERF_DEMO.R_M, rho:INTERF_DEMO.RHO, th:0, thDeg:0 }));
+  setNote(''); refreshNow(true);
+};
+// Resolution demo: two equal returns 0.5 m apart, phased to add at f_c, with B = 0.25 GHz (Δr = 0.6 m → merged).
+// Raising B past ≈0.5 GHz (Δr = 0.3 m) splits them into two peaks.
+$('resdemo').onclick = () => {
+  setBandwidth(RES_DEMO.B_GHZ);
+  // θ2 cancels the round-trip carrier phase 4πf_cΔR/v, shown in (−180°, 180°]
+  const th2Deg = wrapDeg(ROUND_TRIP*DEG_PER_TURN*fc*(RES_DEMO.R2_M-RES_DEMO.R1_M)/vMed);
+  scat = [{ R:RES_DEMO.R1_M, rho:RES_DEMO.RHO, th:0, thDeg:0 },
+          { R:RES_DEMO.R2_M, rho:RES_DEMO.RHO, th:th2Deg*Math.PI/DEG_PER_HALF_TURN, thDeg:th2Deg }];
+  setNote(''); refreshNow(true);
+};
+// Label for the current sweep (B, band, window) used by the hold legend.
+function sweepLabel(){ const ft = freqTicks();
+  return 'B ' + (B/HZ_PER_GHZ).toFixed(2) + ' GHz (' + ft.f0.toFixed(ft.dec) + '–' + ft.f1.toFixed(ft.dec) + ' GHz), ' + winType; }
+// Hold / clear a reference trace for comparing sweeps on the same scatterers.
+$('holdBtn').onclick = () => {
+  held = { y: Float64Array.from(yMag), Rmax, label: sweepLabel() };
+  elHoldLbl.textContent = 'Held: ' + held.label + ' (0–' + held.Rmax + ' m axis)';
+  drawAll();
+};
+$('clearHold').onclick = () => {
+  held = null; elHoldLbl.textContent = 'Freeze this profile, then change B or fc to compare.'; drawAll();
+};
+// ── END 15. CONTROL WIRING ─────────────────────────────────
+
+// ── 16. PULSE ANIMATION ────────────────────────────────────
+let animRaf = 0, lastT = 0;
+// Distance travelled (m) at which the run ends, from the current axis, bandwidth and VoP.
+function pulseEnd(){ return ROUND_TRIP*Rmax + PULSE_LEAD_LENGTHS*pulseLen(); }
+// Start a pulse; any running loop is cancelled first, so at most one loop exists.
+function sendPulse(){
+  if(animRaf){ cancelAnimationFrame(animRaf); animRaf = 0; }
+  anim = { s: -PULSE_LEAD_LENGTHS*pulseLen() }; lastT = performance.now();
+  animRaf = requestAnimationFrame(tick); syncPulseBtn();
+  elPulseStatus.textContent = 'Pulse launched.';      // announced once; the per-frame readout is silent (CQ-M13)
+}
+// Stop the pulse and its loop; redraw the idle picture; announce why it stopped.
+function stopPulse(finished){
+  if(animRaf){ cancelAnimationFrame(animRaf); animRaf = 0; }
+  anim = null; drawFrame(); syncPulseBtn();
+  elPulseStatus.textContent = finished ? 'Pulse finished: every echo on the range axis has arrived.' : 'Pulse stopped.';
+}
+// One animation step: advance the pulse, end or repeat at the current end point, redraw the moving parts.
+function tick(now){
+  animRaf = 0;
+  if(!anim) return;
+  const dt = Math.min(MAX_FRAME_DT_S, (now - lastT)/MS_PER_S); lastT = now;
+  anim.s += dt * (+elAnimSpd.value) * (ROUND_TRIP*Rmax) / SCENE_ANIM_S;
+  if(anim.s >= pulseEnd()){
+    if(elLoop.checked){ anim.s = -PULSE_LEAD_LENGTHS*pulseLen(); }
+    else { stopPulse(true); return; }
+  }
+  drawFrame();
+  animRaf = requestAnimationFrame(tick);
+}
+// Pulse button toggles Send / Stop.
+elPulseBtn.onclick = () => { if(anim) stopPulse(false); else sendPulse(); };
+// Button text follows the animation state.
+function syncPulseBtn(){ elPulseBtn.textContent = anim ? '■ Stop' : '▶ Send a pulse'; }
+// ── END 16. PULSE ANIMATION ────────────────────────────────
+
+// ── 17. INITIALIZATION ─────────────────────────────────────
+// Lay out, wire the window resize listener, set every readout and draw first; the size and devicePixelRatio
+// watchers are attached last and cannot throw, so no engine difference can leave the page blank (CQ-M14).
+layoutCanvases();
+window.addEventListener('resize', onResize);
+updateDerivedReadouts();
+syncGateLimits();
+refreshNow(true);
+watchDpr();
+watchResolution();
+// ── END 17. INITIALIZATION ─────────────────────────────────
+</script>
+</body>
+</html>
