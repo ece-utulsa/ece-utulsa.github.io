@@ -5,8 +5,9 @@
   Released: @@RELEASED@@
   Changelog:@@CHANGELOG@@
   Author: Claude Code
-  Standards: Research Standards v1; Engineering Domain Standards v1; Physics & Engineering Decisions v1; Visual/UX
-    Standards v1 (WCAG 2.2, ISO 9241-110:2020); Code Quality Standards v1; Security Standards v1.
+  Standards applied: Engineering Domain Standards v1; Physics & Engineering Decisions v1.1; Visual/UX Standards v2
+    (WCAG 2.2); Code Quality Standards v1 (the table-of-contents unit of the shipped script held, CQ H2); Security
+    Standards v1 except the held Content-Security-Policy item (H4).
   References: D. M. Pozar, Microwave Engineering, 4th ed., Wiley, 2012 (§2.3, §4.3, §4.5, §7.1-7.3, §12.1);
     G. Gonzalez, Microwave Transistor Amplifiers, 2nd ed., Prentice Hall, 1997 (Ch. 1-3);
     K. Kurokawa, "Power waves and the scattering matrix," IEEE Trans. MTT 13(2), 1965;
@@ -52,6 +53,9 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type
 #top{ flex:none; height:calc(56px * var(--k)); display:flex; align-items:center; gap:calc(10px * var(--k)); padding:0 calc(12px * var(--k)); border-bottom:1px solid var(--line); background:var(--bg2) }
 #brand{ font-weight:600; white-space:nowrap; font-size:var(--ft) }
 #verStamp{ flex:none; font-size:calc(14px * var(--k)); color:var(--mut); white-space:nowrap }   /* version stamp: stays visible in presentation */
+/* a window narrower than the top bar's row (1024×768): the brand gives way so no control is clipped (VIS-RFC-009); the
+   name stays in the title and the footer */
+@media (max-width:1119px){ body:not(.present) #brand{ display:none } }
 #tabs{ display:flex; gap:0; margin-right:auto }
 #tabs button{ border-radius:0; font-size:var(--ft); font-weight:600; padding:.15em .8em } #tabs button:first-child{ border-radius:6px 0 0 6px } #tabs button:last-child{ border-radius:0 6px 6px 0 }
 #tabs button[aria-selected="true"]{ background:var(--txt); color:var(--bg); border-color:var(--txt) }
@@ -59,11 +63,12 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type
 /* ── MAIN ── drawing area (left) and one side panel (right, 380 px at 1280×720) */
 #main{ flex:1; min-height:0; display:grid; grid-template-columns:1fr calc(380px * var(--k)) }
 #drawCol{ display:flex; flex-direction:column; min-width:0; min-height:0 }
-#devbar{ flex:none; height:calc(48px * var(--k)); display:flex; gap:calc(6px * var(--k)); align-items:center; padding:0 calc(12px * var(--k)) }
+#devbar{ flex:none; min-height:calc(48px * var(--k)); display:flex; flex-wrap:wrap; gap:calc(6px * var(--k)); align-items:center; padding:calc(4px * var(--k)) calc(12px * var(--k)) }   /* wraps at narrow widths: never under the panel */
 #devbar .spacer{ flex:1 } .seg{ display:inline-flex } .seg button{ border-radius:0 } .seg button:first-child{ border-radius:6px 0 0 6px } .seg button:last-child{ border-radius:0 6px 6px 0 }
 #stage{ position:relative; flex:1; min-height:0; min-width:0 }
 #stage svg.vis{ position:absolute; top:0; left:0; width:100%; height:100%; display:block }   /* width and left set by main.js (scale cap) */
-#stage [role=button]{ cursor:pointer } #stage [role=button]:focus{ outline:none } #stage [role=button]:focus-visible .block, #stage [role=button]:focus-visible circle{ stroke:var(--focus); stroke-width:5 }
+#stage [role=button]{ cursor:pointer } #stage [role=button]:focus{ outline:none }
+#stage .fring{ stroke:none } #stage [role=button]:focus-visible .fring{ stroke:var(--txt) }   /* focus ring outside the shape, distinct from the selection outline */
 .addmenu{ position:absolute; display:flex; flex-direction:column; gap:4px; background:var(--panel); border:2px solid var(--txt); border-radius:8px; padding:6px; z-index:2 }
 .addmenu button{ text-align:left }
 #panel{ border-left:1px solid var(--line); padding:calc(12px * var(--k)); display:flex; flex-direction:column; gap:calc(12px * var(--k)); min-height:0; overflow:hidden }
@@ -79,7 +84,7 @@ input[type=number]{ -moz-appearance:textfield; appearance:textfield } input[type
 .sw.tr{ border-top-color:var(--s21) } .sw.env{ height:.7em; border:1.5px solid var(--s12); background:color-mix(in srgb, var(--s12) 15%, transparent) }
 .sec{ color:var(--mut); font-weight:600; border-top:1px solid var(--line); padding-top:.4em }
 .sec:first-child{ border-top:0; padding-top:0 }
-.srows{ display:flex; flex-direction:column; gap:.3em } .srow{ display:flex; gap:.35em; align-items:center } .srow input[type=number]{ width:3.6em }
+.srows{ display:flex; flex-direction:column; gap:.3em } .srowv{ display:flex; flex-direction:column } .srow{ display:flex; gap:.35em; align-items:center } .srow input[type=number]{ width:3.6em }
 .sname{ font-weight:600; min-width:2.2em }
 .chk{ display:flex; gap:.4em; align-items:center } .chk input{ width:calc(20px * var(--k)); height:calc(20px * var(--k)); accent-color:var(--txt) }
 .slines{ display:flex; flex-direction:column; gap:.15em } .sline{ display:flex; gap:.5em } .sv{ font-weight:600 }
@@ -88,6 +93,7 @@ body.vcascade #panel{ overflow-y:auto; gap:calc(8px * var(--k)) }
 select{ font:inherit; color:inherit; background:var(--bg2); border:1px solid var(--line); border-radius:5px; padding:.1em .2em; min-height:calc(32px * var(--k)); max-width:100% }
 .f{ display:flex; flex-direction:column; gap:.1em } .f input{ width:100% }
 .err{ color:var(--bad) } .err:empty{ display:none }
+.warn{ color:var(--bad); font-weight:600 }
 .sg{ display:grid; grid-template-columns:1fr 1fr; gap:.3em .5em }
 .nrow{ display:flex; gap:.4em; align-items:center } .nrow label{ flex:1 } .nrow input[type=number]{ width:6em }
 .sec.row2{ display:flex; justify-content:space-between; align-items:center; gap:.4em; flex-wrap:wrap }
@@ -116,12 +122,12 @@ dialog::backdrop{ background:rgba(0,0,0,.6) } dialog table td{ padding:.1em .8em
   <button type="button" id="helpBtn" aria-label="Keyboard help (?)">?</button>
   <span id="verStamp" title="RF Cascade Analyzer @@VERSION@@, released @@RELEASED@@">@@VERSION@@</span>
 </header>
-<main id="main">
+<main id="main" role="tabpanel">
   <section id="drawCol" aria-label="Drawing">
     <div id="devbar" class="hidden" role="group" aria-label="Device"></div>
     <div id="stage"></div>
   </section>
-  <aside id="panel" aria-label="Controls and readouts" aria-live="polite"></aside>
+  <aside id="panel" aria-label="Controls and readouts"></aside>
 </main>
 <footer><span>RF Cascade Analyzer @@VERSION@@ · released @@RELEASED@@ · Author: Claude Code</span><span>ECE 4123/6423 · University of Tulsa</span></footer>
 <dialog id="help" aria-label="Keyboard help">

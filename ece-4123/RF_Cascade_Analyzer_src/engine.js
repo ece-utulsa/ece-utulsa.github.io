@@ -1,20 +1,22 @@
-/* RF Cascade Analyzer — engine: complex arithmetic, reflection and standing waves, S-parameter cascades, the
-   terminated two-port and three-port, network properties, device presets, input parsing and number display.
-   Pure functions only (no DOM), shared by Lecture and Lab mode and loaded on its own by the developer tests.
-   Equation numbers E1..E14 are those of spec A.10 (spec_RF_Cascade_Analyzer_v1.1.0.md). The v1.0.0 engine (complex
-   helpers, cascade combine, Γ recursion, wave propagation, divider S matrices, 3-port solve) is kept as Research
-   confirmed it; v1.1.0 adds the open load, the VSWR guard, strict parsing and the property tests. */
+/* RF Cascade Analyzer — engine: complex arithmetic, reflection, S-parameter cascades, the terminated two-port, the
+   divider S matrices and the linear solver, network properties, device presets, input parsing and number display.
+   Pure functions only (no DOM), used by the three views and loaded on its own by the developer tests.
+   Equation numbers E1..E14 are those of spec A.10 (spec v1.1.0). v1.8.1: the helpers no view calls were removed
+   (CQ-RFC-008); number parsing is a strict, linear-time decimal grammar (SEC-RFC-001, -006); one dB formatter.
+   v1.8.2: named magnitude limits for typed sources, impedances and S entries (DEFECT-RFC-013); a loop whose
+   reflections reinforce without limit (Γ·Γ′ = 1 at an interface) is found and reported, never computed into NaN
+   (DEFECT-RFC-012). */
 /* ============================================================
    TABLE OF CONTENTS
    1. Constants        — tolerances, limits, unit symbols
    2. Complex numbers  — C, arithmetic, polar form
    3. Reflection       — Γ (E1), VSWR (E2), power split (E3), standing wave (E4)
    4. Two-ports        — cascade (E11), Γ_in (E7), forward/terminated waves (E6), chain propagation (E5)
-   5. Three-port       — linear solver, divider S matrices (E14), terminated divider
+   5. Three-port       — linear solver, divider S matrices (E14)
    6. Properties       — reciprocal, symmetric, lossless, passive (E10, σ_max)
-   7. Devices          — Teaching example, lecture gallery presets, Lab presets
-   8. Parsing          — complex text, loads (open/short), reference impedance
-   9. Display          — A.5.0 number formats, true minus sign
+   7. Devices          — Teaching example, gallery presets, chain-block presets
+   8. Parsing          — complex text, real numbers, loads (open/short), reference impedance
+   9. Display          — A.5.0 number formats, true minus sign, dB text
    ============================================================ */
 
 // ── CONSTANTS ─────────────────────────────────────────────────
@@ -25,6 +27,7 @@ const Z0_MIN = 1, Z0_MAX = 1000; // Lab reference impedance range (Ω, real; spe
 const DEG = 180 / Math.PI;       // degrees per radian
 const FULL_TURN = 360;           // degrees in a turn
 const HALF_TURN = 180;
+const ANGLE_EDGE_TOL = 1e-9;     // degrees: an angle within this above −180° is −180° to rounding and is wrapped to +180° (DEFECT-RFC-017)
 const MINUS = '−';          // true minus sign (spec A.5.0)
 const INF = '∞';            // ∞
 const ANGLE_SIGN = '∠';     // ∠
@@ -33,28 +36,50 @@ const PCT = 100;                 // fraction -> percent
 const SIG_FIG_BELOW = 1;         // percentages below 1 % show 2 significant figures
 const SIG_FIGS = 2;
 const DEC_MAG = 3, DEC_ANG = 1, DEC_DB = 1, DEC_PCT = 1, DEC_VSWR = 2;   // display resolution (A.5.0)
-const OPEN_WORDS = ['open', 'inf', 'infinity', '∞', '+inf', '+infinity'];   // Z_L = ∞ (spec A.9)
+const OPEN_WORDS = ['open', '∞'];   // Z_L = ∞ (spec A.9); v1.8.1: "inf"/"Infinity" are refused (DEFECT-RFC-002, finite values only)
 const SHORT_WORDS = ['short'];   // Z_L = 0
+const DECADE = 10;               // base of the logarithms (dB)
+const INPUT_MAXLEN = 64;         // longest typed entry accepted (characters); longer text is refused, so parsing stays cheap
+const DB_POWER = 10;             // a power ratio in dB = 10·log10(ratio)
+const DB_ROUND = 10;             // dB text is rounded to 1/DB_ROUND dB
+const PEAK = 0.5;                // peak phasors: a wave a carries ½|a|² of power; P = ½Re{VI*}
+const P_ZERO = 1e-12;            // a net power within this fraction of the waves' power is rounding (an open, a short), not a flow
+const RESISTIVE_S = 0.5;         // resistive divider: every |S| off the diagonal is ½ (6 dB)
+const TEE_S11 = -1 / 3, TEE_S21 = 2 / 3;   // T-junction of three equal Z0 lines
+const TEACHING_S = { s11: [0.3, 40], s21: [0.6, -70], s12: [0.6, -70], s22: [0.4, -20] };   // Teaching example [|S|, °] (spec A.5.0)
+/* Largest typed magnitudes (DEFECT-RFC-013): a teaching range well inside the range where every square and product of
+   the solution stays finite. Larger entries are refused with the limit named. */
+const VS_MAX = 1000;             // |V_s|, V peak
+const Z_MAX = 1e6;               // |Z| of a source or load impedance, Ω (1 MΩ; an open is typed "open")
+const AMP_G_MAX_DB = 60;         // the largest gain a Cascade amplifier block takes (dB)
+const S_ENTRY_MAX = DECADE ** (AMP_G_MAX_DB / DB_PER_DECADE);   // |S| of a Cascade S entry: that gain as a magnitude (1000; CQ-RFC-024)
+const POLE_TOL = 1e-9;           // |1 − Γ·Γ′| at or below this: the loop at that interface is singular (no finite steady state)
 // ── END CONSTANTS ─────────────────────────────────────────────
 
 // ── COMPLEX NUMBERS ───────────────────────────────────────────
 // A complex number.
 const C = (re = 0, im = 0) => ({ re, im });
 const ZERO = C(0, 0), ONE = C(1, 0);
-// Sum, difference, product and quotient of complex numbers.
+// a + b (complex numbers).
 const cadd = (a, b) => C(a.re + b.re, a.im + b.im);
+// a − b
 const csub = (a, b) => C(a.re - b.re, a.im - b.im);
+// a·b
 const cmul = (a, b) => C(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+// a/b
 const cdiv = (a, b) => { const d = b.re * b.re + b.im * b.im; return C((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d); };
-// Real multiple, conjugate, magnitude and angle (radians).
+// a·k for a real k.
 const cscale = (a, k) => C(a.re * k, a.im * k);
+// complex conjugate
 const conj = a => C(a.re, -a.im);
+// |a|
 const cabs = a => Math.hypot(a.re, a.im);
+// angle of a (radians)
 const carg = a => Math.atan2(a.im, a.re);
 // Complex number from magnitude and angle in degrees.
 const polar = (mag, deg) => C(mag * Math.cos(deg / DEG), mag * Math.sin(deg / DEG));
-// Angle in degrees wrapped to (−180°, 180°].
-function wrapDeg(d){ let w = ((d % FULL_TURN) + FULL_TURN) % FULL_TURN; if(w > HALF_TURN) w -= FULL_TURN; return w; }
+// Angle in degrees wrapped to (−180°, 180°]; an angle within ANGLE_EDGE_TOL of −180° (float noise) is +180° (DEFECT-RFC-017).
+function wrapDeg(d){ let w = ((d % FULL_TURN) + FULL_TURN) % FULL_TURN; if(w > HALF_TURN) w -= FULL_TURN; return w <= ANGLE_EDGE_TOL - HALF_TURN ? HALF_TURN : w; }
 // ── END COMPLEX NUMBERS ───────────────────────────────────────
 
 // ── REFLECTION ────────────────────────────────────────────────
@@ -83,17 +108,6 @@ function vswr(g){
 const powerSplit = g => ({ refl: g * g, deliv: 1 - g * g });
 // |V(d)|/|V⁺| on a lossless line, d in wavelengths from the load toward the source (E4).
 function envelope(G, d){ return cabs(cadd(ONE, cmul(G, polar(1, -2 * FULL_TURN * d)))); }
-// Positions (in wavelengths from the load, 0 ≤ d ≤ dMax) of the envelope maxima and minima (E4): a maximum where
-// θ_Γ − 2βd = −2nπ, a minimum λ/4 from each maximum. Empty for a matched load (flat envelope).
-function extrema(G, dMax){
-  const out = { max: [], min: [] }; if(cabs(G) <= EPS_ZERO) return out;
-  const theta = carg(G) / (2 * Math.PI);           // θ_Γ in turns
-  const first = (((theta / 2) % 0.5) + 0.5) % 0.5; // first maximum: d = θ/(4π)·λ, wrapped to [0, λ/2)
-  const near = (a, b) => Math.abs(a - b) < EPS_UNIT;
-  for(let d = first; d <= dMax + EPS_UNIT; d += 0.5) out.max.push(near(d, 0) ? 0 : d);
-  for(let d = (first + 0.25) % 0.5; d <= dMax + EPS_UNIT; d += 0.5) out.min.push(near(d, 0) ? 0 : d);
-  return out;
-}
 // ── END REFLECTION ────────────────────────────────────────────
 
 // ── TWO-PORTS ─────────────────────────────────────────────────
@@ -125,6 +139,25 @@ function branchSetup(devs, GL){
   for(let k = N; k >= 1; k--) Gr[k - 1] = gammaIn(devs[k - 1], Gr[k]);
   return { N, Gr, Gin: Gr[0] };
 }
+// Whether a complex number is finite.
+const cfinite = a => isFinite(a.re) && isFinite(a.im);
+/* Whether the loop between reflections Ga and Gb at one interface is singular: 1 − Ga·Gb = 0 (the reflections reinforce
+   without limit; Pozar's oscillation condition), or a reflection there is not finite. */
+const loopPole = (Ga, Gb) => !cfinite(Ga) || !cfinite(Gb) || cabs(csub(ONE, cmul(Ga, Gb))) <= POLE_TOL;
+/* The interface of a chain (node index k, the output of device k) nearest the load whose loop is singular: device k's
+   S22 facing the reflection Gr[k] of what follows it. -1 when every loop of the chain is regular (DEFECT-RFC-012). */
+function chainPole(devs, setup){
+  for(let k = setup.N; k >= 1; k--) if(loopPole(devs[k - 1].s22, setup.Gr[k])) return k;
+  return -1;
+}
+// A node whose voltages, currents and power are undefined (shown as "undefined", never computed into NaN).
+const UNDEF_C = C(NaN, NaN);
+// Undefined nodes in place of a chain's solved nodes, when the circuit has no finite steady state.
+const undefNodes = n => Array.from({ length: n }, () => ({ a: UNDEF_C, b: UNDEF_C, V: UNDEF_C, I: UNDEF_C, P: NaN }));
+/* Net power ½(|a|² − |b|²) of a forward wave a and a backward wave b (peak phasors); a value within P_ZERO of the
+   waves' own power is rounding, not a flow, and is returned as 0 (an open or a short gives exactly zero, never a tiny
+   negative power read as "flows out"). */
+function netPower(a, b){ const pa = cabs(a) ** 2, pb = cabs(b) ** 2, p = PEAK * (pa - pb); return Math.abs(p) <= P_ZERO * PEAK * (pa + pb) ? 0 : p; }
 // Node voltage, current and net power along a chain from the wave a_in entering node 0 (E5, peak phasors).
 function propagate(devs, setup, ain, Z0){
   const { N, Gr } = setup, sq = Math.sqrt(Z0), Ar = new Array(N + 1);
@@ -132,7 +165,7 @@ function propagate(devs, setup, ain, Z0){
   for(let k = 1; k <= N; k++){ const d = devs[k - 1]; Ar[k] = cdiv(cmul(d.s21, Ar[k - 1]), csub(ONE, cmul(d.s22, Gr[k]))); }
   const nodes = [];
   for(let k = 0; k <= N; k++){ const a = Ar[k], b = cmul(Gr[k], a);
-    nodes.push({ a, b, V: cscale(cadd(a, b), sq), I: cscale(csub(a, b), 1 / sq), P: 0.5 * (cabs(a) ** 2 - cabs(b) ** 2) }); }
+    nodes.push({ a, b, V: cscale(cadd(a, b), sq), I: cscale(csub(a, b), 1 / sq), P: netPower(a, b) }); }
   return nodes;
 }
 // Source wave and reflection (E12): b_s = V_s·√Z0/(Z_s + Z0), Γ_s, and P_avs = |b_s|²/(2(1 − |Γ_s|²)).
@@ -149,14 +182,16 @@ function transducerGain(S, Gs, GL){
 }
 // Impedance seen for reflection G against Z0 (∞ for G = 1).
 function zFromGamma(G, Z0){ const den = csub(ONE, G); if(cabs(den) <= EPS_ZERO) return null; return cdiv(cscale(cadd(ONE, G), Z0), den); }
-// The cascade as Lab mode shows it: overall S, source and load reflections, input quantities, node table, powers.
+/* A single cascade driven by the source: overall S, source and load reflections, input quantities, node table, powers.
+   pole: null, or where the reflections reinforce without limit ({ chain: 'M', node: k } inside the chain, node 'src'
+   between the source and the input); the waves, voltages, currents and powers are then undefined (DEFECT-RFC-012). */
 function solveCascade(devs, Vs, Zs, ZL, Z0){
-  const St = overallS(devs), src = source(Vs, Zs, Z0), GL = gammaLoad(ZL, Z0);
-  const setup = branchSetup(devs, GL), Gin = setup.Gin;
-  const a1 = cdiv(src.bs, csub(ONE, cmul(src.Gs, Gin)));
-  const nodes = propagate(devs, setup, a1, Z0), N = devs.length;
-  return { St, Gs: src.Gs, GL, Gin, Zin: zFromGamma(Gin, Z0), nodes, N, Pin: nodes[0].P, PL: nodes[N].P, Pavs: src.Pavs,
-           GT: transducerGain(St, src.Gs, GL), reflIn: 0.5 * cabs(nodes[0].b) ** 2 };
+  const St = overallS(devs), src = source(Vs, Zs, Z0), GL = gammaLoad(ZL, Z0), N = devs.length;
+  const setup = branchSetup(devs, GL), pk = chainPole(devs, setup), Gin = pk < 0 ? setup.Gin : UNDEF_C;
+  const pole = pk >= 0 ? { chain: 'M', node: pk } : loopPole(src.Gs, Gin) ? { chain: 'M', node: 'src' } : null;
+  const nodes = pole ? undefNodes(N + 1) : propagate(devs, setup, cdiv(src.bs, csub(ONE, cmul(src.Gs, Gin))), Z0);
+  return { St, Gs: src.Gs, GL, Gin, Zin: cfinite(Gin) ? zFromGamma(Gin, Z0) : UNDEF_C, nodes, N, Pin: nodes[0].P, PL: nodes[N].P, Pavs: src.Pavs,
+           GT: pole ? NaN : transducerGain(St, src.Gs, GL), reflIn: pole ? NaN : PEAK * cabs(nodes[0].b) ** 2, pole };
 }
 // ── END TWO-PORTS ─────────────────────────────────────────────
 
@@ -176,33 +211,16 @@ function csolve(M, b){
 }
 // Divider 3-port S matrix (port 1 in, 2 = branch A, 3 = branch B) for power fraction alpha into A (E14).
 function dividerS(type, alpha){
+  // √α and √(1 − α): the amplitude split; R(x) is the real number x as a complex
   const t = Math.sqrt(alpha), r = Math.sqrt(1 - alpha), R = x => C(x, 0);
   if(type === 'ideal') return [[R(0), R(t), R(r)], [R(t), R(r * r), R(-t * r)], [R(r), R(-t * r), R(t * t)]];
+  // −j·v: the Wilkinson's quarter-wave arms
   if(type === 'wilkinson'){ const jn = v => C(0, -v); return [[R(0), jn(t), jn(r)], [jn(t), R(0), R(0)], [jn(r), R(0), R(0)]]; }
-  if(type === 'resistive') return [[R(0), R(0.5), R(0.5)], [R(0.5), R(0), R(0.5)], [R(0.5), R(0.5), R(0)]];
-  const s = R(-1 / 3), x = R(2 / 3);   // T-junction of three equal Z0 lines
+  if(type === 'resistive'){ const q = R(RESISTIVE_S); return [[R(0), q, q], [q, R(0), q], [q, q, R(0)]]; }
+  const s = R(TEE_S11), x = R(TEE_S21);   // T-junction of three equal Z0 lines
   return [[s, x, x], [x, s, x], [x, x, s]];
 }
 const DIV_EQUAL_ONLY = { resistive: true, tee: true };   // divider types fixed at a 50 % split
-// The divider driven from the source with branch chains A and B ending in their loads: waves at the three ports,
-// input quantities and the power into each branch.
-function solveDivider(type, alpha, Vs, Zs, Z0, devsA, ZLA, devsB, ZLB){
-  if(DIV_EQUAL_ONLY[type]) alpha = 0.5;
-  const S = dividerS(type, alpha), src = source(Vs, Zs, Z0);
-  const GLA = gammaLoad(ZLA, Z0), GLB = gammaLoad(ZLB, Z0), setA = branchSetup(devsA, GLA), setB = branchSetup(devsB, GLB);
-  const Z = ZERO, I = ONE, neg = c => cscale(c, -1);
-  // unknowns [a1, a2, a3, b1, b2, b3]: b = S·a; branch A and B reflect a2 = Γ_A·b2, a3 = Γ_B·b3; a1 = b_s + Γ_s·b1
-  const M = [[neg(S[0][0]), neg(S[0][1]), neg(S[0][2]), I, Z, Z], [neg(S[1][0]), neg(S[1][1]), neg(S[1][2]), Z, I, Z],
-             [neg(S[2][0]), neg(S[2][1]), neg(S[2][2]), Z, Z, I], [Z, I, Z, Z, neg(setA.Gin), Z],
-             [Z, Z, I, Z, Z, neg(setB.Gin)], [I, Z, Z, neg(src.Gs), Z, Z]];
-  const x = csolve(M, [Z, Z, Z, Z, Z, src.bs]) || [Z, Z, Z, Z, Z, Z];
-  const [a1, a2, a3, b1, b2, b3] = x, sq = Math.sqrt(Z0);
-  const Pin = 0.5 * (cabs(a1) ** 2 - cabs(b1) ** 2), PbrA = 0.5 * (cabs(b2) ** 2 - cabs(a2) ** 2), PbrB = 0.5 * (cabs(b3) ** 2 - cabs(a3) ** 2);
-  const Gin = cabs(a1) > EPS_ZERO ? cdiv(b1, a1) : ZERO;
-  return { type, alpha, S, Gs: src.Gs, Pavs: src.Pavs, Gin, Zin: zFromGamma(Gin, Z0), V1: cscale(cadd(a1, b1), sq), I1: cscale(csub(a1, b1), 1 / sq),
-           Pin, PbrA, PbrB, Pdiss: Pin - PbrA - PbrB, GLA, GLB,
-           nodesA: propagate(devsA, setA, b2, Z0), nodesB: propagate(devsB, setB, b3, Z0) };
-}
 // ── END THREE-PORT ────────────────────────────────────────────
 
 // ── PROPERTIES ────────────────────────────────────────────────
@@ -235,12 +253,12 @@ function properties(S){
 // A two-port from magnitude/angle pairs [mag, deg] for S11, S21, S12, S22.
 const devPolar = (s11, s21, s12, s22) => ({ s11: polar(...s11), s21: polar(...s21), s12: polar(...s12), s22: polar(...s22) });
 // The Teaching example (spec A.5.0): reciprocal, not symmetric, passive and lossy.
-const TEACHING = () => devPolar([0.3, 40], [0.6, -70], [0.6, -70], [0.4, -20]);
-// Lecture gallery presets (spec A.5.6), with their defaults. iso = Infinity means S12 = 0.
-const GALLERY_DEFAULTS = { through: { bl: 90 }, atten: { A: 3 }, amp: { G: 20, I: Infinity }, isolator: { IL: 0.5, I: Infinity } };
-const fromDb = db => Math.pow(10, db / DB_PER_DECADE);   // |S| from |S|dB
-// S of a gallery device for its parameters.
+const TEACHING = () => devPolar(TEACHING_S.s11, TEACHING_S.s21, TEACHING_S.s12, TEACHING_S.s22);
+// |S| from |S| in dB.
+const fromDb = db => Math.pow(DECADE, db / DB_PER_DECADE);
+// S of a Devices-view preset for its parameters (spec A.5.6); isolation I = Infinity means S12 = 0.
 function galleryS(kind, p){
+  // |S12| of an isolation I dB (0 for infinite isolation)
   const iso = I => (I === Infinity ? 0 : fromDb(-I));
   switch(kind){
     case 'through': return devPolar([0, 0], [1, -p.bl], [1, -p.bl], [0, 0]);
@@ -250,18 +268,13 @@ function galleryS(kind, p){
   }
   return TEACHING();
 }
-// Lab presets (spec A.9; the Circulator is removed, E-Q4). param is in dB, or degrees for the phase shift.
-const LAB_PRESETS = ['thru', 'atten', 'amp', 'phase', 'filter', 'isolator'];
-const LAB_DEFAULT_PARAM = { atten: 3, amp: 10, phase: 45, filter: 20, isolator: 0.5 };
-// S of a Lab preset with parameter p.
+// S of a Cascade chain preset with parameter p (dB, or degrees for the phase shift; spec A.9).
 function labPresetS(type, p){
   switch(type){
     case 'thru': return devPolar([0, 0], [1, 0], [1, 0], [0, 0]);
     case 'atten': { const k = fromDb(-p); return devPolar([0, 0], [k, 0], [k, 0], [0, 0]); }
     case 'amp': return devPolar([0, 0], [fromDb(p), 0], [0, 0], [0, 0]);
     case 'phase': return devPolar([0, 0], [1, -p], [1, -p], [0, 0]);
-    case 'filter': { const t = fromDb(-p), r = Math.sqrt(Math.max(0, 1 - t * t));   // lossless reflective
-      return devPolar([r, 90], [t, 0], [t, 0], [r, 90]); }
     case 'isolator': return devPolar([0, 0], [fromDb(-p), 0], [0, 0], [0, 0]);
   }
   return null;
@@ -269,18 +282,20 @@ function labPresetS(type, p){
 // ── END DEVICES ───────────────────────────────────────────────
 
 // ── PARSING ───────────────────────────────────────────────────
-const NUM = '(?:\\d+\\.?\\d*|\\.\\d+)(?:e[+-]?\\d+)?';         // an unsigned decimal number
+// An unsigned decimal number. One way to split any digit run (digits, then an optional fraction), so a failing entry is
+// rejected in linear time (SEC-RFC-001; v1.8.0's \d+\.?\d* backtracked quadratically).
+const NUM = '(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?';
 const RE_NUM = new RegExp('^[+-]?' + NUM + '$', 'i');
 const RE_POLAR = new RegExp('^([+-]?' + NUM + ')(?:\u2220|<|@)([+-]?' + NUM + ')$', 'i');
 /* Parse complex text: rectangular "30+j40", "30+40j", "−j50", "25"; polar "0.5∠45", "0.5<45", "0.5@45" with the angle
    in `unit` ('deg' or 'rad'). Returns a C, or null for text that is not a number (spec A.9: invalid input is flagged,
    never read as 0). */
 function parseComplex(text, unit){
-  if(typeof text !== 'string') return null;
+  if(typeof text !== 'string' || text.length > INPUT_MAXLEN) return null;
   const s = text.trim().replace(/\u2212/g, '-').replace(/\s+/g, '').replace(/i/gi, 'j');
   if(!s) return null;
   const m = s.match(RE_POLAR);
-  if(m){ const mag = +m[1], ang = +m[2]; return polar(mag, unit === 'rad' ? ang * DEG : ang); }
+  if(m){ const mag = +m[1], ang = +m[2]; return isFinite(mag) && isFinite(ang) ? polar(mag, unit === 'rad' ? ang * DEG : ang) : null; }
   // terms split before every + or − that is not an exponent sign
   const terms = s.match(/[+-]?(?:[^+-]|(?<=e)[+-])+/gi);
   if(!terms || terms.join('') !== s) return null;
@@ -294,8 +309,15 @@ function parseComplex(text, unit){
   }
   return isFinite(re) && isFinite(im) ? C(re, im) : null;
 }
-// Parse a load impedance: "open", "inf", "∞", "Infinity" give an open (Γ = +1); "short" gives 0 Ω; otherwise complex
-// text. null when invalid.
+// A real number in the strict decimal grammar (optional sign, digits, fraction, exponent; true minus accepted) with a
+// finite value, or null: "0x10", "1e309", "Infinity", "1_0" are refused (SEC-RFC-006).
+function parseRealStrict(text){
+  if(typeof text !== 'string' || text.length > INPUT_MAXLEN) return null;
+  const s = text.trim().replace(/\u2212/g, '-'), v = RE_NUM.test(s) ? +s : NaN;
+  return isFinite(v) ? v : null;
+}
+// Parse a load impedance: "open" or "∞" give an open (Γ = +1); "short" gives 0 Ω; otherwise complex text. null when
+// invalid.
 function parseLoad(text, unit){
   const w = typeof text === 'string' ? text.trim().toLowerCase() : '';
   if(OPEN_WORDS.includes(w)) return OPEN_LOAD;
@@ -314,14 +336,17 @@ function parseZ0(text){
 function fx(x, d){ let s = (+x).toFixed(d); if(/^-0\.?0*$/.test(s)) s = s.slice(1); return s.replace('-', MINUS); }
 // |S| or |Γ| to 3 decimals.
 const fmtMag = m => fx(m, DEC_MAG);
-// Angle of c in degrees, 1 decimal, wrapped to (−180°, 180°]; 0.0° for a zero magnitude.
-function fmtAng(c){ const a = cabs(c) <= EPS_ZERO ? 0 : wrapDeg(carg(c) * DEG); let s = fx(a, DEC_ANG); if(s === fx(-HALF_TURN, DEC_ANG)) s = fx(HALF_TURN, DEC_ANG); return s + '°'; }
-// Magnitude∠angle (degrees).
-const fmtPolar = c => fmtMag(cabs(c)) + ANGLE_SIGN + fmtAng(c);
-// |S| in dB, 1 decimal; −∞ dB for zero.
+// |S| in dB; −∞ dB for zero.
 const dbOf = m => (m <= EPS_ZERO ? -Infinity : DB_PER_DECADE * Math.log10(m));
-// |S| in dB as text.
-function fmtDb(db){ return db === -Infinity ? MINUS + INF + ' dB' : fx(db, DEC_DB) + ' dB'; }
+// A power ratio in dB, or null when it has none (a power ≤ 0 is never given a dB value, PPR-RFC-001); −∞ for zero.
+const dbPow = r => (r > 0 ? DB_POWER * Math.log10(r) : r === 0 ? -Infinity : null);
+/* A dB value as text, 1 decimal (the one dB formatter, CQ-RFC-017): o.plus writes "+" before a positive value, o.trim
+   drops ".0" from a whole number ("+10 dB"); ±∞ written with the true minus. */
+function fmtDbVal(db, o){
+  o = o || {}; if(db === Infinity) return INF + ' dB'; if(db === -Infinity) return MINUS + INF + ' dB';
+  const r = Math.round(db * DB_ROUND) / DB_ROUND, t = o.trim && Number.isInteger(r) ? fx(r, 0) : fx(r, DEC_DB);
+  return (o.plus && r > 0 ? '+' : '') + t + ' dB';
+}
 // A fraction as a percentage: 1 decimal, or 2 significant figures below 1 %.
 function fmtPct(f){
   const p = f * PCT; if(p === 0) return '0.0%';
