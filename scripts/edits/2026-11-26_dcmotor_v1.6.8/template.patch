@@ -1,0 +1,703 @@
+--- template_v1.6.7.html	2026-11-26 20:00:22.649289551 -0600
++++ template_v1.6.8.html	2026-11-26 20:00:22.651621987 -0600
+@@ -2,8 +2,8 @@
+ <html lang="en"><head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-<meta name="version" content="v1.6.7">
+-<title>DC Motor Simulation v1.6.7</title>
++<meta name="version" content="v1.6.8">
++<title>DC Motor Simulation v1.6.8</title>
+ <style>/* vietnamese */
+ @font-face {
+   font-family: 'Archivo';
+@@ -475,9 +475,10 @@
+     --c-out:    #3ddc84;
+     --shadow-inset: inset 0 1px 3px rgba(0,0,0,0.6);
+     --txt2: #c0c8d4; --txt3: #b4bdca; --c-loss: #ff9b9b; --warn-txt: #ffc9a3; --glow: #1a212b;
++    --warn-solid: #2d2228;   /* the .warn tint (#ff5d5d at 10 %) flattened onto --bg2: an opaque statement surface */
+     /* canvas palette (read by JS) */
+     --cv-grid: #1e2531; --cv-axis: #4a5363; --cv-ink: #e6ebf2; --cv-ink2: #cdd6e3; --cv-fill: #0c1014;
+-    --cv-wire: #a8b1bf; --cv-tip: rgba(22,27,34,0.95); --cv-legend: rgba(9,12,17,0.82); --cv-halo: #ffffff;
++    --cv-wire: #a8b1bf; --cv-tip: rgba(22,27,34,0.95); --cv-legend: #0b0e13; --cv-halo: #ffffff;   /* legend and label backgrounds opaque: no line shows through a label (VIS-DCM-011) */
+     --c-brush: #e879f9; --c-stray: #94a3b8; --c-series: #ffb454; --c-dev: #cdd6e3;
+     --c-t-shunt: #3ddc84; --c-t-series: #5b9dff; --c-t-cl: #ffb454; --c-t-cs: #c084fc;
+     color-scheme: dark;
+@@ -490,8 +491,9 @@
+     --c-fieldcu: #8a2ee0; --c-armcu: #1f5fd6; --c-core: #9c4704; --c-fric: #b51e63; --c-wind: #08695f; --c-out: #0b6b3e;
+     --shadow-inset: inset 0 1px 2px rgba(15,23,42,0.06);
+     --txt2: #333c48; --txt3: #434c59; --c-loss: #c0392b; --warn-txt: #8a2d0a; --glow: #ffffff;
++    --warn-solid: #ffefef;   /* the .warn tint (#ff5d5d at 10 %) flattened onto --bg2: an opaque statement surface */
+     --cv-grid: #e8ecf1; --cv-axis: #8a94a3; --cv-ink: #18202b; --cv-ink2: #3d4652; --cv-fill: #ffffff;
+-    --cv-wire: #5f6977; --cv-tip: rgba(255,255,255,0.97); --cv-legend: rgba(255,255,255,0.88); --cv-halo: #ffffff;
++    --cv-wire: #5f6977; --cv-tip: rgba(255,255,255,0.97); --cv-legend: #ffffff; --cv-halo: #ffffff;   /* legend and label backgrounds opaque: no line shows through a label (VIS-DCM-011) */
+     --c-brush: #b5179e; --c-stray: #56606e; --c-series: #9c4704; --c-dev: #5f6977;
+     --c-t-shunt: #0b6b3e; --c-t-series: #1f5fd6; --c-t-cl: #9c4704; --c-t-cs: #8a2ee0;
+     color-scheme: light;
+@@ -760,6 +762,10 @@
+ .res-tab.cmp td { text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--txt); white-space: nowrap; padding: 3px 8px; }
+ .res-tab.cmp td:first-child { text-align: left; font-family: 'Archivo', sans-serif; color: var(--txt2); white-space: normal; }
+ .res-tab.cmp td:last-child { text-align: left; color: var(--mut); font-size: 0.6875rem; }
++/* comparison table fits its panel: headers wrap instead of running into the next column, the unit column holds
++   the longest unit (V·s/rad) whole (VIS-DCM-026) */
++.res-tab.cmp th { white-space: normal; vertical-align: bottom; line-height: 1.25; }
++.res-tab.cmp th:last-child, .res-tab.cmp td:last-child { width: 4.75rem; padding-right: 4px; }
+ 
+ @media (max-width: 760px) {
+   .topnav { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+@@ -853,6 +859,9 @@
+ /* plain-words note under an input that was adjusted, and state warnings on the Simulation tab */
+ .in-note { font-size: 0.72rem; color: var(--warn-txt); margin-top: 4px; line-height: 1.35; }
+ .sim-warn { margin: 0 0 10px; position: sticky; top: 0; z-index: 5; }   /* stays in view while the sidebar scrolls (VIS-DCM-023) */
++/* opaque, so nothing scrolling beneath prints through it; the first shadow paints the sidebar colour over the
++   sidebar's top padding above the box, the second separates it from the content below (VIS-DCM-025) */
++.sim-warn { background: var(--warn-solid); box-shadow: 0 -10px 0 0 var(--bg2), 0 6px 8px -4px rgba(15,23,42,0.25); }
+ /* Inputs that do not apply to the selected connection: field disabled, label kept readable (VIS-DCM-008) */
+ .ctrl-row.na label, .ctrl-row.na .hint, .ctrl-row.na .lt { color: var(--mut); }
+ .ctrl-row.na label::after { content: " (not used here)"; font-weight: 400; }
+@@ -866,7 +875,7 @@
+ 
+ 
+ <div class="topnav">
+-    <div class="topnav-brand"><span class="tn-dot"></span>DC Motor Simulation <span class="tn-ver">v1.6.7</span></div>
++    <div class="topnav-brand"><span class="tn-dot"></span>DC Motor Simulation <span class="tn-ver">v1.6.8</span></div>
+     <div class="topnav-right">
+         <div class="topnav-tabs" id="pageTabs">
+             <button class="active" data-page="tutorialPage">Tutorial</button>
+@@ -1224,7 +1233,7 @@
+ <script>
+ (function () {
+ /* ============================================================
+-   DC MOTOR SIMULATION v1.6.7 — power flow and performance
++   DC MOTOR SIMULATION v1.6.8 — power flow and performance
+    (the whole script runs inside one function scope: no application globals on window)
+    TABLE OF CONTENTS
+    1. Constants (model, solver, bounds, display)
+@@ -1283,8 +1292,10 @@
+ const CAP_PROBE = 1e-4;                        // relative I_A step that tells a speed-cap crossing from a true one
+ const SWEEP_REL_EPS = 1e-4, IDX_REL_EPS = 1e-6;   // relative margins when splitting a sweep at the current limit
+ const RISING_PROBE = 0.01;                     // ±1 % I_A probe for the sign of dn/dτ at the operating point
++const GOLDEN = 0.6180339887, GOLDEN_ITER = 40;   // golden-section refinement of the pull-out torque (ratio, steps)
++const PULLOUT_REL = 1e-3;                      // a running-point shaft torque more than 0.1 % above the locked-rotor one is named as the pull-out torque
+ const FIELD_LOSS_FRAC = 0.10;                  // R_F at 1/0.10 = 10× design or more: "field nearly open"; I_F below 10 % of rated with the field intact: "weak field"
+-const LR_LEVEL_FRAC = 0.5;                     // I_A at half the locked-rotor current or more is called "locked-rotor-level"
++const LR_LEVEL_FRAC = 0.9;                     // I_A at 90 % of the locked-rotor current or more is called "locked-rotor-level" (PPR-DCM-029)
+ const SWEEP_N_LIMIT = 160, SWEEP_N_EXT = 70, SWEEP_N_STALL = 90;   // sweep samples: to the current limit, to the operating point, to stall
+ const SWEEP_EXT_MARGIN = 1.03;                 // sweep extends 3 % past an operating point beyond the limit
+ // Input bounds: one named bound per quantity, used by the field handlers, the HTML attributes and the stored-settings rules
+@@ -1312,6 +1323,10 @@
+ const CANVAS_MIN_FONT = 9;                     // px, smallest canvas body text (Visual V-M9 Major floor; the canvases cannot take 11 px at 125 % zoom without overlaps)
+ const CANVAS_MIN_SUB = 7;                      // px, smallest canvas sub/superscript (V-M9 Major floor)
+ const SUB_SCALE = 0.72;                        // sub/superscript size ÷ body size
++const SUB_DROP = 0.3, SUP_RISE = 0.35;         // subscript baseline drop and superscript rise, × body size (canvas y grows downward)
++const TEXT_PX = 11, TEXT_WT = 700;             // default canvas text size (px) and weight (CQ-DCM-001)
++const DEC_RADIX = 10;                          // decimal radix (rounding to d decimal places)
++const RES_COLS = 3;                            // columns of the single-connection result tables: quantity, value, unit
+ const CONTRAST_MIN = 4.5;                      // WCAG 2.2 SC 1.4.3 text contrast
+ const ACCENT_DARK_REF = '#47382f';             // darkest tinted panel accent text sits on in the dark view
+ const ACCENT_BTN_INK = '#18120a';              // text colour of active (accent) buttons and tabs
+@@ -1330,6 +1345,8 @@
+ const MARKER_R = 3.5;                          // px, marker half-size
+ const LABEL_BG_PAD = 2;                        // px, label background margin either side of the text
+ const LABEL_BG_HALF_H = 0.7;                   // label background half-height, × font size
++const VLINE_HALF = 1.5;                        // px, half-width of a dashed reference line as a label obstacle
++const LEGEND_VLINE_PENALTY = 1000;             // legend corner score added when a reference line crosses it (any free corner wins)
+ const MAX_TICKS = 40;                          // most tick marks on one chart axis (a range that needs more draws none)
+ const TICK_EPS = 1e-9;                         // tick-count rounding margin, in steps
+ // Display and chart layout (non-drawing logic)
+@@ -1363,6 +1380,13 @@
+ const TICK_K_AT = 10000, TICK_K_STEP = 1000;   // tick labels switch to "k" at 10000 with a step of 1000 or more
+ const TICK_MAX_DEC = 4;                        // most decimals in a tick label
+ const ACC_D_SHADE = -0.25;                     // darker accent stop: accent shaded by this fraction
++const SANKEY_SHIFTS = 2, SANKEY_SHIFT_STEP = 1;   // power-flow labels: sideways tries each way per row, step × half the label width
++const SANKEY_FIT_ITER = 4;                     // passes that grow the power-flow label area until the labels fit it
++const SANKEY_TRUNK_MIN = 40;                   // px, least height of the power-flow trunk
++const SANKEY_BOTTOM_PAD = 12, SANKEY_FIT_SLACK = 4, SANKEY_EDGE = 2;   // px × scale: margin under the labels, label-height slack, label clearance from the canvas edge
++const SANKEY_LEADER_GAP = 8, SANKEY_LEADER_ALPHA = 0.6;   // px × scale above a moved label where its leader line ends; leader opacity
++const MAG_NOTE_PX = 9.5, MAG_NOTE_WT = 600;    // magnetization-view note size (px × scale) and weight
++const MAG_RATED_GAP = 7, MAG_RATED_RISE = 11;  // px × scale: "rated" label offset beside and above its marker
+ const CHEV = { minHout: 10, minPin: 1, step: 34, halfMax: 0.5, half: 16, back: 6 };   // power-flow chevrons: least trunk height (px) and P_in (W) to animate; pitch, half-height cap (× trunk), half-height, depth (px × scale)
+ const MARKER_GEOM = { triUp: 1.2, triW: 1.1, triDn: 0.8, diaH: 1.3, diaW: 1.1, ring: 2 };   // marker shapes, × MARKER_R (ring: stroke px)
+ // Stored settings
+@@ -1446,14 +1470,16 @@
+     if (typeof FAM_COLORS !== 'undefined') FAM_COLORS.splice(0, FAM_COLORS.length, COL.ia, COL.fieldcu, COL.core, COL.wind, COL.fric, COL.stray);
+ }
+ let lastTweaks = null;
+-/* Switch light/dark view, remember it, and redraw */
++let lastUiScale = null;                        // UI scale (%) last applied: only a change of it resizes the canvases (CQ-DCM-029)
++/* Switch light/dark view, remember it, and redraw every visible canvas once (CQ-DCM-029) */
+ function setTheme(th) {
+     THEME = th === 'light' ? 'light' : 'dark';
+     document.documentElement.setAttribute('data-theme', THEME);
+     try { localStorage.setItem(THEME_KEY, THEME); } catch (e) {}
+     const b = document.getElementById('themeBtn'); if (b) b.textContent = THEME === 'light' ? '☾ Dark view' : '☀ Light view';
+-    if (lastTweaks) applyTweaks(lastTweaks); else refreshPalette();
+-    if (typeof updatePerf === 'function' && typeof PERF !== 'undefined') { try { updatePerf(); } catch (e) {} }
++    if (lastTweaks) applyTweaks(lastTweaks, false); else refreshPalette();
++    // the Performance tables carry connection colours: rebuilt (and its charts drawn once) if shown, else on next show
++    if (el('perfPage') && el('perfPage').classList.contains('active')) updatePerf(); else perfStale = true;
+     markDirty();
+ }
+ /* Theme button: flip the view */
+@@ -1463,8 +1489,9 @@
+     Slate:    { '--bg':'#0d141c','--bg2':'#141d27','--bg3':'#1a2531','--inset':'#070c12','--line':'#22303d','--line2':'#2f4150' },
+     Black:    { '--bg':'#060709','--bg2':'#0d0f13','--bg3':'#13161c','--inset':'#000000','--line':'#1c222b','--line2':'#2a3340' }
+ };
+-/* Apply Tweaks values (appearance only; never physics) */
+-function applyTweaks(t) {
++/* Apply Tweaks values (appearance only; never physics). A UI-scale change resizes the canvases (one redraw);
++   any other value redraws them once without reallocating them; redraw = false leaves the redraw to the caller */
++function applyTweaks(t, redraw = true) {
+     if (!t) return;
+     lastTweaks = t;
+     const root = document.documentElement.style;
+@@ -1477,10 +1504,12 @@
+     for (const k of ['--bg','--bg2','--bg3','--inset','--line','--line2']) root.removeProperty(k);
+     if (!light && t.bgTheme && BG_THEMES[t.bgTheme]) { const m = BG_THEMES[t.bgTheme]; for (const k in m) root.setProperty(k, m[k]); }
+     refreshPalette();
+-    if (typeof t.uiScale === 'number') root.fontSize = (UI_FONT_PX * t.uiScale / PCT).toFixed(2) + 'px';
++    const rescale = typeof t.uiScale === 'number' && t.uiScale !== lastUiScale;
++    if (rescale) { root.fontSize = (UI_FONT_PX * t.uiScale / PCT).toFixed(2) + 'px'; lastUiScale = t.uiScale; }
+     if (typeof t.flow === 'number') CFG.flow = t.flow / PCT;
+     if (typeof t.showFlowParticles === 'boolean') CFG.showFlowParticles = t.showFlowParticles;
+-    requestResize();
++    if (rescale) requestResize();
++    else if (redraw) { markDirty(); if (el('perfPage') && el('perfPage').classList.contains('active')) requestPerfDraw(); }
+ }
+ document.addEventListener(TWEAKS_APPLY_EVENT, (e) => applyTweaks(e.detail));   // values from the Tweaks panel
+ /* Channels [r, g, b] (0..255) of a #rrggbb colour */
+@@ -1717,6 +1746,8 @@
+         const Ist = C.Iastall;
+         const r = evalPoint(M, p, C, 0, Ist, C.fluxEff(Ist), true);
+         r.Tload = Tload;
++        const po = pullOut(M, p, C, wCap);
++        if (po && po.Tshaft > r.Tshaft * (1 + PULLOUT_REL)) r.pullOut = po;   // the largest shaft torque is at a running point, not at locked rotor (DEFECT-DCM-021 c)
+         return r;
+     }
+     const w = wOfIa(C, Ia);
+@@ -1725,6 +1756,23 @@
+     if (Ia > 0 && net(Ia * (1 - CAP_PROBE)) === -Infinity) r.runaway = true;   // the crossing is the speed cap itself
+     return r;
+ }
++/* Largest shaft torque on the running characteristic below the speed cap wCap (the pull-out torque), or null:
++   the best sample of the I_A grid, refined by golden-section search between its neighbours */
++function pullOut(M, p, C, wCap) {
++    const g = iaGrid(C);
++    const at = (Ia) => { const w = wOfIa(C, Ia); return (w > wCap || w < STANDSTILL_W) ? null : evalPoint(M, p, C, w, Ia, C.fluxEff(Ia), false); };
++    let k = -1, best = -Infinity;
++    g.forEach((I, i) => { const q = at(I); if (q && q.Tshaft > best) { best = q.Tshaft; k = i; } });
++    if (k < 0) return null;
++    let lo = g[Math.max(0, k - 1)], hi = g[Math.min(g.length - 1, k + 1)];
++    const T = (I) => { const q = at(I); return q ? q.Tshaft : -Infinity; };
++    for (let j = 0; j < GOLDEN_ITER; j++) {
++        const a = hi - GOLDEN * (hi - lo), b = lo + GOLDEN * (hi - lo);
++        if (T(a) > T(b)) hi = b; else lo = a;
++    }
++    const q = at((lo + hi) / 2);
++    return q && q.Tshaft >= best ? q : at(g[k]);
++}
+ /* Operating point at a given speed ω (rad/s), unclamped (used by sweeps) */
+ function solveAtSpeed(M, p, w, Ia0 = 0) {
+     const C = machineCtx(M, p);
+@@ -1742,20 +1790,28 @@
+     return evalPoint(M, p, C, w, Ia, Psi, w < STANDSTILL_W);
+ }
+ /* Specified-speed or specified-I_A request from the Performance page (val: rad/s or A).
+-   - Every path applies the model's speed cap: a request whose solution is unloaded (τ_load = 0) in a
+-     runaway state, or lies above RUNAWAY_SPEED_X × rated speed, is refused with the runaway state, exactly
+-     as Specify by Torque refuses it (ruling DCM-3, DEFECT-DCM-013). The result is the runaway no-load
+-     state, flagged with the request; .Tload is the torque of the requested point, so the Simulation tab,
+-     which solves that torque, reports the same state.
++   - Every path applies the model's speed cap. When the unloaded machine itself has no steady state
++     (runaway), a request whose solution is unloaded or above RUNAWAY_SPEED_X × rated speed is refused
++     with the runaway state, exactly as Specify by Torque refuses it (ruling DCM-3, DEFECT-DCM-013); .Tload
++     is 0, the torque at which the Simulation tab reports the same runaway state (PPR-DCM-028: no quantity
++     of the refused point is carried).
++   - When the unloaded machine has a steady no-load point but the request lies above the cap (for example
++     the armature-reaction hump of a weak-field shunt motor, DEFECT-DCM-020 / PPR-DCM-027), the no-load
++     point is shown, flagged 'aboveCap' with the request, and with .ar = true when armature reaction is the
++     cause (the same request without armature reaction lies below the cap, or has no solution at all).
+    - A speed is solved on the motoring branch from the no-load current upward, so on a rising
+      (armature-reaction) characteristic a speed above n_nl is a motoring point (PPR-DCM-023).
+    - A request outside the motoring region is clamped to the no-load point and flagged with the value asked
+      for and its true cause (OD-8 position A, PPR-DCM-001, DEFECT-DCM-016): 'aboveNl' (speed above every
+-     motoring speed: generator action), 'belowIa0' (I_A below the no-load current), 'lossy' (the only current
+-     giving this speed leaves a negative shaft torque); an I_A above the locked-rotor current gives the
+-     locked-rotor point flagged 'aboveLr'. */
++     motoring speed: generator action), 'belowIa0' (I_A below the no-load current), 'lossy' (at the requested
++     point the losses exceed the developed torque; .at holds that point's speed, current and torques,
++     DEFECT-DCM-021 a); an I_A above the locked-rotor current gives the locked-rotor point flagged 'aboveLr'.
++   - Every point returned carries .specFrom = the request, so a statement names the quantity asked for
++     (DEFECT-DCM-021 b). */
+ function specPoint(M, p, kind, val) {
++    const req = { kind, val };
+     const nl = solve(M, Object.assign({}, p, { loadFrac: 0 }));
++    nl.specFrom = req;
+     const C = machineCtx(M, p), wCap = RUNAWAY_SPEED_X * M.wr;
+     const from = (nl.runaway || nl.stalled) ? 0 : nl.Ia;          // motoring region: I_A at or above the no-load point
+     let r = null, why = null;
+@@ -1765,19 +1821,31 @@
+     } else if (val > C.Iastall) {
+         r = solveAtIa(M, p, C.Iastall);
+         r.clampedFrom = { kind, val, why: 'aboveLr', limit: C.Iastall };
++        r.specFrom = req;
+         return r;
+     } else if (val < from) why = 'belowIa0';
+     else r = solveAtIa(M, p, val);
+-    if (r && !r.stalled && (r.w > wCap || (nl.runaway && !(r.Tshaft > 0)))) {   // above the speed cap, or the unloaded runaway state itself
+-        nl.runawayFrom = { kind, val };
+-        nl.Tload = Math.max(0, r.Tshaft);
++    const aboveCap = (r && !r.stalled && r.w > wCap) || (kind === 'speed' && val > wCap);
++    if (nl.runaway && (aboveCap || !r || (!r.stalled && !(r.Tshaft > 0)))) {      // the unloaded runaway state itself: no values
++        nl.runawayFrom = req; nl.Tload = 0; return nl;
++    }
++    if (aboveCap) {                                                // above the model's speed limit: the cap is the cause (DEFECT-DCM-020)
++        nl.clampedFrom = { kind, val, why: 'aboveCap', ar: !!r && capByArmatureReaction(M, p, kind, val, wCap), gen: !r };
+         return nl;
+     }
+-    if (nl.runaway && !r) { nl.runawayFrom = { kind, val }; nl.Tload = 0; return nl; }
+-    if (r && r.Tshaft < 0) { r = null; if (!why) why = 'lossy'; }
++    if (r && r.Tshaft < 0) { nl.clampedFrom = { kind, val, why: 'lossy', at: { rpm: r.rpm, Ia: r.Ia, Tem: r.Tem, Tloss: r.Tloss } }; return nl; }
+     if (!r) { nl.clampedFrom = { kind, val, why }; return nl; }   // outside the motoring region: the no-load point, flagged
++    r.specFrom = req;
+     return r;
+ }
++/* True when armature reaction is what puts request (kind, val) above the speed cap wCap: the same
++   machine without armature reaction runs that I_A at or below the cap, or (speed request) cannot
++   reach that speed at all */
++function capByArmatureReaction(M, p, kind, val, wCap) {
++    if (!p.arOn || !(p.arStrength > 0)) return false;
++    const C0 = machineCtx(M, Object.assign({}, p, { arOn: false }));
++    return kind === 'speed' ? fluxAndIa(C0, val, 0) === null : wOfIa(C0, Math.min(val, C0.Iastall)) <= wCap;
++}
+ /* Flags for a displayed operating point: rising torque–speed characteristic (dn/dτ > 0, unstable)
+    and an (almost) open shunt field */
+ function annotate(M, p, r) {
+@@ -1970,15 +2038,20 @@
+ function nlDerive() {
+     const V0 = +S.nlV, IL0 = +S.nlIL, n0 = +S.nlN;
+     const res = { ok: false, msg: '' };
+-    if (!(V0 > 0 && IL0 > 0 && n0 > 0)) { res.msg = 'Enter V_T0, I_L0 and n₀ (or fill with simulated readings).'; return res; }
++    // every refusal names the readings it refused, so a value too long for its field is still shown whole (VIS-DCM-027)
++    const readings = `V_T0 = ${fmtN(V0, DISP_SIG)} V, I_L0 = ${fmtN(IL0, DISP_SIG)} A, n₀ = ${fmtN(n0, DISP_SIG)} rpm`;
++    if (!(V0 > 0 && IL0 > 0 && n0 > 0)) {
++        res.msg = (S.nlV == null || S.nlIL == null || S.nlN == null) ? 'Enter V_T0, I_L0 and n₀ (or fill with simulated readings).' : `Every reading must be positive; these readings (${readings}) are not used.`;
++        return res;
++    }
+     const w0 = n0 / RPM_PER_RADS;
+     // The no-load test is run with the machine SHUNT-connected (series field bypassed),
+     // so the reduction is the same whichever connection is being studied.
+     const Ish0 = V0 / S.Rf;
+     const Ia0 = IL0 - Ish0;
+-    if (!(Ia0 > 0)) { res.msg = `I_L0 must exceed the shunt-field current V_T0/R_F = ${Ish0.toFixed(DEC_NL_A)} A.`; return res; }
++    if (!(Ia0 > 0)) { res.msg = `I_L0 = ${fmtN(IL0, DISP_SIG)} A must exceed the shunt-field current V_T0/R_F = ${Ish0.toFixed(DEC_NL_A)} A; these readings (${readings}) are not used.`; return res; }
+     const Eb0 = V0 - Ia0 * S.Ra - M.Vb;
+-    if (!(Eb0 > 0)) { res.msg = 'Back-EMF comes out ≤ 0: check V_T0, I_L0 and R_A.'; return res; }
++    if (!(Eb0 > 0)) { res.msg = `Back-EMF E_A0 = V_T0 − I_{A0}R_{A} − V_BD comes out ≤ 0 (${fmtN(Eb0, DISP_SIG)} V) for ${readings} and R_A = ${fmtN(S.Ra, DISP_SIG)} Ω: check V_T0, I_L0 and R_A.`; return res; }
+     const Prot = Eb0 * Ia0;
+     const Kphi0 = Eb0 / w0;
+     // calibrated frame: scale the magnetization curve so KΦ(test field) = KΦ0
+@@ -2059,7 +2132,7 @@
+ function closedParts(total, parts) {
+     const a = Math.abs(total);
+     const d = a > 0 ? Math.max(0, Math.min(USED_SIG - 1, USED_SIG - 1 - Math.floor(Math.log10(a)))) : 0;
+-    const k = Math.pow(10, d);   // scale for d decimal places
++    const k = Math.pow(DEC_RADIX, d);   // scale for d decimal places
+     const T = Math.round(total * k);
+     const fl = parts.map(p => Math.floor(p * k));
+     let rest = T - fl.reduce((s, v) => s + v, 0);
+@@ -2105,14 +2178,18 @@
+ function solvePerf() { PPS = S.types.map(pointFor); PP = PPS[0]; }
+ let sweepCache = null;
+ let perfStale = true;                 // Performance page needs rebuilding when next shown
++let SPECREQ = null;                   // Speed / I_A request of the first Performance connection when it was not met as asked (stated on the Simulation tab too)
+ /* Re-solve everything after an input change; one redraw is scheduled for the next frame */
+ function recompute() {
+     NL = nlDerive();
+     ME = effMachine();
++    SPECREQ = null;
+     if (S.spec !== 'torque') {
+         const r = pointFor(S.types[0]);
+-        if (r.Tshaft >= 0 && !r.stalled && !r.runaway) S.loadNm = asUsed(r.Tshaft);
+-        else if (r.runawayFrom) S.loadNm = asUsed(r.Tload);   // a request refused as runaway: the Simulation tab solves its torque and reports the same state
++        const sub = r.runawayFrom || (r.clampedFrom && r.clampedFrom.why !== 'aboveLr');   // the no-load (or unloaded runaway) state is shown instead
++        if (sub) S.loadNm = 0;            // the Simulation tab solves τ_load = 0 and so shows the same state (no quantity of the refused point is carried, PPR-DCM-028)
++        else if (r.Tshaft >= 0 && !r.stalled && !r.runaway) S.loadNm = asUsed(r.Tshaft);
++        if (r.runawayFrom || r.clampedFrom || r.stalled) SPECREQ = { r, mt: S.types[0] };   // a stalled request (n = 0, I_A at locked rotor) is not a torque the Simulation tab can solve
+     }
+     OP = annotate(ME, params(), solve(ME, params()));
+     solvePerf();
+@@ -2307,10 +2384,12 @@
+     el('pNoLoad').onclick = () => { S.spec = 'torque'; S.loadNm = 0; inputNote('pSpecVal', null); recompute(); syncInputs(); };
+     el('pIlim').onchange = () => { S.ilim = readNum('pIlim', 'Current limit', '× rated', S.ilim, ILIM_MIN, ILIM_MAX); recompute(); syncInputs(); };
+     el('pFull').onchange = () => { S.showFull = el('pFull').checked; recompute(); };
+-    el('pFam').onchange = () => { S.fam = el('pFam').value; S.famVals = defaultFamVals(S.fam); el('pFamVals').value = S.famVals; recompute(); };
++    // the rejected-list note clears on a new family (or None), a valid list or an empty list (DEFECT-DCM-022)
++    el('pFam').onchange = () => { S.fam = el('pFam').value; S.famVals = defaultFamVals(S.fam); el('pFamVals').value = S.famVals; inputNote('pFamVals', null); recompute(); };
+     el('pFamVals').onchange = () => {
+         const v = el('pFamVals').value;
+         if (v.length > FAMVALS_MAX_LEN || !/^[0-9eE.+\-,\s]*$/.test(v)) { inputNote('pFamVals', `Family values: only numbers separated by commas, at most ${FAMVALS_MAX_LEN} characters; the previous list is kept.`); el('pFamVals').value = S.famVals; return; }
++        inputNote('pFamVals', null);
+         S.famVals = v; recompute();
+     };
+     el('pCsv').onclick = exportCsv;
+@@ -2488,7 +2567,8 @@
+     str = String(str);
+     while ((m = re.exec(str))) {
+         if (m.index > last) parts.push([str.slice(last, m.index), 0]);
+-        if (m[1] != null || m[2] != null) parts.push([m[1] != null ? m[1] : m[2], 1]); else parts.push([m[3] != null ? m[3] : m[4], 2]);
++        const [, subBrace, subWord, supBrace, supWord] = m;   // capture groups: _{..}, _word, ^{..}, ^number
++        if (subBrace != null || subWord != null) parts.push([subBrace != null ? subBrace : subWord, 1]); else parts.push([supBrace != null ? supBrace : supWord, 2]);
+         last = re.lastIndex;
+     }
+     if (last < str.length) parts.push([str.slice(last), 0]);
+@@ -2497,16 +2577,16 @@
+ /* Canvas font; never below the Visual floors (body CANVAS_MIN_FONT, scripts CANVAS_MIN_SUB) */
+ function richFont(sb, wt, size, fam) { const b = Math.max(CANVAS_MIN_FONT, size); return `${wt} ${sb ? Math.max(CANVAS_MIN_SUB, Math.round(b * SUB_SCALE)) : b}px ${fam}`; }
+ /* Width of a rich-text string on the canvas */
+-function richW(x, str, size = 11, wt = 700, fam = "'JetBrains Mono', monospace") {
++function richW(x, str, size = TEXT_PX, wt = TEXT_WT, fam = "'JetBrains Mono', monospace") {
+     let tw = 0; for (const [pp, sb] of richParts(str)) { x.font = richFont(sb, wt, size, fam); tw += x.measureText(pp).width; } return tw;
+ }
+ /* Draw rich text (sub/superscripts) at (tx, ty) with alignment al; returns its width */
+-function richText(x, str, tx, ty, col, al = 'left', wt = 700, size = 11, fam = "'JetBrains Mono', monospace") {
++function richText(x, str, tx, ty, col, al = 'left', wt = TEXT_WT, size = TEXT_PX, fam = "'JetBrains Mono', monospace") {
+     size = Math.max(CANVAS_MIN_FONT, size);
+     const parts = richParts(str), tw = richW(x, str, size, wt, fam);
+     let cx = al === 'right' ? tx - tw : al === 'center' ? tx - tw / 2 : tx;
+     x.fillStyle = col; x.textAlign = 'left'; x.textBaseline = 'middle';
+-    for (const [pp, sb] of parts) { x.font = richFont(sb, wt, size, fam); x.fillText(pp, cx, ty + (sb === 1 ? size * 0.3 : sb === 2 ? -size * 0.35 : 0)); cx += x.measureText(pp).width; }
++    for (const [pp, sb] of parts) { x.font = richFont(sb, wt, size, fam); x.fillText(pp, cx, ty + (sb === 1 ? size * SUB_DROP : sb === 2 ? -size * SUP_RISE : 0)); cx += x.measureText(pp).width; }
+     return tw;
+ }
+ /* The same subscript notation for page text, built as DOM nodes. Text is never parsed as markup:
+@@ -2562,7 +2642,7 @@
+ function rectsOverlap(a, b) { return a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0; }
+ /* Text writer bound to a canvas context and a default size: (str, x, y, colour, align, weight, size, family) → richText */
+ function textWriter(ctx, size, fam = "'JetBrains Mono', monospace") {
+-    return (str, tx, ty, col, al = 'left', wt = 700, sz = size, fm = fam) => richText(ctx, str, tx, ty, col, al, wt, sz, fm);
++    return (str, tx, ty, col, al = 'left', wt = TEXT_WT, sz = size, fm = fam) => richText(ctx, str, tx, ty, col, al, wt, sz, fm);
+ }
+ /* Rounded-rectangle path */
+ function roundRect(ctx, x, y, w, h, r) {
+@@ -2632,7 +2712,11 @@
+         x.strokeStyle = COL.tq; x.lineWidth = 1.6; x.beginPath(); x.moveTo(px(Fop) + 10 * s, py(Psi0)); x.lineTo(px(Fop) + 10 * s, py(OP.Psi)); x.stroke();
+         T('armature reaction', px(Fop) + 14 * s, (py(Psi0) + py(OP.Psi)) / 2, COL.tq, 'left', 600, Math.round(9.5 * s));
+     }
+-    textOnBg(x, T, 'rated', px(M.If_r) - 7 * s, py(curve(M.If_r)) - 11 * s, TH.mut, 'right', 600, Math.round(9.5 * s));
++    {   // "rated" beside its marker, on the side the knee line does not cross (VIS-DCM-011)
++        const rs = Math.round(MAG_NOTE_PX * s), rw = richW(x, 'rated', rs, MAG_NOTE_WT), xr = px(M.If_r), xk = px(Mm.Iknee), gap = MAG_RATED_GAP * s;
++        const left = !(xk > xr - gap - rw - LABEL_BG_PAD && xk < xr - gap + LABEL_BG_PAD);
++        textOnBg(x, T, 'rated', left ? xr - gap : xr + gap, py(curve(M.If_r)) - MAG_RATED_RISE * s, TH.mut, left ? 'right' : 'left', MAG_NOTE_WT, rs);
++    }
+     // readout box
+     const lines = OP.runaway ? [['runaway: no operating point', COL.tq], ['KΦ, E_A, n: —', TH.ink2]] : [
+         ['KΦ = ' + OP.Psi.toFixed(3) + ' V·s/rad', COL.fieldcu],
+@@ -2647,17 +2731,16 @@
+     lines.forEach((l, i) => T(l[0], bx, by + lh * (i + 0.5), l[1]));
+ }
+ 
+-/* Power-flow diagram in the style of the ECE-3033 notes (Chapman): a single arrow from
+-   P_in = V_T·I_L to P_out = τ_load·ω_m. The I²R and brush losses peel off before the
+-   dashed P_conv (P_developed) line; core, mechanical and stray losses peel off after it.
+-   Band thickness is proportional to watts (each loss drawn at least a few pixels wide). */
+-let flowPhase = 0;
++let flowPhase = 0;                    // phase of the flow chevrons, 0..1 of one chevron pitch
+ let flowPaused = false;               // Pause-flow button on the Power Flow panel (independent of the Tweaks panel)
+-/* Power-flow arrow for the present operating point; dt (s) advances the flow chevrons */
+ let SANKEY = null;                    // { base, over, geo, cw, ch } cached power-flow layers and chevron geometry
+-/* Power-flow canvas, per frame. The drawing is built into two cached layers only when the operating
+-   point, size or theme changes (rebuild = true): the trunk below the chevrons and everything drawn over
+-   them. An animated frame copies the layers and draws the chevrons only (CQ-DCM-004). */
++/* Power-flow diagram in the style of the ECE-3033 notes (Chapman), per frame: a single arrow from
++   P_in = V_T·I_L to P_out = τ_load·ω_m. The I²R and brush losses peel off before the dashed P_conv
++   (P_developed) line; core, mechanical and stray losses peel off after it. Band thickness is proportional
++   to watts (each loss drawn at least a few pixels wide). dt (s) advances the flow chevrons. The drawing is
++   built into two cached layers only when the operating point, size or theme changes (rebuild = true): the
++   trunk below the chevrons and everything drawn over them. An animated frame copies the layers and draws
++   the chevrons only (CQ-DCM-004). */
+ function drawSankey(dt, rebuild) {
+     const c = cv.sankey; if (!c || !c.w) return;
+     if (!flowPaused) flowPhase = (flowPhase + dt * FLOW_RATE * CFG.flow) % 1;
+@@ -2724,8 +2807,8 @@
+     /* One layout pass for a given label-area height: band thicknesses (true scale, floor minT),
+        branch positions pushed right so no branch overlaps the previous one or the P_conv line,
+        then labels placed on the first row where they collide with nothing. */
+-    function layout(labelH) {
+-        const Hin = Math.max(40, h - yTop - dropLen - labelH - 12 * s);
++    function layout(labelH, sideways) {
++        const Hin = Math.max(SANKEY_TRUNK_MIN, h - yTop - dropLen - labelH - SANKEY_BOTTOM_PAD * s);
+         const k = Hin / Pin, minT = 3 * s;
+         const L = defs.map(d => Object.assign({}, d));
+         let yb = yTop + Hin;
+@@ -2755,22 +2838,40 @@
+             const lines = b.key === 'cu' ? 4 : 3, hgt = (lines === 4 ? 50 : 38) * s;
+             const wv = W(b.P) + ' · ' + pct(b.P);
+             let wl = Math.max(richW(x, b.name, fsz, 800, AF), richW(x, wv, fsm, 700), b.key === 'cu' ? richW(x, cuParts.map(c => c[0]).join(' + '), fsf, 700) : richW(x, b.sub, fsf, 500));
+-            const x0 = b.xd - wl / 2 - 4 * s, x1 = b.xd + wl / 2 + 4 * s;
+-            let row = 0;
++            // sideways pass (only when the stacked labels would not fit the canvas): on each row, try the label centred on
++            // its arrow, then shifted sideways inside the canvas, before moving it down a row (stall: core, mechanical
++            // and stray all near 0 W), so every label stays inside the canvas (VIS-DCM-028)
++            const half = wl / 2 + 4 * s, shifts = [0];
++            if (sideways) for (let k = 1; k <= SANKEY_SHIFTS; k++) shifts.push(k * half * SANKEY_SHIFT_STEP, -k * half * SANKEY_SHIFT_STEP);
++            const fit = (cx) => Math.min(w - half - SANKEY_EDGE * s, Math.max(half + SANKEY_EDGE * s, cx));
++            let row = 0, cx = fit(b.xd);
+             for (let tries = 0; tries < 6; tries++) {
+                 const y0 = row - 8 * s, y1 = row + hgt;
+-                const hit = placed.find(q => rectsOverlap({ x0, x1, y0, y1 }, q));
+-                if (!hit) break;
+-                row = hit.y1 + 10 * s;
++                const free = shifts.map(d => fit(b.xd + d)).find(c => !placed.some(q => rectsOverlap({ x0: c - half, x1: c + half, y0, y1 }, q)));
++                if (free != null) { cx = free; break; }
++                const hit = placed.find(q => rectsOverlap({ x0: fit(b.xd) - half, x1: fit(b.xd) + half, y0, y1 }, q)) || placed.find(q => q.y1 > row);
++                row = hit ? hit.y1 + 10 * s : row + hgt + 10 * s;
++                cx = fit(b.xd);
+             }
+-            b.row = row; b.lw = wl;
+-            placed.push({ x0, x1, y0: row - 8 * s, y1: row + hgt });
++            b.row = row; b.lw = wl; b.lx = cx;
++            placed.push({ x0: cx - half, x1: cx + half, y0: row - 8 * s, y1: row + hgt });
+             need = Math.max(need, row + hgt + 18 * s);
+         }
+         return { Hin, k, L, xDev, yDrop, need, br };
+     }
+-    let Lay = layout(96 * s);
+-    if (Math.abs(Lay.need - 96 * s) > 4 * s) Lay = layout(Lay.need);
++    // the band widths (and so the label rows) depend on the label height given: grow it until the labels fit it;
++    // if they cannot fit above the trunk's 40 px floor, place them sideways as well (VIS-DCM-028)
++    const labelRoom = h - yTop - dropLen - SANKEY_TRUNK_MIN - SANKEY_BOTTOM_PAD * s;   // label height at which the trunk reaches its floor
++    let labelH = 96 * s, Lay = null;
++    for (const sideways of [false, true]) {
++        for (let i = 0; i < SANKEY_FIT_ITER; i++) {
++            Lay = layout(Math.min(labelH, labelRoom), sideways);
++            if (Lay.need <= Math.min(labelH, labelRoom) + SANKEY_FIT_SLACK * s) break;
++            labelH = Lay.need;
++        }
++        if (Lay.need <= labelRoom + SANKEY_FIT_SLACK * s) break;
++        labelH = 96 * s;
++    }
+     const { Hin, L, yDrop } = Lay;
+     const xDev = Lay.xDev;
+     const yOutBot = Math.max(yTop + 1, L[L.length - 1].yb1), Hout = yOutBot - yTop;
+@@ -2809,17 +2910,21 @@
+         x.globalAlpha = 1;
+         const xd = b.xd;
+         x.fillStyle = b.c; x.beginPath(); x.moveTo(xd - b.td / 2 - 6 * s, yDrop - 9 * s); x.lineTo(xd + b.td / 2 + 6 * s, yDrop - 9 * s); x.lineTo(xd, yDrop + 2 * s); x.closePath(); x.fill();
+-        const ly = yDrop + 14 * s + b.row;
+-        T(b.name, xd, ly, b.c, 'center', 800, fsz, AF);
+-        T(W(b.P) + ' · ' + pct(b.P), xd, ly + 15 * s, TH.ink, 'center', 700, fsm);
++        const ly = yDrop + 14 * s + b.row, lx = b.lx;
++        if (Math.abs(lx - xd) > b.lw / 2) {         // label moved sideways off its arrow: a leader line joins them
++            x.strokeStyle = b.c; x.lineWidth = 1; x.globalAlpha = SANKEY_LEADER_ALPHA;
++            x.beginPath(); x.moveTo(xd, yDrop + SANKEY_EDGE * s); x.lineTo(lx, ly - SANKEY_LEADER_GAP * s); x.stroke(); x.globalAlpha = 1;
++        }
++        T(b.name, lx, ly, b.c, 'center', 800, fsz, AF);
++        T(W(b.P) + ' · ' + pct(b.P), lx, ly + 15 * s, TH.ink, 'center', 700, fsm);
+         if (b.key === 'cu') {
+             // coloured breakdown: P_A + P_F (+ P_S), then the watts in the same colours
+             const sym = cuParts.map(c => c[0]).join(' + '), val = cuParts.map(c => fmtW1(c[1]).replace(' W', '')).join(' + ') + ' W';
+-            let cx = xd - richW(x, sym, fsf, 700) / 2;
++            let cx = lx - richW(x, sym, fsf, 700) / 2;
+             cuParts.forEach((c, j) => { cx += richText(x, c[0], cx, ly + 29 * s, c[2], 'left', 700, fsf); if (j < cuParts.length - 1) cx += richText(x, ' + ', cx, ly + 29 * s, TH.mut, 'left', 700, fsf); });
+-            cx = xd - richW(x, val, fsf, 600) / 2;
++            cx = lx - richW(x, val, fsf, 600) / 2;
+             cuParts.forEach((c, j) => { cx += richText(x, fmtW1(c[1]).replace(' W', ''), cx, ly + 42 * s, c[2], 'left', 600, fsf); cx += richText(x, j < cuParts.length - 1 ? ' + ' : ' W', cx, ly + 42 * s, TH.mut, 'left', 600, fsf); });
+-        } else T(b.sub, xd, ly + 29 * s, TH.mut, 'center', 500, fsf);
++        } else T(b.sub, lx, ly + 29 * s, TH.mut, 'center', 500, fsf);
+     });
+     // P_rot bracket over the core + mechanical arrows (slide 8: P_rot = P_core + P_mech)
+     {
+@@ -3157,6 +3262,8 @@
+     const pix = [];
+     for (const s of spec.series) { if (s.noLine) continue; const st = Math.max(1, Math.floor(s.xs.length / 160)); for (let i = 0; i < s.xs.length; i += st) pix.push([px(s.xs[i]), py(s.ys[i], s.axis)]); }
+     const crowd = (r) => { let n = 0; for (const [X, Y] of pix) if (X > r.x0 - 3 && X < r.x1 + 3 && Y > r.y0 - 3 && Y < r.y1 + 3) n++; return n; };
++    // dashed reference lines as obstacles: no label or legend is placed across one (VIS-DCM-011)
++    const vRects = vls.map(v => ({ x0: px(v.x) - VLINE_HALF, x1: px(v.x) + VLINE_HALF, y0: Y1, y1: Y0 }));
+     // legend size (two columns when long)
+     const leg = spec.series.filter(s => s.label);
+     let LG = null;
+@@ -3174,12 +3281,14 @@
+             const [lx, ly] = C[k]; let n = 0;
+             for (const [X, Y] of pixL) if (X > lx - 4 && X < lx + bw + 4 && Y > ly - 4 && Y < ly + bh + 4) n++;
+             if (k[0] === 'T') n += vls.length * 0.5;            // vline labels live along the top
++            if (vRects.some(q => rectsOverlap({ x0: lx, x1: lx + bw, y0: ly, y1: ly + bh }, q))) n += LEGEND_VLINE_PENALTY;   // no dashed reference line through the legend (VIS-DCM-011)
+             if (n < bestN - 0.25) { bestN = n; best = k; }
+         }
+         const [lx, ly] = C[best];
+         LG = { x0: lx, y0: ly, x1: lx + bw, y1: ly + bh, cols, rows, colW, corner: best };
+         occ.push(LG);
+     }
++    occ.push(...vRects);
+     // corner note (e.g. "speed axis zoomed") in a bottom corner the legend is not using
+     if (spec.note) {
+         const nw = richW(x, spec.note, fs - 1, 600);
+@@ -3380,12 +3489,13 @@
+     famNote = '';
+     if (S.fam === 'none' || compareMode()) return [];
+     const all = String(S.famVals || '').split(/[,\s]+/).filter(s => s !== '').map(Number);
+-    const pos = all.filter(v => v > 0);
+-    // each family value is held to the same named bound as its quantity (CQ-DCM-027)
++    // each family value is held to the same named bound as its quantity (CQ-DCM-027); R_S and N_S/N_F may be 0 (CQ-DCM-032)
+     const [lo, hi] = { V: [VFRAC_MIN * S.Vr, VFRAC_MAX * S.Vr], Rf: [RF_MIN, STORE_MAX], Ra: [RA_MIN, STORE_MAX], Rs: [0, STORE_MAX], nse: [0, STORE_MAX] }[S.fam];
++    const zeroOk = lo === 0;
++    const pos = all.filter(v => zeroOk ? v >= 0 : v > 0);          // numbers that can be a value of this quantity at all
+     const ok = pos.filter(v => v >= lo && v <= hi);
+     const vals = ok.slice(0, FAMILY_MAX);
+-    if (pos.length < all.length) famNote += `${all.length - pos.length} family value(s) not positive and not drawn. `;
++    if (pos.length < all.length) famNote += `${all.length - pos.length} family value(s) ${zeroOk ? 'negative or not a number' : 'not positive'} and not drawn. `;
+     if (ok.length < pos.length) famNote += `${pos.length - ok.length} family value(s) outside the allowed range ${fmtN(lo, DISP_SIG)} to ${fmtN(hi, DISP_SIG)} and not drawn. `;
+     if (ok.length > FAMILY_MAX) famNote += `Only the first ${FAMILY_MAX} family values are drawn (${ok.length} given).`;
+     return vals.map((v, i) => {
+@@ -3453,37 +3563,80 @@
+     const msgs = stateWarnings(r);
+     return msgs.length ? h('div', { className: 'warn' }, pre, msgs.map((m, i) => [i ? ' ' : '', m])) : null;
+ }
++/* A speed or I_A request in the words the student typed it (c: { kind, val }, val in rad/s or A) */
++function askedText(c) { return c.kind === 'speed' ? `n = ${fmtN(c.val * RPM_PER_RADS, DISP_SIG)} rpm` : `I_A = ${fmtN(c.val, DISP_SIG)} A`; }
++/* Current as a multiple of rated, in words */
++function xRated(I) { return fx(I / M.Ia_r, DEC_RATIO) + '× rated'; }
++/* The point a tab actually shows (q), in one sentence: no values (runaway), locked rotor, the no-load point or a loaded point */
++function shownText(q) {
++    if (q.runaway) return 'No operating-point values are shown.';
++    if (q.stalled) return `The locked-rotor point (n = 0, I_A = ${fmtN(q.Ia, DISP_SIG)} A) is shown.`;
++    if (q.Tload === 0) return `The no-load point (n = ${fmtN(q.rpm, DISP_SIG)} rpm, I_A = ${fmtN(q.Ia, DISP_SIG)} A) is shown instead.`;
++    return `This tab shows the point at its load-torque setting: n = ${fmtN(q.rpm, DISP_SIG)} rpm, I_A = ${fmtN(q.Ia, DISP_SIG)} A at τ_load = ${fmtN(q.Tshaft, DISP_SIG)} N·m.`;   // reached only on the Simulation tab
++}
++/* Statement for a Specify by speed / I_A request that was not met as asked (r: the Performance result), ending
++   with the point that `shown` (the point a tab displays) is. Order: the request, the cause (the RUNAWAY_SPEED_X
++   speed limit first when it is the cause, then armature reaction when it applies), then the point shown
++   (DEFECT-DCM-020, PPR-DCM-027; OD-8 A). On the Performance tab (shown = r) a stalled request is stated by the
++   stall statement instead, so null is returned. */
++function requestWarning(r, shown) {
++    const series = r.mt === 'series';
++    const limit = `${RUNAWAY_SPEED_X}× rated speed (${fmtN(RUNAWAY_SPEED_X * S.nr, DISP_SIG)} rpm)`;
++    if (r.runawayFrom) {
++        const tail = series ? ' Never run a series motor unloaded.' : (r.fieldLoss || r.lowField) ? ' With the field this weak, the protection must trip.' : '';
++        return [B('Runaway:'), ` the requested ${askedText(r.runawayFrom)} has no steady operating point below ${limit}, so no values are shown.${tail}`, shown.runaway ? '' : ' ' + shownText(shown)];
++    }
++    const c = r.clampedFrom;
++    if (c && c.why === 'aboveCap') {
++        const what = c.kind === 'speed' ? `the requested ${askedText(c)} is above ${limit}` : `the requested ${askedText(c)} would run the motor above ${limit}`;
++        const ar = !c.ar ? '' : c.kind === 'speed'
++            ? ' Armature reaction is the cause: only its flux weakening at heavy current makes this speed reachable, where the motor races (demagnetization runaway; the protection must trip).'
++            : ' Armature reaction is the cause: at this current it weakens the flux so far that the motor races (demagnetization runaway; the protection must trip).';
++        const gen = c.gen && !c.ar ? ' It is also above every motoring speed: the shaft would have to be driven (generator action).' : '';
++        return [B('Above the speed limit:'), ` ${what}, the model's limit, so there is no operating point.${ar}${gen} ${shownText(shown)}`];
++    }
++    if (c && c.why !== 'aboveLr') {
++        const a = c.at;
++        const why = c.why === 'aboveNl' ? `${askedText(c)} is above every motoring speed: the shaft would have to be driven (generator action).`
++            : c.why === 'belowIa0' ? `${askedText(c)} is below the no-load current; less current cannot turn the unloaded motor.`
++            : !a ? `no armature current gives ${askedText(c)} with a positive shaft torque, so it is not a motoring point.`
++            : c.kind === 'speed' ? `at ${askedText(c)} the armature current would be I_A = ${fmtN(a.Ia, DISP_SIG)} A, where the losses (${fmtN(a.Tloss, DISP_SIG)} N·m) exceed the developed torque (${fmtN(a.Tem, DISP_SIG)} N·m), so it is not a motoring point.`
++            : `at ${askedText(c)} the motor would run at n = ${fmtN(a.rpm, DISP_SIG)} rpm, where the losses (${fmtN(a.Tloss, DISP_SIG)} N·m) exceed the developed torque (${fmtN(a.Tem, DISP_SIG)} N·m), so it is not a motoring point.`;
++        return [B('Outside the motor region:'), ` ${why} ${shownText(shown)}`];
++    }
++    if (shown === r || !r.stalled) return null;
++    const ask = r.specFrom ? askedText(r.specFrom) : null;
++    const cause = (c && c.why === 'aboveLr') ? `the requested ${askedText(c)} exceeds the locked-rotor current ${fmtN(c.limit, DISP_SIG)} A, so the Performance tab shows the locked-rotor point.`
++        : `the requested ${ask} is the locked-rotor point (standstill), shown on the Performance tab.`;
++    return [B('Stalled request:'), ` ${cause} ${shownText(shown)}`];
++}
+ /* Plain-words statements about an operating point outside normal, steady motoring (shared by both tabs) */
+ function stateWarnings(r) {
+-    const out = [], series = r.mt === 'series';
+-    const xr = (I) => fx(I / M.Ia_r, DEC_RATIO) + '× rated';
+-    const asked = (c) => c.kind === 'speed' ? `n = ${fmtN(c.val * RPM_PER_RADS, DISP_SIG)} rpm` : `I_A = ${fmtN(c.val, DISP_SIG)} A`;
++    const out = [];
+     if (r.runaway) {
+-        const what = r.runawayFrom ? `the requested ${asked(r.runawayFrom)} has` : 'there is';
+-        const tail = series ? ' Never run a series motor unloaded.' : (r.fieldLoss || r.lowField) ? ' With the field this weak, the protection must trip.' : '';
+-        out.push([B('Runaway:'), ` ${what} no steady operating point below ${RUNAWAY_SPEED_X}× rated speed, so no values are shown.${tail}`]);
++        out.push(r.runawayFrom ? requestWarning(r, r) : [B('Runaway:'), ` there is no steady operating point below ${RUNAWAY_SPEED_X}× rated speed, so no values are shown.${r.mt === 'series' ? ' Never run a series motor unloaded.' : (r.fieldLoss || r.lowField) ? ' With the field this weak, the protection must trip.' : ''}`]);
+         return out;                                    // no operating-point values, so no other statement quotes one
+     }
+-    if (r.stalled) {
+-        const c = r.clampedFrom;
+-        const cause = (c && c.why === 'aboveLr') ? `the requested I_A = ${fmtN(c.val, DISP_SIG)} A exceeds the locked-rotor current ${fmtN(c.limit, DISP_SIG)} A; the locked-rotor point is shown`
+-            : (r.Tload > 0 && r.Tload > r.Tshaft) ? `the load torque ${fmtN(r.Tload, DISP_SIG)} N·m exceeds the locked-rotor shaft torque ${fmtN(r.Tshaft, DISP_SIG)} N·m`
+-            : (r.Tem <= r.Tloss) ? `the developed torque at standstill ${fmtN(r.Tem, DISP_SIG)} N·m does not overcome the static friction ${fmtN(r.Tloss, DISP_SIG)} N·m`
+-            : 'the requested current is the locked-rotor current';
+-        const cur = r.Ia > M.Ia_r ? `the locked-rotor current, far beyond the rating; a starting resistor limits it in practice.`
+-            : `the locked-rotor current at this V_T, within the rating.`;
+-        out.push([B('Stalled:'), ` ${cause}. I_A = ${fmtN(r.Ia, DISP_SIG)} A (${xr(r.Ia)}) is ${cur}`]);
+-    }
+-    if (r.clampedFrom && r.clampedFrom.why !== 'aboveLr') {
+-        const c = r.clampedFrom, nl = `The no-load point (n = ${fmtN(r.rpm, DISP_SIG)} rpm, I_A = ${fmtN(r.Ia, DISP_SIG)} A) is shown.`;
+-        const why = c.why === 'aboveNl' ? `${asked(c)} is above every motoring speed: the shaft would have to be driven (generator action).`
+-            : c.why === 'belowIa0' ? `${asked(c)} is below the no-load current; less current cannot turn the unloaded motor.`
+-            : `at the lowest armature current that gives ${asked(c)}, the losses exceed the developed torque, so it is not a motoring point.`;
+-        out.push([B('Outside the motor region:'), ` ${why} ${nl}`]);
+-    }
+-    if (r.fieldLoss) {
+-        const lr = r.Ia >= LR_LEVEL_FRAC * r.Iastall ? ` The armature draws locked-rotor-level current (I_A = ${fmtN(r.Ia, DISP_SIG)} A, ${xr(r.Ia)}).` : '';
+-        out.push([B('Field nearly open:'), ` R_F is ${fx(r.Rf / M.RfBase, 0)}× design, so I_F = ${fmtN(r.Ish, DISP_SIG_FIELD)} A (${fx(r.Ish / M.If_r * PCT, DEC_PCT)} % of rated).${lr}`]);
++    if (r.stalled) {                                   // cause and value in one sentence (VIS-DCM-024)
++        const c = r.clampedFrom, sp = r.specFrom, po = r.pullOut;
++        const cause = (c && c.why === 'aboveLr') ? `the requested ${askedText(c)} exceeds the locked-rotor current, so the locked-rotor point is shown`
++            : (sp && sp.kind === 'speed') ? `the requested ${askedText(sp)} is standstill, the locked-rotor point`
++            : sp ? `the requested ${askedText(sp)} is the locked-rotor current`
++            : (po && r.Tload > po.Tshaft) ? `the load torque ${fmtN(r.Tload, DISP_SIG)} N·m exceeds the pull-out torque ${fmtN(po.Tshaft, DISP_SIG)} N·m (the largest shaft torque this motor develops, at n = ${fmtN(po.rpm, DISP_SIG)} rpm; ${fmtN(r.Tshaft, DISP_SIG)} N·m at locked rotor), so the motor stands still`
++            : (r.Tload > 0 && r.Tload > r.Tshaft) ? `the load torque ${fmtN(r.Tload, DISP_SIG)} N·m exceeds the locked-rotor shaft torque ${fmtN(r.Tshaft, DISP_SIG)} N·m, so the motor stands still`
++            : (r.Tem <= r.Tloss) ? `the developed torque at standstill ${fmtN(r.Tem, DISP_SIG)} N·m does not overcome the static friction ${fmtN(r.Tloss, DISP_SIG)} N·m, so the motor stands still`
++            : 'the motor stands still';
++        const cur = r.Ia > M.Ia_r ? 'far beyond the rating (a starting resistor limits it in practice)' : 'within the rating at this V_T';
++        out.push([B('Stalled:'), ` ${cause}: I_A = ${fmtN(r.Ia, DISP_SIG)} A (${xRated(r.Ia)}), the locked-rotor current, ${cur}.`]);
++    }
++    const rq = requestWarning(r, r);
++    if (rq) out.push(rq);
++    if (r.fieldLoss) {                                 // one sentence; the current is named only for what is true at the shown point (PPR-DCM-029)
++        const cur = r.stalled ? ''
++            : r.Ia >= LR_LEVEL_FRAC * r.Iastall ? `, and the armature draws locked-rotor-level current (I_A = ${fmtN(r.Ia, DISP_SIG)} A, ${xRated(r.Ia)})`
++            : r.Ia > M.Ia_r ? `, and the armature draws I_A = ${fmtN(r.Ia, DISP_SIG)} A (${xRated(r.Ia)}): with so little flux, any torque needs a large current`
++            : '';
++        out.push([B('Field nearly open:'), ` R_F is ${fx(r.Rf / M.RfBase, 0)}× design, so I_F = ${fmtN(r.Ish, DISP_SIG_FIELD)} A (${fx(r.Ish / M.If_r * PCT, DEC_PCT)} % of rated)${cur}.`]);
+     }
+     if (r.lowField) out.push([B('Weak field:'), ` V_T is ${fx(r.V / M.Vr, DEC_RATIO)}× rated, so I_F = ${fmtN(r.Ish, DISP_SIG_FIELD)} A is only ${fx(r.Ish / M.If_r * PCT, DEC_PCT)} % of rated.`]);
+     if (r.rising) out.push([B('Unstable:'), ' speed rises with load here (dn/dτ_load > 0); a light series winding restores a drooping characteristic.']);
+@@ -3540,7 +3693,8 @@
+         let charRows = false;               // rows after the Characteristics heading do not depend on the operating point
+         for (const r of rows) {
+             if (r[0] === 'grp') { charRows = /^Characteristics/.test(r[1]); body.appendChild(h('tr', { className: 'grp' }, h('td', { colSpan: L.length + 2 }, r[1]))); continue; }
+-            body.appendChild(h('tr', { className: r[3] || '' }, h('td', null, r[0]), L.map(x => h('td', null, (x.pp.runaway && !charRows) ? '—' : r[1](x.pp, x))), h('td', null, r[2])));
++            const [label, val, unit, cls] = r;   // row: quantity, value function, unit, row class
++            body.appendChild(h('tr', { className: cls || '' }, h('td', null, label), L.map(x => h('td', null, (x.pp.runaway && !charRows) ? '—' : val(x.pp, x))), h('td', null, unit)));
+         }
+         setKids(out,
+             h('div', { className: 'res-head' }, h('span', null, 'Comparison at ', specTxt), srcTag),
+@@ -3550,13 +3704,17 @@
+     }
+     const r = PP;
+     const row = (k, v, u, cls) => h('tr', cls ? { className: cls } : null, h('td', null, k), h('td', null, v), h('td', null, u || ''));
+-    const grp = t => h('tr', { className: 'grp' }, h('td', { colSpan: 3 }, t));
++    const grp = t => h('tr', { className: 'grp' }, h('td', { colSpan: RES_COLS }, t));
+     const tab = (...rs) => h('table', { className: 'res-tab' }, h('tbody', null, ...rs));
+     const mt = r.mt, hasSh = mt !== 'series', hasSe = mt !== 'shunt';
+     const C0 = PERF.list[0];
+     if (r.runaway) {                          // PPR-DCM-002: no operating point, so no operating-point table
++        // the row echoes the quantity the student set: τ_load on the torque path, the requested n or I_A otherwise (PPR-DCM-028)
++        const rf = r.runawayFrom;
++        const setRow = !rf ? row('Load torque τ_load (set)', W(r.Tload), 'N·m')
++            : rf.kind === 'speed' ? row('Speed n (requested)', W(rf.val * RPM_PER_RADS), 'rpm') : row('Armature current I_A (requested)', W(rf.val), 'A');
+         setKids(out, h('div', { className: 'res-head' }, h('span', null, `Operating point · ${TYPE_NAME[mt]}`), srcTag), pointWarn(r),
+-            h('table', { className: 'res-tab' }, h('tbody', null, row('Terminal voltage V_T', W(r.V), 'V'), row('Load torque τ_load (set)', W(r.Tload), 'N·m'),
++            h('table', { className: 'res-tab' }, h('tbody', null, row('Terminal voltage V_T', W(r.V), 'V'), setRow,
+                 row('No-load speed n_nl (τ_load = 0)', '> ' + W(C0.nnl), 'rpm'),
+                 row(startLabel(C0), W(C0.tst), `N·m · ${fx(C0.tst / M.Tload_r, 2)}× rated`))));
+         return;
+@@ -3847,8 +4005,12 @@
+     const st = OP.runaway ? 'RUNAWAY' : OP.stalled ? 'STALLED' : OP.rising ? 'UNSTABLE' : OP.fieldLoss ? 'FIELD OPEN' : 'RUNNING';
+     pill.textContent = st;
+     pill.classList.toggle('stalled', st !== 'RUNNING');
+-    // Simulation-tab statements (the same words as the Performance tab), plus the unloaded-series case
+-    const msgs = stateWarnings(OP);
++    // Simulation-tab statements (the same words as the Performance tab), plus the unloaded-series case.
++    // A Performance speed / I_A request that was not met as asked is stated here too, ending with the point this tab shows (DEFECT-DCM-020)
++    const msgs = [];
++    const sq = SPECREQ && SPECREQ.r, rw = sq ? requestWarning(sq, OP) : null;
++    if (rw) msgs.push(SPECREQ.mt !== OP.mt ? [`Performance tab, ${TYPE_SHORT[SPECREQ.mt]} connection: `, rw] : rw);
++    if (!(rw && sq.runawayFrom && OP.runaway)) msgs.push(...stateWarnings(OP));   // the runaway state is already stated with the request
+     if (OP.mt === 'series' && !OP.runaway && !OP.stalled && S.loadNm === 0) msgs.push([B('Series motor unloaded:'), ` the speed (${Math.round(OP.rpm)} rpm, ${fx(OP.rpm / S.nr, 1)}× rated) is held down only by the rotational losses (core, friction and windage). Real series motors are never run unloaded.`]);
+     const sw = el('simWarn');
+     sw.hidden = !msgs.length;
