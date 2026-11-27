@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!--
+  Load Sharing and Speed Droop — ECE 3033 Lecture 4
+  Version: v2.0.0
+  Released: 2026-11-27
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  DEMO RELEASE 2026-11-27 (principal approval 06:24 under the standing lecture pattern of 2026-11-20; gates pending)
+  Changelog: v2.0.0 — redesign to spec Load_Sharing_Droop_v2.0.0_spec.md in the Voltage Regulation, Static Stability Limit and
+  Two Generators PQ v2.0.0 pattern: narrated lecture of 6 slides (30 voiced lines; slide 5 "Worked case" is new), a Lab with an
+  Isolated / Infinite bus switch and a narrated introduction (3 lines), and Experiments E1–E4 plus E5 (the v1.2.0 "Your turn"),
+  each with a voiced task (5 clips). v1.2.0's speaker notes, Watch buttons and Notes panel are gone. Built from
+  Load_Sharing_Droop_src/ with build.py.
+  v1.2.0 — five-slide interactive lecture (demo release 2026-11-22).
+  Model (as v1.2.0): three 100 MW, 4-pole units (shaft r/min = 30 f). G1 61.00 Hz / 3.0 %, G2 61.50 Hz / 4.0 %, G3 60.80 Hz / 2.5 %.
+  f_fl = f_nl / (1 + SD) at the base set point; s_P = 100 MW / (f_nl − f_fl). A moved set point shifts the line parallel (s_P is fixed
+  by SD and the base set point). Isolated: f_sys = (Σ s_Pk f_nl,k − P_load) / Σ s_Pk, P_k = s_Pk (f_nl,k − f_sys).
+  Infinite bus: f_sys = 60 Hz, P = s_P (f_nl − 60). Steady state only; ratings and reverse power raise warnings, nothing trips.
+  Narration: en-GB-SoniaNeural, rate −4 %, one mp3 clip per line (mono, 24 kHz, 32 kbit/s), embedded as data.
+-->
+<html lang="en" class="lec">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-__SCRIPT_HASH__'; style-src 'sha256-__STYLE_HASH__'; media-src data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v2.0.0">
+<title>Load Sharing and Speed Droop — ECE 3033 Lecture 4 v2.0.0</title>
+<style>__CSS__</style>
+</head>
+<body>
+<header>
+  <h1>Load Sharing and Speed Droop</h1><span class="badge">ECE 3033 · Lecture 4 · v2.0.0</span>
+  <details id="model"><summary>Model</summary><div class="pop">
+    <p>Three 100 MW units. On each, the governor on the prime mover is set by a no-load frequency f<sub>nl</sub> (the set point) and a speed droop SD. Four poles: shaft speed in r/min = 30 × f.</p>
+    <p>G1 61.00 Hz, 3.0 %; G2 61.50 Hz, 4.0 %; G3 60.80 Hz, 2.5 %. At the base set point, f<sub>fl</sub> = f<sub>nl</sub> / (1 + SD) and s<sub>P</sub> = 100 MW / (f<sub>nl</sub> − f<sub>fl</sub>). Moving a set point slides the line parallel: its slope stays the same.</p>
+    <p>Isolated: all units run at one frequency f<sub>sys</sub> = (Σ s<sub>Pk</sub> f<sub>nl,k</sub> − P<sub>load</sub>) / Σ s<sub>Pk</sub>, and P<sub>k</sub> = s<sub>Pk</sub>(f<sub>nl,k</sub> − f<sub>sys</sub>). Infinite bus: f<sub>sys</sub> = 60 Hz and P = s<sub>P</sub>(f<sub>nl</sub> − 60).</p>
+    <p>Steady state only. Above 100 MW or below 0 MW (reverse power) a warning shows; nothing trips. Numbers on screen are rounded (0.1 MW, 0.01 Hz, 0.1 MW/Hz, 0.1 %, 1 r/min); the model uses the unrounded values, so a sum of rounded numbers can differ in the last digit. Every plot has fixed axes.</p>
+  </div></details>
+  <nav class="tabs" aria-label="Pages">
+    <button type="button" data-page="lec" aria-pressed="true">Lecture</button>
+    <button type="button" data-page="lab" aria-pressed="false">Lab</button>
+    <button type="button" data-page="exp" aria-pressed="false">Experiments</button>
+  </nav>
+</header>
+
+<!-- ═══ LECTURE ═══ -->
+<main id="lec">
+  <section class="card" id="left" aria-label="Slide text"></section>
+  <section class="col">
+    <div class="card" id="stage">
+      <svg id="fig" viewBox="0 0 640 452" role="img" aria-label="Slide figure: frequency against power. The numbers it shows are also written under it and in the caption."></svg>
+      <div id="below"></div>
+    </div>
+    <div class="card" id="cap" aria-live="polite"></div>
+    <div class="card" id="capMeasure" aria-hidden="true"></div>
+  </section>
+  <aside class="card col" id="side" aria-label="Controls">
+    <h3>CONTROLS</h3>
+    <div id="ctl"></div>
+    <div id="transport">
+      <div class="tr"><button type="button" class="btn grow" id="play">▶ Play narration</button><button type="button" class="btn" id="voice" aria-pressed="true">voice on</button></div>
+      <p class="warn voiceMsg" role="status" hidden>The voice could not start in this browser. The narration continues as timed captions.</p>
+      <div class="tr"><button type="button" class="btn" id="prev" aria-label="Previous line">◀</button><span class="val" id="lineNo"></span><button type="button" class="btn" id="next" aria-label="Next line">▶</button><div class="prog"><span id="bar"></span></div></div>
+      <div class="tr"><button type="button" class="btn grow" id="slPrev">◀ Slide</button><span class="val">slide <span id="slPos"></span></span><button type="button" class="btn grow" id="slNext">Slide ▶</button></div>
+      <p class="fixed">Using a control pauses the narration.</p>
+    </div>
+  </aside>
+</main>
+
+<!-- ═══ LAB ═══ -->
+<main id="lab" hidden>
+  <section class="card" id="labMain">
+    <svg id="labFig" viewBox="0 0 640 452" role="img" aria-label="Frequency against power: each unit's droop line, the system frequency, each unit's operating point and the load bar. The readouts below give the values."></svg>
+    <div id="labRead" role="status"></div>
+  </section>
+  <aside class="card col" id="labSide" aria-label="Lab controls">
+    <h3>LAB CONTROLS</h3>
+    <div class="seg" role="group" aria-label="Lab mode"><button type="button" class="btn" id="modeIso" aria-pressed="true">Isolated (G1–G3)</button><button type="button" class="btn" id="modeBus" aria-pressed="false">Infinite bus (G1)</button></div>
+    <div id="labCtl"></div>
+    <div id="labWarn" role="status"></div>
+    <div class="row" id="labBtns"></div>
+    <p class="warn voiceMsg" role="status" hidden>The voice could not start in this browser. The introduction continues as timed captions.</p>
+    <p class="fixed"><span class="val" id="labNo"></span></p>
+    <p class="fixed" id="labCap" aria-live="polite"></p>
+  </aside>
+</main>
+
+<!-- ═══ EXPERIMENTS (a document: this page scrolls) ═══ -->
+<section id="page-exp" aria-label="Experiments" hidden><article class="doc" id="sheet">
+  <h1>Experiments</h1>
+  <p>Five short investigations. <b>Set up the Lab</b> puts the Lab in the right state. Predict before you look.</p>
+  <div class="sheetHead"><label>Name<input type="text" data-k="name" autocomplete="name"></label><label>Section<input type="text" data-k="section"></label><label>Date<input type="date" data-k="date"></label></div>
+  <div class="btns"><button type="button" id="exportBtn" class="btn pri">⇩ Export my answers</button><button type="button" id="clearBtn" class="btn">Clear my answers</button></div>
+  <p id="sheetStatus" role="status" aria-live="polite"></p>
+  <div id="cards"></div>
+</article></section>
+<script>__JS__</script>
+</body>
+</html>
