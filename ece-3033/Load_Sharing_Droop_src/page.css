@@ -1,0 +1,154 @@
+/* ═══ TOKENS (light ground; dark text), as Static Stability Limit, Voltage Regulation and Two Generators PQ v2.0.0 ═══ */
+:root{--bg:#eef1f4;--card:#fff;--ink:#1b1f24;--mute:#55606b;--line:#d5dbe0;--teal:#0f6b63;--tealbg:#e3f0ee;--amber:#9a5b00;--amberbg:#fdf3e3;--inset:#e9ecef;
+  --err:#9b1c1c;--errbg:#fdecea;--ok:#18744a;--warn:#8a5700;
+  --sans:"Segoe UI","Helvetica Neue",Arial,sans-serif;--mono:Consolas,"Courier New",monospace;--math:"Cambria Math","STIX Two Math",Cambria,serif}
+html{font-size:15px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{display:flex;flex-direction:column;min-height:560px;background:var(--bg);color:var(--ink);font:1rem/1.42 var(--sans)}
+button{font:600 .93rem var(--sans);color:var(--ink);cursor:pointer;touch-action:manipulation}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+/* ═══ HEADER ═══ */
+header{flex:none;position:relative;display:flex;align-items:center;gap:12px;padding:6px 14px;background:var(--card);border-bottom:1px solid var(--line)}
+header h1{font-size:1.2rem;margin:0}
+.badge{font:.87rem var(--mono);color:var(--mute)}
+#model summary{cursor:pointer;font-weight:700;color:var(--teal);font-size:.87rem}
+#model .pop{position:absolute;right:12px;top:100%;z-index:6;width:min(560px,92vw);background:var(--card);border:1px solid var(--mute);border-radius:10px;padding:10px 14px;font-size:.87rem}
+#model .pop p{margin:0 0 6px}
+nav.tabs{margin-left:auto;display:flex;gap:6px}
+nav.tabs button{padding:5px 12px;border:1px solid var(--ink);border-radius:6px;background:var(--card)}
+nav.tabs button[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
+/* ═══ SHARED: cards, columns, rows, buttons, value chips ═══ */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 13px;min-height:0}
+.col{display:flex;flex-direction:column;gap:8px;min-height:0}
+.row{display:flex;justify-content:space-between;align-items:center;margin:6px 0;gap:8px}
+.btn{padding:6px 10px;border-radius:6px;border:1px solid var(--mute);background:var(--card);min-height:36px}
+.btn.pri{background:var(--teal);color:#fff;border-color:var(--teal)}
+.grow{flex:1}
+.val{font:.93rem var(--mono);background:var(--inset);border-radius:5px;padding:2px 8px;white-space:nowrap}
+.val:empty{display:none}
+.fixed{font-size:.88rem;color:var(--mute);margin:4px 0 0}
+.warn{color:var(--err);font-weight:700;font-size:.9rem;margin:6px 0 0}
+.warnbox{margin-top:6px;padding:6px 9px;border-radius:8px;background:var(--errbg);color:var(--err);font-weight:600;font-size:.9rem}
+.v{font-style:italic}
+.v sub.up{font-style:normal}
+sub,sup{font-size:.75em;line-height:0}
+math{font-family:var(--math);font-size:1.1rem}
+svg text{font-family:var(--sans)}
+h3{font:700 .86rem var(--mono);color:var(--teal);margin:0 0 4px;letter-spacing:.06em}
+input[type=range]{width:100%;accent-color:var(--teal);height:26px;margin:0}
+.scale{display:flex;justify-content:space-between;font-size:.86rem;color:var(--mute)}
+.fines{display:flex;gap:4px;order:1}
+.btn.fine{min-height:28px;width:28px;padding:0;font-size:1rem}
+.ctlrow .row>span:first-child{flex:1}
+.seg{display:flex;gap:4px;margin-bottom:6px}
+.seg .btn{flex:1;font-size:.86rem;padding:4px 6px}
+.seg .btn[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
+/* ═══ LECTURE GRID: text column | stage + caption | controls ═══ */
+#lec{flex:1;min-height:0;display:grid;grid-template-columns:clamp(266px,23vw,312px) minmax(0,1fr) clamp(240px,21vw,288px);gap:8px;padding:8px}
+#lec *{min-width:0}
+/* ═══ LECTURE: TEXT COLUMN ═══ */
+#left{overflow-y:auto}
+.eyebrow{font:700 .86rem var(--mono);letter-spacing:.06em;color:var(--teal);margin:0 0 4px}
+#left h2{font-size:1.3rem;line-height:1.2;margin:0 0 8px}
+.key{background:var(--tealbg);border-radius:8px;padding:8px 11px;font-weight:600;line-height:1.38;border:3px solid transparent}
+.key.on{border-color:var(--amber)}
+.eq{margin-top:8px;padding:6px 8px;border:2px solid var(--line);border-radius:8px;text-align:center}
+.eq.on{border-color:var(--amber);background:var(--amberbg)}
+#left p{margin:8px 0 0;font-size:.93rem}
+#left p.small{font-size:.86rem;color:var(--mute)}
+/* ═══ LECTURE: STAGE ═══ */
+#stage{flex:1;display:flex;flex-direction:column;gap:6px;padding:8px;overflow:hidden}
+#fig{flex:1;min-height:0;width:100%;display:block}
+#below{flex:none;font:1rem var(--mono);text-align:center;padding:4px 0}
+#below .lbl{font-family:var(--sans);color:var(--mute);font-size:.93rem}
+#below .ok{color:var(--ok);font-weight:700}
+#below .lit{background:var(--amberbg);border-radius:6px}
+table.steps{border-collapse:collapse;margin:0 auto;font:.9rem var(--sans);text-align:left}
+table.steps td{padding:3px 10px;border-bottom:1px solid var(--line)}
+table.steps td:first-child{font-weight:700;color:var(--teal);white-space:nowrap}
+table.steps tr.wait{visibility:hidden}
+table.steps tr.lit{background:var(--amberbg)}
+.eqcols{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;padding:2px 4px}
+.eqcol{display:flex;flex-direction:column;gap:7px}
+.eqhead{font:700 .86rem var(--mono);color:var(--teal);letter-spacing:.04em;margin:2px 0 0;text-align:left}
+.kcard{border:2px solid var(--line);border-radius:10px;background:#f6f8fa;padding:7px 10px;display:flex;align-items:center;justify-content:center;min-height:56px}
+.kcard.on{border-color:var(--amber);background:var(--amberbg)}
+.kcard.wide{max-width:60%;margin:6px auto 0}
+.kcard.ring{box-shadow:0 0 0 3px var(--amber)}
+.kcard math{font-size:1.2rem}
+#cap{flex:none;font-size:1.05rem;line-height:1.42;border-left:4px solid var(--amber)}
+#capMeasure{position:absolute;visibility:hidden;pointer-events:none;left:0;top:0;font-size:1.05rem;line-height:1.42;border-left:4px solid var(--amber)}
+/* ═══ LECTURE: CONTROLS ═══ */
+#side{overflow-y:auto}
+#transport{margin-top:auto;border-top:1px solid var(--ink);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.tr{display:flex;gap:6px;align-items:center}
+.tr .btn{white-space:nowrap;padding-left:7px;padding-right:7px}
+.prog{flex:1;height:6px;background:#dde2e6;border-radius:3px;overflow:hidden}
+#bar{display:block;height:100%;width:0;background:var(--teal)}
+/* ═══ LAB: figures and readouts | controls ═══ */
+#lab{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(240px,21vw,288px);gap:8px;padding:8px}
+#labMain{display:flex;flex-direction:column;gap:8px;min-height:0}
+#labMain svg{flex:1;width:100%;min-height:0;display:block}
+#labRead{flex:none;font:.95rem var(--mono);display:grid;grid-template-columns:repeat(3,1fr);gap:4px 14px}
+#labRead .lbl{font-family:var(--sans);color:var(--mute)}
+#labSide{overflow-y:auto}
+#labCap{min-height:6em}
+/* ═══ EXPERIMENTS WORKSHEET (a document: this page scrolls) ═══ */
+#page-exp{flex:1;min-height:0;overflow:auto;padding:10px}
+.doc{max-width:980px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 24px}
+.doc h1{font-size:1.45rem;margin:0 0 4px}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center}
+.exp-card{border:1px solid var(--line);border-radius:12px;padding:10px 16px;margin:12px 0;background:#fbfcfd}
+.exp-card h3{font:700 1.13rem var(--sans);color:var(--ink);letter-spacing:0;margin:0 0 4px}
+.exp-card p{margin:6px 0}
+.exp-card label{display:block;font-weight:700;font-size:.9rem;margin-top:6px}
+.num{font:700 .8rem var(--mono);color:var(--teal);letter-spacing:2px;text-transform:uppercase;margin:0}
+.ans{background:var(--tealbg);border-radius:8px;padding:6px 9px}
+#page-exp textarea,#page-exp input[type=text],#page-exp input[type=date]{font:1rem var(--sans);border:1px solid var(--mute);border-radius:6px;padding:6px 8px;width:100%;color:var(--ink);background:var(--card)}
+#page-exp textarea{min-height:64px;margin-top:4px;font-weight:400}
+.sheetHead{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.sheetHead label{font-weight:700;font-size:.87rem}
+#sheetStatus{font-weight:700;font-size:.9rem;margin:8px 0}
+#sheetStatus.bad{color:var(--err)} #sheetStatus.good{color:var(--ok)}
+.grid6{display:grid;grid-template-columns:repeat(2,auto 1fr);gap:6px 10px;align-items:center;margin-top:10px}
+.exp-card .grid6 label{margin:0;white-space:nowrap}
+#page-exp .grid6 input{width:96px;font-family:var(--mono)}
+#page-exp .grid6 input[aria-invalid="true"]{border:2px solid var(--err)}
+.mark{font-weight:700;margin-left:6px}
+.mark.y{color:var(--ok)} .mark.n{color:var(--err)}
+#turnMsg{white-space:pre-wrap;font-weight:700;min-height:1.4em;margin:6px 0 0}
+#turnMsg.bad{color:var(--err)} #turnMsg.good{color:var(--ok)} #turnMsg.mid{color:var(--warn)}
+#sol{font:600 .87rem var(--mono);background:var(--inset);border-radius:8px;padding:6px 10px;margin-top:4px;white-space:pre-wrap}
+/* ═══ COMPACT (a 1366×768 laptop at 125 % zoom is 1093×614 CSS px) ═══ */
+@media (max-width:1200px),(max-height:700px){
+  html{font-size:13px}
+  .card{padding:9px 10px}
+  header{padding:4px 12px}
+  .btn{min-height:32px;padding:4px 9px}
+  .row{margin:4px 0}
+  .warnbox{font-size:.84rem;padding:4px 7px;margin-top:4px}
+}
+@media (max-width:1060px){
+  #lec{grid-template-columns:256px minmax(0,1fr) 232px}
+}
+/* ═══ NARROW OR SHORT WINDOWS: the page scrolls instead of squeezing ═══ */
+@media (max-width:999px),(max-height:559px){
+  html,body{height:auto} body{display:block;min-height:0}
+  #lec{height:560px}
+  #lab{display:block}
+  #lab>*{margin-bottom:8px}
+  #labMain{display:block}
+  #labMain svg{height:auto;margin-bottom:8px}
+}
+/* ═══ UP TO 1199 px WIDE (1366 × 768 at 125 % zoom): the Lecture keeps its three columns and does not scroll. The Lab figure takes
+   the full width, so its text stays large, and that page scrolls. ═══ */
+@media (min-width:1000px) and (max-width:1199px) and (min-height:560px){
+  html.lab,html.lab body{height:auto} html.lab body{display:block;min-height:0}
+  html.lab #lab{display:block}
+  html.lab #lab>*{margin-bottom:8px}
+  html.lab #labMain{display:block}
+  html.lab #labMain svg{height:auto;margin-bottom:8px}
+}

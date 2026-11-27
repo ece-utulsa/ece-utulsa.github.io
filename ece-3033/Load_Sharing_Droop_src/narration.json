@@ -1,0 +1,58 @@
+{
+ "slides": [
+  [
+   "Start with one generator, G1, alone on its own load. Whatever the load asks for, G1 must supply.",
+   "The governor on the prime mover senses only shaft speed. When the load slows the shaft, it opens the valve in proportion to the fall in speed.",
+   "Watch the load rise from zero to one hundred megawatts. The operating point slides down the line, from sixty-one hertz at no load to fifty-nine point two two hertz at full load.",
+   "That fall in speed, as a percentage of full-load speed, is the speed droop: three percent for G1. The slope, s P, is fifty-six point three megawatts per hertz.",
+   "Raise the droop to five percent and the line steepens. A small droop means a flat line and a stiff unit: many megawatts for each hertz.",
+   "Raise the set point and the whole line slides up. The same load is now carried at a higher frequency. Alone, though, a heavily loaded unit cannot hold sixty hertz."
+  ],
+  [
+   "Now connect G1 to the infinite bus. The grid holds the frequency at sixty hertz, whatever G1 does.",
+   "G1's power is where its droop line crosses the sixty hertz line. At a set point of sixty-one hertz, that is fifty-six point three megawatts.",
+   "Raise the set point to sixty-one point four two hertz. G1's power rises to eighty megawatts, and the bus supplies twenty-three point seven megawatts less.",
+   "On the bus, the frequency does not move. The set point decides the power.",
+   "Lower the set point below sixty hertz and the power turns negative. The bus now drives G1 as a motor, and a reverse-power relay trips it."
+  ],
+  [
+   "Now three unlike units share one isolated load, with no bus to hold the frequency.",
+   "Each unit has its own set point and its own droop, so each has its own line. All three must run at one frequency.",
+   "The frequency settles where the three outputs add up to the load. At one hundred fifty megawatts that is sixty point one four hertz.",
+   "G1 carries forty-eight point three, G2 fifty-seven point four, and G3 forty-four point three megawatts.",
+   "Now step the load up sixty megawatts. The frequency falls to fifty-nine point seven eight hertz, and each unit picks up a share in proportion to its s P.",
+   "G3, the stiffest unit, takes the most: twenty-four point four megawatts. G2, with the largest droop, takes the least."
+  ],
+  [
+   "At two hundred ten megawatts the frequency sits at fifty-nine point seven eight hertz. Droop alone will never bring it back to sixty.",
+   "An operator, or automatic control, must move a set point. Here we raise G3's set point from sixty point eight to sixty-one point three four hertz.",
+   "G3's line shifts up, parallel to itself. Its slope does not change.",
+   "G3 now carries ninety point three megawatts. G1 drops to fifty-six point three and G2 to sixty-three point four.",
+   "And the frequency is back at sixty hertz. Moving set points is how operators restore the frequency."
+  ],
+  [
+   "A worked case. The load is one hundred eighty megawatts, with the set points as before.",
+   "Add the slopes: s P totals one hundred sixty-six point zero megawatts per hertz.",
+   "The system frequency is fifty-nine point nine six hertz. G1 carries fifty-eight point four, G2 sixty-five point zero, and G3 fifty-six point five megawatts; together, one hundred eighty.",
+   "To restore sixty hertz with G1 alone, the other two units are fixed by their lines at sixty hertz: sixty-three point four and fifty-four point zero megawatts. So G1 must carry sixty-two point six.",
+   "That needs G1's set point at sixty-one point one one hertz: sixty hertz plus sixty-two point six divided by fifty-six point three."
+  ],
+  [
+   "For one unit: the speed droop, the full-load frequency, the slope s P, and the power on its line.",
+   "For units in parallel: the load is the sum of the outputs, which gives the system frequency, and a load step is shared in proportion to s P.",
+   "On the infinite bus, the frequency is fixed and the set point decides the power."
+  ]
+ ],
+ "lab": [
+  "This is the Lab. Three units share the load; set the load, each set point and each droop.",
+  "Watch the warnings: a unit above one hundred megawatts is over its rating, and a unit below zero would motor.",
+  "Switch to the infinite bus to connect G1 alone to the grid at sixty hertz."
+ ],
+ "exp": [
+  "Experiment one. At one hundred fifty megawatts, raise G3's droop to five percent, then step the load by sixty megawatts. How does G3's share change?",
+  "Experiment two. Set the load to two hundred forty megawatts. Can any single set point restore sixty hertz without a unit going over one hundred megawatts?",
+  "Experiment three. On the infinite bus, find the set point at which G1 carries no power. What happens below it?",
+  "Experiment four. Start at one hundred fifty megawatts and raise the load. Which unit reaches one hundred megawatts first, and at what load?",
+  "Experiment five, your turn. The load is two hundred forty megawatts. Predict first: will the frequency be above or below sixty hertz? Then find the system frequency and each unit's output."
+ ]
+}
