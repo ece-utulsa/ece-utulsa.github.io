@@ -24,6 +24,7 @@ Only on a publish briefing. Steps:
 4. Load the live course index page and the new tool URL; confirm both return the new version (badge/title) and the old file is gone.
 5. Write `00 Team/Queue/YYYY-MM-DD_ClaudeCode_handoff_publish_<Tool>_v<ver>.md`: merge commit, Pages build result, live URLs checked, files removed.
 Doug's approval is the only route to publish; a demo release needs his explicit words "demo release".
+- A publish is complete only when the GitHub Pages deploy job is green and the live URL returns the new version. Record the run number and the live check in the publish handoff.
 
 ## 4. Files and versions
 - Course folders: `ece-2003/`, `ece-3033/`, `ece-4123/`, `digital-logic/`, `senior-design/`, `robotics/`, `lesson-plans/`. Each has an `index.html`.
