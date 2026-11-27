@@ -44,7 +44,8 @@ s = rep(s, '  Changelog: v1.0.1 —',
         '  property is shown where it is used (-5); upcoming rail labels ≥ 4.5:1 (AT-024-1); stepping with ◀ ▶ moves\n'
         '  the playhead to the step, so the header shows, no title fragment remains and the readout follows\n'
         '  (AT-024-2, -3); the counter reads "step n of 31"; the Start card is the first tab stop and the controls\n'
-        '  behind it are out of the tab order. Narration, clips, timeline and layout unchanged.\n'
+        '  behind it are out of the tab order; the NEXT link goes to Lecture 2 v1.0.2. Narration, clips, timeline and\n'
+        '  layout unchanged.\n'
         '  Changelog: v1.0.1 —')
 s = rep(s, '<meta name="version" content="v1.0.1">', '<meta name="version" content="v1.0.2">')
 s = rep(s, '<title>Lecture 1 · What the Laplace Transform Does v1.0.1</title>',
@@ -156,6 +157,9 @@ s = rep(s,
 s = rep(s,
         "(yt.shown ? ' Solution: ' + YT.sr + '.' : '') : '') }));\n}",
         "(yt.shown ? ' Solution: ' + YT.sr + '.' : '') : '') })));\n}")
+
+# ═══ cross-link: NEXT goes to Lecture 2 v1.0.2 (L2-L3 v1.0.2 pass, same PR) ═══
+s = rep(s, "const NEXT = { href: 'Laplace_L2_Table_and_Properties_v1.0.1.html',", "const NEXT = { href: 'Laplace_L2_Table_and_Properties_v1.0.2.html',")
 
 # ═══ CSP: recompute every inline script and style hash ═══
 heads = list(re.finditer(r'<script>(.*?)</script>', s, re.S))
