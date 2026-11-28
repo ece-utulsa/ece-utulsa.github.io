@@ -1,0 +1,236 @@
+/* ═══ TOKENS (TU ECE Course Materials, light) ═══ */
+:root{--bg:#eef2f5;--panel:#ffffff;--inset:#eceef4;--soft:#e2f1f0;--txt:#1a2328;--mut:#55636b;--line:#d6dde0;--edge:#55636b;
+  --acc:#0f6e6c;--err:#c2412f;--warn:#8a5700;--ok:#18744a;--bus:#d32f2f;--gen:#1c5fd6;
+  --sans:"Segoe UI","Helvetica Neue",Arial,sans-serif;--mono:Consolas,"Courier New",monospace}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:14px/1.4 var(--sans)}
+body{display:flex;flex-direction:column;min-height:560px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button{font:600 13px var(--sans);min-height:30px;padding:3px 9px;border-radius:6px;border:1px solid var(--edge);background:var(--panel);color:var(--txt);cursor:pointer;touch-action:manipulation;user-select:none}
+button:hover{background:var(--soft)}
+button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+button.danger{border-color:var(--err);color:var(--err)}
+button[aria-pressed="true"]{background:var(--acc);color:#fff;border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:not-allowed}
+/* ═══ HEADER ═══ */
+header{flex:none;position:relative;display:flex;align-items:center;gap:12px;padding:5px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:17px;margin:0;font-weight:800}
+.badge{font:12px var(--mono);color:var(--mut)}
+nav.tabs{display:flex;gap:6px;margin-left:auto}
+#model summary{cursor:pointer;font-weight:700;color:var(--acc);font-size:13px}
+#model .pop{position:absolute;right:12px;top:100%;z-index:6;width:min(560px,92vw);background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:10px 14px;font-size:13px}
+#model .pop p{margin:0 0 6px}
+/* ═══ APP GRID ═══ */
+#app{flex:1;min-height:0;display:grid;grid-template-columns:326px minmax(0,1fr) 316px;gap:8px;padding:8px}
+#app.lab{grid-template-columns:minmax(0,1fr) 316px}
+#app.lab #slidePanel{display:none}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:0;min-width:0}
+.panel h2,.it h2{font-size:12px;margin:0 0 4px;color:var(--acc);text-transform:uppercase;letter-spacing:1px}
+.note{font-size:12.5px;color:var(--mut);margin:3px 0}
+.ro,.lv,.meters td.v,#chk .val,.c1 span{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.ro{font-weight:800;font-size:12.5px;background:var(--inset);border-radius:6px;padding:3px 6px;white-space:pre;text-align:right}
+.eq{background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin:6px 0}
+.eq .dim{opacity:.4}
+math{font-size:16px;math-style:normal}
+mn.lv{font-family:var(--mono);white-space:pre}
+.bus{color:var(--bus)} .gen{color:var(--gen)}
+/* ═══ SLIDE PANEL ═══ */
+#slidePanel{overflow:hidden}
+.sl{display:none} .sl.on{display:block}
+.kick{font:700 11.5px var(--mono);color:var(--acc);letter-spacing:1.5px;text-transform:uppercase;margin:0}
+.sl h2.st{font-size:20px;line-height:1.2;margin:4px 0 6px;color:var(--txt);text-transform:none;letter-spacing:0}
+.keyp{font-size:15.5px;font-weight:700;background:var(--soft);border-radius:8px;padding:7px 10px;margin:6px 0}
+.keyp p{margin:0} .cond{margin:4px 0 0;padding-left:24px} .cond span{font-weight:600;color:var(--mut)}
+.def{font-size:13.5px;margin:7px 0}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;align-items:center}
+.show{font-size:14px;padding:6px 10px}
+.steps{list-style:none;margin:6px 0;padding:0;font-size:13.5px}
+.steps li{display:grid;grid-template-columns:22px 1fr;padding:2px 0}
+.steps .mark{font-weight:800;color:var(--mut)}
+.steps li.ok .mark{color:var(--ok)}
+@media (max-height:700px){
+  #stage[data-view=v3]{grid-template-rows:minmax(0,54fr) minmax(0,46fr) auto} #stage[data-view=v3] #result{font-size:12px} #stage[data-view=v3] #result p{margin:0}
+}
+/* ═══ MAIN: STAGE AND CAPTION ═══ */
+#main{display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0}
+#stage{position:relative;flex:1;min-height:0;display:grid;gap:8px;overflow:hidden}
+#colA,#colB{display:contents}
+.it{display:none;flex-direction:column;min-width:0;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;overflow:hidden}
+.it.on{display:flex}
+.it>svg{flex:1 1 0;min-height:0;width:100%}
+#itDay{grid-area:day} #itDayRo{grid-area:dayro} #itScene{grid-area:scene} #itWave{grid-area:wave} #itPhasors{grid-area:phasors}
+#itScope{grid-area:scope} #itMeters{grid-area:meters} #itChk{grid-area:chk} #itWhy{grid-area:why} #itResult{grid-area:result} #itRl{grid-area:rl}
+#stage[data-view=v1]{grid-template:"day" minmax(0,1fr) "dayro" auto/minmax(0,1fr)}
+#stage[data-view=v2]{grid-template:"scene" minmax(0,1fr) "meters" auto "rl" auto/minmax(0,1fr)}
+#stage[data-view=v3]{grid-template:"scene scene" minmax(0,58fr) "meters result" minmax(0,42fr) "rl rl" auto/280px minmax(0,1fr)}
+#stage[data-view=v4]{grid-template:"scene" minmax(0,40fr) "result" 104px "phasors" minmax(0,31fr) "rl" auto/minmax(0,1fr)}
+#stage[data-view=v5]{grid-template:"scene scene" minmax(0,58fr) "scope result" minmax(0,42fr) "rl rl" auto/200px minmax(0,1fr)}
+#stage[data-view=v6]{grid-template:"scene scene" minmax(0,58fr) "scope result" minmax(0,42fr) "rl rl" auto/200px minmax(0,1fr)}
+#stage[data-view=v7]{grid-template:"scene scene scene" minmax(0,58fr) "scope meters chk" minmax(0,42fr) "rl rl rl" auto/150px minmax(0,1fr) minmax(0,1fr)}
+#stage[data-view=v8]{grid-template:"keys" minmax(0,1fr)/minmax(0,1fr)}
+#itKeys{grid-area:keys} #itTurn{grid-area:turn}
+#stage[data-view=lab]{grid-template:"a b" minmax(0,1fr)/minmax(0,1fr) 400px}
+#stage[data-view=lab] #colA{display:flex;flex-direction:column;gap:8px;grid-area:a;min-height:0;min-width:0}
+#stage[data-view=lab] #colB{display:grid;gap:8px;grid-area:b;min-height:0;min-width:0;grid-template:"scope meters" 150px "chk chk" auto "why why" auto/150px minmax(0,1fr);align-content:start}
+#stage[data-view=lab] #itScene{flex:40 1 0} #stage[data-view=lab] #itWave{flex:25 1 0} #stage[data-view=lab] #itPhasors{flex:30 1 0} #stage[data-view=lab] #itResult{flex:0 0 148px}
+#stage[data-view=lab] #result{font-size:12px}
+.vrl{margin:0;font:800 14px var(--mono);font-variant-numeric:tabular-nums;background:var(--inset);border-radius:6px;padding:3px 8px;white-space:pre-wrap}
+#itDay.zoom{display:flex;position:absolute;inset:0;grid-area:auto;z-index:3;transform-origin:81% 51%;animation:zoomG3 1.6s ease-in forwards}
+@keyframes zoomG3{0%,30%{transform:scale(1);opacity:1}100%{transform:scale(4.5);opacity:0}}
+.wrow{display:flex;gap:8px;align-items:center;flex:none}
+.wrow .note{margin:0}
+.meters{width:100%;border-collapse:collapse;font-size:13px}
+.meters th,.meters td{padding:2px 6px;border-bottom:1px solid var(--line);text-align:left}
+.meters td.v{font-weight:800;text-align:right;white-space:pre}
+#stage[data-view=v2] .meters,#stage[data-view=v3] .meters{font-size:15px}
+#chk{list-style:none;padding:0;margin:0}
+#chk li{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:4px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px}
+#chk .mark{font-size:16px;font-weight:800;text-align:center}
+#chk li.ok .mark{color:var(--ok)} #chk li.no .mark{color:var(--err)}
+#chk .val{font-weight:700;font-size:12px;white-space:pre}
+.chead{display:flex;justify-content:space-between;align-items:center}
+#ready{display:flex;align-items:center;gap:6px;font-weight:800;font-size:13px}
+#readyDot{width:14px;height:14px;border-radius:50%;background:#c9d1d5;border:2px solid var(--edge)}
+#ready.on #readyDot{background:var(--ok)}
+#itWhy math{font-size:14px} #itWhy .eq{margin:3px 0;padding:2px 6px}
+#itResult{flex-direction:row;flex-wrap:wrap;gap:4px 10px;align-content:flex-start}
+#surgeSvg{flex:0 0 230px;height:60px}
+#result{flex:1 1 210px;min-width:0;font-size:12.5px}
+#result p{margin:0 0 2px}
+#result .verdict{font-weight:800;font-size:14px}
+#result .verdict.bad{color:var(--err)} #result .verdict.good{color:var(--ok)} #result .verdict.mid{color:var(--warn)}
+/* ═══ CAPTION (the narration line on screen) ═══ */
+#cap,#capMeasure{flex:none;background:var(--panel);border:1px solid var(--line);border-left:4px solid #9a5b00;border-radius:10px;padding:5px 10px;font-size:15.5px;line-height:1.38}
+#capMeasure{position:absolute;visibility:hidden;pointer-events:none;left:0;top:0}
+/* ═══ WORKED CASE (slide 7) AND KEY EQUATIONS (slide 8) ═══ */
+table.wk{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}
+table.wk th{text-align:left;vertical-align:top;color:var(--acc);white-space:nowrap;padding:4px 6px 4px 0;font-size:12.5px}
+table.wk td{padding:4px 2px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px;line-height:1.35}
+table.wk tr.wait{visibility:hidden}
+table.wk tr.lit td,table.wk tr.lit th{background:#fdf3e3}
+#itKeys{padding:8px 12px;gap:8px;justify-content:center}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-items:start}
+.kcol{display:flex;flex-direction:column;gap:8px;border-radius:10px;padding:4px}
+.khd{margin:0;font:700 12px var(--mono);color:var(--acc);letter-spacing:1px;text-transform:uppercase}
+.kcard{border:2px solid var(--line);border-radius:10px;background:#f6f8fa;padding:6px 10px;display:flex;align-items:center;justify-content:center;min-height:58px}
+.kcard math{font-size:22px}
+.kbot{align-self:center;width:min(360px,60%)}
+.kcard.ringed{border:3px solid #9a5b00;background:#fdf3e3}
+#itTurn .steps{font-size:13px;margin:4px 0}
+#itTurn .chead button{min-height:24px;padding:0 7px}
+/* ═══ TRANSPORT (Lecture) AND LISTEN (Lab) ═══ */
+#transport{display:flex;flex-direction:column;gap:5px;margin-top:6px;border-top:1px solid var(--line);padding-top:6px}
+.tr{display:flex;gap:5px;align-items:center}
+.tr .grow{flex:1}
+.prog{flex:1;height:6px;background:#dde2e6;border-radius:3px;overflow:hidden}
+#bar{display:block;height:100%;width:0;background:var(--acc)}
+.fix{font-size:12px;color:var(--mut);margin:0}
+.warn{color:var(--err);font-weight:700;font-size:12.5px;margin:2px 0}
+#labListen{margin-top:6px}
+button.listen{margin-left:8px;min-height:26px;padding:1px 8px;font-size:12.5px;vertical-align:middle}
+/* ═══ SIDEBAR ═══ */
+#side{display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.grp{border-bottom:1px solid var(--line);padding-bottom:5px}
+.grp.off{display:none}
+.grp .crow,.grp .ctl{display:none} .grp.open .crow{display:grid} .grp.open .ctl{display:block}
+.grp .c1{display:none;margin:0;font-size:14px} .grp.min .c1{display:block}
+.c1 b{display:inline-block;min-width:76px;font-size:15px}
+#side .ro{font-size:14px}
+.crow{grid-template-columns:66px auto auto minmax(0,1fr);gap:4px;align-items:center;margin:4px 0}
+.cl{font-weight:700;font-size:15px}
+.ctl{margin:4px 0 6px}
+.chead{display:flex;justify-content:space-between;align-items:center;gap:4px}
+.cbt{display:flex;gap:4px;align-items:center}
+.cbt button.sm{padding:0;min-height:28px;width:28px;font-size:16px}
+.cbt .ro{min-width:88px}
+.ctl input[type=range]{display:block;width:100%;accent-color:var(--acc);height:24px;margin:2px 0 0}
+#pin{margin-top:auto;border-top:2px solid var(--edge);padding-top:6px}
+#pin .btns{margin:0 0 5px;flex-wrap:nowrap;gap:4px}
+#pin .btns button{flex:1 1 auto;padding:3px 4px}
+#callout{height:60px;overflow:hidden;margin:0 0 5px;padding:4px 8px;border-radius:8px;background:var(--soft);border-left:5px solid var(--acc);font-size:13px;font-weight:700;line-height:1.3}
+#callout.bad{background:#fbe9e6;border-left-color:var(--err);color:#8f2a1d}
+#callout.good{background:#e3f3ea;border-left-color:var(--ok);color:#10512f}
+#pager .ro{min-width:44px;text-align:center}
+/* ═══ CUES ═══ */
+/* A cued element is drawn crisp: no filter, blur, glow or shadow anywhere.
+   Panels and readouts: a 2.5 px teal outline (inside the panel edge for whole instruments, so the stage never clips it).
+   SVG lines: stroke width × 1.6, colour at its own dark stop. SVG shapes: a 2.5 px teal ring. SVG text: teal. */
+.cue{outline:2.5px solid var(--acc);outline-offset:1px;border-radius:4px}
+.it.cue{outline-offset:-2.5px;border-radius:10px}
+svg .cue{outline:none}
+svg text.cue{fill:#0f6e6c}
+svg .ring{display:none;fill:none;stroke:#0f6e6c;stroke-width:2.5px;vector-effect:non-scaling-stroke}   /* 2.5 px on screen at any diagram size */
+svg .cue+.ring{display:inline}
+#day .ln.cue{stroke-width:4}                         /* chart lines 2.5 → 4 */
+#day .stair.cue{stroke:#0a4f4d}                      /* teal → dark teal; the load line is already the darkest ink */
+#day .ublade.cue{stroke-width:5.6;stroke:#5e3b00}    /* unit breaker blade 3.5 → 5.6, amber → dark amber */
+#phases .blade.cue{stroke-width:8}                   /* G3 breaker blades 5 → 8 */
+/* ═══ EXPERIMENTS WORKSHEET (a document: this page scrolls) ═══ */
+#page-exp{flex:1;min-height:0;overflow:auto;padding:10px}
+.doc{max-width:980px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 24px}
+.doc h1{font-size:22px;margin:0 0 4px}
+.doc p,.doc li{font-size:15px}
+.exp-card{border:1px solid var(--line);border-radius:12px;padding:10px 16px;margin:12px 0;background:#fbfcfd}
+.exp-card h3{margin:0 0 4px;font-size:17px}
+.num{font:700 12px var(--mono);color:var(--acc);letter-spacing:2px;text-transform:uppercase;margin:0}
+textarea,input[type=text],input[type=date]{font:15px var(--sans);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;width:100%;color:var(--txt);background:var(--panel)}
+textarea{min-height:64px;margin-top:4px}
+.sheetHead{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.sheetHead label{font-weight:700;font-size:13px}
+#sheetStatus{font-weight:700;font-size:13.5px;margin:8px 0}
+#sheetStatus.bad{color:var(--err)} #sheetStatus.good{color:var(--ok)}
+.doc details summary{cursor:pointer;font-weight:700;color:var(--acc);margin-top:6px}
+table.rec{border-collapse:collapse;margin:8px 0}
+table.rec th,table.rec td{border:1px solid var(--line);padding:4px 8px;font-size:14px}
+table.rec input{width:110px}
+/* ═══ 125 % ZOOM ON A 1366 × 768 SCREEN (about 1093 × 614 CSS px): narrower side columns and tighter type, no scrolling.
+   Sizes here are CSS px; on screen they are 1.25 × larger (notes 12.5 px → 15.6 px, key equations 14.5 px → 18.1 px). ═══ */
+@media (max-width:1250px){
+  #app{grid-template-columns:278px minmax(0,1fr) 250px;gap:6px;padding:6px}
+  #app.lab{grid-template-columns:minmax(0,1fr) 250px}
+  header{padding:3px 10px} header h1{font-size:15px}
+  .panel{padding:7px 9px}
+  .sl h2.st{font-size:16.5px;margin:2px 0 4px}
+  .keyp{font-size:13px;padding:5px 8px;margin:4px 0}
+  .def{font-size:12.5px;margin:4px 0}
+  .eq{padding:1px 6px;margin:4px 0} math{font-size:14.5px}
+  .show{font-size:13px;padding:4px 8px} .btns{margin:4px 0;gap:4px}
+  .steps{font-size:12.5px}
+  #cap,#capMeasure{font-size:13px;line-height:1.32;padding:3px 8px} table.wk td,table.wk th{font-size:11.5px;padding-top:2px;padding-bottom:2px} .kcard math{font-size:18px} .kcard{min-height:46px;padding:3px 8px} .kgrid{gap:6px 12px} .kcol{gap:5px}
+  #transport{gap:3px;margin-top:4px;padding-top:4px} .fix{font-size:11px}
+  #stage,#main{gap:6px}
+  .vrl{font-size:12.5px;padding:2px 6px}
+  .it{padding:4px 6px}
+  #stage[data-view=v3]{grid-template-columns:230px minmax(0,1fr)}
+  #stage[data-view=v5],#stage[data-view=v6]{grid-template-columns:150px minmax(0,1fr)}
+  #stage[data-view=v7]{grid-template-columns:120px minmax(0,1fr) minmax(0,1fr)}
+  #stage[data-view=v4]{grid-template-rows:minmax(0,40fr) 100px minmax(0,31fr) auto}
+  #stage[data-view=lab]{grid-template-columns:minmax(0,1fr) 330px}
+  #stage[data-view=lab] #colB{grid-template-columns:120px minmax(0,1fr);grid-template-rows:120px auto auto;gap:6px}
+  #stage[data-view=lab] #colA{gap:6px} #stage[data-view=lab] #itResult{flex:0 0 150px}
+  #stage[data-view=v2] .meters,#stage[data-view=v3] .meters{font-size:13px} .meters{font-size:12px} .meters th,.meters td{padding:2px 4px}
+  #chk li{font-size:12px;padding:2px 0;gap:2px;grid-template-columns:16px 1fr auto} #chk .val{font-size:11px} #chk .mark{font-size:14px}
+  #ready{font-size:12px} #readyDot{width:12px;height:12px}
+  #itWhy math{font-size:12px} .note{font-size:11.5px;margin:2px 0}
+  #surgeSvg{flex:0 0 190px;height:50px} #result{font-size:11.5px;flex-basis:170px} #result p{margin:0} #result .verdict{font-size:12.5px}
+  #stage[data-view=lab] #result{font-size:11px}
+  #side{gap:4px} .cl,.c1 b{font-size:13px} .c1 b{min-width:58px} .grp .c1{font-size:12.5px} #side .ro{font-size:12px;padding:3px 4px}
+  .crow{grid-template-columns:42px minmax(0,1fr) auto auto;gap:3px;margin:3px 0}   /* the first button takes the slack; the readout keeps its full width */
+  #side button{font-size:12px;padding:2px 5px;min-height:27px} .cbt button.sm{padding:0;width:26px;min-height:26px} .cbt .ro{min-width:76px}
+  .ctl{margin:3px 0 4px} .ctl input[type=range]{height:22px}
+  #pin .btns button{padding:2px 3px;white-space:nowrap} #runUp,#stopBtn,#excite,#fieldOff{white-space:nowrap;padding:2px 3px} #callout{height:52px;font-size:12px}
+}
+/* ═══ NARROW OR VERY SHORT WINDOWS: the page scrolls instead of squeezing ═══ */
+@media (max-width:999px),(max-height:599px){
+  html,body{height:auto} body{display:block;min-height:0}
+  #app,#app.lab{display:block}
+  #app>*{margin-bottom:8px}
+  #slidePanel,#side{overflow:visible}
+  #stage[data-view]{display:block;overflow:visible}
+  #stage[data-view] #colA,#stage[data-view] #colB{display:block}
+  #stage .it{margin-bottom:8px}
+  #stage .it>svg{flex:none;height:auto}
+  #stage #surgeSvg{flex:0 0 230px;height:60px}
+  #stage #itScope>svg{max-width:240px}
+}

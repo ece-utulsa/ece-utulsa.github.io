@@ -1,0 +1,69 @@
+{
+ "slides": [
+  [
+   "A power system never runs on one machine. Here is one plant through a day, with five sixty-megawatt units on an infinite bus.",
+   "As the morning load climbs past what the units online can carry, another unit is synchronized onto the bus.",
+   "When the load falls, a unit is unloaded to zero megawatts and its breaker opens. Through all of it, the bus stays at thirteen point eight kilovolts and sixty hertz.",
+   "That is the infinite bus: so large that its voltage and frequency do not change, whatever one machine does.",
+   "This lecture is about one instant: closing the breaker on an incoming unit. Four conditions must hold: same voltage, same phase sequence, same phase angle, and a frequency slightly higher than the bus."
+  ],
+  [
+   "G3 is our incoming unit: twenty-five megavolt-amperes, thirteen point eight kilovolts, four poles. Its breaker stays open.",
+   "The prime mover brings it to speed. With four poles, eighteen hundred revolutions per minute gives sixty hertz.",
+   "Then the field is excited. The generated voltage rises with field current and speed, until it reaches the bus voltage.",
+   "So the governor on the prime mover sets the frequency, and the field current sets the voltage. Now we check the four conditions one at a time."
+  ],
+  [
+   "Here G3's voltage is only eighty-five percent of the bus voltage. The other three conditions are met.",
+   "Even at the darkest moment the lamps stay lit: they read the difference, seven point nine seven minus six point seven seven, or one point two kilovolts per phase.",
+   "Close the breaker anyway. That difference drives a current through the synchronous reactance: about one hundred fifty-seven amperes.",
+   "The current is reactive. G3 is under-excited, so it absorbs about three point seven megavars from the bus.",
+   "Match the voltage with the field, and the lamps go fully dark once each slip cycle."
+  ],
+  [
+   "Now two of G3's leads are swapped, so its phase sequence is A C B instead of A B C.",
+   "The lamps no longer blink together. The dark lamp moves from one to the next, and all three are never dark at once.",
+   "Even when lamp A is dark, poles B and C each see root three times the phase voltage: thirteen point eight kilovolts.",
+   "Closing now is a short circuit through the machine. The breaker trips.",
+   "Swap any two leads back, and the lamps blink together again. Never close until they do."
+  ],
+  [
+   "Voltage, sequence and frequency are right. Only the closing angle can still be wrong.",
+   "Close at ninety degrees and the voltage across the breaker is eleven point three kilovolts. The surge is about fourteen hundred eighty amperes, one point four times rated, and the breaker trips.",
+   "At one hundred eighty degrees it is twice the phase voltage, and twice rated current.",
+   "So close only when the angle is near zero: lamps dark, synchroscope pointer at twelve o'clock."
+  ],
+  [
+   "The lamps blink at the frequency difference. At sixty point two hertz they go dark once every five seconds.",
+   "Close slightly fast, at sixty point one hertz, and G3 is pulled back to sixty hertz. Its governor now asks for more, so it picks up about one megawatt.",
+   "Close slightly slow, and the bus drives G3 forward. It takes power instead of giving it: it motors.",
+   "Close a full hertz off, and the machine cannot pull into step. The breaker trips.",
+   "So set the frequency slightly high, with the synchroscope turning slowly in the fast direction, and close as it reaches twelve o'clock."
+  ],
+  [
+   "A worked case. The meters read: G3 at thirteen point six two kilovolts, sequence A B C, six degrees ahead, sixty point one two hertz.",
+   "The voltage is one point three percent low, within five percent. The sequence matches.",
+   "The angle is within ten degrees, and the slip is positive and below point two hertz. G3 is ready.",
+   "Across the breaker the difference is zero point eight four kilovolts per phase. The surge is about one hundred ten amperes, a tenth of rated: a smooth close.",
+   "After the close, G3 carries ten point four times zero point one two, about one point two megawatts. Raise the governor setting for more."
+  ],
+  [
+   "Bringing the unit up: frequency from speed and poles, voltage from field current and speed.",
+   "At the close: the voltage across the breaker, the surge it drives, the reactive power from a voltage mismatch, and the blink rate.",
+   "After the close, the governor's droop sets the power the unit carries."
+  ]
+ ],
+ "lab": [
+  "This is the Lab. Run G3 up, excite it, and bring it onto the bus yourself.",
+  "Watch the lamps, the synchroscope and the ready-to-close checklist as you adjust the governor, the field and the leads.",
+  "Close the breaker and read the surge meter. Reset to try again."
+ ],
+ "exp": [
+  "Experiment one. Predict: with two leads swapped, will the lamps blink together or one after another? Then fix it.",
+  "Experiment two. Count the dark moments in ten seconds at three frequencies, and find the rule for the blink rate.",
+  "Experiment three. Close at ninety degrees, at one hundred eighty degrees, and at five degrees. Predict which gives the largest surge.",
+  "Experiment four. The field is set low on purpose. Why do the lamps never go fully dark, and what surge do you get when you close?",
+  "Experiment five. Close with the generator slow. Predict first: will it generate or motor?",
+  "Experiment six, your turn. Bring G3 onto the bus yourself: find and fix the wrong sequence, meet all four conditions, and close on dark lamps."
+ ]
+}
