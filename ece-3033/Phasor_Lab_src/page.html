@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<!--
+  Phasor Lab — ECE 3033 — two generators sharing a load
+  Version: v1.0.0
+  Released: 2026-11-27
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  DEMO RELEASE 2026-11-27 (principal ruling; gates follow on the live version)
+  Changelog: v1.0.0 — new tool (spec Phasor_Lab_v1.0.0_spec.md): two generators in parallel feed one load at a held bus voltage.
+  G1 is set by P_1 and one of pf_1, Q_1 or |E_A1|; G2 makes up the difference (KCL). Hold conditions on G1: Free, constant field
+  (|E_A1| held, vary P_1), constant power (P_1 held, vary |E_A1|) and constant load with G1's pf held (shift P_1). Sweep with ghost
+  phasors, separate current and voltage phasor diagrams with the locus of each tip, a side plot per Hold, signed P and Q sharing bars,
+  a readout table, a Steps panel and five Experiments with a saved worksheet. Lab and Experiments shell as Two Generators PQ v2.0.0.
+  Built from Phasor_Lab_src/ with build.py.
+  Model: generator convention (Q > 0 supplied, lagging). V_φ = V_LL / √3 is held at 0° and is the reference. I = (P − jQ) / 3V_φ;
+  P_2 = P_L − P_1, Q_2 = Q_L − Q_1, I_A2 = I_L − I_A1; E_Ak = V_φ + I_Ak (R_Ak + jX_Sk), δ_k = ∠E_Ak. With |E_A1| given, δ_1 and Q_1
+  come from the stable branch (δ_1 below the pull-out angle θ_Z = ∠Z_S1). Steady state only; ratings raise warnings, nothing trips.
+-->
+<html lang="en" class="lab">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-__SCRIPT_HASH__'; style-src 'sha256-__STYLE_HASH__'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v1.0.0">
+<title>Phasor Lab — ECE 3033 v1.0.0</title>
+<style>__CSS__</style>
+</head>
+<body>
+<header>
+  <h1>Phasor Lab</h1><span class="badge">ECE 3033 · v1.0.0</span>
+  <details id="model"><summary>Model</summary><div class="pop">
+    <p>Two synchronous generators, G1 and G2, in parallel feed one load. The bus voltage is held: V<sub>φ</sub> = V<sub>LL</sub> / √3 at 0° is the reference for every phasor. Each machine is E<sub>A</sub> behind R<sub>A</sub> + jX<sub>S</sub> per phase (Y).</p>
+    <p>Generator convention: Q &gt; 0 is supplied (over-excited, lagging current). I = (P − jQ) / 3V<sub>φ</sub>; E<sub>Ak</sub> = V<sub>φ</sub> + I<sub>Ak</sub>(R<sub>Ak</sub> + jX<sub>Sk</sub>); δ<sub>k</sub> = ∠E<sub>Ak</sub>.</p>
+    <p>G1 is set by P<sub>1</sub> and one of pf<sub>1</sub>, Q<sub>1</sub> or |E<sub>A1</sub>|. G2 makes up the difference: P<sub>2</sub> = P<sub>L</sub> − P<sub>1</sub>, Q<sub>2</sub> = Q<sub>L</sub> − Q<sub>1</sub>, I<sub>A2</sub> = I<sub>L</sub> − I<sub>A1</sub> (KCL). With |E<sub>A1</sub>| given, Q<sub>1</sub> is taken on the stable branch, with δ<sub>1</sub> below the pull-out angle ∠Z<sub>S1</sub>.</p>
+    <p>Steady state only. A rating or reverse power raises a warning; nothing trips. Each diagram's scale is fixed by the ratings and V<sub>φ</sub>; it changes only when a rating or V<sub>LL</sub> changes. Currents and voltages are never drawn on one diagram.</p>
+  </div></details>
+  <a class="xlink" href="Synchronous_Generator_Phasor_Lab_v2.2.8.html">One generator on an infinite bus? Open the Synchronous Generator Phasor Lab</a>
+  <nav class="tabs" aria-label="Pages">
+    <button type="button" data-page="lab" aria-pressed="true">Lab</button>
+    <button type="button" data-page="exp" aria-pressed="false">Experiments</button>
+  </nav>
+</header>
+
+<!-- ═══ LAB ═══ -->
+<main id="lab">
+  <section class="card" id="figs" aria-label="Circuit and phasor diagrams">
+    <svg id="circ" viewBox="0 0 660 140" role="img" aria-label="Circuit: G1 and G2, each E_A behind R_A and jX_S, feed the load at one node. The live currents are written on it."></svg>
+    <div id="panels">
+      <svg id="curr" viewBox="0 0 380 410" role="img" aria-label="Currents phasor diagram: I_L, I_A1 and I_A2 tip to tail, with V_φ as the reference direction. The readout table gives the values."></svg>
+      <svg id="volt" viewBox="0 0 380 410" role="img" aria-label="Voltages phasor diagram: V_φ, then I_A R_A and jX_S I_A for each machine, ending at E_A1 and E_A2. The readout table gives the values."></svg>
+    </div>
+    <svg id="bars" viewBox="0 0 660 90" role="img" aria-label="Signed bars: how the load's P and Q are shared between G1 and G2."></svg>
+  </section>
+  <section class="col" id="info">
+    <div class="card" id="plotCard"><svg id="plot" viewBox="0 0 380 222" role="img" aria-label="Side plot for the chosen Hold condition."></svg></div>
+    <div class="card" id="readCard"><table id="read" aria-label="Readouts per machine"></table><p class="fixed" id="readNote"></p></div>
+    <details class="card" id="steps" open><summary>Steps (your numbers)</summary><ol id="stepList"></ol></details>
+  </section>
+  <aside class="card col" id="side" aria-label="Lab controls">
+    <h3>LAB CONTROLS</h3>
+    <div id="ctl"></div>
+    <div id="warn" role="status" aria-live="polite"></div>
+  </aside>
+</main>
+
+<!-- ═══ EXPERIMENTS (a document: this page scrolls) ═══ -->
+<section id="page-exp" aria-label="Experiments" hidden><article class="doc" id="sheet">
+  <h1>Experiments</h1>
+  <p>Five short investigations. <b>Set up the Lab</b> puts the Lab in the right state. Predict before you look.</p>
+  <div class="sheetHead"><label>Name<input type="text" data-k="name" autocomplete="name"></label><label>Section<input type="text" data-k="section"></label><label>Date<input type="date" data-k="date"></label></div>
+  <div class="btns"><button type="button" id="exportBtn" class="btn pri">⇩ Export my answers</button><button type="button" id="clearBtn" class="btn">Clear my answers</button></div>
+  <p id="sheetStatus" role="status" aria-live="polite"></p>
+  <div id="cards"></div>
+</article></section>
+<script>__JS__</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+/* ═══ TOKENS (light ground; dark text), as Two Generators PQ v2.0.0 ═══ */
+:root{--bg:#eef1f4;--card:#fff;--ink:#1b1f24;--mute:#55606b;--line:#d5dbe0;--teal:#0f6b63;--tealbg:#e3f0ee;--amber:#9a5b00;--amberbg:#fdf3e3;--inset:#e9ecef;
+  --err:#9b1c1c;--errbg:#fdecea;--ok:#18744a;--warn:#8a5700;--g1:#1c5fd6;--g2:#b0127e;
+  --sans:"Segoe UI","Helvetica Neue",Arial,sans-serif;--mono:Consolas,"Courier New",monospace;--math:"Cambria Math","STIX Two Math",Cambria,serif}
+html{font-size:15px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{display:flex;flex-direction:column;min-height:560px;background:var(--bg);color:var(--ink);font:1rem/1.42 var(--sans)}
+button,select{font:600 .93rem var(--sans);color:var(--ink);cursor:pointer;touch-action:manipulation}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+/* ═══ HEADER ═══ */
+header{flex:none;position:relative;display:flex;align-items:center;gap:12px;padding:6px 14px;background:var(--card);border-bottom:1px solid var(--line)}
+header h1{font-size:1.2rem;margin:0}
+.badge{font:.87rem var(--mono);color:var(--mute)}
+#model summary{cursor:pointer;font-weight:700;color:var(--teal);font-size:.87rem}
+#model .pop{position:absolute;left:12px;top:100%;z-index:6;width:min(600px,92vw);background:var(--card);border:1px solid var(--mute);border-radius:10px;padding:10px 14px;font-size:.87rem}
+#model .pop p{margin:0 0 6px}
+.xlink{font-size:.87rem;color:var(--teal);font-weight:600}
+nav.tabs{margin-left:auto;display:flex;gap:6px}
+nav.tabs button{padding:5px 12px;border:1px solid var(--ink);border-radius:6px;background:var(--card)}
+nav.tabs button[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
+/* ═══ SHARED: cards, columns, rows, buttons, value chips ═══ */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:0}
+.col{display:flex;flex-direction:column;gap:8px;min-height:0}
+.row{display:flex;justify-content:space-between;align-items:center;margin:5px 0;gap:6px}
+.btn{padding:5px 10px;border-radius:6px;border:1px solid var(--mute);background:var(--card);min-height:34px}
+.btn.pri{background:var(--teal);color:#fff;border-color:var(--teal)}
+.btn[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
+.grow{flex:1}
+.val{font:.93rem var(--mono);background:var(--inset);border-radius:5px;padding:2px 7px;white-space:nowrap}
+.val:empty{display:none}
+.fixed{font-size:.86rem;color:var(--mute);margin:4px 0 0}
+.warnbox{margin-top:6px;padding:5px 9px;border-radius:8px;background:var(--errbg);color:var(--err);font-weight:600;font-size:.88rem}
+.limitbox{margin-top:6px;padding:5px 9px;border-radius:8px;background:var(--amberbg);color:var(--warn);font-weight:700;font-size:.88rem;border:2px solid var(--amber)}
+.v{font-style:italic}
+.v sub.up{font-style:normal}
+sub,sup{font-size:.75em;line-height:0}
+svg text{font-family:var(--sans)}
+h3{font:700 .86rem var(--mono);color:var(--teal);margin:0 0 4px;letter-spacing:.06em}
+input[type=range]{width:100%;accent-color:var(--teal);height:24px;margin:0}
+.scale{display:flex;justify-content:space-between;font-size:.82rem;color:var(--mute)}
+.fines{display:flex;gap:4px}
+.btn.fine{min-height:26px;width:26px;padding:0;font-size:1rem}
+.ctlrow .row>span:first-child{flex:1}
+.seg{display:flex;gap:4px;margin:4px 0}
+.seg .btn{flex:1;min-height:28px;padding:2px 6px;font-size:.86rem}
+label.sel{display:block;font-weight:600;font-size:.9rem;margin:6px 0 2px}
+select{width:100%;padding:4px 6px;border:1px solid var(--mute);border-radius:6px;background:var(--card);font-weight:400}
+.grp{border-top:1px solid var(--line);margin-top:8px;padding-top:6px}
+.grp>h4{margin:0;font-size:.84rem;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+#mach summary{cursor:pointer;font-weight:700;font-size:.9rem;color:var(--teal)}
+.ngrid{display:grid;grid-template-columns:auto 1fr 1fr;gap:3px 6px;align-items:center;font-size:.88rem;margin-top:4px}
+.ngrid input{width:100%;font:.9rem var(--mono);padding:2px 4px;border:1px solid var(--mute);border-radius:4px}
+.ngrid input[aria-invalid="true"]{border:2px solid var(--err)}
+.ngrid .hd{font-weight:700;color:var(--mute)}
+.chk{display:flex;gap:6px;align-items:center;font-size:.9rem;margin:4px 0}
+.nmsg{color:var(--err);font-weight:700;font-size:.86rem;margin:3px 0 0}
+/* ═══ LAB GRID: figures | side plot, readouts, Steps | controls ═══ */
+#lab{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,26vw) clamp(226px,18.5vw,262px);gap:8px;padding:8px}
+#lab *{min-width:0}
+#figs{display:flex;flex-direction:column;gap:4px;padding:6px;overflow:hidden}
+#figs svg{display:block;width:100%;min-height:0}
+#circ{flex:none;aspect-ratio:660/140;height:auto}
+#panels{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:4px}
+#panels svg{height:auto;aspect-ratio:380/410}
+#bars{flex:none;aspect-ratio:660/90;height:auto}
+#info{min-height:0}
+#plotCard{flex:0 1 auto;padding:4px}
+#plot{display:block;width:100%;max-height:30vh}
+#readCard{flex:none;padding:4px 8px}
+#read{width:100%;border-collapse:collapse;font:.86rem var(--mono)}
+#read th{font:700 .84rem var(--sans);text-align:right;padding:1px 4px;border-bottom:1px solid var(--line)}
+#read th:first-child,#read td:first-child{text-align:left;font-family:var(--sans);color:var(--mute);font-weight:600}
+#read td{text-align:right;padding:1px 4px;white-space:nowrap}
+#read th.g1{color:var(--g1)} #read th.g2{color:var(--g2)}
+#read td.over{color:var(--err);font-weight:700}
+#readNote{font-size:.8rem;margin:2px 0 0;line-height:1.3}
+#steps{flex:1;min-height:60px;overflow-y:auto;font-size:.88rem;padding:6px 10px}
+#steps summary{cursor:pointer;font-weight:700;color:var(--teal);position:sticky;top:0;background:var(--card)}
+#stepList{margin:4px 0 0;padding-left:20px}
+#stepList li{margin:3px 0}
+#stepList li.note{list-style:none;margin-left:-20px;font-weight:700;color:var(--ok)}
+#side{overflow-y:auto}
+/* ═══ EXPERIMENTS WORKSHEET (a document: this page scrolls) ═══ */
+#page-exp{flex:1;min-height:0;overflow:auto;padding:10px}
+.doc{max-width:980px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 24px}
+.doc h1{font-size:1.45rem;margin:0 0 4px}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center}
+.exp-card{border:1px solid var(--line);border-radius:12px;padding:10px 16px;margin:12px 0;background:#fbfcfd}
+.exp-card h3{font:700 1.13rem var(--sans);color:var(--ink);letter-spacing:0;margin:0 0 4px}
+.exp-card p{margin:6px 0}
+.exp-card label{display:block;font-weight:700;font-size:.9rem;margin-top:6px}
+.num{font:700 .8rem var(--mono);color:var(--teal);letter-spacing:2px;text-transform:uppercase;margin:0}
+.ans{background:var(--tealbg);border-radius:8px;padding:6px 9px;white-space:pre-line}
+#page-exp textarea,#page-exp input[type=text],#page-exp input[type=date]{font:1rem var(--sans);border:1px solid var(--mute);border-radius:6px;padding:6px 8px;width:100%;color:var(--ink);background:var(--card)}
+#page-exp textarea{min-height:64px;margin-top:4px;font-weight:400}
+.sheetHead{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.sheetHead label{font-weight:700;font-size:.87rem}
+#sheetStatus{font-weight:700;font-size:.9rem;margin:8px 0}
+#sheetStatus.bad{color:var(--err)} #sheetStatus.good{color:var(--ok)}
+/* ═══ COMPACT (a 1366×768 laptop at 125 % zoom is 1093×614 CSS px) ═══ */
+@media (max-width:1200px),(max-height:700px){
+  html{font-size:13px}
+  .card{padding:7px 9px}
+  header{padding:4px 12px;gap:10px}
+  .btn{min-height:30px;padding:3px 8px}
+  .row{margin:3px 0}
+  #lab{gap:6px;padding:6px}
+}
+/* ═══ NARROW OR SHORT WINDOWS: the page scrolls instead of squeezing ═══ */
+@media (max-width:999px),(max-height:559px){
+  html,body{height:auto} body{display:block;min-height:0}
+  #lab{display:block}
+  #lab>*{margin-bottom:8px}
+  #figs{overflow:visible}
+  #steps{max-height:none}
+  #plot{max-height:none}
+}
