@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<!--
+  Paralleling a Synchronous Generator — ECE 3033 Lecture 1
+  Version: v2.0.0
+  Released: 2026-11-27
+  Author: Claude Code. Owner: Douglas Jussaume, University of Tulsa ECE.
+  DEMO RELEASE 2026-11-27 (principal ruling; gates follow on the live version)
+  Changelog: v2.0.0 — redesign in the Voltage Regulation / Static Stability Limit / Two Generators PQ / Load Sharing Droop v2.0.0
+  pattern (spec Paralleling_Lab_v2.0.0_spec.md): a narrated lecture of 8 slides (36 voiced lines; each line sets the slide's state
+  and runs its Show-me demos), slide 7 "Worked case: is G3 ready to close?" (new; step table, one row lit per line, the scene frozen at
+  the readings) and slide 8 "Key equations" (the six v1.4.0 key equations plus P = s_P(f_nl − f_sys), in two columns). The speaker
+  notes, Watch cues, Notes panel and slide-7 "Your turn" leave the Lecture; "Your turn" becomes Experiment 6, with a predict-first prompt,
+  its five steps ticking live in the Lab, and its answers in the worksheet. The Lab is unchanged, plus a narrated Listen (3 lines); each
+  Experiment has a voiced task (6 clips). Model and scene as v1.4.0. Built from Paralleling_Lab_src/ with build.py.
+  v1.4.0 — principal review 2026-11-22: crisp Watch cues, key point and four conditions on slide 1, no status callout in the Lecture,
+  no scrolling at 1366×768 and 125 %, powers to 0.1 MW and 0.1 MVAR, angles to 0.1°. Earlier: v1.3.0 format rework, v1.2.x Watch cues
+  and Experiments tab, v1.2.0 7-slide Lecture rebuild, v1.1.0 (not published), v1.0.0–v1.0.2 first builds.
+  Model: V_g ∝ I_F × speed (open circuit, no saturation, no residual voltage); lamp k reads |V_bus,k − V_g,k|
+  (phasors, through potential transformers); closing surge ≈ max_k |ΔV_k| / X_S across the breaker poles with
+  X_S = 1.0 pu = 7.62 Ω on 25 MVA, 13.8 kV (steady state; the first-cycle surge is larger); synchronizing power at
+  the close P = 3 V_bus V_g sin Δθ / X_S; after joining P = s_P (f_nl − f_sys) with 4 % governor droop.
+  Slide 1 plant: schematic, five 60 MW units, hourly load with linear interpolation, units needed = ceil(load / 60).
+  Narration: en-GB-SoniaNeural, rate −4 %, one mp3 clip per line (mono, 24 kHz, 32 kbit/s), embedded as data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-__SCRIPT_HASH__'; style-src 'sha256-__STYLE_HASH__'; media-src data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="v2.0.0">
+<title>Paralleling a Synchronous Generator — ECE 3033 Lecture 1 v2.0.0</title>
+<style>__CSS__</style>
+</head>
+<body>
+<header>
+  <h1>Paralleling a Synchronous Generator</h1><span class="badge">ECE 3033 · Lecture 1 · v2.0.0</span>
+  <details id="model"><summary>Model</summary><div class="pop">
+    <p>Incoming machine G3: 25 MVA, 13.8 kV, 4 poles, X<sub>S</sub> = 1.0 pu = 7.62 Ω, rated current 1046 A. The bus is infinite: 13.8 kV, 60.00 Hz, sequence ABC. V<sub>g</sub> ∝ I<sub>F</sub> × speed (open circuit, no saturation).</p>
+    <p>Surge at the close ≈ |ΔV|/X<sub>S</sub> on the worst breaker pole, using the steady-state X<sub>S</sub>; the real first-cycle surge is larger (subtransient reactance X″<sub>d</sub>). Up to 0.20 × rated: smooth. Up to 0.60 × rated: a jolt. Above that, or wrong sequence, or |slip| &gt; 0.5 Hz (cannot pull into step): a trip.</p>
+    <p>After joining, the governor's 4 % droop gives P = s<sub>P</sub>(f<sub>nl</sub> − f<sub>sys</sub>), s<sub>P</sub> = 10.4 MW/Hz; f<sub>nl</sub> is the governor set point and f<sub>sys</sub> = 60.00 Hz. Ready-to-close tolerances: |ΔV| ≤ 5 %, |Δθ| ≤ 10°, 0 &lt; slip ≤ 0.20 Hz.</p>
+    <p>Lamps: dark below 20 % of 2V (a dim red ember from 5 %), then brighter up to 2V. Run-up and field build-up are shown faster than a real machine. Slide 1 is a schematic plant, not to scale: five 60 MW units, hourly load joined by straight lines, one unit switched each time the load crosses a multiple of 60 MW.</p>
+  </div></details>
+  <nav class="tabs" aria-label="Pages">
+    <button data-page="lec" aria-pressed="true">Lecture</button>
+    <button data-page="lab" aria-pressed="false">Lab</button>
+    <button data-page="exp" aria-pressed="false">Experiments</button>
+  </nav>
+</header>
+
+<div id="app">
+  <!-- ═══ SLIDE PANEL (Lecture) ═══ -->
+  <div class="panel" id="slidePanel" aria-label="Lecture slide">
+  <section class="sl" data-n="1"><p class="kick">1 of 8 · Why parallel</p><h2 class="st">Units come on and off as the load changes.</h2>
+    <div class="keyp"><p>Paralleling connects a generator to a running system. At the instant its breaker closes, four conditions must hold:</p>
+      <ol class="cond"><li>same voltage <span>(slide 3)</span></li><li>same phase sequence <span>(slide 4)</span></li><li>same phase angle <span>(slide 5)</span></li><li>frequency slightly higher <span>(slide 6)</span></li></ol></div>
+    <p class="def"><b>Infinite bus:</b> so large that its voltage and frequency don't change, whatever one machine does.</p>
+    <p class="def"><b>Unloading:</b> lower the governor setting to about 0 MW and trim the field to about 0 MVAR, then open the breaker.</p></section>
+  <section class="sl" data-n="2"><p class="kick">2 of 8 · Bring G3 to speed and voltage</p><h2 class="st">G3 is run up to speed and excited with its breaker open.</h2>
+    <p class="keyp">The governor sets the frequency; the field current sets the voltage.</p>
+    <div class="eq"><math display="block"><msub><mi>f</mi><mi>e</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>n</mi><mi>m</mi></msub><mi>P</mi></mrow><mn>120</mn></mfrac></math></div>
+    <div class="eq"><math display="block"><msub><mi>V</mi><mi>g</mi></msub><mo>∝</mo><msub><mi>I</mi><mi>F</mi></msub><msub><mi>n</mi><mi>m</mi></msub></math></div>
+    <p class="def">Press <b>Run up</b>, then <b>Excite</b>, then raise V<sub>g</sub> to the bus voltage, 13.80 kV. G3 has P = 4 poles.</p></section>
+  <section class="sl" data-n="3"><p class="kick">3 of 8 · Condition 1: voltage</p><h2 class="st">Unequal voltages: the lamps never go fully dark.</h2>
+    <p class="keyp">Closing with V<sub>g</sub> ≠ V<sub>bus</sub> drives a reactive current through the machine.</p>
+    <div class="eq"><math display="block"><mi>I</mi><mo>≈</mo><mfrac><mrow><mo>|</mo><msub><mi mathvariant="bold">V</mi><mi>bus</mi></msub><mo>−</mo><msub><mi mathvariant="bold">V</mi><mi>g</mi></msub><mo>|</mo></mrow><msub><mi>X</mi><mi>S</mi></msub></mfrac></math></div>
+    <div class="eq"><math display="block"><mi>Q</mi><mo>≈</mo><mfrac><mrow><mn>3</mn><msub><mi>V</mi><mi>bus</mi></msub><mo>(</mo><msub><mi>V</mi><mi>g</mi></msub><mo>−</mo><msub><mi>V</mi><mi>bus</mi></msub><mo>)</mo></mrow><msub><mi>X</mi><mi>S</mi></msub></mfrac></math></div>
+    <p class="def">V<sub>g</sub> = 0.85 V<sub>bus</sub> here; the other three conditions are met.</p>
+    <div class="btns"><button class="pri show" data-show="3">▶ Show me: close</button></div></section>
+  <section class="sl" data-n="4"><p class="kick">4 of 8 · Condition 2: phase sequence</p><h2 class="st">Wrong sequence: the lamps take turns, and closing is a short circuit.</h2>
+    <p class="keyp">Swapping any two leads reverses the sequence; never close until the lamps blink together.</p>
+    <div class="eq"><math display="block"><msub><mi>V</mi><mrow><mi>pole</mi><mo>,</mo><mi>B</mi></mrow></msub><mo>=</mo><msub><mi>V</mi><mrow><mi>pole</mi><mo>,</mo><mi>C</mi></mrow></msub><mo>=</mo><msqrt><mn>3</mn></msqrt><mi>V</mi></math></div>
+    <p class="def">across breaker poles B and C when lamp A is dark (sequence ACB); V = 7.97 kV per phase.</p>
+    <p class="def"><b>Cross-connected lamps</b> (sidebar): with the right sequence the light rotates; close when lamp A is dark.</p>
+    <div class="btns"><button class="pri show" data-show="4">▶ Show me: close in ACB</button></div></section>
+  <section class="sl" data-n="5"><p class="kick">5 of 8 · Condition 3: phase angle</p><h2 class="st">Out of phase: the voltage across the breaker drives a surge.</h2>
+    <p class="keyp">Close only at Δθ ≈ 0: lamps dark, synchroscope pointer at 12 o'clock.</p>
+    <div class="eq"><math display="block"><mo>|</mo><mi>Δ</mi><mi>V</mi><mo>|</mo><mo>=</mo><mn>2</mn><mi>V</mi><mi>sin</mi><mo>(</mo><mfrac><mrow><mi>Δ</mi><mi>θ</mi></mrow><mn>2</mn></mfrac><mo>)</mo></math></div>
+    <p class="def">Voltage, sequence and frequency are right; only the closing angle is wrong.</p>
+    <div class="btns"><button class="pri show" data-show="5a">▶ Show me: close at 90°</button><button class="pri show" data-show="5b">▶ Show me: close at 180°</button></div></section>
+  <section class="sl" data-n="6"><p class="kick">6 of 8 · Condition 4: frequency</p><h2 class="st">The lamps blink at the frequency difference; close slightly fast.</h2>
+    <p class="keyp">Slightly fast: it picks up load. Slow: it motors. Far off: it trips.</p>
+    <div class="eq"><math display="block"><mtext>blinks/s</mtext><mo>=</mo><mo>|</mo><msub><mi>f</mi><mi>g</mi></msub><mo>−</mo><msub><mi>f</mi><mi>bus</mi></msub><mo>|</mo></math></div>
+    <p class="def">Move the governor and count the dark moments. Each demo closes in phase.</p>
+    <div class="btns"><button class="pri show" data-show="6s">▶ Show me: slow (59.95 Hz)</button><button class="pri show" data-show="6f">▶ Show me: fast (60.10 Hz)</button><button class="pri show" data-show="6x">▶ Show me: +1 Hz</button></div></section>
+  <section class="sl" data-n="7"><p class="kick">7 of 8 · Worked case</p><h2 class="st">Is G3 ready to close?</h2>
+    <p class="keyp">Read the meters, check the four conditions, then estimate the surge and the power after the close.</p>
+    <table class="wk" id="wk" aria-label="Worked case, one step per row"></table>
+    <p class="def">The scene is frozen at these readings. Nothing on this slide closes the breaker.</p></section>
+  <section class="sl" data-n="8"><p class="kick">8 of 8 · Key equations</p><h2 class="st">Key equations</h2>
+    <p class="keyp">Bringing the unit up (left), at the close (right), and after the close (below).</p>
+    <p class="def">V = 7.97 kV per phase, X<sub>S</sub> = 7.62 Ω, s<sub>P</sub> = 10.4 MW/Hz, P = 4 poles.</p></section>
+  </div>
+
+  <!-- ═══ MAIN AREA ═══ -->
+  <div id="main">
+    <div id="stage" data-view="v1">
+      <div id="colA">
+        <div class="it" id="itDay">
+          <svg id="day" viewBox="0 0 760 392" role="img" aria-label="Left: plant load over 24 hours with the online capacity staircase. Right: units G1 to G5, each through its breaker to the infinite bus."><g id="dayG"></g></svg>
+        </div>
+        <div class="it" id="itDayRo" role="status">
+          <p class="vrl">Plant load <span id="dL">0</span> MW · units online <span id="dN">1</span> of 5 · <span id="dBus">bus 13.80 kV, 60.00 Hz (constant)</span> · switching events so far today <span id="dK">0</span> of <span id="dKN">0</span></p>
+        </div>
+        <div class="it" id="itScene">
+          <svg id="scene" viewBox="0 0 900 400" role="img" aria-label="Infinite bus at left, three-pole breaker with lamps A, B and C across its poles in the middle, incoming generator G3 and its prime mover at right">
+            <text x="20" y="28" font-size="17" font-weight="700" fill="#d32f2f">Infinite bus (13.8 kV, 60 Hz)</text>
+            <text x="20" y="48" font-size="14" fill="#55636b">sequence ABC</text>
+            <path d="M80 70V370" stroke="#d32f2f" stroke-width="8"/>
+            <g id="phases"></g>
+            <text x="640" y="28" font-size="17" font-weight="700" fill="#1c5fd6">INCOMING GENERATOR G3</text>
+            <circle cx="700" cy="220" r="58" fill="#eef4fe" stroke="#1c5fd6" stroke-width="4"/>
+            <text x="700" y="232" text-anchor="middle" font-size="32" font-weight="800" fill="#1c5fd6">G3</text>
+            <path d="M758 220H800" stroke="#1a2328" stroke-width="10"/>
+            <rect x="800" y="180" width="86" height="80" rx="10" fill="#eceef4" stroke="#55636b" stroke-width="2"/>
+            <text x="843" y="214" text-anchor="middle" font-size="14" font-weight="700">Prime</text><text x="843" y="231" text-anchor="middle" font-size="14" font-weight="700">mover</text><text x="843" y="248" text-anchor="middle" font-size="12.5" fill="#55636b">governor</text>
+            <g id="tag"></g>
+            <text x="390" y="392" text-anchor="middle" font-size="14" fill="#55636b">Lamps across the breaker poles (through potential transformers): dark below 20 % of 2V</text>
+          </svg>
+        </div>
+        <div class="it" id="itWave">
+          <svg id="wave" viewBox="0 0 900 176" role="img" aria-label="Bus and generator phase-A voltage over three cycles on a time base locked to the bus."><g id="waveG"></g></svg>
+          <div class="wrow"><button id="waveSlowBtn" aria-pressed="false">Slow motion ×0.01</button><p class="note" id="waveTxt"></p></div>
+        </div>
+        <div class="it" id="itPhasors">
+          <svg id="phasors" viewBox="0 0 900 262" role="img" aria-label="Three phasor diagrams: bus a, b, c; generator a, b, c; both overlaid with the lamp gap vectors. Right: rotation meter and a test motor."><g id="phG"></g></svg>
+          <p class="note" id="phTxt"></p>
+        </div>
+        <div class="it" id="itResult">
+          <svg id="surgeSvg" viewBox="0 0 300 78" role="img" aria-label="Surge meter, current at the instant of closing in multiples of rated current">
+            <rect x="10" y="14" width="56" height="18" fill="#d9efe2"/><rect x="66" y="14" width="112" height="18" fill="#f6e7c8"/><rect x="178" y="14" width="112" height="18" fill="#f6d5cf"/>
+            <rect x="10" y="14" width="280" height="18" fill="none" stroke="#55636b"/>
+            <rect id="surgeBar" x="10" y="17" width="0" height="12" fill="#1a2328"/>
+            <text x="10" y="10" font-size="12" font-weight="700" fill="#0f6e6c">SURGE AT THE CLOSE</text>
+            <text x="10" y="48" font-size="12" fill="#55636b">0</text><text x="66" y="48" font-size="12" fill="#55636b" text-anchor="middle">0.2</text><text x="178" y="48" font-size="12" fill="#55636b" text-anchor="middle">0.6</text><text x="290" y="48" font-size="12" fill="#55636b" text-anchor="end">2.5 × rated</text>
+            <text id="surgeTxt" x="10" y="62" font-size="12" font-weight="700"></text>
+            <text x="10" y="75" font-size="11.5" fill="#55636b">steady-state X<tspan dy="3" font-size="9">S</tspan><tspan dy="-3">; the real first-cycle surge is larger</tspan></text>
+          </svg>
+          <div id="result" role="status" aria-live="polite"></div>
+        </div>
+        <div class="it" id="itRl" role="status"><p class="vrl" id="rl"></p></div>
+        <div class="it" id="itKeys" aria-label="Key equations">
+          <div class="kgrid"><div class="kcol" id="kL"><p class="khd">Bringing the unit up</p><div class="kcard" id="kFe"><math display="block"><msub><mi>f</mi><mi>e</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>n</mi><mi>m</mi></msub><mi>P</mi></mrow><mn>120</mn></mfrac></math></div><div class="kcard" id="kVg"><math display="block"><msub><mi>V</mi><mi>g</mi></msub><mo>∝</mo><msub><mi>I</mi><mi>F</mi></msub><msub><mi>n</mi><mi>m</mi></msub></math></div></div>
+            <div class="kcol" id="kR"><p class="khd">At the close</p><div class="kcard" id="kDv"><math display="block"><mo stretchy="false">|</mo><mi>Δ</mi><mi>V</mi><mo stretchy="false">|</mo><mo>=</mo><mn>2</mn><mi>V</mi><mi>sin</mi><mfrac><mrow><mi>Δ</mi><mi>θ</mi></mrow><mn>2</mn></mfrac></math></div><div class="kcard" id="kI"><math display="block"><mi>I</mi><mo>≈</mo><mfrac><mrow><mo>|</mo><msub><mi mathvariant="bold">V</mi><mi>bus</mi></msub><mo>−</mo><msub><mi mathvariant="bold">V</mi><mi>g</mi></msub><mo>|</mo></mrow><msub><mi>X</mi><mi>S</mi></msub></mfrac></math></div><div class="kcard" id="kQ"><math display="block"><mi>Q</mi><mo>≈</mo><mfrac><mrow><mn>3</mn><msub><mi>V</mi><mi>bus</mi></msub><mo>(</mo><msub><mi>V</mi><mi>g</mi></msub><mo>−</mo><msub><mi>V</mi><mi>bus</mi></msub><mo>)</mo></mrow><msub><mi>X</mi><mi>S</mi></msub></mfrac></math></div><div class="kcard" id="kBl"><math display="block"><mtext>blinks/s</mtext><mo>=</mo><mo stretchy="false">|</mo><msub><mi>f</mi><mi>g</mi></msub><mo>−</mo><msub><mi>f</mi><mi>bus</mi></msub><mo stretchy="false">|</mo></math></div></div></div>
+          <div class="kcol kbot" id="kB"><p class="khd">After the close</p><div class="kcard" id="kP"><math display="block"><mi>P</mi><mo>=</mo><msub><mi>s</mi><mi>P</mi></msub><mo>(</mo><msub><mi>f</mi><mi>nl</mi></msub><mo>−</mo><msub><mi>f</mi><mi>sys</mi></msub><mo>)</mo></math></div></div>
+        </div>
+      </div>
+      <div id="colB">
+        <div class="it" id="itScope">
+          <svg id="scope" viewBox="0 0 220 236" role="img" aria-label="Synchroscope: the pointer shows the phase difference; it turns clockwise when the generator is fast">
+            <circle cx="110" cy="112" r="88" fill="#f7f9fb" stroke="#1a2328" stroke-width="3"/>
+            <path d="M110 26V40" stroke="#18744a" stroke-width="5"/>
+            <text x="110" y="15" text-anchor="middle" font-size="14" font-weight="700" fill="#18744a">IN PHASE</text>
+            <text x="216" y="228" text-anchor="end" font-size="15" font-weight="700">FAST ↻</text><text x="4" y="228" font-size="15" font-weight="700">↺ SLOW</text>
+            <line id="ptr" x1="110" y1="112" x2="110" y2="38" stroke="#1c5fd6" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="110" cy="112" r="8" fill="#1a2328"/>
+          </svg>
+        </div>
+        <div class="it" id="itMeters"><h2>Meters</h2>
+          <table class="meters"><tr><th></th><th>Voltage (line)</th><th>Frequency</th></tr>
+            <tr><td class="bus"><b>Bus</b></td><td class="v bus">13.80 kV</td><td class="v bus">60.00 Hz</td></tr>
+            <tr><td class="gen"><b>G3</b></td><td class="v gen" id="mVg"> 0.00 kV</td><td class="v gen" id="mFg"> 0.00 Hz</td></tr></table>
+        </div>
+        <div class="it" id="itChk"><div class="chead"><h2>Ready to close?</h2><div id="ready"><span id="readyDot"></span><span id="readyTxt">Not ready</span></div></div>
+          <ul id="chk">
+            <li id="c1"><span class="mark">✗</span><span>1 Voltages equal</span><span class="val"></span></li>
+            <li id="c2"><span class="mark">✗</span><span>2 Same sequence</span><span class="val"></span></li>
+            <li id="c3"><span class="mark">✗</span><span>3 Angle near zero</span><span class="val"></span></li>
+            <li id="c4"><span class="mark">✗</span><span>4 f<sub>g</sub> slightly high</span><span class="val"></span></li>
+          </ul>
+        </div>
+        <div class="it" id="itTurn"><div class="chead"><h2>Experiment 6: your turn</h2><button id="turnOff" aria-label="Close the Experiment 6 panel">✕</button></div>
+          <ol class="steps" aria-label="Five steps">
+            <li data-step="1"><span class="mark">○</span><span>1 Run up to speed, field off.</span></li>
+            <li data-step="2"><span class="mark">○</span><span>2 Field: V<sub>g</sub> = V<sub>bus</sub> (condition 1).</span></li>
+            <li data-step="3"><span class="mark">○</span><span>3 Lamps take turns? Swap two leads (condition 2).</span></li>
+            <li data-step="4"><span class="mark">○</span><span>4 f<sub>g</sub> slightly above f<sub>bus</sub> (condition 4).</span></li>
+            <li data-step="5"><span class="mark">○</span><span>5 Close when lamps are dark (condition 3).</span></li></ol>
+          <p class="note turnSum" hidden></p></div>
+        <div class="it" id="itWhy"><h2>Why: phase and lamps</h2>
+          <div class="eq"><math display="block"><mi>Δ</mi><mi>θ</mi><mo>(</mo><mi>t</mi><mo>)</mo><mo>=</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>+</mo><mn>2</mn><mi>π</mi><mo>(</mo><msub><mi>f</mi><mi>g</mi></msub><mo>−</mo><msub><mi>f</mi><mi>bus</mi></msub><mo>)</mo><mi>t</mi><mspace width="0.8em"/><mi>Δ</mi><mi>θ</mi><mo>=</mo><mn class="lv" id="q_dth">0</mn><mo>°</mo></math>
+            <math display="block"><mtext>slip</mtext><mo>=</mo><mn class="lv" id="q_fg">0.00</mn><mo>−</mo><mn>60.00</mn><mo>=</mo><mn class="lv" id="q_slip">0.00</mn><mspace width="0.2em"/><mtext>Hz</mtext><mspace width="0.8em"/><mtext>blinks/s</mtext><mo>=</mo><mn class="lv" id="q_blink">0.00</mn></math></div>
+          <div class="eq"><math display="block"><msub><mi>V</mi><mrow><mi>lamp</mi><mo>,</mo><mi>A</mi></mrow></msub><mo>=</mo><mo>|</mo><msub><mi mathvariant="bold">V</mi><mi>bus</mi></msub><mo>−</mo><msub><mi mathvariant="bold">V</mi><mi>g</mi></msub><mo>|</mo><mo>=</mo><mn class="lv" id="q_vgen">0.00</mn><mspace width="0.2em"/><mtext>kV</mtext></math>
+            <div id="eqSimple"><math display="block"><mn>2</mn><mi>V</mi><mi>sin</mi><mo>(</mo><mfrac><mrow><mi>Δ</mi><mi>θ</mi></mrow><mn>2</mn></mfrac><mo>)</mo><mo>=</mo><mn>2</mn><mo>(</mo><mn>7.97</mn><mo>)</mo><mi>sin</mi><mo>(</mo><mfrac><mrow><mn class="lv" id="q_th2">0</mn><mo>°</mo></mrow><mn>2</mn></mfrac><mo>)</mo><mo>=</mo><mn class="lv" id="q_vl">0.00</mn><mspace width="0.2em"/><mtext>kV</mtext></math></div></div>
+          <p class="note" id="lampNote"></p>
+          <p class="note" id="nextDark"></p>
+        </div>
+      </div>
+    </div>
+    <div id="cap" aria-live="polite"></div>
+    <div id="capMeasure" aria-hidden="true"></div>
+  </div>
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <div class="panel" id="side" aria-label="Controls">
+    <h2 id="sideH">G3 controls</h2>
+    <div class="grp" data-g="day">
+      <div class="crow"><span class="cl">Day</span><button id="dayRun" class="pri">▶ Run a day</button><span></span><span class="ro" id="dayO">02:00</span></div>
+      <div class="ctl"><div class="chead"><label class="cl" for="dayS">Time</label><span class="cbt"><button class="sm" id="dm" aria-label="Back 15 minutes">−</button><button class="sm" id="dp" aria-label="Forward 15 minutes">+</button><span class="ro" id="dayO2">02:00</span></span></div><input type="range" id="dayS" min="0" max="24" step="0.05" value="2"></div>
+    </div>
+    <div class="grp" data-g="gov">
+      <div class="crow"><span class="cl">Speed</span><button id="runUp" class="pri" aria-label="Run up to speed">⏵ Run up</button><button id="stopBtn">Stop</button><span class="ro" id="nO">   0 r/min</span></div>
+      <div class="ctl"><div class="chead"><label class="cl" for="fgS">Governor</label><span class="cbt"><button class="sm" id="fm2" aria-label="Lower 0.01 hertz">−</button><button class="sm" id="fp2" aria-label="Raise 0.01 hertz">+</button><span class="ro" id="fgO"> 0.00 Hz</span></span></div><input type="range" id="fgS" min="59" max="61" step="0.01" value="60"></div>
+      <p class="c1"><b>Governor</b> f<sub>g</sub> <span id="govR"></span></p>
+    </div>
+    <div class="grp" data-g="field">
+      <div class="crow"><span class="cl">Field</span><button id="excite" class="pri" aria-label="Excite field">⚡ Excite</button><button id="fieldOff" aria-label="Field off">Off</button><span class="ro" id="ifO">0.000 A</span></div>
+      <div class="ctl"><div class="chead"><label class="cl" for="vgS">V<sub>g</sub></label><span class="cbt"><button class="sm" id="vm2" aria-label="Lower 0.01 kilovolt">−</button><button class="sm" id="vp2" aria-label="Raise 0.01 kilovolt">+</button><span class="ro" id="vgO"> 0.00 kV</span></span></div><input type="range" id="vgS" min="12.42" max="15.18" step="0.01" value="13.8"></div>
+      <p class="c1"><b>Field</b> V<sub>g</sub> <span id="fieldR"></span> · I<sub>F</sub> <span id="fieldR2"></span></p>
+    </div>
+    <div class="grp" data-g="leads">
+      <div class="crow"><span class="cl">Leads</span><button id="swapBtn">⇄ Swap two leads (b↔c)</button><span></span><span class="ro" id="seqO">ABC</span></div>
+      <p class="c1"><b>Leads</b> <span id="leadsR"></span></p>
+    </div>
+    <div class="grp" data-g="lamps">
+      <div class="crow"><span class="cl">Lamps</span><button id="xbtn" aria-pressed="false">Cross-connected</button><span></span><span class="ro" id="lampO">straight</span></div>
+      <p class="c1"><b>Lamps</b> <span id="lampsR"></span></p>
+    </div>
+    <div class="grp" data-g="view">
+      <div class="crow"><span class="cl">View</span><button id="phBtn" aria-pressed="false">Phasors in place of waveforms</button><span></span><span></span></div>
+    </div>
+    <div id="pin">
+      <div class="btns" role="group" aria-label="Breaker and time"><button id="closeBtn" class="pri">Close</button><button id="openBtn">Open</button><button id="resetBtn" class="danger">↺ Reset</button><button id="pauseBtn" aria-pressed="false">❚❚ Pause</button></div>
+      <div id="callout" role="status" aria-live="polite"></div>
+      <div id="transport">
+        <div class="tr"><button id="play" class="pri grow">▶ Play narration</button><button id="voice" aria-pressed="true">voice on</button></div>
+        <p class="warn voiceMsg" role="status" hidden>The voice could not start in this browser. The narration continues as timed captions.</p>
+        <div class="tr"><button id="prevL" aria-label="Previous line">◀</button><span class="ro" id="lineNo"></span><button id="nextL" aria-label="Next line">▶</button><div class="prog"><span id="bar"></span></div></div>
+        <div class="tr" id="pager"><button id="slPrev" class="grow">◀ Slide</button><span class="ro" id="slPos">1/8</span><button id="slNext" class="grow">Slide ▶</button></div>
+        <p class="fix">Using a control pauses the narration.</p>
+      </div>
+      <div id="labListen" class="tr"><button id="listenBtn" class="grow" data-listen="▶ Listen">▶ Listen</button><span class="ro" id="labNo"></span></div>
+      <p class="warn voiceMsg" id="labVoiceMsg" role="status" hidden>The voice could not start in this browser. The introduction continues as timed captions.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EXPERIMENTS ═══ -->
+<section id="page-exp" aria-label="Experiments" hidden><article class="doc" id="sheet">
+  <h1>Experiments</h1>
+  <p>Six short investigations, about 40 minutes. Each <b>▶ Set up</b> puts the Lab in the right state. Predict before you look. <b>▶ Listen</b> reads the task aloud.</p>
+  <div class="sheetHead"><label>Name<input type="text" data-k="name" autocomplete="name"></label><label>Section<input type="text" data-k="section"></label><label>Date<input type="date" data-k="date"></label></div>
+  <div class="btns"><button id="exportBtn" class="pri">⇩ Export my answers</button><button id="clearBtn">Clear my answers</button></div>
+  <p id="sheetStatus" role="status" aria-live="polite"></p>
+
+  <div class="exp-card"><p class="num">Experiment 1</p><h3>Wrong phase sequence</h3><button class="listen" data-exp="0" data-listen="▶ Listen">▶ Listen</button>
+    <p>Goal: see what the lamps do when two leads are swapped, and fix it.</p>
+    <button class="try" data-try='{"fg":60.2,"vg":13.8,"seq":"ACB","th0":0}'>▶ Set up</button>
+    <ol><li>Predict: will lamps A, B, C blink together or one after another?</li><li>Watch for 10 s. Then press <b>⇄ Swap two leads (b↔c)</b>.</li></ol>
+    <ol class="qs"><li>Prediction, then what you saw with ACB.<textarea data-k="e1q1"></textarea></li>
+      <li>Why are the lamps never all dark at the same time with ACB?<textarea data-k="e1q2"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>With ACB the lamps take turns — the dark lamp moves A → C → B (or the reverse) and never all three go dark together, because phases B and C of the generator sit 120° away from the bus phases they face. Swapping the two leads back makes all three brighten and go dark together.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 2</p><h3>Blink rate and frequency difference</h3><button class="listen" data-exp="1" data-listen="▶ Listen">▶ Listen</button>
+    <p>Goal: show that the blink rate equals |f<sub>g</sub> − f<sub>bus</sub>|.</p>
+    <button class="try" data-try='{"fg":60.5,"vg":13.8,"seq":"ABC","th0":0}'>▶ Set up</button>
+    <ol><li>Count dark moments in 10 s at each frequency; set it with the Governor slider and its − and + buttons.</li></ol>
+    <table class="rec"><tr><th>f<sub>g</sub> (Hz)</th><th>Slip (Hz)</th><th>Blinks in 10 s</th></tr>
+      <tr><td>60.50</td><td>0.50</td><td><input type="text" data-k="e2a" aria-label="Blinks at 0.50 hertz slip"></td></tr>
+      <tr><td>60.20</td><td>0.20</td><td><input type="text" data-k="e2b" aria-label="Blinks at 0.20 hertz slip"></td></tr>
+      <tr><td>60.05</td><td>0.05</td><td><input type="text" data-k="e2c" aria-label="Blinks at 0.05 hertz slip"></td></tr></table>
+    <ol class="qs"><li>Predict first: how many blinks in 10 s at 0.20 Hz? Then explain the pattern. What do the two waves in the waveform panel do?<textarea data-k="e2q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>5, 2 and 0.5 blinks in 10 s: blinks per second = |f<sub>g</sub> − f<sub>bus</sub>|. In the waveform panel the generator wave slides past the bus wave once for every blink. The phase difference does not set the rate; it sets how bright the lamps are at each instant.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 3</p><h3>Close at the wrong moment</h3><button class="listen" data-exp="2" data-listen="▶ Listen">▶ Listen</button>
+    <p>Goal: compare the surge for a close at Δθ = 90°, 180° and ≈ 0°.</p>
+    <button class="try" data-try='{"fg":60,"vg":13.8,"seq":"ABC","th0":90,"pause":true}'>▶ Set up 90°</button>
+    <div class="btns"><button class="try" data-try='{"fg":60,"vg":13.8,"seq":"ABC","th0":180,"pause":true}'>▶ Set up 180°</button><button class="try" data-try='{"fg":60,"vg":13.8,"seq":"ABC","th0":5,"pause":true}'>▶ Set up 5°</button></div>
+    <ol><li>Time is paused at the set angle. Press <b>Close</b> and read the surge meter. Then <b>↺ Reset</b> and use the next set-up.</li></ol>
+    <table class="rec"><tr><th>Δθ</th><th>Surge (A)</th><th>Surge (× rated)</th></tr>
+      <tr><td>90°</td><td><input type="text" data-k="e3a" aria-label="Surge at 90 degrees"></td><td><input type="text" data-k="e3a2" aria-label="Surge per unit at 90 degrees"></td></tr>
+      <tr><td>180°</td><td><input type="text" data-k="e3b" aria-label="Surge at 180 degrees"></td><td><input type="text" data-k="e3b2" aria-label="Surge per unit at 180 degrees"></td></tr>
+      <tr><td>5°</td><td><input type="text" data-k="e3c" aria-label="Surge at 5 degrees"></td><td><input type="text" data-k="e3c2" aria-label="Surge per unit at 5 degrees"></td></tr></table>
+    <ol class="qs"><li>Predict first: which angle gives the largest surge? Check with |ΔV| = 2V sin(Δθ/2).<textarea data-k="e3q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>90°: |ΔV| = 11.27 kV, surge ≈ 1479 A (1.41 × rated) — the breaker closes, then trips. 180°: 15.93 kV, ≈ 2092 A (2.00 × rated) — trip. 5°: 0.70 kV, ≈ 91 A (0.09 × rated) — stays closed, IN STEP; equal frequencies here, so P ≈ 0.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 4</p><h3>Unequal voltages</h3><button class="listen" data-exp="3" data-listen="▶ Listen">▶ Listen</button>
+    <p>Goal: see why the lamps never go fully dark when V<sub>g</sub> ≠ V<sub>bus</sub>, then close anyway.</p>
+    <button class="try" data-try='{"fg":60.05,"iF":3,"seq":"ABC","th0":0}'>▶ Set up</button>
+    <ol><li>The set-up puts the field low on purpose (V<sub>g</sub> = 8.29 kV). Watch the lamps at their darkest; read lamp A's voltage then.</li><li>Close when the lamps are darkest. Read the surge.</li></ol>
+    <ol class="qs"><li>Why do the lamps never go fully dark?<textarea data-k="e4q1"></textarea></li>
+      <li>What surge did you get, and which condition was missing?<textarea data-k="e4q2"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>At Δθ = 0 the lamp still reads |V<sub>bus</sub> − V<sub>g</sub>| = 7.97 − 4.78 = 3.18 kV per phase, so the lamps stay dimly lit. Closing at Δθ ≈ 0 gives about 418 A (0.40 × rated): it joins with a jolt (amber tag). Condition 1, equal voltages, was missing.</p></details></div>
+
+  <div class="exp-card"><p class="num">Experiment 5</p><h3>Close with the generator slow</h3><button class="listen" data-exp="4" data-listen="▶ Listen">▶ Listen</button>
+    <p>Goal: find which way power flows after closing with f<sub>g</sub> below the bus.</p>
+    <button class="try" data-try='{"fg":59.9,"vg":13.8,"seq":"ABC","th0":30}'>▶ Set up</button>
+    <ol><li>Watch the synchroscope direction. Close when the lamps are dark.</li></ol>
+    <ol class="qs"><li>Predict first: generating or motoring? Then read P after the close.<textarea data-k="e5q1"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>The pointer turns counter-clockwise (SLOW). After the close the machine is pulled up to 60.00 Hz and runs as a motor: P = 10.4 × (59.90 − 60.00) ≈ −1.0 MW. That is why condition 4 asks for f<sub>g</sub> slightly above the bus.</p></details></div>
+  <div class="exp-card"><p class="num">Experiment 6</p><h3>Your turn: bring G3 onto the bus</h3><button class="listen" data-exp="5" data-listen="▶ Listen">▶ Listen</button>
+    <p>Goal: G3 is at rest with its breaker open, and two of its leads have been swapped. Find and fix the wrong sequence, meet all four conditions, and close on dark lamps.</p>
+    <button class="try" data-try='{"fg":0,"iF":0,"seq":"ACB","th0":0,"turn":true}'>▶ Set up</button>
+    <ol><li>Run up, excite the field and raise V<sub>g</sub> to 13.80 kV. Fix the sequence if the lamps take turns. Set f<sub>g</sub> slightly above 60 Hz, then close when the lamps are dark.</li><li>The Lab shows the five steps; each ticks as you meet it (they tick here too).</li></ol>
+    <ol class="steps" aria-label="Five steps (live)">
+      <li data-step="1"><span class="mark">○</span><span>1 Run up to speed, field off.</span></li>
+      <li data-step="2"><span class="mark">○</span><span>2 Field: V<sub>g</sub> = V<sub>bus</sub> (condition 1).</span></li>
+      <li data-step="3"><span class="mark">○</span><span>3 Lamps take turns? Swap two leads (condition 2).</span></li>
+      <li data-step="4"><span class="mark">○</span><span>4 f<sub>g</sub> slightly above f<sub>bus</sub> (condition 4).</span></li>
+      <li data-step="5"><span class="mark">○</span><span>5 Close when lamps are dark (condition 3).</span></li></ol>
+    <ol class="qs"><li>Predict first: how will you know, before you close, that the sequence is wrong?<textarea data-k="e6q1"></textarea></li>
+      <li>After your clean close: what surge did you get, what P does G3 carry, and how would you make it carry more?<textarea data-k="e6q2"></textarea></li></ol>
+    <details><summary>What you should see</summary><p>With two leads swapped the lamps take turns: the dark lamp moves from one to the next and all three are never dark together, and the Ready-to-close checklist shows the sequence ✗. Swap two leads and they blink together. A close with the lamps dark, V<sub>g</sub> = 13.80 kV and f<sub>g</sub> slightly high is clean: the surge is about 0 A (IN STEP) and all five steps are ✓. G3 then carries P = 10.4 × (f<sub>g</sub> − 60.00) MW, for example +0.5 MW at 60.05 Hz; raise the governor setting for more.</p></details></div>
+</article></section>
+
+<script>__JS__</script>
+</body>
+</html>
